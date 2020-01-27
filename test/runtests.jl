@@ -1,6 +1,9 @@
-using STLCutter
+module STLCutterTests
+
 using Test
 
-@testset "STLCutter.jl" begin
-    # Write your own tests here.
-end
+@testset "Points" begin include("PointsTests.jl") end
+
+@testset "ConformingSTLs" begin include("ConformingSTLsTests.jl") end
+
+end # module

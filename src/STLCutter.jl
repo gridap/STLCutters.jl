@@ -1,5 +1,9 @@
 module STLCutter
 
-greet() = print("Hello World!")
+export Point
+
+include("Points.jl")
+
+include("ConformingSTLs.jl")
 
 end # module
