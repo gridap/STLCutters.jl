@@ -1,6 +1,7 @@
 module STLCutter
 
 export Point
+export STLMesh
 export ConformingSTL
 export table_cache
 export getlist
