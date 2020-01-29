@@ -52,3 +52,9 @@ function getlist!(::Nothing,a::TableOfVectors,i::Integer)
 end
 
 Base.length(a::TableOfVectors) = length(a._vectors)
+
+pushlist!(a::TableOfVectors{T},list::Vector{T}) where{T} = push!(a._vectors,list)
+
+push_to_list!(a::TableOfVectors{T},i::Int,value::T) where{T} = push!(a._vectors[i],value)
+
+set_to_list!(a::TableOfVectors{T},i::Int,j::Int,value::T) where {T} = a._vectors[i][j]=value
