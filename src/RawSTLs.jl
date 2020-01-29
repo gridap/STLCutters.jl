@@ -1,5 +1,5 @@
 
-import MeshIO: decompose, Face, Point3, Normal, GeometryTypes
+import MeshIO
 
 struct RawSTL{D,T}
   vertex_coordinates::Vector{Point{D,T}}
@@ -9,11 +9,20 @@ end
 
 function RawSTL(filename::String)
   stl = load(filename)
-  vertex_coordinates = Vector{Point{3,Float64}}( decompose(Point3{ Float32}, stl ) )
-  facet_to_vertices  = TableOfVectors{Int}(decompose(Face{3,Int32},stl.faces))
-  facet_normals      = Vector{Point{3,Float64}}( decompose(Normal{3, Float64}, stl) )
+  ndims = num_dims(stl.vertices)
+  nvxf  = num_vertices_per_facet(stl.faces)
+  @assert num_dims(stl.vertices) == num_dims(stl.normals)
+  vertex_coordinates = Vector{Point{ndims,Float64}}( MeshIO.decompose(MeshIO.Point{ndims,Float64}, stl ) )
+  facet_to_vertices  = TableOfVectors{Int}(MeshIO.decompose(MeshIO.Face{nvxf,Int},stl.faces))
+  facet_normals      = Vector{Point{ndims,Float64}}( MeshIO.decompose(MeshIO.Normal{ndims, Float64}, stl) )
   RawSTL( vertex_coordinates, facet_to_vertices, facet_normals )
 end
+
+num_dims(::Array{MeshIO.Point{D,T}}) where {D,T} = D
+
+num_dims(::Array{MeshIO.Normal{D,T}}) where {D,T} = D
+
+num_vertices_per_facet(::Array{MeshIO.Face{D,T}}) where{D,T} = D
 
 function num_vertices( stl::RawSTL )
   length(stl.vertex_coordinates)
@@ -27,9 +36,9 @@ function num_dims( stl::RawSTL )
   length(stl.vertex_coordinates[1])
 end
 
-Base.convert( ::Type{Point{D,T}}, x::GeometryTypes.Point{D} )  where {D,T} = Point{D,T}(x.data)
-Base.convert( ::Type{Point{D,T}}, x::Normal{D} )  where {D,T} = Point{D,T}(x.data)
-Base.convert( ::Type{Vector}, x::Face ) = collect(x.data)
+Base.convert( ::Type{Point{D,T}}, x::MeshIO.Point{D} )  where {D,T} = Point{D,T}(x.data)
+Base.convert( ::Type{Point{D,T}}, x::MeshIO.Normal{D} )  where {D,T} = Point{D,T}(x.data)
+Base.convert( ::Type{Vector}, x::MeshIO.Face ) = collect(x.data)
 
 const STL_tolerance = 1e-8
 function map_repeated_vertices(stl::RawSTL)

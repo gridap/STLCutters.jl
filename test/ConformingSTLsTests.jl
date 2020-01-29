@@ -15,6 +15,6 @@ stl = ConformingSTL(vertex_coordinates, d_face_to_vertices, facet_normals, d_fac
 @test stl.facet_normals == facet_normals
 @test stl.d_face_to_facets == d_face_to_facets
 
-ConformingSTL("data/cube.stl")
+ConformingSTL(joinpath(@__DIR__,"data/cube.stl"))
 
 end # module
