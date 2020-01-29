@@ -7,7 +7,7 @@ struct ConformingSTL{D,T}
 end
 
 function ConformingSTL(filename::String)
-  stl = RawSTL("test/data/cube.stl")
+  stl = RawSTL(filename)
   vertices_map = map_repeated_vertices(stl)
   vertex_coordinates = extract_unique_vertices(stl, vertices_map)
   vertices_map = compact_map(vertices_map)
