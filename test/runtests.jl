@@ -10,4 +10,6 @@ using Test
 
 @testset "ConformingSTLs" begin include("ConformingSTLsTests.jl") end
 
+@testset "GeometriesTests" begin include("GeometriesTests.jl") end
+
 end # module
