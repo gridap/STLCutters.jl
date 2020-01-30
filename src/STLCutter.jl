@@ -1,6 +1,12 @@
 module STLCutter
 
 using FileIO
+import LinearAlgebra
+
+export num_components
+export component_type
+export mutable
+export VectorValue
 
 export Point
 export RawSTL
@@ -14,6 +20,10 @@ export getlist
 export getlist!
 export TableOfVectors
 export AbstractTable
+
+include("MutableVectorValues.jl")
+
+include("VectorValues.jl")
 
 include("Points.jl")
 

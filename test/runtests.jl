@@ -2,6 +2,10 @@ module STLCutterTests
 
 using Test
 
+@testset "MutableVectorValues" begin include("MutableVectorValuesTests.jl") end
+
+@testset "VectorValues" begin include("VectorValuesTests.jl") end
+
 @testset "Points" begin include("PointsTests.jl") end
 
 @testset "TablesTests" begin include("TablesTests.jl") end
