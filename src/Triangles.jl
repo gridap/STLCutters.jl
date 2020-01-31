@@ -39,11 +39,6 @@ function distance(p::Point{D},t::Triangle{D}) where D
   if D != 3
     throw(DimensionMismatch("distance Point{D} to Triangle{D} only valid for 3 dimensions"))
   end
-  o = center(t)
-  n = normal(t)
-  n = n / norm(n)
-  o_p = p - o
-  p_projection = o_p ⋅ n
   if have_intersection(p,t)
     d = typemax(Float64)
     for i in 1:num_edges_per_triangle
@@ -54,6 +49,11 @@ function distance(p::Point{D},t::Triangle{D}) where D
       end
     end
   else
+    o = center(t)
+    n = normal(t)
+    n = n / norm(n)
+    o_p = p - o
+    p_projection = o_p ⋅ n
     d = abs( p_projection )
   end
   d
@@ -81,3 +81,34 @@ function have_intersection(p::Point{D},t::Triangle{D}) where D
 end
 
 @inline have_intersection(t::Triangle,p::Point) = have_intersection(p,t)
+
+function have_intersection(s::Segment{D},t::Triangle{D}) where D
+  n = normal(t)
+  c = center(t)
+  s1_s2 = s[2] - s[1]
+  s1_c = c - s[1]
+  α = ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
+  if α < 0 || α > 1
+    false
+  else
+    x = s[1] + s1_s2 * α
+    have_intersection(x,t)
+  end
+end
+
+@inline have_intersection(t::Triangle,s::Segment) = have_intersection(s,t)
+
+# TODO:
+#   move geometries to a folder
+#   Point as a type
+#   distance(s::Segment{D,s::Segment{D})
+#   new_types:
+#          (?) Line{D} v
+#          (?) Plane{D} p,n
+#              BoundingBox{D} max,min
+#              HexaCell bb
+#              Tetahedron p[4]
+#   have_intersection bb::BoundingBox
+#                         * p::Point
+#                         * s::Segment
+#                         * t::Triangle

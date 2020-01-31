@@ -27,7 +27,6 @@ e = get_edge(t,1)
 @test isa(e,Segment{3})
 @test e.p == Segment(p1,p2).p
 
-
 p = Point(0.5,0.5,1.0)
 @test distance(p,t) ==  distance(t,p) == 1
 
@@ -39,10 +38,24 @@ t = Triangle(p1,p2,p3)
 c = center(t)
 @test c.data == (1.0,1.0,0.0)
 
-have_intersection(p1,t)
+@test have_intersection(p1,t)
 @test have_intersection(t,p1)
 @test have_intersection(t,p2)
 @test have_intersection(t,p3)
 @test have_intersection(t,p)
+
+s1 = Point(0.5,0.5,1.0)
+s2 = Point(0.5,0.5,-1.0)
+
+s = Segment(s1,s2)
+
+p1 = Point(0,0,0)
+p2 = Point(3,0,0)
+p3 = Point(0,3,0)
+
+t = Triangle(p1,p2,p3)
+
+@test have_intersection(s,t)
+@test have_intersection(t,s)
 
 end # module
