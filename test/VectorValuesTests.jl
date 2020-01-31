@@ -68,6 +68,12 @@ v = VectorValue{0,Float64}()
 
 # Operations
 
+u = VectorValue(1,1,1)
+v = VectorValue(1,2,3)
+
+@test u == u
+@test u != v
+
 v = VectorValue(1,2)
 u = VectorValue(1.0,3.0)
 

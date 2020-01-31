@@ -81,6 +81,8 @@ component_type(::Type{VectorValue{D,T}}) where {D,T} = T
 
 @inline Base.getindex(a::VectorValue,i::Integer) = a.data[i]
 
+@inline Base.isequal(a::VectorValue{D},b::VectorValue{D}) where D = ( a.data == b.data )
+
 @generated function Base.:+(a::VectorValue{D},b::VectorValue{D}) where D
   data = join(["a.data[$i] + b.data[$i]," for i in 1:D])
   str = "VectorValue(($data))"
