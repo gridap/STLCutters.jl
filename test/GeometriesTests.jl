@@ -31,9 +31,6 @@ function Triangle(p1::Point,p2::Point,p3::Point)
   Triangle((p1,p2,p3))
 end
 
-function Triangle(x::Vector{Point{D}}) where D
-  Triangle(x...)
-end
 
 @inline Base.getindex(t::Triangle,i::Integer) = t.p[i]
 
