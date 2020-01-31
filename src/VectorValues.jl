@@ -28,6 +28,15 @@ function VectorValue{D,T}(m::MutableVectorValue{D}) where {D,T}
   convert(VectorValue{D,T},m)
 end
 
+function Base.show(io::IO,p::VectorValue)
+  print(io,p.data)
+end
+
+function Base.show(io::IO,::MIME"text/plain",p::VectorValue)
+  print(io,typeof(p))
+  print(io,p.data)
+end
+
 @generated function Base.zero(::Type{VectorValue{D,T}}) where {D,T}
   data = join(["zero(T), " for i in 1:D])
   str = "VectorValue{D,T}($data)"
@@ -70,7 +79,7 @@ component_type(::VectorValue{D,T}) where {D,T} = T
 
 component_type(::Type{VectorValue{D,T}}) where {D,T} = T
 
-Base.getindex(a::VectorValue,i::Integer) = a.data[i]
+@inline Base.getindex(a::VectorValue,i::Integer) = a.data[i]
 
 @generated function Base.:+(a::VectorValue{D},b::VectorValue{D}) where D
   data = join(["a.data[$i] + b.data[$i]," for i in 1:D])
@@ -89,10 +98,34 @@ end
   Meta.parse(data)
 end
 
+@generated function Base.:*(v::VectorValue{D},a::Number) where D
+  data = join(["v.data[$i] * a," for i in 1:D])
+  str = "VectorValue(($data))"
+  Meta.parse(str)
+end
+
+@inline Base.:*(a::Number,v::VectorValue) = v * a
+
+@generated function Base.:/(v::VectorValue{D},a::Number) where D
+  data = join(["v.data[$i] / a ," for i in 1:D])
+  str = "VectorValue($data)"
+  Meta.parse(str)
+end
+
 @inline function LinearAlgebra.dot(a::VectorValue{D},b::VectorValue{D}) where D
   a*b
 end
 
 @inline function LinearAlgebra.norm(v::VectorValue)
   √( v ⋅ v )
+end
+
+@inline function LinearAlgebra.cross(a::VectorValue,b::VectorValue)
+  if !( num_components(a) == num_components(b) == 3)
+        throw(DimensionMismatch("cross product only supports VectorValues of 3 components"))
+    end
+  data = (  (a[2]*b[3] - a[3]*b[2]),
+            (a[3]*b[1] - a[1]*b[3]),
+            (a[1]*b[2] - a[2]*b[1]))
+  VectorValue(data)
 end

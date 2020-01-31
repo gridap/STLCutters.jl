@@ -8,6 +8,8 @@ using Test
 
 @testset "Points" begin include("PointsTests.jl") end
 
+@testset "SegmentsTests" begin include("SegmentsTests.jl") end
+
 @testset "TablesTests" begin include("TablesTests.jl") end
 
 @testset "RawSTLs" begin include("RawSTLsTests.jl") end

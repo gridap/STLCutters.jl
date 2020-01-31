@@ -3,12 +3,14 @@ module GeometriesTests
 using Test
 using STLCutter
 
+const num_points_per_segment = 2
 struct Segment{D}
-  p::NTuple{2,Point{D}}
+  p::NTuple{num_points_per_segment,Point{D}}
 end
 
+const num_points_per_triangle = 3
 struct Triangle{D}
-  p::NTuple{3,Point{D}}
+  p::NTuple{num_points_per_triangle,Point{D}}
 end
 
 struct BoundingBox{D}
@@ -24,9 +26,6 @@ function Segment(p1::Point,p2::Point)
   Segment((p1,p2))
 end
 
-@inline Base.getindex(s::Segment,i::Integer) = s.p[i]
-
-@inline get_vertices(s::Segment) = s.p
 
 function Triangle(p1::Point,p2::Point,p3::Point)
   Triangle((p1,p2,p3))

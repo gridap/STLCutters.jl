@@ -45,8 +45,26 @@ v = zero(v)
 @test isa(v,VectorValue{0,Int})
 @test v.data == ()
 
-# TODO test num_components, component_type, getindex
+data = (1,3)
+v = VectorValue( data )
+@test string(v) == "(1, 3)"
+@test v[2] == 3
 
+data = (1,2,3)
+v = VectorValue(data)
+@test v[1] == 1
+@test num_components(v) == 3
+@test component_type(v) == Int
+
+data = ()
+v = VectorValue{0,Int}()
+@test num_components(v) == 0
+@test component_type(v) == Int
+
+data = ()
+v = VectorValue{0,Float64}()
+@test num_components(v) == 0
+@test component_type(v) == Float64
 
 # Operations
 
@@ -68,37 +86,33 @@ w = dot(v,u)
 w = v ⋅ u
 @test w == 7.0
 
+v = VectorValue(1,2,3)
 
+u = v * 1
+@test u.data == v.data
 
-function Base.show(io::IO,p::VectorValue)
-  print(io,p.data)
-end
+u = v * 2
+@test u.data == (2,4,6)
 
-function Base.show(io::IO,::MIME"text/plain",p::VectorValue)
-  print(io,typeof(p))
-  print(io,p.data)
-end
+u = 2 * v
+@test u.data == (2,4,6)
 
-data = (1,3)
-p = VectorValue( data )
-@test string(p) == "(1, 3)"
-
-data = (1,2,3)
-v = VectorValue(data)
-@test num_components(v) == 3
-@test component_type(v) == Int
-
-data = ()
-v = VectorValue{0,Int}()
-@test num_components(v) == 0
-@test component_type(v) == Int
-
-data = ()
-v = VectorValue{0,Float64}()
-@test num_components(v) == 0
-@test component_type(v) == Float64
+u = v / 2
+@test u.data == (0.5,1.0,1.5)
 
 v = VectorValue(1,2,2)
 @test norm(v) == 3
+
+v = VectorValue(1,2,3)
+u = VectorValue(1,1,1)
+
+w = cross(v,v)
+@test w.data == (0,0,0)
+
+w = v × v
+@test w.data == (0,0,0)
+
+w = u × v
+@test w.data == (1,-2,1)
 
 end # module
