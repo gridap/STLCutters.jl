@@ -16,6 +16,10 @@ end
 
 num_dims(::Segment{D}) where D = D
 
+function center(s::Segment)
+  average(s.p)
+end
+
 function distance(p::Point{D},s::Segment{D}) where D
   v = s[2] - s[1]
   l = norm(v)

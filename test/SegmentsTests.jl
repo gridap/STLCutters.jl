@@ -16,6 +16,8 @@ s = Segment((p1,p2))
 
 @test length(s) == sqrt(3)
 
+c = center(s)
+@test c.data == (1.5,1.5,1.5)
 
 @test distance(p1,s) == 0
 

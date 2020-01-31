@@ -11,13 +11,18 @@ export VectorValue
 
 export Point
 export Segment
+export Triangle
 export RawSTL
 export ConformingSTL
+
+export average
 export num_vertices
 export num_facets
 export num_dims
 export norm
 export distance
+export normal
+export center
 export have_intersection
 export table_cache
 export getlist
@@ -32,6 +37,8 @@ include("VectorValues.jl")
 include("Points.jl")
 
 include("Segments.jl")
+
+include("Triangles.jl")
 
 include("Tables.jl")
 

@@ -10,12 +10,14 @@ using Test
 
 @testset "SegmentsTests" begin include("SegmentsTests.jl") end
 
+@testset "TrianglesTests" begin include("TrianglesTests.jl") end
+
 @testset "TablesTests" begin include("TablesTests.jl") end
 
 @testset "RawSTLs" begin include("RawSTLsTests.jl") end
 
 @testset "ConformingSTLs" begin include("ConformingSTLsTests.jl") end
 
-@testset "GeometriesTests" begin include("GeometriesTests.jl") end
+#@testset "GeometriesTests" begin include("GeometriesTests.jl") end
 
 end # module

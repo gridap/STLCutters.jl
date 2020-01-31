@@ -124,8 +124,8 @@ end
 
 @inline function LinearAlgebra.cross(a::VectorValue,b::VectorValue)
   if !( num_components(a) == num_components(b) == 3)
-        throw(DimensionMismatch("cross product only supports VectorValues of 3 components"))
-    end
+    throw(DimensionMismatch("cross product only supports VectorValues of 3 components"))
+  end
   data = (  (a[2]*b[3] - a[3]*b[2]),
             (a[3]*b[1] - a[1]*b[3]),
             (a[1]*b[2] - a[2]*b[1]))

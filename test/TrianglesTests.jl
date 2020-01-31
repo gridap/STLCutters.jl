@@ -2,30 +2,7 @@ module TrianglesTests
 
 using Test
 using STLCutter
-import STLCutter: num_dims, ×
-
-const num_points_per_triangle = 3
-struct Triangle{D}
-  p::NTuple{num_points_per_triangle,Point{D}}
-end
-
-function Triangle(p1::Point,p2::Point,p3::Point)
-  Triangle((p1,p2,p3))
-end
-
-@inline Base.getindex(t::Triangle,i::Integer) = t.p[i]
-
-@inline get_vertices(t::Triangle) = t.p
-
-num_dims(::Triangle{D}) where D = D
-
-@inline function normal(t::Triangle{D}) where D
-  v1 = t[2] - t[1]
-  v2 = t[3] - t[1]
-  v1 × v2
-end
-
-function distance(p::Point{D},t::Triangle) 
+import STLCutter: num_dims, get_edge
 
 p1 = Point(0,0,0)
 p2 = Point(1,0,0)
@@ -42,13 +19,30 @@ t = Triangle((p1,p2,p3))
 n = normal(t)
 @test n.data == (0,0,1)
 
+s=t[(2,3)]
+@test isa(s,Segment{3})
+@test s.p == Segment(p2,p3).p
 
-# const ledge_to_triangle_point = ((1,2),(1,3),(2,3))
+e = get_edge(t,1)
+@test isa(e,Segment{3})
+@test e.p == Segment(p1,p2).p
 
-# t.p[ledge_to_triangle_point]
-# function get_edges(t::Triangle)
-#   Segment.(t.p[ledge_to_triangle_point])
-# end
 
+p = Point(0.5,0.5,1.0)
+@test distance(p,t) ==  distance(t,p) == 1
+
+p1 = Point(0,0,0)
+p2 = Point(3,0,0)
+p3 = Point(0,3,0)
+
+t = Triangle(p1,p2,p3)
+c = center(t)
+@test c.data == (1.0,1.0,0.0)
+
+have_intersection(p1,t)
+@test have_intersection(t,p1)
+@test have_intersection(t,p2)
+@test have_intersection(t,p3)
+@test have_intersection(t,p)
 
 end # module
