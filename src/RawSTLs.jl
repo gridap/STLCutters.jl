@@ -32,9 +32,7 @@ function num_facets( stl::RawSTL )
   length(stl.facet_to_vertices)
 end
 
-function num_dims( stl::RawSTL )
-  length(stl.vertex_coordinates[1])
-end
+num_dims( stl::RawSTL{D} ) where D = D
 
 Base.convert( ::Type{Point{D,T}}, x::MeshIO.Point{D} )  where {D,T} = Point{D,T}(x.data)
 Base.convert( ::Type{Point{D,T}}, x::MeshIO.Normal{D} )  where {D,T} = Point{D,T}(x.data)

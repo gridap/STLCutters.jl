@@ -93,3 +93,6 @@ end
   a*b
 end
 
+@inline function LinearAlgebra.norm(v::VectorValue)
+  √( v ⋅ v )
+end

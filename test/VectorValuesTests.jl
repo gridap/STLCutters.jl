@@ -68,4 +68,37 @@ w = dot(v,u)
 w = v ⋅ u
 @test w == 7.0
 
+
+
+function Base.show(io::IO,p::VectorValue)
+  print(io,p.data)
+end
+
+function Base.show(io::IO,::MIME"text/plain",p::VectorValue)
+  print(io,typeof(p))
+  print(io,p.data)
+end
+
+data = (1,3)
+p = VectorValue( data )
+@test string(p) == "(1, 3)"
+
+data = (1,2,3)
+v = VectorValue(data)
+@test num_components(v) == 3
+@test component_type(v) == Int
+
+data = ()
+v = VectorValue{0,Int}()
+@test num_components(v) == 0
+@test component_type(v) == Int
+
+data = ()
+v = VectorValue{0,Float64}()
+@test num_components(v) == 0
+@test component_type(v) == Float64
+
+v = VectorValue(1,2,2)
+@test norm(v) == 3
+
 end # module

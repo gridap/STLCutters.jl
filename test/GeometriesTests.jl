@@ -128,9 +128,8 @@ function do_intersect(s::Segment{D},bb::BoundingBox{D}) where D
 end
 
 do_intersect(s::Segment,h::HexaCell) where{D} = do_intersect(s,h.bb)
-import Base.intersect
 
-function Base.intersect(t::Triangle{D},bb::BoundingBox{D}) where {D}
+function do_intersect(t::Triangle{D},bb::BoundingBox{D}) where {D}
   for p ∈ get_vertices(t)
     if do_intersect(t.p[1],bb)
       return true
@@ -142,7 +141,29 @@ function Base.intersect(t::Triangle{D},bb::BoundingBox{D}) where {D}
     end
   end
   n = get_normal(t)
-  false
+  p0 = collect(t[1].data)
+  n_scal = n .* ( bb.pmax - bb.pmin )
+  n_scal = n_scal / norm(n_scal)
+  main_dir = findfirst( x->x == maximum(n_scal), n_scal )
+  main_length = bb.pmax[main_dir] - bb.pmin[main_dir]
+  main_x = zeros(D)
+  main_x[main_dir] = 1
+
+  d = zeros(2)
+  p = [ collect(bb.pmin.data), collect(bb.pmax.data) ]
+
+  for i in 1:length(d)
+   d = ( ( n ⋅ p0 ) - ( n ⋅ p[i] ) ) / n[main_dir]
+  end
+
+  if d[1] < 0 || d[1] > 0
+    return false
+  else
+    @assert any( abs.(d) .≤ main_length )
+    i = findfirst( x->x ≤ main_length, abs.(d) )
+    intersection = p[i] + main_x * d[i]
+  end
+
 end
 
 function positivize_normal(bb::BoundingBox{D},t::Triangle{D}) where {D}
@@ -186,32 +207,10 @@ t_pos=positivize_normal(bb,t)
 @test any( get_normal(t) .< 0 )
 @test get_normal(t_pos) == abs.(get_normal(t))
 
-n = get_normal(t)
-p0 = collect(t[1].data)
-D=3 #Dim
 
-n_scal = n .* ( bb.pmax - bb.pmin )
-n_scal = n_scal / norm(n_scal)
-main_dir = findfirst( x->x == maximum(n_scal), n_scal )
-main_length = bb.pmax[main_dir] - bb.pmin[main_dir]
-main_x = zeros(D)
-main_x[main_dir] = 1
+#do_intersect(p::Point{D},t::Triangle{D}) where {D}
 
-d = zeros(2)
-p = []
-push!(p,collect(bb.pmin.data))
-push!(p,collect(bb.pmax.data))
 
-for i in 1:2
- d = ( ( n ⋅ p0 ) - ( n ⋅ p[i] ) ) / n[main_dir]
-end
 
-if d[1] < 0 || d[1] > 0
-#  return false
-else
-  @assert any( abs.(d) .≤ main_length )
-  i = findfirst( x->x ≤ main_length, abs.(d) )
-  intersection = p[i] + main_x * d[i]
-end
 
 end # module
