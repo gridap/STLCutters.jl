@@ -7,8 +7,14 @@ using STLCutter: MutableVectorValue
 data = (1,2,3)
 m = MutableVectorValue(data)
 
+@test num_components(m) == 3
+@test num_components(typeof(m)) == 3
+@test component_type(m) == Int
+@test component_type(m) == Int
+
 m[2] = -1.0
 @test m.data == (1,-1,3)
+@test m[2] == -1
 
 m = mutable(VectorValue{2,Int})
 @test isa(m,MutableVectorValue{2,Int})
