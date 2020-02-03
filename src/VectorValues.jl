@@ -131,3 +131,33 @@ end
             (a[1]*b[2] - a[2]*b[1]))
   VectorValue(data)
 end
+
+@generated function Base.abs(v::VectorValue{D}) where D
+  data = join(["abs(v.data[$i])," for i in 1:D])
+  str = "VectorValue(($data))"
+  Meta.parse(str)
+end
+
+@generated function scal(a::VectorValue{D},b::VectorValue{D}) where D
+  data = join(["a.data[$i] * b.data[$i]," for i in 1:D])
+  str = "VectorValue(($data))"
+  Meta.parse(str)
+end
+
+function max_dimension(v::VectorValue{D,T}) where {D,T}
+  max_value = typemin(T)
+  max_d = 0
+  for d = 1:D
+    if v[d] > max_value
+      max_value = v[d]
+      max_d = d
+    end
+  end
+  max_d
+end
+
+@generated function cartesian_axis(::VectorValue{D,T},d::Integer) where {D,T}
+  data = join(["convert(Int,1.0) * ( $i == 3 )," for i in 1:D])
+  str = "VectorValue(($data))"
+  Meta.parse(str)
+end

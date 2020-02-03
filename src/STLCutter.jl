@@ -12,6 +12,7 @@ export VectorValue
 export Point
 export Segment
 export Triangle
+export HexaCell
 export RawSTL
 export ConformingSTL
 
@@ -39,6 +40,8 @@ include("Points.jl")
 include("Segments.jl")
 
 include("Triangles.jl")
+
+include("HexaCells.jl")
 
 include("Tables.jl")
 

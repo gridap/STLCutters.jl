@@ -26,4 +26,10 @@ Base.@propagate_inbounds function Base.setindex!(v::MutableVectorValue, val, i::
   return val
 end
 
+@generated function Base.zero(::Type{MutableVectorValue{D,T}}) where {D,T}
+  data = join(["zero(T), " for i in 1:D])
+  str = "MutableVectorValue{D,T}(($data))"
+  Meta.parse(str)
+end
 
+Base.zero(v::T) where T<:MutableVectorValue = zero(T)

@@ -3,6 +3,7 @@ module VectorValuesTests
 using STLCutter
 using Test
 using LinearAlgebra
+import STLCutter: scal, max_dimension, cartesian_axis
 
 data = (1,2,3)
 v = VectorValue(data)
@@ -120,5 +121,17 @@ w = v × v
 
 w = u × v
 @test w.data == (1,-2,1)
+
+a = VectorValue(1,2,3)
+b = VectorValue(4,5,6)
+
+c = scal(a,b)
+@test c.data == (4,10,18)
+
+v = VectorValue(0,1,1)
+@test max_dimension(v) == 2
+
+x = cartesian_axis(v,3)
+@test x.data == (0,0,1)
 
 end # module

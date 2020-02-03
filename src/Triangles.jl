@@ -108,7 +108,3 @@ end
 #              BoundingBox{D} max,min
 #              HexaCell bb
 #              Tetahedron p[4]
-#   have_intersection bb::BoundingBox
-#                         * p::Point
-#                         * s::Segment
-#                         * t::Triangle
