@@ -90,3 +90,36 @@ function distance(s1::Segment{D},s2::Segment{D}) where D
 
   abs( ( c2 - c1 ) ⋅ n )
 end
+
+function normal(s::Segment{D}) where D
+  D == 2 || throw(DimensionMismatch("normal to a segment is only defined in 2D"))
+  v = s[2] - s[1]
+  VectorValue( v[2], -v[1])
+end
+
+function have_intersection(s1::Segment{D},s2::Segment{D}) where D
+  D == 2 || throw(DimensionMismatch("intersection between two segments is only defined in 2D"))
+  n1 = normal(s1)
+  n1 = n1 / norm(n1)
+  c1 = center(s1)
+  if sign( ( s2[1] - c1 ) ⋅ n1 ) == sign( ( s2[2] - c1 ) ⋅ n1 )
+    return false
+  end
+  n2 = normal(s2)
+  n2 = n2 / norm(n2)
+  c2 = center(s2)
+  if sign( ( s1[1] - c2 ) ⋅ n2 ) == sign( ( s1[2] - c2 ) ⋅ n2 )
+    return false
+  end
+  true
+end
+
+function intersection(s1::Segment{D},s2::Segment{D}) where D
+  D == 2 || throw(DimensionMismatch("intersection between two segments is only defined in 2D"))
+  v1 = s1[2] - s1[1]
+  n2 = normal(s2)
+  n2 = n2 / norm(n2)
+  c2 = center(s2)
+  α = abs( ( c2 - s1[1] ) ⋅ n2 ) / norm(v1)
+  s1[1] + α * v1
+end

@@ -55,7 +55,24 @@ p4 = Point(1,0,1)
 s1 = Segment(p1,p2)
 s2 = Segment(p3,p4)
 
-
 @test distance(s1,s2) == 1.0
+
+p1 = Point(0,0)
+p2 = Point(1,1)
+p3 = Point(0,1)
+p4 = Point(1,0)
+
+s1 = Segment(p1,p2)
+s2 = Segment(p3,p4)
+@test have_intersection(s1,s2)
+
+x = Point(0.5,0.5)
+@test norm( intersection(s1,s2) - x ) < 1e-13
+@test norm( intersection(s2,s1) - x ) < 1e-13
+
+p1 = Point(0,0)
+p2 = Point(0.5,0.0)
+s1 = Segment(p1,p2)
+@test !have_intersection(s1,s2)
 
 end # module
