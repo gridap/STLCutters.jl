@@ -15,6 +15,18 @@ stl = ConformingSTL(vertex_coordinates, d_face_to_vertices, facet_normals, d_fac
 @test stl.facet_normals == facet_normals
 @test stl.d_face_to_facets == d_face_to_facets
 
-ConformingSTL(joinpath(@__DIR__,"data/cube.stl"))
+stl = ConformingSTL(joinpath(@__DIR__,"data/cube.stl"))
 
-end # module
+@inline function num_d_faces(stl::ConformingSTL,d::Int)
+  length(stl.d_face_to_vertices[d])
+end
+
+function get_d_face(stl::ConformingSTL,d::Int,i::Int)
+  list = getlist(stl.d_face_to_vertices[d],i)
+  tuple(stl.vertex_coordinates[list]...)
+end
+
+num_d_faces(stl,1)
+get_d_face(stl,2,2)
+
+end # moduleÇ
