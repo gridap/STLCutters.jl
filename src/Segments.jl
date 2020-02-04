@@ -12,7 +12,9 @@ end
 
 @inline get_vertices(s::Segment) = s.p
 
-@inline Base.length(s::Segment) = distance(s[1],s[2])
+@inline volume(s::Segment) = distance(s[1],s[2])
+
+@inline Base.length(s::Segment) = volume(s)
 
 num_dims(::Segment{D}) where D = D
 
@@ -122,4 +124,11 @@ function intersection(s1::Segment{D},s2::Segment{D}) where D
   c2 = center(s2)
   α = abs( ( c2 - s1[1] ) ⋅ n2 ) / norm(v1)
   s1[1] + α * v1
+end
+
+function projection(p::Point{D},s::Segment{D}) where D
+  c = center(s)
+  v = s[2] - s[1]
+  v = v / norm(v)
+  c + ( ( p - c ) ⋅ v ) * v
 end

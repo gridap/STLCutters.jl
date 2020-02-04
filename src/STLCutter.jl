@@ -28,6 +28,7 @@ export center
 export volume
 export have_intersection
 export intersection
+export projection
 export table_cache
 export getlist
 export getlist!

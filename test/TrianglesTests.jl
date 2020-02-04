@@ -38,6 +38,21 @@ t = Triangle(p1,p2,p3)
 c = center(t)
 @test c.data == (1.0,1.0,0.0)
 
+@test volume(t) == 4.5
+
+
+p1 = Point(0,0)
+p2 = Point(3,0)
+p3 = Point(0,3)
+t = Triangle(p1,p2,p3)
+@test volume(t) == 4.5
+
+p1 = Point(0,0,0)
+p2 = Point(3,0,0)
+p3 = Point(0,3,0)
+p = Point(0.5,0.5,1.0)
+t = Triangle(p1,p2,p3)
+
 @test have_intersection(p1,t)
 @test have_intersection(t,p1)
 @test have_intersection(t,p2)
@@ -57,5 +72,10 @@ t = Triangle(p1,p2,p3)
 
 @test have_intersection(s,t)
 @test have_intersection(t,s)
+
+@test intersection(s,t) == Point(0.5,0.5,0.0)
+
+p = Point(0.5,0.5,0.5)
+@test projection(p,t) == Point(0.5,0.5,0.0)
 
 end # module

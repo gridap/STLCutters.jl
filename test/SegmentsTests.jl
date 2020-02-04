@@ -14,7 +14,7 @@ s = Segment((p1,p2))
 @test isa(s,Segment{3})
 @test num_dims(s) == 3
 
-@test length(s) == sqrt(3)
+@test length(s) == volume(s) == sqrt(3)
 
 c = center(s)
 @test c.data == (1.5,1.5,1.5)
@@ -74,5 +74,13 @@ p1 = Point(0,0)
 p2 = Point(0.5,0.0)
 s1 = Segment(p1,p2)
 @test !have_intersection(s1,s2)
+
+
+p1 = Point(0,0)
+p2 = Point(1.0,0.0)
+p = Point(0.5,0.5)
+s = Segment(p1,p2)
+
+@test projection(p,s) == Point(0.5,0.0)
 
 end # module
