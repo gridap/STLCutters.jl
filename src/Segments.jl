@@ -132,3 +132,22 @@ function projection(p::Point{D},s::Segment{D}) where D
   v = v / norm(v)
   c + ( ( p - c ) ⋅ v ) * v
 end
+
+function closest_point(s1::Segment{D},s2::Segment{D}) where D
+  D == 3 || throw(DimensionMismatch("distance between two segments is only defined in 3D"))
+
+  v1 = s1[2] - s1[1]
+  v2 = s2[2] - s2[1]
+  v1 = v1 / norm(v1)
+  v2 = v2 / norm(v2)
+
+  n = v1 × v2
+  n = n / norm(n)
+  n2 = n × v2
+  n2 = n2 / norm(n2)
+  c2 = center(s2)
+  s1_s2 = s1[2] - s1[1]
+  s1_c = c2 - s1[1]
+  α = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
+  s1[1] + α * s1_s2
+end

@@ -83,4 +83,17 @@ s = Segment(p1,p2)
 
 @test projection(p,s) == Point(0.5,0.0)
 
+p1 = Point(0,0,0)
+p2 = Point(1,1,0)
+p3 = Point(0,1,1)
+p4 = Point(1,0,1)
+
+s1 = Segment(p1,p2)
+s2 = Segment(p3,p4)
+
+x = closest_point(s1,s2)
+@test x == Point(0.5,0.5,0.0)
+@test distance(x,s1) < 1e-13
+@test distance(x,s2) == distance(s1,s2)
+
 end # module

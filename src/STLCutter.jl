@@ -29,6 +29,7 @@ export volume
 export have_intersection
 export intersection
 export projection
+export closest_point
 export table_cache
 export getlist
 export getlist!
