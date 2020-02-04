@@ -12,6 +12,7 @@ export VectorValue
 export Point
 export Segment
 export Triangle
+export Tetrahedron
 export HexaCell
 export RawSTL
 export ConformingSTL
@@ -24,6 +25,7 @@ export norm
 export distance
 export normal
 export center
+export volume
 export have_intersection
 export table_cache
 export getlist
@@ -40,6 +42,8 @@ include("Points.jl")
 include("Segments.jl")
 
 include("Triangles.jl")
+
+include("Tetrahedrons.jl")
 
 include("HexaCells.jl")
 

@@ -12,6 +12,8 @@ using Test
 
 @testset "TrianglesTests" begin include("TrianglesTests.jl") end
 
+@testset "TetrahedronsTests" begin include("TetrahedronsTests.jl") end
+
 @testset "HexaCellsTests" begin include("HexaCellsTests.jl") end
 
 @testset "TablesTests" begin include("TablesTests.jl") end
@@ -19,7 +21,5 @@ using Test
 @testset "RawSTLs" begin include("RawSTLsTests.jl") end
 
 @testset "ConformingSTLs" begin include("ConformingSTLsTests.jl") end
-
-#@testset "GeometriesTests" begin include("GeometriesTests.jl") end
 
 end # module
