@@ -45,8 +45,47 @@ end
   length(stl.vertex_coordinates)
 end
 
-@inline function num_d_faces(stl::ConformingSTL,d::Int)
+@inline function num_dfaces(stl::ConformingSTL,d::Int)
   length(stl.d_face_to_vertices[d+1])
+end
+
+function global_dface(stl::ConformingSTL,d::Int,lid::Int)
+  gid = 0
+  for i in 0:d-1
+    gid += num_dfaces(stl,i)
+  end
+  gid += lid
+end
+
+function local_dface(stl::ConformingSTL{D},gid::Int) where D
+  lid = gid
+  for d in 0:D-1
+    if lid > num_dfaces(stl,d)
+      lid -= num_dfaces(stl,d)
+    else
+      return (d,lid)
+    end
+  end
+  (D-1,lid)
+end
+
+function get_vertex(stl::ConformingSTL{D,T},i::Int) where {D,T}
+  stl.vertex_coordinates[i]
+end
+
+function get_edge(stl::ConformingSTL{D},i::Int) where D
+  dface_to_vertices = get_dface_to_vertices(stl,1)
+  l = getlist(dface_to_vertices,i)
+  v = stl.vertex_coordinates
+  Segment(v[l[1]],v[l[2]])
+end
+
+
+function get_facet(stl::ConformingSTL{D},i::Int) where D
+  dface_to_vertices = get_dface_to_vertices(stl,2)
+  l = getlist(dface_to_vertices,i)
+  v = stl.vertex_coordinates
+  Triangle(v[l[1]],v[l[2]],v[l[3]])
 end
 
 function compute_vertex_to_facets(facet_to_vertices::TableOfVectors{Int},num_vertices::Int)
@@ -163,4 +202,19 @@ function writevtk(stl::ConformingSTL{D,T},file_base_name) where {D,T}
   end
   vtkfile = vtk_grid("out",points,cells)
   vtk_save(vtkfile)
+end
+
+function have_intersection(hex::HexaCell{D},stl::ConformingSTL{D},d::Int,i::Int) where D
+  if d == 0
+    p = get_vertex(stl,i)
+    have_intersection(p,hex)
+  elseif d == 1
+    e = get_edge(stl,i)
+    have_intersection(e,hex)
+  elseif d == 2
+    f = get_facet(stl,i)
+    have_intersection(f,hex)
+  else
+    throw(ArgumentError("$d-face does not exist"))
+  end
 end

@@ -4,7 +4,7 @@ struct Triangle{D}
   p::NTuple{num_points_per_triangle,Point{D}}
 end
 
-function Triangle(p1::Point,p2::Point,p3::Point)
+@inline function Triangle(p1::Point,p2::Point,p3::Point)
   Triangle((p1,p2,p3))
 end
 

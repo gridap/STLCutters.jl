@@ -21,7 +21,9 @@ export ConformingSTL
 
 export average
 export num_vertices
+export num_edges
 export num_facets
+export num_dfaces
 export num_dims
 export norm
 export distance
@@ -38,6 +40,7 @@ export getlist!
 export TableOfVectors
 export AbstractTable
 export writevtk
+
 
 include("MutableVectorValues.jl")
 
