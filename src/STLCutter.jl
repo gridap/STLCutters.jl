@@ -2,7 +2,9 @@ module STLCutter
 
 using FileIO
 using LinearAlgebra
+using WriteVTK
 import LinearAlgebra: dot, norm
+
 
 export num_components
 export component_type
@@ -35,6 +37,7 @@ export getlist
 export getlist!
 export TableOfVectors
 export AbstractTable
+export writevtk
 
 include("MutableVectorValues.jl")
 

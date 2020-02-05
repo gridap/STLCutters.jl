@@ -41,6 +41,14 @@ function get_dface_to_facets(a::ConformingSTL,d::Integer)
   a.d_face_to_facets[d+1]
 end
 
+@inline function num_vertices(stl::ConformingSTL)
+  length(stl.vertex_coordinates)
+end
+
+@inline function num_d_faces(stl::ConformingSTL,d::Int)
+  length(stl.d_face_to_vertices[d+1])
+end
+
 function compute_vertex_to_facets(facet_to_vertices::TableOfVectors{Int},num_vertices::Int)
   vertex_to_facets = TableOfVectors{Int}([])
   for i in 1:num_vertices
@@ -134,4 +142,25 @@ function compute_edge_to_facets(facet_to_edges::TableOfVectors,num_edges::Int)
     end
   end
   edge_to_facets
+end
+
+function writevtk(stl::ConformingSTL{D,T},file_base_name) where {D,T}
+  d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5)
+  num_points = num_vertices(stl)
+  points = zeros(T,D,num_points)
+  for (i ,p ) ∈ enumerate(stl.vertex_coordinates), d ∈ 1:D
+    points[d,i] = p[d]
+  end
+  cells = MeshCell{Vector{Int64}}[]
+  for d ∈ 0:D-1
+    dface_to_vertices = get_dface_to_vertices(stl,d)
+    num_dfaces = length(dface_to_vertices)
+    vtk_type = VTKCellType(d_to_vtk_type_id[d])
+    for i in 1:num_dfaces
+      vertices = getlist(dface_to_vertices,i)
+      push!( cells, MeshCell(vtk_type,vertices) )
+    end
+  end
+  vtkfile = vtk_grid("out",points,cells)
+  vtk_save(vtkfile)
 end
