@@ -8,6 +8,22 @@ struct HexaCell{D}
   bb::BoundingBox{D}
 end
 
+function BoundingBox(p::Point{D}) where D
+  BoundingBox(p,p)
+end
+
+function BoundingBox(s::Segment{D}) where D
+  BoundingBox(min_bound(s.p),max_bound(s.p))
+end
+
+function BoundingBox(t::Triangle{D}) where D
+  BoundingBox(min_bound(t.p),max_bound(t.p))
+end
+
+function BoundingBox(t::Tetrahedron{D}) where D
+  BoundingBox(min_bound(t.p),max_bound(t.p))
+end
+
 function HexaCell(pmin::Point{D},pmax::Point{D}) where {D}
   for d in 1:D
     @assert pmin[d] <= pmax[d]

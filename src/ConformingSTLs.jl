@@ -49,6 +49,14 @@ end
   length(stl.d_face_to_vertices[d+1])
 end
 
+function num_dfaces(stl::ConformingSTL{D}) where D
+  n = 0
+  for d in 0:D-1
+    n += num_dfaces(stl,d)
+  end
+  n
+end
+
 function global_dface(stl::ConformingSTL,d::Int,lid::Int)
   gid = 0
   for i in 0:d-1
@@ -218,3 +226,22 @@ function have_intersection(hex::HexaCell{D},stl::ConformingSTL{D},d::Int,i::Int)
     throw(ArgumentError("$d-face does not exist"))
   end
 end
+
+@inline have_intersection(hex::HexaCell,stl::ConformingSTL,gid::Int) = have_intersection(hex,stl,local_dface(stl,gid)...)
+
+function BoundingBox(stl::ConformingSTL{D},d::Int,i::Int) where D
+  if d == 0
+    p = get_vertex(stl,i)
+    BoundingBox(p)
+  elseif d == 1
+    e = get_edge(stl,i)
+    BoundingBox(e)
+  elseif d == 2
+    f = get_facet(stl,i)
+    BoundingBox(f)
+  else
+    throw(ArgumentError("$d-face does not exist"))
+  end
+end
+
+@inline BoundingBox(stl::ConformingSTL,gid::Int) = BoundingBox(stl,local_dface(stl,gid)...)

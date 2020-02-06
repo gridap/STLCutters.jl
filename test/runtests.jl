@@ -22,4 +22,6 @@ using Test
 
 @testset "ConformingSTLs" begin include("ConformingSTLsTests.jl") end
 
+@testset "BulkMeshesTests" begin include("BulkMeshesTests.jl") end
+
 end # module

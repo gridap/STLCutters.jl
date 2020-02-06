@@ -161,3 +161,19 @@ end
   str = "VectorValue(($data))"
   Meta.parse(str)
 end
+
+@generated function max_bound(a::NTuple{N,VectorValue}) where N
+  datas = join([ "a[$i].data," for i in 1:N ])
+  str = "VectorValue(max.($datas))"
+  Meta.parse(str)
+end
+
+@inline max_bound(a::VectorValue...,) = max_bound((a...,))
+
+@generated function min_bound(a::NTuple{N,VectorValue}) where N
+  datas = join([ "a[$i].data," for i in 1:N ])
+  str = "VectorValue(min.($datas))"
+  Meta.parse(str)
+end
+
+@inline min_bound(a::VectorValue...,) = min_bound((a...,))

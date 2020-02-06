@@ -18,6 +18,7 @@ export Tetrahedron
 export HexaCell
 export RawSTL
 export ConformingSTL
+export StructuredBulkMesh
 
 export average
 export num_vertices
@@ -40,6 +41,8 @@ export getlist!
 export TableOfVectors
 export AbstractTable
 export writevtk
+export num_cells
+export get_cell
 
 
 include("MutableVectorValues.jl")
@@ -61,5 +64,7 @@ include("Tables.jl")
 include("RawSTLs.jl")
 
 include("ConformingSTLs.jl")
+
+include("BulkMeshes.jl")
 
 end # module
