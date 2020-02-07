@@ -83,4 +83,59 @@ non_opt_c2s = compute_cell_to_stl_nfaces(m,stl)
 
 @test opt_c2s == non_opt_c2s
 
+
+struct StructuredBulkMeshCells{D,T}
+  mesh::StructuredBulkMesh{D,T}
+  num_cells::Int
+end
+
+struct StructuredBulkCell{D,T}
+  gid::Int
+  bb::BoundingBox{D}
+  mesh::StructuredBulkMesh{D,T}
+end
+
+function cells(m::StructuredBulkMesh)
+  StructuredBulkMeshCells(m,num_cells(m))
+end
+
+
+Base.iterate(c::StructuredBulkMeshCells,state=1) = state > c.num_cells ? nothing : (get_cell(c.mesh,state),state+1)
+
+for k in cells(m)
+  #  @show k.bb
+end
+
+import STLCutter: int_coordinates
+
+function vertex_int_coordinates(m::StructuredBulkMesh{D},n::Integer) where D
+  n_d = mutable(VectorValue{D,Int})
+  p_d = 1
+  p = m.partition .+ 1
+  for d in 1:D
+    n_d[d] = ( (n-1) ÷ p_d ) % p[d] + 1
+    p_d *= p[d]
+  end
+  n_d.data
+end
+
+function get_vertex_id(m::StructuredBulkMesh{D},n::NTuple{D,Int}) where D
+  gid = 0
+  p_d = 1
+  for d in 1:D
+    gid += (n[d]-1)*p_d
+    p_d *= (m.partition[d]+1)
+  end
+  gid + 1
+end
+
+o = Point(-1.0,0.0,0.0)
+s = VectorValue(2.0,1.0,1.0)
+p = (2,2,2)
+m = StructuredBulkMesh(o,s,p)
+
+
+vertex_int_coordinates(m,6)
+get_vertex_id(m,(3,2,1))
+
 end # module
