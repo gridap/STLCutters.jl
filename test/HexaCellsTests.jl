@@ -35,4 +35,9 @@ bb=BoundingBox(Point(0,0,0),Point(2,2,2))
 
 @test have_intersection(t,bb)
 
+p=Point(-1e-8,-1e-8,-1e-8)
+bb=BoundingBox(Point(0,0,0),Point(1,1,1))
+
+@test have_intersection(p,bb)
+
 end # module

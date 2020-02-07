@@ -31,7 +31,15 @@ function HexaCell(pmin::Point{D},pmax::Point{D}) where {D}
   HexaCell(BoundingBox(pmin,pmax))
 end
 
+const BB_tolerance = 1e-5
+function expand(bb::BoundingBox,ε::Float64)
+  d = bb.pmax - bb.pmin
+  δ = d * ε
+  BoundingBox( bb.pmin - δ, bb.pmax + δ )
+end
+
 function have_intersection(p::Point{D},bb::BoundingBox{D}) where D
+  bb = expand(bb,BB_tolerance)
   for d in 1:D
     if p[d] < bb.pmin[d]
       return false
@@ -46,6 +54,7 @@ end
 @inline have_intersection(p::Point,h::HexaCell) = have_intersection(p,h.bb)
 
 function have_intersection(s::Segment{D},bb::BoundingBox{D}) where D
+  bb = expand(bb,BB_tolerance)
   t = mutable(VectorValue{D,Float64})
   t_min = 0.0
   t_max = 1.0
@@ -84,6 +93,7 @@ end
 @inline have_intersection(s::Segment,h::HexaCell) where{D} = have_intersection(s,h.bb)
 
 function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
+  bb = expand(bb,BB_tolerance)
   for p ∈ vertices(t)
     if have_intersection(p,bb)
       return true
