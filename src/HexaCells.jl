@@ -63,7 +63,7 @@ function have_intersection(s::Segment{D},bb::BoundingBox{D}) where D
       end
       t = (  bb.pmax[d] - p_d ) / v_d
       if t < t_max
-        t_min = t
+        t_max = t
       end
     else
       if p_d < bb.pmin[d]

@@ -55,49 +55,32 @@ p = Point(0.4,0.6,0.6)
 p = Point(0.6,0.6,0.6)
 @test find_container(m,p) == 8
 
-o_c2s = optimized_compute_cell_to_stl_nfaces(m,stl)
-c2s = compute_cell_to_stl_nfaces(m,stl)
-o_c2s == o_c2s
-
-
-o = Point(0.0,0.0,0.0)
-s = VectorValue(2.0,1.0,1.0)
-p = (10,1,1)
-m = StructuredBulkMesh(o,s,p)
-
-
-o_c2s = optimized_compute_cell_to_stl_nfaces(m,stl)
-u_c2s = compute_cell_to_stl_nfaces(m,stl)
-
-
-o_c2s._vectors == u_c2s._vectors
-
-#revise
-have_intersection(get_cell(m,6),stl,15) == false
-
-bb=BoundingBox(stl,13)
-
-find_container(m,bb.pmin)
-find_container(m,bb.pmax)
-
-p = bb.pmin
-
-
-
 o = Point(0.0,0.0,0.0)
 s = VectorValue(1.0,1.0,1.0)
 p = (10,1,1)
 m = StructuredBulkMesh(o,s,p)
 
 p = Point(0.5,0.5,0.5)
-find_container(m,p)
+@test find_container(m,p) == 6
 
+o = Point(0.0,0.0,0.0)
+s = VectorValue(1.0,1.0,1.0)
+p = (2,3,4)
+m = StructuredBulkMesh(o,s,p)
 
+opt_c2s = optimized_compute_cell_to_stl_nfaces(m,stl)
+non_opt_c2s = compute_cell_to_stl_nfaces(m,stl)
 
-n_coords = int_coordinates(m,2)
-x_min = m.origin.data .+ m.sizes.data .* (n_coords.-1) ./ m.partition
-x_max = m.origin.data .+ m.sizes.data .* n_coords ./ m.partition
-HexaCell(Point(x_min),Point(x_max))
+@test opt_c2s == non_opt_c2s
 
+o = Point(-1.0,0.0,0.0)
+s = VectorValue(2.0,1.0,1.0)
+p = (10,1,1)
+m = StructuredBulkMesh(o,s,p)
 
-end # modul
+opt_c2s = optimized_compute_cell_to_stl_nfaces(m,stl)
+non_opt_c2s = compute_cell_to_stl_nfaces(m,stl)
+
+@test opt_c2s == non_opt_c2s
+
+end # module
