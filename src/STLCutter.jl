@@ -39,6 +39,7 @@ export table_cache
 export getlist
 export getlist!
 export TableOfVectors
+export TableOfLists
 export AbstractTable
 export writevtk
 export num_cells

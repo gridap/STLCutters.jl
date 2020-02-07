@@ -16,4 +16,12 @@ for face in 1:nfaces
 end
 @test nfaces == length(vectors)
 
+x=[(1,2),(3,5),(5,10),(3,4)]
+n=7
+t=TableOfLists(x,n)
+@test getlist(t,1) == [2]
+@test getlist(t,3) == [5,4]
+@test getlist(t,5) == [10]
+@test length(t) == n
+
 end # module
