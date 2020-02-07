@@ -94,6 +94,7 @@ end
 
 function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
   bb = expand(bb,BB_tolerance)
+  have_intersection(bb,BoundingBox(t)) || return false
   for p ∈ vertices(t)
     if have_intersection(p,bb)
       return true
@@ -146,4 +147,12 @@ function positivize_normal(bb::BoundingBox{D},t::Triangle{D}) where {D}
    end
    data = NTuple{num_points_per_triangle,VectorValue{D,Float64}}(x.data)
    Triangle(data)
+end
+
+function have_intersection(bb1::BoundingBox{D},bb2::BoundingBox{D}) where {D}
+  !have_intersection(bb1.pmin,bb2) || return true
+  !have_intersection(bb1.pmax,bb2) || return true
+  !have_intersection(bb2.pmin,bb1) || return true
+  !have_intersection(bb2.pmax,bb1) || return true
+  false
 end
