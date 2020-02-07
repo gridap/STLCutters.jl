@@ -11,7 +11,7 @@ function RawSTL(filename::String)
   stl = load(filename)
   ndims = num_dims(stl.vertices)
   nvxf  = num_vertices_per_facet(stl.faces)
-  @assert num_dims(stl.vertices) == num_dims(stl.normals)
+  num_dims(stl.vertices) == num_dims(stl.normals) || throw(DimensionMismatch("Corrupted STL file"))
   vertex_coordinates = Vector{Point{ndims,Float64}}( MeshIO.decompose(MeshIO.Point{ndims,Float64}, stl ) )
   facet_to_vertices  = TableOfVectors{Int}(MeshIO.decompose(MeshIO.Face{nvxf,Int},stl.faces))
   facet_normals      = Vector{Point{ndims,Float64}}( MeshIO.decompose(MeshIO.Normal{ndims, Float64}, stl) )
@@ -39,14 +39,38 @@ Base.convert( ::Type{Point{D,T}}, x::MeshIO.Normal{D} )  where {D,T} = Point{D,T
 Base.convert( ::Type{Vector}, x::MeshIO.Face ) = collect(x.data)
 
 const STL_tolerance = 1e-8
-function map_repeated_vertices(stl::RawSTL)
+function map_repeated_vertices(stl::RawSTL{D}) where D
+  pmin = stl.vertex_coordinates[1]
+  pmax = stl.vertex_coordinates[1]
+  for v ∈ stl.vertex_coordinates
+    pmin = min_bound(pmin,v)
+    pmax = max_bound(pmax,v)
+  end
+  origin = pmin
+  sizes = pmax - pmin
+  n_x = Int(round(num_vertices(stl) ^ (1/D)))
+  partition = (ones(Int,D)...,)
+  partition = partition .* n_x
+  mesh = StructuredBulkMesh(origin,sizes,partition)
+  cell_to_vertices = TableOfVectors{Int}( [ Vector{Int}([]) for i in 1:num_cells(mesh) ] )
+  for (i,v) ∈ enumerate(stl.vertex_coordinates)
+    for k ∈ cells_around(mesh,v)
+      h = get_cell(mesh,k)
+      if have_intersection(v,h)
+        push_to_list!(cell_to_vertices,k,i)
+      end
+    end
+  end
   vertices_map = Vector{Int}(1:num_vertices(stl))
-  for (i, vi) in enumerate(stl.vertex_coordinates),
-      (j, vj) in enumerate(stl.vertex_coordinates[i+1:end])
-
-    if (vertices_map[i] == i)
-      if (distance(vi, vj) < STL_tolerance)
-        vertices_map[j+i] = i
+  for k in 1:num_cells(mesh)
+    list = getlist(cell_to_vertices,k)
+    for (n,i) ∈ enumerate(list), j ∈ list[n+1:end]
+      vi = stl.vertex_coordinates[i]
+      vj = stl.vertex_coordinates[j]
+      if vertices_map[i] == i && vertices_map[j] == j
+        if distance(vi,vj) < STL_tolerance
+          vertices_map[j] = i
+        end
       end
     end
   end
