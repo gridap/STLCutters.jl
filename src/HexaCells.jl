@@ -13,23 +13,23 @@ function BoundingBox(p::Point{D}) where D
 end
 
 function BoundingBox(s::Segment{D}) where D
-  BoundingBox(min_bound(s.p),max_bound(s.p))
+  BoundingBox(min.(s.points...),max.(s.points...))
 end
 
 function BoundingBox(t::Triangle{D}) where D
-  BoundingBox(min_bound(t.p),max_bound(t.p))
+  BoundingBox(min.(t.points...),max.(t.points...))
 end
 
 function BoundingBox(t::Tetrahedron{D}) where D
-  BoundingBox(min_bound(t.p),max_bound(t.p))
+  BoundingBox(min.(t.p...),max.(t.p...))
 end
 
 # function BoundingBox(stl::RawSTL)
 #   pmin = stl.vertex_coordinates[1]
 #   pmax = stl.vertex_coordinates[1]
 #   for v ∈ stl.vertex_coordinates
-#     pmin = min_bound(pmin,v)
-#     pmax = max_bound(pmax,v)
+#     pmin = min.(pmin,v)
+#     pmax = max.(pmax,v)
 #   end
 #   BoundingBox(pmin,pmax)
 # end
@@ -38,8 +38,8 @@ end
 #   pmin = stl.vertex_coordinates[1]
 #   pmax = stl.vertex_coordinates[1]
 #   for v ∈ stl.vertex_coordinates
-#     pmin = min_bound(pmin,v)
-#     pmax = max_bound(pmax,v)
+#     pmin = min.(pmin,v)
+#     pmax = max.(pmax,v)
 #   end
 #   BoundingBox(pmin,pmax)
 # end
@@ -79,8 +79,8 @@ function have_intersection(s::Segment{D},bb::BoundingBox{D}) where D
   t_min = 0.0
   t_max = 1.0
   for d in 1:D
-    p_d = s.p[1][d]
-    v_d = s.p[2][d] - s.p[1][d]
+    p_d = s.points[1][d]
+    v_d = s.points[2][d] - s.points[1][d]
     if v_d < 0
       v_d = - v_d
       p_d = - p_d + bb.pmin[d] + bb.pmax[d]
@@ -129,7 +129,7 @@ function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
   t_pos = positivize_normal(bb,t)
   n = abs(normal(t_pos))
   p0 = center(t_pos)
-  main_d = max_dimension( n ⊙ ( bb.pmax - bb.pmin ) )
+  main_d = max_dimension( n .* ( bb.pmax - bb.pmin ) )
   main_length = bb.pmax[main_d] - bb.pmin[main_d]
 
   i_int = 0
@@ -145,7 +145,7 @@ function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
   if d[1] < 0 || d[num_components(sq)] > main_length
     return false
   else
-    main_x = cartesian_axis(n,main_d)
+    main_x = canonical_vector(n,main_d)
     if i_int != 0
       intersection = sq[i_int] + main_x *d[i_int]
     else
@@ -158,19 +158,22 @@ end
 @inline have_intersection(t::Triangle{D},h::HexaCell{D}) where{D} = have_intersection(t,h.bb)
 
 function positivize_normal(bb::BoundingBox{D},t::Triangle{D}) where {D}
-   x = mutable(VectorValue{num_points_per_triangle,typeof(mutable(VectorValue{D,Float64}))})
-   n = normal(t)
-   for i ∈ 1:num_points_per_triangle
-     for d in 1:D
-       if n[d] < 0
-         x[i][d] = t[i][d] + ( bb.pmin[d] - t[i][d] ) + ( bb.pmax[d] - t[i][d] )
-       else
-         x[i][d] = t[i][d]
-       end
-     end
-   end
-   data = NTuple{num_points_per_triangle,VectorValue{D,Float64}}(x.data)
-   Triangle(data)
+  n = normal(t)
+
+  function mirror(point::Point{D,T}) where {D,T}
+    m = mutable(Point{D,T})
+    for d in 1:D
+      if n[d] < 0
+        m[d] = point[d] + ( bb.pmin[d] - point[d] ) + ( bb.pmax[d] - point[d] )
+      else
+        m[d] = point[d]
+      end
+    end
+    Point(m)
+  end
+
+  points = mirror.(t.points)
+  Triangle(points)
 end
 
 function project_on_square(bb::BoundingBox{D},x::Int) where D

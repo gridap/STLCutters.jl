@@ -1,22 +1,21 @@
 
-const num_points_per_triangle = 3
 struct Triangle{D}
-  p::NTuple{num_points_per_triangle,Point{D}}
+  points::Tuple{Point{D},Point{D},Point{D}}
 end
 
 @inline function Triangle(p1::Point,p2::Point,p3::Point)
   Triangle((p1,p2,p3))
 end
 
-@inline Base.getindex(t::Triangle,i::Integer) = t.p[i]
+@inline Base.getindex(t::Triangle,i::Integer) = t.points[i]
 
-@inline function Base.getindex(t::Triangle,i::NTuple{num_points_per_segment,Integer})
+@inline function Base.getindex(t::Triangle,i::NTuple{2,Integer})
  Segment(t[i[1]],t[i[2]])
 end
 
 num_dims(::Triangle{D}) where D = D
 
-@inline vertices(t::Triangle) = t.p
+@inline vertices(t::Triangle) = t.points
 
 const num_edges_per_triangle = 3
 const ledge_to_triangle_point = ((1,2),(2,3),(3,1))
@@ -32,7 +31,7 @@ function normal(t::Triangle{D}) where D
 end
 
 function center(t::Triangle)
-  average(t.p)
+  average(t.points)
 end
 
 const volume_factor_triangle = 1/2

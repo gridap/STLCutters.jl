@@ -250,8 +250,8 @@ function BoundingBox(stl::ConformingSTL)
   pmin = stl.vertex_coordinates[1]
   pmax = stl.vertex_coordinates[1]
   for v ∈ stl.vertex_coordinates
-    pmin = min_bound(pmin,v)
-    pmax = max_bound(pmax,v)
+    pmin = min.(pmin,v)
+    pmax = max.(pmax,v)
   end
   BoundingBox(pmin,pmax)
 end

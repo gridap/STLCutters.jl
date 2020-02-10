@@ -17,13 +17,13 @@ end
 
 function get_cell(m::StructuredBulkMesh{D},i::Integer) where D
   n_coords = int_coordinates(m,i)
-  x_min = m.origin.data .+ m.sizes.data .* (n_coords.-1) ./ m.partition
-  x_max = m.origin.data .+ m.sizes.data .* n_coords ./ m.partition
+  x_min = get_data(m.origin) .+ get_data(m.sizes) .* (n_coords.-1) ./ m.partition
+  x_max = get_data(m.origin) .+ get_data(m.sizes) .* n_coords ./ m.partition
   HexaCell(Point(x_min),Point(x_max))
 end
 
 function find_container(m::StructuredBulkMesh{D},p::Point{D}) where D
-  pn = Int.(floor.( (p.data .- m.origin.data) .* m.partition ./ m.sizes.data ))
+  pn = Int.(floor.( (get_data(p) .- get_data(m.origin)) .* m.partition ./ get_data(m.sizes) ))
   pn = pn .+ 1
   pn = max.(pn,1)
   pn = min.(pn,m.partition)
@@ -38,7 +38,7 @@ function int_coordinates(m::StructuredBulkMesh{D},n::Integer) where D
     n_d[d] = ( (n-1) ÷ p_d ) % p[d] + 1
     p_d *= p[d]
   end
-  n_d.data
+  get_data(n_d)
 end
 
 function get_cell_id(m::StructuredBulkMesh{D},n::NTuple{D,Int}) where D

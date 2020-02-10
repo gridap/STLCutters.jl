@@ -10,6 +10,7 @@ export num_components
 export component_type
 export mutable
 export VectorValue
+export get_data
 
 export Point
 export Segment

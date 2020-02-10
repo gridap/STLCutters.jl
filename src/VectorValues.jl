@@ -3,6 +3,10 @@ struct VectorValue{D,T} <: Number
   data::NTuple{D,T}
 end
 
+function get_data(v::VectorValue)
+  v.data
+end
+
 @inline function VectorValue(v::T...) where T
   data = v
   VectorValue(data)
@@ -16,6 +20,11 @@ end
 function VectorValue{0,T}() where T
   data = ()
   VectorValue{0,T}(data)
+end
+
+@inline function VectorValue{D}(v::Vararg{T,D}) where {D,T}
+  data = v
+  VectorValue(data)
 end
 
 function VectorValue(m::MutableVectorValue)
@@ -122,24 +131,20 @@ end
   √( v ⋅ v )
 end
 
-@inline function LinearAlgebra.cross(a::VectorValue,b::VectorValue)
-  if !( num_components(a) == num_components(b) == 3)
-    throw(DimensionMismatch("cross product only supports VectorValues of 3 components"))
-  end
-  data = (  (a[2]*b[3] - a[3]*b[2]),
-            (a[3]*b[1] - a[1]*b[3]),
-            (a[1]*b[2] - a[2]*b[1]))
+function LinearAlgebra.cross(a::VectorValue,b::VectorValue)
+  throw(DimensionMismatch("cross product only supports VectorValues of 3 components"))
+end
+
+@inline function LinearAlgebra.cross(a::VectorValue{3},b::VectorValue{3})
+  data = (
+    (a[2]*b[3] - a[3]*b[2]),
+    (a[3]*b[1] - a[1]*b[3]),
+    (a[1]*b[2] - a[2]*b[1]) )
   VectorValue(data)
 end
 
 @generated function Base.abs(v::VectorValue{D}) where D
   data = join(["abs(v.data[$i])," for i in 1:D])
-  str = "VectorValue(($data))"
-  Meta.parse(str)
-end
-
-@generated function scal(a::VectorValue{D},b::VectorValue{D}) where D
-  data = join(["a.data[$i] * b.data[$i]," for i in 1:D])
   str = "VectorValue(($data))"
   Meta.parse(str)
 end
@@ -156,28 +161,26 @@ function max_dimension(v::VectorValue{D,T}) where {D,T}
   max_d
 end
 
-@generated function cartesian_axis(::VectorValue{D,T},d::Integer) where {D,T}
+@generated function canonical_vector(::VectorValue{D,T},d::Integer) where {D,T}
   data = join(["convert(Int,1.0) * ( $i == 3 )," for i in 1:D])
   str = "VectorValue(($data))"
   Meta.parse(str)
 end
 
-@generated function max_bound(a::NTuple{N,VectorValue}) where N
-  datas = join([ "a[$i].data," for i in 1:N ])
-  str = "VectorValue(max.($datas))"
-  Meta.parse(str)
-end
-
-@inline max_bound(a::VectorValue...,) = max_bound((a...,))
-
-@generated function min_bound(a::NTuple{N,VectorValue}) where N
-  datas = join([ "a[$i].data," for i in 1:N ])
-  str = "VectorValue(min.($datas))"
-  Meta.parse(str)
-end
-
-@inline min_bound(a::VectorValue...,) = min_bound((a...,))
-
 Base.:-(v::VectorValue{D,T}) where {D,T} = VectorValue{D,T}(.-v.data)
 
-⊙(a::VectorValue{D},b::VectorValue{D}) where D = VectorValue(a.data .* b.data)
+function Base.broadcasted(op,a::VectorValue{D}...) where D 
+  datas = get_datas(a...)
+  VectorValue(broadcast(op,datas...))
+end
+
+function get_datas(a)
+  (get_data(a),)
+end
+
+function get_datas(a,b...)
+  a_data = get_data(a)
+  b_data = get_datas(b...)
+  (a_data, b_data...)
+end
+

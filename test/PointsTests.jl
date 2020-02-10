@@ -16,12 +16,12 @@ p3 = Point(2,1,0)
 
 a = average(p1,p2)
 @test isa(a,Point{3})
-@test a.data == (0.5,1.0,1.5)
+@test get_data(a) == (0.5,1.0,1.5)
 @test a == average((p1,p2))
 
 a = average(p1,p2,p3)
 @test isa(a,Point{3})
-@test a.data == (1.0,1.0,1.0)
+@test get_data(a) == (1.0,1.0,1.0)
 @test a == average((p1,p2,p3))
 
 end # module

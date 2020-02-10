@@ -1,16 +1,15 @@
 
-const num_points_per_segment = 2
 struct Segment{D}
-  p::NTuple{num_points_per_segment,Point{D}}
+  points::Tuple{Point{D},Point{D}}
 end
 
 @inline function Segment(p1::Point,p2::Point)
   Segment((p1,p2))
 end
 
-@inline Base.getindex(s::Segment,i::Integer) = s.p[i]
+@inline Base.getindex(s::Segment,i::Integer) = s.points[i]
 
-@inline get_vertices(s::Segment) = s.p
+@inline get_vertices(s::Segment) = s.points
 
 @inline volume(s::Segment) = distance(s[1],s[2])
 
@@ -19,7 +18,7 @@ end
 num_dims(::Segment{D}) where D = D
 
 function center(s::Segment)
-  average(s.p)
+  average(s.points)
 end
 
 function distance(p::Point{D},s::Segment{D}) where D

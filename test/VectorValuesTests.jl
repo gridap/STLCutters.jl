@@ -3,7 +3,7 @@ module VectorValuesTests
 using STLCutter
 using Test
 using LinearAlgebra
-import STLCutter: scal, max_dimension, cartesian_axis, max_bound, min_bound
+using STLCutter: max_dimension, canonical_vector
 
 data = (1,2,3)
 v = VectorValue(data)
@@ -125,23 +125,23 @@ w = u × v
 a = VectorValue(1,2,3)
 b = VectorValue(4,5,6)
 
-c = scal(a,b)
+c = a .* b
 @test c.data == (4,10,18)
 
 v = VectorValue(0,1,1)
 @test max_dimension(v) == 2
 
-x = cartesian_axis(v,3)
+x = canonical_vector(v,3)
 @test x.data == (0,0,1)
 
 u = VectorValue(1,1,2)
 v = VectorValue(0,2,3)
 w = VectorValue(2,1,4)
 
-@test min_bound(u) == max_bound(u) == u
-@test min_bound(u,v).data == (0,1,2)
-@test max_bound(u,v).data == (1,2,3)
-@test min_bound(u,v,w).data == (0,1,2)
-@test max_bound(u,v,w).data == (2,2,4)
+@test min.(u) == max.(u) == u
+@test min.(u,v).data == (0,1,2)
+@test max.(u,v).data == (1,2,3)
+@test min.(u,v,w).data == (0,1,2)
+@test max.(u,v,w).data == (2,2,4)
 
 end # module

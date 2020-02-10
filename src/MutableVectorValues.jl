@@ -3,6 +3,10 @@ mutable struct MutableVectorValue{D,T} <: Number
   data::NTuple{D,T}
 end
 
+function get_data(v::MutableVectorValue)
+  v.data
+end
+
 num_components(::MutableVectorValue{D}) where D = D
 
 num_components(::Type{<:MutableVectorValue{D}}) where D = D

@@ -17,15 +17,15 @@ t = Triangle((p1,p2,p3))
 @test num_dims(t) == 3
 
 n = normal(t)
-@test n.data == (0,0,1)
+@test get_data(n) == (0,0,1)
 
 s=t[(2,3)]
 @test isa(s,Segment{3})
-@test s.p == Segment(p2,p3).p
+@test s.points == Segment(p2,p3).points
 
 e = get_edge(t,1)
 @test isa(e,Segment{3})
-@test e.p == Segment(p1,p2).p
+@test e.points == Segment(p1,p2).points
 
 p = Point(0.5,0.5,1.0)
 @test distance(p,t) ==  distance(t,p) == 1
@@ -36,7 +36,7 @@ p3 = Point(0,3,0)
 
 t = Triangle(p1,p2,p3)
 c = center(t)
-@test c.data == (1.0,1.0,0.0)
+@test get_data(c) == (1.0,1.0,0.0)
 
 @test volume(t) == 4.5
 
