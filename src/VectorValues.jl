@@ -177,3 +177,7 @@ end
 end
 
 @inline min_bound(a::VectorValue...,) = min_bound((a...,))
+
+Base.:-(v::VectorValue{D,T}) where {D,T} = VectorValue{D,T}(.-v.data)
+
+⊙(a::VectorValue{D},b::VectorValue{D}) where D = VectorValue(a.data .* b.data)

@@ -245,3 +245,13 @@ function BoundingBox(stl::ConformingSTL{D},d::Int,i::Int) where D
 end
 
 @inline BoundingBox(stl::ConformingSTL,gid::Int) = BoundingBox(stl,local_dface(stl,gid)...)
+
+function BoundingBox(stl::ConformingSTL)
+  pmin = stl.vertex_coordinates[1]
+  pmax = stl.vertex_coordinates[1]
+  for v ∈ stl.vertex_coordinates
+    pmin = min_bound(pmin,v)
+    pmax = max_bound(pmax,v)
+  end
+  BoundingBox(pmin,pmax)
+end

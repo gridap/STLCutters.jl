@@ -35,4 +35,17 @@ h = HexaCell(Point(0.1,0.1,0.1),Point(1.0,1.0,1.0))
 @test local_dface(stl,global_dface(stl,2,5)) == (2,5)
 @test global_dface(stl,local_dface(stl,15)...) == 15
 
+# import STLCutter: BoundingBox
+# import STLCutter: optimized_compute_cell_to_stl_nfaces
+#
+#
+# stl = ConformingSTL("sbunny.stl")
+# bb = BoundingBox(stl)
+# o = bb.pmin
+# s = bb.pmax - bb.pmin
+# p = (10,10,10)
+# m = StructuredBulkMesh(o,s,p)
+# @time x=optimized_compute_cell_to_stl_nfaces(m,stl);
+
+
 end # module

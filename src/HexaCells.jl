@@ -24,6 +24,26 @@ function BoundingBox(t::Tetrahedron{D}) where D
   BoundingBox(min_bound(t.p),max_bound(t.p))
 end
 
+# function BoundingBox(stl::RawSTL)
+#   pmin = stl.vertex_coordinates[1]
+#   pmax = stl.vertex_coordinates[1]
+#   for v ∈ stl.vertex_coordinates
+#     pmin = min_bound(pmin,v)
+#     pmax = max_bound(pmax,v)
+#   end
+#   BoundingBox(pmin,pmax)
+# end
+
+# function BoundingBox(stl::ConformingSTL)
+#   pmin = stl.vertex_coordinates[1]
+#   pmax = stl.vertex_coordinates[1]
+#   for v ∈ stl.vertex_coordinates
+#     pmin = min_bound(pmin,v)
+#     pmax = max_bound(pmax,v)
+#   end
+#   BoundingBox(pmin,pmax)
+# end
+
 function HexaCell(pmin::Point{D},pmax::Point{D}) where {D}
   for d in 1:D
     @assert pmin[d] <= pmax[d]
@@ -107,25 +127,29 @@ function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
     end
   end
   t_pos = positivize_normal(bb,t)
-  n = normal(t_pos)
+  n = abs(normal(t_pos))
   p0 = center(t_pos)
-  n_scal = scal(n,( bb.pmax - bb.pmin ))
-  n_scal = n_scal / norm(n_scal)
-  main_d = max_dimension(n_scal)
+  main_d = max_dimension( n ⊙ ( bb.pmax - bb.pmin ) )
   main_length = bb.pmax[main_d] - bb.pmin[main_d]
 
-  d_pmin = ( n ⋅ ( p0 - bb.pmin ) ) / n[main_d]
-  d_pmax = ( n ⋅ ( p0 - bb.pmax ) ) / n[main_d]
-  if d_pmin < 0 || d_pmax > 0
+  i_int = 0
+  sq = project_on_square(bb,main_d)
+  d = mutable(VectorValue{num_components(sq),Float64})
+  for i in 1:num_components(sq)
+    d[i] = ( n ⋅ (p0 -sq[i]) ) / n[main_d]
+    if d[i] ≥ 0 || d[i] ≤ main_length
+      i_int = i
+    end
+  end
+
+  if d[1] < 0 || d[num_components(sq)] > main_length
     return false
   else
     main_x = cartesian_axis(n,main_d)
-    if d_pmin ≤ main_length
-      intersection = bb.pmin + main_x * d_pmin
-    elseif d_pmax ≥ -main_length
-      intersection = bb.pmax + main_x * d_pmax
+    if i_int != 0
+      intersection = sq[i_int] + main_x *d[i_int]
     else
-      @assert false
+      throw(ErrorException(""))
     end
     have_intersection(intersection,t_pos)
   end
@@ -147,6 +171,27 @@ function positivize_normal(bb::BoundingBox{D},t::Triangle{D}) where {D}
    end
    data = NTuple{num_points_per_triangle,VectorValue{D,Float64}}(x.data)
    Triangle(data)
+end
+
+function project_on_square(bb::BoundingBox{D},x::Int) where D
+  n_vertices = 2^(D-1)
+  p_i = mutable(Point{D,Float64})
+  v = mutable(VectorValue{n_vertices,Point{D,Float64}})
+  for i in 1:4
+    c = 2
+    b = 0
+    for j in 1:D
+      if j ≠ x
+        b = (i-1)÷c - b*2
+        p_i[j] = (1-b)*bb.pmin[j] + b*bb.pmax[j]
+        c -= 1
+      else
+        p_i[j] = bb.pmin[j]
+      end
+    end
+    v[i] = p_i
+  end
+  VectorValue(v.data)
 end
 
 function have_intersection(bb1::BoundingBox{D},bb2::BoundingBox{D}) where {D}
