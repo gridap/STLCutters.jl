@@ -20,10 +20,11 @@ function get_facet(t::Tetrahedron,i::Integer)
 end
 
 function volume(t::Tetrahedron{D}) where D
+  factor = 1/6
   v1 = t.points[2] - t.points[1]
   v2 = t.points[3] - t.points[1]
   v3 = t.points[4] - t.points[1]
-  ( v1 × v2 ) ⋅ v3 * ( 1 / 6 ) 
+  ( v1 × v2 ) ⋅ v3 * factor 
 end
 
 function have_intersection(p::Point{D},t::Tetrahedron{D}) where D

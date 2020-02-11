@@ -95,11 +95,11 @@ function Base.getindex(p::Point,i::Integer)
   p.vector[i]
 end
 
-function Base.:+(a::Point{d},b::Point{d}) where d
+function Base.:+(a::Point{D},b::Point{D}) where D
   a.vector + b.vector
 end
 
-function Base.:-(a::Point{d},b::Point{d}) where d
+function Base.:-(a::Point{D},b::Point{D}) where D
   a.vector - b.vector
 end
 

@@ -41,14 +41,8 @@ end
 
 function have_intersection(p::Point{D},bb::BoundingBox{D}) where D
   bb = expand(bb,BB_tolerance)
-  for d in 1:D
-    if p[d] < bb.pmin[d]
-      return false
-    end
-    if p[d] > bb.pmax[d]
-      return false
-    end
-  end
+  all( get_data( p .>= bb.pmin ) ) || return false
+  all( get_data( p .<= bb.pmax ) ) || return false
   true
 end
 

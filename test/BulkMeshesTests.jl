@@ -3,7 +3,7 @@ module BulkMeshesTests
 using Test
 using STLCutter
 
-import STLCutter: BoundingBox,find_container, get_cell_id,compute_cell_to_stl_nfaces,optimized_compute_cell_to_stl_nfaces
+using STLCutter: BoundingBox,find_container, get_cell_id,compute_cell_to_stl_nfaces,optimized_compute_cell_to_stl_nfaces
 
 o = Point(0.0,0.0,0.0)
 s = VectorValue(1.0,1.0,1.0)

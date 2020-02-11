@@ -97,10 +97,7 @@ function get_facet(stl::ConformingSTL{D},i::Int) where D
 end
 
 function compute_vertex_to_facets(facet_to_vertices::TableOfVectors{Int},num_vertices::Int)
-  vertex_to_facets = TableOfVectors{Int}([])
-  for i in 1:num_vertices
-    pushlist!(vertex_to_facets, Vector{Int}([]))
-  end
+  vertex_to_facets = TableOfVectors(Int,num_vertices,0)
   for i in 1:length(facet_to_vertices)
     list = getlist(facet_to_vertices,i)
     for j in 1:length(list)
@@ -125,7 +122,6 @@ function compute_edge_neighbors(facet_to_vertices::TableOfVectors{Int},vertex_to
     facet = getlist(facet_to_vertices,ifacet)
     for ledge in 1:num_local_edges
       edge = get_local_edges(facet,ledge)
-      @assert length(edge) == 2
       f1 = getlist(vertex_to_facets,edge[1])
       f2 = getlist(vertex_to_facets,edge[2])
       neighbor = f1[findall( in(f2),f1 )]
@@ -137,16 +133,15 @@ function compute_edge_neighbors(facet_to_vertices::TableOfVectors{Int},vertex_to
   facet_to_edge_neighbors
 end
 
+const num_edges_per_facet = 3
 function compute_facet_to_edges(facet_to_edge_neighbors::TableOfVectors{Int})
-  facet_to_edges = TableOfVectors{Int}([])
-  for i in 1:length(facet_to_edge_neighbors)
-    pushlist!(facet_to_edges,Vector{Int}(zeros(3)))
-  end
+  num_facets = length(facet_to_edge_neighbors)
+  facet_to_edges = TableOfVectors(Int,num_facets,num_edges_per_facet)
   num_edges = 0
   for ifacet in 1:length(facet_to_edge_neighbors)
     edges = getlist(facet_to_edges,ifacet)
     neighbors = getlist(facet_to_edge_neighbors,ifacet)
-    for ledge in 1:num_local_edges
+    for ledge in 1:num_edges_per_facet
       if ( edges[ledge] == 0 )
         num_edges += 1
         set_to_list!(facet_to_edges, ifacet, ledge, num_edges )
@@ -177,11 +172,7 @@ function compute_edge_to_vertices(facet_to_vertices::TableOfVectors{Int},facet_t
 end
 
 function compute_edge_to_facets(facet_to_edges::TableOfVectors,num_edges::Int)
-  edge_to_facets = TableOfVectors{Int}([])
-  for i in 1:num_edges
-    pushlist!(edge_to_facets, Vector{Int}([]))
-  end
-
+  edge_to_facets = TableOfVectors(Int,num_edges,0)
   for i in 1:length(facet_to_edges)#, d = 1:num_dims(STL)
     list = getlist(facet_to_edges,i)
     for j in 1:length(list)
@@ -195,11 +186,11 @@ function writevtk(stl::ConformingSTL{D,T},file_base_name) where {D,T}
   d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5)
   num_points = num_vertices(stl)
   points = zeros(T,D,num_points)
-  for (i ,p ) ∈ enumerate(stl.vertex_coordinates), d ∈ 1:D
+  for (i ,p ) in enumerate(stl.vertex_coordinates), d in 1:D
     points[d,i] = p[d]
   end
   cells = MeshCell{Vector{Int64}}[]
-  for d ∈ 0:D-1
+  for d in 0:D-1
     dface_to_vertices = get_dface_to_vertices(stl,d)
     num_dfaces = length(dface_to_vertices)
     vtk_type = VTKCellType(d_to_vtk_type_id[d])
@@ -227,7 +218,9 @@ function have_intersection(hex::HexaCell{D},stl::ConformingSTL{D},d::Int,i::Int)
   end
 end
 
-@inline have_intersection(hex::HexaCell,stl::ConformingSTL,gid::Int) = have_intersection(hex,stl,local_dface(stl,gid)...)
+@inline function have_intersection(hex::HexaCell,stl::ConformingSTL,gid::Int)
+  have_intersection(hex,stl,local_dface(stl,gid)...)
+end
 
 function BoundingBox(stl::ConformingSTL{D},d::Int,i::Int) where D
   if d == 0

@@ -24,4 +24,13 @@ t=TableOfLists(x,n)
 @test getlist(t,5) == [10]
 @test length(t) == n
 
+t = TableOfVectors(Int,5,0)
+
+@test length(t) == 5
+@test length(getlist(t,1)) == 0
+
+t = TableOfVectors(Int,5,2)
+
+@test getlist(t,1) == [0,0]
+
 end # module

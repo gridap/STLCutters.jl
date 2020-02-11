@@ -45,6 +45,11 @@ struct TableOfVectors{T} <: AbstractTable
   _vectors::Vector{Vector{T}}
 end
 
+function TableOfVectors(::Type{T},ni::Integer,nj::Integer) where T
+  data = [ zeros(T,nj) for i in 1:ni ]
+  TableOfVectors{T}( data )
+end
+
 table_cache(a::TableOfVectors) = nothing
 
 function getlist!(::Nothing,a::TableOfVectors,i::Integer)

@@ -2,7 +2,7 @@ module ConformingSTLsTests
 
 using Test
 using STLCutter
-import STLCutter: global_dface, local_dface
+using STLCutter: global_dface, local_dface
 
 vertex_coordinates = Point{2,Float64}[(0, 0), (1, 0), (1, 1), (0, 1)]
 d_face_to_vertices = [TableOfVectors([[3, 4], [1, 2], [2, 3]])]

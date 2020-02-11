@@ -23,11 +23,11 @@ function get_cell(m::StructuredBulkMesh{D},i::Integer) where D
 end
 
 function find_container(m::StructuredBulkMesh{D},p::Point{D}) where D
-  pn = Int.(floor.( (get_data(p) .- get_data(m.origin)) .* m.partition ./ get_data(m.sizes) ))
-  pn = pn .+ 1
-  pn = max.(pn,1)
-  pn = min.(pn,m.partition)
-  get_cell_id(m,pn)
+  i_coords = Int.(floor.( (get_data(p) .- get_data(m.origin)) .* m.partition ./ get_data(m.sizes) ))
+  i_coords = i_coords .+ 1
+  i_coords = max.(i_coords,1)
+  i_coords = min.(i_coords,m.partition)
+  get_cell_id(m,i_coords)
 end
 
 function int_coordinates(m::StructuredBulkMesh{D},n::Integer) where D
@@ -41,7 +41,7 @@ function int_coordinates(m::StructuredBulkMesh{D},n::Integer) where D
   get_data(n_d)
 end
 
-function get_cell_id(m::StructuredBulkMesh{D},n::NTuple{D,Int}) where D
+function get_cell_id(m::StructuredBulkMesh{D},n::NTuple{D,Integer}) where D
   gid = 0
   p_d = 1
   for d in 1:D
@@ -89,7 +89,7 @@ function cells_around(m::StructuredBulkMesh{D},bb::BoundingBox{D}) where {D}
 end
 
 function compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{D}) where D
-  cell_to_stl_nfaces = TableOfVectors{Int}( [ Vector{Int}([]) for i in 1:num_cells(m) ] )
+  cell_to_stl_nfaces = TableOfVectors(Int,num_cells(m),0)
   for k in 1:num_cells(m)
     hex = get_cell(m,k)
     for stl_nface in 1:num_dfaces(stl)
@@ -102,7 +102,7 @@ function compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{
 end
 
 function optimized_compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{D}) where D
-  cell_to_stl_nfaces = TableOfVectors{Int}( [ Vector{Int}([]) for i in 1:num_cells(m) ] )
+  cell_to_stl_nfaces = TableOfVectors(Int,num_cells(m),0)
   for stl_nface in 1:num_dfaces(stl)
     bb = BoundingBox(stl,stl_nface)
     for k in cells_around(m,bb)
