@@ -107,3 +107,13 @@ function apply_map(v::TableOfVectors{Int}, map::Vector{Int})
   end
   mapped_v
 end
+
+function BoundingBox(stl::RawSTL)
+  pmin = stl.vertex_coordinates[1]
+  pmax = stl.vertex_coordinates[1]
+  for v ∈ stl.vertex_coordinates
+    pmin = min.(pmin,v)
+    pmax = max.(pmax,v)
+  end
+  BoundingBox(pmin,pmax)
+end

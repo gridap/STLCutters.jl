@@ -2,7 +2,7 @@ module TrianglesTests
 
 using Test
 using STLCutter
-import STLCutter: num_dims, get_edge
+using STLCutter: num_dims, get_edge, vertices
 
 p1 = Point(0,0,0)
 p2 = Point(1,0,0)
@@ -13,15 +13,11 @@ t = Triangle(p1,p2,p3)
 
 t = Triangle((p1,p2,p3))
 @test isa(t,Triangle{3})
-@test t[1] == p1
+@test vertices(t)[1] == p1
 @test num_dims(t) == 3
 
 n = normal(t)
 @test get_data(n) == (0,0,1)
-
-s=t[(2,3)]
-@test isa(s,Segment{3})
-@test s.points == Segment(p2,p3).points
 
 e = get_edge(t,1)
 @test isa(e,Segment{3})

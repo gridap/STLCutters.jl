@@ -1,16 +1,10 @@
 
-struct Triangle{D}
-  points::Tuple{Point{D},Point{D},Point{D}}
+struct Triangle{D,T}
+  points::Tuple{Point{D,T},Point{D,T},Point{D,T}}
 end
 
 @inline function Triangle(p1::Point,p2::Point,p3::Point)
   Triangle((p1,p2,p3))
-end
-
-@inline Base.getindex(t::Triangle,i::Integer) = t.points[i]
-
-@inline function Base.getindex(t::Triangle,i::NTuple{2,Integer})
- Segment(t[i[1]],t[i[2]])
 end
 
 num_dims(::Triangle{D}) where D = D
@@ -21,12 +15,13 @@ const num_edges_per_triangle = 3
 const ledge_to_triangle_point = ((1,2),(2,3),(3,1))
 
 function get_edge(t::Triangle,i::Integer)
-  t[ ledge_to_triangle_point[i] ]
+  lpoints = ledge_to_triangle_point[i]
+  Segment(t.points[lpoints[1]],t.points[lpoints[2]])
 end
 
 function normal(t::Triangle{D}) where D
-  v1 = t[2] - t[1]
-  v2 = t[3] - t[1]
+  v1 = t.points[2] - t.points[1]
+  v2 = t.points[3] - t.points[1]
   v1 × v2
 end
 
@@ -34,23 +29,32 @@ function center(t::Triangle)
   average(t.points)
 end
 
-const volume_factor_triangle = 1/2
 function volume(t::Triangle{D}) where D
-  v1 = t[2] - t[1]
-  v2 = t[3] - t[1]
+  factor = 1/2
+  v1 = t.points[2] - t.points[1]
+  v2 = t.points[3] - t.points[1]
   if D == 2
     n1 = VectorValue(v1[2],-v1[1])
-    abs( v2 ⋅ n1 ) * volume_factor_triangle
+    abs( v2 ⋅ n1 ) * factor
   elseif D == 3
-    norm( v1 × v2 ) * volume_factor_triangle
+    norm( v1 × v2 ) * factor
+  else
+    throw(DimensionMismatch("volume of Triangle{D} (area) only defined in 2 and 3 dimensions"))
   end
 end
 
-function distance(p::Point{D},t::Triangle{D}) where D
-  if D != 3
-    throw(DimensionMismatch("distance Point{D} to Triangle{D} only valid for 3 dimensions"))
-  end
-  if have_intersection(p,t)
+function orientation(t::Triangle{2})
+  v1 = t.points[2] - t.points[1]
+  v2 = t.points[3] - t.points[1]
+  sign( v1[1]*v2[2] - v1[2]*v2[1] )
+end
+
+function orientation(t::Triangle{D}) where D
+  throw(DimensionMismatch("orientation of Triangle{D} only defined in 2"))
+end
+
+function distance(p::Point{3},t::Triangle{3})
+  if !have_intersection(p,t)
     d = typemax(Float64)
     for i in 1:num_edges_per_triangle
       e = get_edge(t,i)
@@ -70,12 +74,27 @@ function distance(p::Point{D},t::Triangle{D}) where D
   d
 end
 
+function distance(p::Point{D},t::Triangle{D}) where D
+  throw(DimensionMismatch("distance Point{D} to Triangle{D} only valid for 3 dimensions"))
+end
+
 @inline distance(t::Triangle,p::Point) = distance(p,t)
 
-function have_intersection(p::Point{D},t::Triangle{D}) where D
-  if D != 3
-    throw(DimensionMismatch("have_intersection Point{D} abd Triangle{D} only defined for 3 dimensions"))
+function have_intersection(p::Point{2},t::Triangle{2})
+  o = orientation(t)
+  o != 0 || throw(ErrorException("Triangle has no orientation"))
+  for i ∈ 1:num_edges_per_triangle
+    e = get_edge(t,i)
+    n = normal(e) * o
+    c = center(e)
+    if ( p - c ) ⋅ n < 0
+      return false
+    end
   end
+  true
+end
+
+function have_intersection(p::Point{3},t::Triangle{3})
   n = normal(t)
   n = n / norm(n)
   for i ∈ 1:num_edges_per_triangle
@@ -89,6 +108,10 @@ function have_intersection(p::Point{D},t::Triangle{D}) where D
     end
   end
   true
+end
+
+function have_intersection(p::Point{D},t::Triangle{D}) where D
+  throw(DimensionMismatch("have_intersection Point{D} and Triangle{D} only defined for 2 and 3 dimensions"))
 end
 
 @inline have_intersection(t::Triangle,p::Point) = have_intersection(p,t)

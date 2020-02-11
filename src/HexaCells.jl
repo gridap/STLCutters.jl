@@ -1,48 +1,29 @@
 
-struct BoundingBox{D}
-  pmin::Point{D}
-  pmax::Point{D}
+struct BoundingBox{D,T}
+  pmin::Point{D,T}
+  pmax::Point{D,T}
 end
 
-struct HexaCell{D}
-  bb::BoundingBox{D}
+struct HexaCell{D,T}
+  bb::BoundingBox{D,T}
 end
 
-function BoundingBox(p::Point{D}) where D
-  BoundingBox(p,p)
+function BoundingBox(p::Point{D,T}) where {D,T}
+  BoundingBox{D,T}(p,p)
 end
 
-function BoundingBox(s::Segment{D}) where D
-  BoundingBox(min.(s.points...),max.(s.points...))
+function BoundingBox(s::Segment{D,T}) where {D,T}
+  BoundingBox{D,T}(min.(s.points...),max.(s.points...))
 end
 
-function BoundingBox(t::Triangle{D}) where D
-  BoundingBox(min.(t.points...),max.(t.points...))
+function BoundingBox(t::Triangle{D,T}) where {D,T}
+  BoundingBox{D,T}(min.(t.points...),max.(t.points...))
 end
 
-function BoundingBox(t::Tetrahedron{D}) where D
-  BoundingBox(min.(t.p...),max.(t.p...))
+function BoundingBox(t::Tetrahedron{D,T}) where {D,T}
+  BoundingBox{D,T}(min.(t.p...),max.(t.p...))
 end
 
-# function BoundingBox(stl::RawSTL)
-#   pmin = stl.vertex_coordinates[1]
-#   pmax = stl.vertex_coordinates[1]
-#   for v ∈ stl.vertex_coordinates
-#     pmin = min.(pmin,v)
-#     pmax = max.(pmax,v)
-#   end
-#   BoundingBox(pmin,pmax)
-# end
-
-# function BoundingBox(stl::ConformingSTL)
-#   pmin = stl.vertex_coordinates[1]
-#   pmax = stl.vertex_coordinates[1]
-#   for v ∈ stl.vertex_coordinates
-#     pmin = min.(pmin,v)
-#     pmax = max.(pmax,v)
-#   end
-#   BoundingBox(pmin,pmax)
-# end
 
 function HexaCell(pmin::Point{D},pmax::Point{D}) where {D}
   for d in 1:D
@@ -52,7 +33,7 @@ function HexaCell(pmin::Point{D},pmax::Point{D}) where {D}
 end
 
 const BB_tolerance = 1e-5
-function expand(bb::BoundingBox,ε::Float64)
+function expand(bb::BoundingBox,ε::Number)
   d = bb.pmax - bb.pmin
   δ = d * ε
   BoundingBox( bb.pmin - δ, bb.pmax + δ )

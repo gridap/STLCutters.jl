@@ -1,6 +1,6 @@
 
-struct Segment{D}
-  points::Tuple{Point{D},Point{D}}
+struct Segment{D,T}
+  points::Tuple{Point{D,T},Point{D,T}}
 end
 
 @inline function Segment(p1::Point,p2::Point)
@@ -92,14 +92,16 @@ function distance(s1::Segment{D},s2::Segment{D}) where D
   abs( ( c2 - c1 ) ⋅ n )
 end
 
-function normal(s::Segment{D}) where D
-  D == 2 || throw(DimensionMismatch("normal to a segment is only defined in 2D"))
+function normal(s::Segment{2}) 
   v = s[2] - s[1]
-  VectorValue( v[2], -v[1])
+  VectorValue( -v[2], v[1])
 end
 
-function have_intersection(s1::Segment{D},s2::Segment{D}) where D
-  D == 2 || throw(DimensionMismatch("intersection between two segments is only defined in 2D"))
+function normal(s::Segment{D}) where D
+  throw(DimensionMismatch("normal to a segment is only defined in 2D"))
+end
+
+function have_intersection(s1::Segment{2},s2::Segment{2})
   n1 = normal(s1)
   n1 = n1 / norm(n1)
   c1 = center(s1)
@@ -115,14 +117,21 @@ function have_intersection(s1::Segment{D},s2::Segment{D}) where D
   true
 end
 
-function intersection(s1::Segment{D},s2::Segment{D}) where D
-  D == 2 || throw(DimensionMismatch("intersection between two segments is only defined in 2D"))
+function have_intersection(s1::Segment{D},s2::Segment{D}) where D
+  throw(DimensionMismatch("intersection between two segments is only defined in 2D"))
+end
+
+function intersection(s1::Segment{2},s2::Segment{2})
   v1 = s1[2] - s1[1]
   n2 = normal(s2)
   n2 = n2 / norm(n2)
   c2 = center(s2)
   α = abs( ( c2 - s1[1] ) ⋅ n2 ) / norm(v1)
   s1[1] + α * v1
+end
+
+function intersection(s1::Segment{D},s2::Segment{D}) where D
+  throw(DimensionMismatch("intersection between two segments is only defined in 2D"))
 end
 
 function projection(p::Point{D},s::Segment{D}) where D
@@ -132,9 +141,7 @@ function projection(p::Point{D},s::Segment{D}) where D
   c + ( ( p - c ) ⋅ v ) * v
 end
 
-function closest_point(s1::Segment{D},s2::Segment{D}) where D
-  D == 3 || throw(DimensionMismatch("distance between two segments is only defined in 3D"))
-
+function closest_point(s1::Segment{3},s2::Segment{3})
   v1 = s1[2] - s1[1]
   v2 = s2[2] - s2[1]
   v1 = v1 / norm(v1)
@@ -149,4 +156,8 @@ function closest_point(s1::Segment{D},s2::Segment{D}) where D
   s1_c = c2 - s1[1]
   α = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
   s1[1] + α * s1_s2
+end
+
+function closest_point(s1::Segment{D},s2::Segment{D}) where D
+  throw(DimensionMismatch("distance between two segments is only defined in 3D"))
 end
