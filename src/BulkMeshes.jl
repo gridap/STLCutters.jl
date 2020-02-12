@@ -70,26 +70,7 @@ function cells_around!(buffer::Vector{Int},m::StructuredBulkMesh{D},p::Point{D})
   buffer
 end
 
-function cells_around(m::StructuredBulkMesh{D},p::Point{D}) where {D}
-  @time id = find_container(m,p)
-  @time int_coord = int_coordinates(m,id)
-
-  min_int_coord = int_coord .- 1
-  min_int_coord = max.(min_int_coord,1)
-
-  max_int_coord = int_coord .+ 1
-  max_int_coord = min.(max_int_coord,m.partition)
-
-  @time A=UnitRange.(min_int_coord,max_int_coord)
-  @time list = Vector{Int}([])
-  for i in CartesianIndices(A)
-    push!(list,get_cell_id(m,i.I))
-  end
-  list
-end
-
-
-function cells_around(m::StructuredBulkMesh{D},bb::BoundingBox{D}) where {D}
+function cells_around!(buffer::Vector{Int},m::StructuredBulkMesh{D},bb::BoundingBox{D}) where {D}
   min_id = find_container(m,bb.pmin)
   min_int_coord = int_coordinates(m,min_id)
   min_int_coord = min_int_coord .- 1
@@ -101,11 +82,11 @@ function cells_around(m::StructuredBulkMesh{D},bb::BoundingBox{D}) where {D}
   max_int_coord = min.(max_int_coord,m.partition)
 
   A=UnitRange.(min_int_coord,max_int_coord)
-  list = Vector{Int}([])
+  resize!(buffer,0)
   for i in CartesianIndices(A)
-    push!(list,get_cell_id(m,i.I))
+    push!(buffer,get_cell_id(m,i.I))
   end
-  list
+  buffer
 end
 
 function compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{D}) where D
@@ -123,9 +104,10 @@ end
 
 function optimized_compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{D}) where D
   cell_to_stl_nfaces = TableOfVectors(Int,num_cells(m),0)
+  cell_buffer = Int[]
   for stl_nface in 1:num_dfaces(stl)
     bb = BoundingBox(stl,stl_nface)
-    for k in cells_around(m,bb)
+    for k in cells_around!(cell_buffer,m,bb)
       hex = get_cell(m,k)
       if have_intersection(hex,stl,stl_nface)
         push_to_list!(cell_to_stl_nfaces, k, stl_nface )

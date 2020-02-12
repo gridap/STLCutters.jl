@@ -251,7 +251,7 @@ function have_intersection(hex::HexaCell{D},stl::ConformingSTL{D},d::Int,i::Int)
   end
 end
 
-@inline function have_intersection(hex::HexaCell,stl::ConformingSTL,gid::Int)
+function have_intersection(hex::HexaCell,stl::ConformingSTL,gid::Int)
   have_intersection(hex,stl,local_dface(stl,gid)...)
 end
 
