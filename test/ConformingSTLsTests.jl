@@ -47,5 +47,4 @@ h = HexaCell(Point(0.1,0.1,0.1),Point(1.0,1.0,1.0))
 # m = StructuredBulkMesh(o,s,p)
 # @time x=optimized_compute_cell_to_stl_nfaces(m,stl);
 
-
 end # module

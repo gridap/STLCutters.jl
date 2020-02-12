@@ -48,8 +48,9 @@ function map_repeated_vertices(stl::RawSTL{D}) where D
   partition = partition .* n_x
   mesh = StructuredBulkMesh(origin,sizes,partition)
   cell_to_vertices = TableOfVectors(Int,num_cells(mesh),0)
+  cell_buffer = Int[]
   for (i,v) ∈ enumerate(stl.vertex_coordinates)
-    for k ∈ cells_around(mesh,v)
+    for k ∈ cells_around!(cell_buffer,mesh,v)
       h = get_cell(mesh,k)
       if have_intersection(v,h)
         push_to_list!(cell_to_vertices,k,i)
@@ -59,12 +60,12 @@ function map_repeated_vertices(stl::RawSTL{D}) where D
   vertices_map = Vector{Int}(1:num_vertices(stl))
   for k in 1:num_cells(mesh)
     list = getlist(cell_to_vertices,k)
-    for (n,i) ∈ enumerate(list), j ∈ list[n+1:end]
-      vi = stl.vertex_coordinates[i]
-      vj = stl.vertex_coordinates[j]
-      if vertices_map[i] == i && vertices_map[j] == j
+    for i in 1:length(list), j in i+1:length(list) 
+      vi = stl.vertex_coordinates[list[i]]
+      vj = stl.vertex_coordinates[list[j]]
+      if vertices_map[list[i]] == list[i] && vertices_map[list[j]] == list[j]
         if distance(vi,vj) < STL_tolerance
-          vertices_map[j] = i
+          vertices_map[list[j]] = list[i]
         end
       end
     end

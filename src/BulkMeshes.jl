@@ -51,7 +51,8 @@ function get_cell_id(m::StructuredBulkMesh{D},n::NTuple{D,Integer}) where D
   gid + 1
 end
 
-function cells_around(m::StructuredBulkMesh{D},p::Point{D}) where {D}
+
+function cells_around!(buffer::Vector{Int},m::StructuredBulkMesh{D},p::Point{D}) where {D}
   id = find_container(m,p)
   int_coord = int_coordinates(m,id)
 
@@ -62,12 +63,31 @@ function cells_around(m::StructuredBulkMesh{D},p::Point{D}) where {D}
   max_int_coord = min.(max_int_coord,m.partition)
 
   A=UnitRange.(min_int_coord,max_int_coord)
-  list = Vector{Int}([])
+  resize!(buffer,0)
+  for i in CartesianIndices(A)
+    push!(buffer,get_cell_id(m,i.I))
+  end
+  buffer
+end
+
+function cells_around(m::StructuredBulkMesh{D},p::Point{D}) where {D}
+  @time id = find_container(m,p)
+  @time int_coord = int_coordinates(m,id)
+
+  min_int_coord = int_coord .- 1
+  min_int_coord = max.(min_int_coord,1)
+
+  max_int_coord = int_coord .+ 1
+  max_int_coord = min.(max_int_coord,m.partition)
+
+  @time A=UnitRange.(min_int_coord,max_int_coord)
+  @time list = Vector{Int}([])
   for i in CartesianIndices(A)
     push!(list,get_cell_id(m,i.I))
   end
   list
 end
+
 
 function cells_around(m::StructuredBulkMesh{D},bb::BoundingBox{D}) where {D}
   min_id = find_container(m,bb.pmin)

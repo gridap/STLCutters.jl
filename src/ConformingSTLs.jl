@@ -107,30 +107,64 @@ function compute_vertex_to_facets(facet_to_vertices::TableOfVectors{Int},num_ver
   vertex_to_facets
 end
 
-const edge_to_vertex = [[1,2],[1,3],[2,3]]
+const ledge_to_facet_vertices = ((1,2),(1,3),(2,3))
 function get_local_edges( v::Vector{Int}, ledge )
-  v[edge_to_vertex[ledge]]
+  lvertices = ledge_to_facet_vertices[ledge]
+  (v[lvertices[1]],v[lvertices[2]])
 end
 
 const num_local_edges = 3
 function compute_edge_neighbors(facet_to_vertices::TableOfVectors{Int},vertex_to_facets::TableOfVectors{Int})
-  facet_to_edge_neighbors = TableOfVectors{Int}([])
-  for i in 1:length(facet_to_vertices)
-    pushlist!(facet_to_edge_neighbors,Vector{Int}(zeros(num_local_edges)))
+  # methods
+  function set_intersection!(a::Vector{T},b::Vector{T}) where T
+    i = 1
+    while i <= length(a)
+      ai = a[i]
+      found = false
+      for bi in b
+        if ai == bi 
+          found = true
+          break
+        end
+      end
+      if !found 
+        deleteat!(a,i)
+      else
+        i += 1
+      end
+    end
+    a
   end
-  for ifacet in 1:length(facet_to_vertices)
+  function set_difference!(a::Vector{T},b::T) where T
+    i = 1
+    while i <= length(a)
+      if a[i] == b
+        deleteat!(a,i)
+      else
+        i += 1
+      end
+    end
+    a
+  end
+  # body 
+  num_facets = length(facet_to_vertices)
+  facet_to_edge_neighbors = TableOfVectors(Int,num_facets,num_local_edges)
+  neighbor = Int[]
+  for ifacet in 1:num_facets
     facet = getlist(facet_to_vertices,ifacet)
     for ledge in 1:num_local_edges
       edge = get_local_edges(facet,ledge)
       f1 = getlist(vertex_to_facets,edge[1])
       f2 = getlist(vertex_to_facets,edge[2])
-      neighbor = f1[findall( in(f2),f1 )]
-      neighbor = neighbor[findall(x->x != ifacet, neighbor)]
+      copy!(neighbor,f1)
+      set_intersection!(neighbor,f2)
+      set_difference!(neighbor,ifacet)
       @assert length(neighbor) == 1
       set_to_list!(facet_to_edge_neighbors,ifacet,ledge,neighbor[1])
     end
   end
   facet_to_edge_neighbors
+
 end
 
 const num_edges_per_facet = 3
@@ -145,9 +179,8 @@ function compute_facet_to_edges(facet_to_edge_neighbors::TableOfVectors{Int})
       if ( edges[ledge] == 0 )
         num_edges += 1
         set_to_list!(facet_to_edges, ifacet, ledge, num_edges )
-        ledge_at_neighbor = findall( x->x == ifacet, getlist(facet_to_edge_neighbors,neighbors[ledge]) )
-        @assert length(ledge_at_neighbor) == 1
-        set_to_list!(facet_to_edges, neighbors[ledge], ledge_at_neighbor[1], num_edges )
+        ledge_at_neighbor = findfirst( x->x == ifacet, getlist(facet_to_edge_neighbors,neighbors[ledge]) )
+        set_to_list!(facet_to_edges, neighbors[ledge], ledge_at_neighbor, num_edges )
       end
     end
   end
@@ -164,7 +197,7 @@ function compute_edge_to_vertices(facet_to_vertices::TableOfVectors{Int},facet_t
       if ( edges[ledge] == num_edges + 1 )
         num_edges += 1
         edge = get_local_edges(facet,ledge)
-        pushlist!(edge_to_vertices,edge)
+        pushlist!(edge_to_vertices,collect(edge))
       end
     end
   end
@@ -173,7 +206,7 @@ end
 
 function compute_edge_to_facets(facet_to_edges::TableOfVectors,num_edges::Int)
   edge_to_facets = TableOfVectors(Int,num_edges,0)
-  for i in 1:length(facet_to_edges)#, d = 1:num_dims(STL)
+  for i in 1:length(facet_to_edges)
     list = getlist(facet_to_edges,i)
     for j in 1:length(list)
       push_to_list!(edge_to_facets, list[j], i )
