@@ -1,4 +1,5 @@
 using PyCall
+using LinearAlgebra
 
 scipy_spatial = pyimport("scipy.spatial")
 
@@ -76,7 +77,7 @@ function center(c::RefCell)
 end
 
 function facet_center(c::RefCell,i::Int)
-  c.coordinates[ c.facet_to_vertices[i,:] ]
+  average( c.coordinates[ :,c.facet_to_vertices[:,i] ] )
 end
 
 function compute_cell_to_facets(c2n::Array{Int,2})
@@ -123,7 +124,8 @@ function compute_face_to_nfaces(f2v::Array{Int,2})
   function faces_around(i::Int,j::Int)
     
     function nface()
-      setdiff(f2v[:,i],f2v[j,i])
+      k = size(f2v,1) - j + 1
+      setdiff(f2v[:,i],f2v[k,i])
     end
 
     fs = intersect(v2f[nface()]...)
@@ -151,7 +153,8 @@ end
 function compute_nface_to_vertices(f2nf::Array{Int,2},f2v::Array{Int,2})
 
   function nface(i::Int,j::Int)
-    setdiff(f2v[:,i],f2v[j,i])
+    k = size(f2v,1) - j + 1
+    setdiff(f2v[:,i],f2v[k,i])
   end
 
   num_nf = maximum(f2nf)
@@ -179,12 +182,13 @@ f2v = compute_nface_to_vertices(c2f,c2v)
 @show f2v
 
 
-t2 = RefCell(TetCell,3)
+t3 = RefCell(TetCell,3)
 
-x = [ t2.coordinates center(t2) ]
+x = [ t3.coordinates center(t3) ]
 
 c2v,c2n = delaunay( x )
 
+c2n = reverse(c2n,dims=1)
 c2f = compute_cell_to_facets(c2n)
 f2v = compute_nface_to_vertices(c2f,c2v)
 v2c = dual_map(c2v)
@@ -195,13 +199,55 @@ v2f = dual_map(f2v)
 @show e2v = compute_nface_to_vertices(f2e,f2v)
 
 
+@show c2f == compute_face_to_nfaces(c2v)
 
+
+
+
+function orientation(x::Array{Float64,2})
+  if size(x,1) == 2
+    size(x,2) == 3 || throw(ErrorException("Not a 2D simplex"))
+    v1 = x[:,2] - x[:,1]
+    v2 = x[:,3] - x[:,1]
+    n1 = [ -v1[2] ; v1[1] ]
+    sign( dot(n1,v2) )
+  elseif size(x,1) == 3
+    size(x,2) == 4 || throw(ErrorException("Not a 3D simplex"))
+    v1 = x[:,2] - x[:,1]
+    v2 = x[:,3] - x[:,1]
+    v3 = x[:,4] - x[:,1]
+    sign( (v1×v2) ⋅ v3 )
+  else
+    throw(DimensionMismatch("Orientation of a $(size(x,1))D simplex not implemented"))
+  end
+end
+
+
+function correct_cell_orientation(x::Array{Float64,2},c2v::Array{Int,2})
+  num_cells = size(c2v,2)
+  for i in 1:num_cells
+    if orientation(x[:,c2v[:,i]]) < 0 
+      println("Cell $i has negative orientation")
+      c2v[[1,end],i] = reverse(c2v[[1,end],i])
+    end
+  end
+  c2v
+end
+
+c2v = correct_cell_orientation(x,c2v)
 
 
 
 # TODO: 
 # Considering renaming when refering to nface and (n-1)face by face(f) and nface(nf) respectvely
 # as cell(c) and facet(f)
+# Facet to subcell orientation
+# subNfacet to Nfacet
+# [x] flip nface creation (opposite to N-i-1)
+# [x] reorient cells
+# create container of submesh
+# build refCell connectivities with the same functions
+# test
 
 
 
