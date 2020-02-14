@@ -170,6 +170,47 @@ function compute_nface_to_vertices(f2nf::Array{Int,2},f2v::Array{Int,2})
   nf2v
 end
 
+function orientation(x::Array{Float64,2})
+  if size(x,1) == 2
+    size(x,2) == 3 || throw(ErrorException("Not a 2D simplex"))
+    v1 = x[:,2] - x[:,1]
+    v2 = x[:,3] - x[:,1]
+    n1 = [ -v1[2] ; v1[1] ]
+    sign( dot(n1,v2) )
+  elseif size(x,1) == 3
+    size(x,2) == 4 || throw(ErrorException("Not a 3D simplex"))
+    v1 = x[:,2] - x[:,1]
+    v2 = x[:,3] - x[:,1]
+    v3 = x[:,4] - x[:,1]
+    sign( (v1×v2) ⋅ v3 )
+  else
+    throw(DimensionMismatch("Orientation of a $(size(x,1))D simplex not implemented"))
+  end
+end
+
+function correct_cell_orientation(x::Array{Float64,2},c2v::Array{Int,2})
+  num_cells = size(c2v,2)
+  for i in 1:num_cells
+    if orientation(x[:,c2v[:,i]]) < 0 
+      println("Cell $i has negative orientation")
+      c2v[[1,end],i] = reverse(c2v[[1,end],i])
+    end
+  end
+  c2v
+end
+
+function chain_maps(a2b::Array{Int,2},b2c::Array{Int,2})
+  
+  cs(i::Int) = unique(b2c[:,a2b[:,i]])
+
+  num_cxa = length( cs(1) )
+  num_a = size(a2b,2)
+  a2c = zeros(Int,num_cxa,num_a)
+  for i in 1:num_a
+    a2c[:,i] = cs(i)
+  end
+  a2c
+end
 
 t2 = RefCell(TetCell,2)
 
@@ -204,37 +245,43 @@ v2f = dual_map(f2v)
 
 
 
-function orientation(x::Array{Float64,2})
-  if size(x,1) == 2
-    size(x,2) == 3 || throw(ErrorException("Not a 2D simplex"))
-    v1 = x[:,2] - x[:,1]
-    v2 = x[:,3] - x[:,1]
-    n1 = [ -v1[2] ; v1[1] ]
-    sign( dot(n1,v2) )
-  elseif size(x,1) == 3
-    size(x,2) == 4 || throw(ErrorException("Not a 3D simplex"))
-    v1 = x[:,2] - x[:,1]
-    v2 = x[:,3] - x[:,1]
-    v3 = x[:,4] - x[:,1]
-    sign( (v1×v2) ⋅ v3 )
-  else
-    throw(DimensionMismatch("Orientation of a $(size(x,1))D simplex not implemented"))
-  end
+struct NFaceToMFace
+  data::Vector{Vector{Array{Int,2}}}
+end
+
+Base.getindex(a::NFaceToMFace,i::Int,j::Int) = a.data[i+1][j+1]
+
+function NFaceToMFace(ndims::Int)
+  data = [[ zeros(Int,0,0) for i in 0:num_dims] for j in 0:num_dims ]
+  NFaceToMFace(data)
 end
 
 
-function correct_cell_orientation(x::Array{Float64,2},c2v::Array{Int,2})
-  num_cells = size(c2v,2)
-  for i in 1:num_cells
-    if orientation(x[:,c2v[:,i]]) < 0 
-      println("Cell $i has negative orientation")
-      c2v[[1,end],i] = reverse(c2v[[1,end],i])
-    end
-  end
-  c2v
-end
+#c2v = correct_cell_orientation(x,c2v)
+@show c2e=chain_maps(c2f,f2e)
 
+
+c2v, = delaunay( x )
 c2v = correct_cell_orientation(x,c2v)
+
+num_dims = size(x,1)
+
+nF_to_mF = [[ zeros(Int,0,0) for i in 0:num_dims] for j in 0:num_dims ]
+
+nF_to_mF[num_dims+1][1] = c2v
+for d in reverse(2:num_dims)
+  nF_to_mF[d+1][d] = compute_face_to_nfaces( nF_to_mF[d+1][1] )
+  nF_to_mF[d][1] = compute_nface_to_vertices( nF_to_mF[d+1][d], nF_to_mF[d+1][1] )
+end
+
+D = num_dims
+d = 3
+for d in reverse(2:num_dims-1)
+  nF_to_mF[D+1][d] = chain_maps( nF_to_mF[D+1][d+1], nF_to_mF[d+1][d] )
+end
+
+
+
 
 
 
@@ -248,6 +295,7 @@ c2v = correct_cell_orientation(x,c2v)
 # create container of submesh
 # build refCell connectivities with the same functions
 # test
+# rename comp_c2nf as chain map or something similar
 
 
 
