@@ -107,13 +107,13 @@ function orientation(x::Array{Float64,2})
     v1 = x[:,2] - x[:,1]
     v2 = x[:,3] - x[:,1]
     n1 = [ -v1[2] ; v1[1] ]
-    sign( dot(n1,v2) )
+    Int(sign( dot(n1,v2) ))
   elseif size(x,1) == 3
     size(x,2) == 4 || throw(ErrorException("Not a 3D simplex"))
     v1 = x[:,2] - x[:,1]
     v2 = x[:,3] - x[:,1]
     v3 = x[:,4] - x[:,1]
-    sign( (v1×v2) ⋅ v3 )
+    Int(sign( (v1×v2) ⋅ v3 ))
   else
     throw(DimensionMismatch("Orientation of a $(size(x,1))D simplex not implemented"))
   end
@@ -242,6 +242,9 @@ function facet_center(c::RefCell,i::Int)
   average( c.coordinates[ :,c.facet_to_vertices[:,i] ] )
 end
 
+function dfacet_center(c::RefCell,d::Int,i::Int)
+  average( c.coordinates[ :,c.dfacet_to_vertices[d][:,i] ] )
+end
 
 @show RefCell(TetCell,2)
 @show RefCell(TetCell,3)
@@ -295,23 +298,59 @@ x = [ t3.coordinates center(t3) ]
 
 f2f = compute_mesh(x)
 
-
+# Setu the map
 num_dims = 3
-c2v = reshape(collect(1:num_dims+1),:,1)
-df2v = compute_connectivities(c2v)[1:end-1,0]
+v2f = [ dual_map( t3.dfacet_to_vertices[d] ) for d in 1:2 ]
+push!(v2f[1],Int[])
+push!(v2f[2],Int[])
+
+
+#Build map: (Cell nFace) ↦ (SubMesh nFace)
+f2F = [ zeros(Int,size(f2f[d,0],2)) for d in 1:3 ]
+for d in 1:num_dims-1
+  for i in 1:size(f2f[d,0],2)
+    F = intersect(v2f[d][f2f[d,0][:,i]]...)
+    if length(F) == 1
+      f2F[d][i] = F[1]
+    else
+      length(F) == 0 || throw(ErrorException("$d-Face of $i not idenfitied: $F"))
+    end
+  end
+end
+
+
+#Setup orientation computation
+D = 3
+c2v=f2f[D,0]
+f2v=f2f[D-1,0]
+c2f=f2f[D,D-1]
+
+# Compute relative orientation facet to cell
+num_c = size(c2f,2)
+num_fxc = size(c2f,1)
+c2f_orientation = zeros(Int,num_fxc,num_c)
+
+for i in 1:num_c, j in 1:num_fxc
+  c = c2v[:,i]
+  f = f2v[:,c2f[j,i]]
+  cp = vcat( f, setdiff(c,f) )
+  c2f_orientation[i,j] = orientation(x[:,cp])
+end
+
 
 
 # TODO: 
 # Considering renaming when refering to nface and (n-1)face by face(f) and nface(nf) respectvely
 # as cell(c) and facet(f)
-# Facet to subcell orientation
-# subNfacet to Nfacet
+# [x] Facet to subcell orientation
+# [x] subNfacet to Nfacet
 # [x] flip nface creation (opposite to N-i-1)
 # [x] reorient cells
 # [x] create container of submesh
-# build refCell connectivities with the same functions
+# [x] build refCell connectivities with the same functions
+# general cell for hex refs
 # test
-# rename comp_c2nf as chain map or something similar
+# [x] rename comp_c2nf as chain map or something similar
 
 
 
