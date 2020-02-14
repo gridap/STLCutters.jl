@@ -212,6 +212,41 @@ function chain_maps(a2b::Array{Int,2},b2c::Array{Int,2})
   a2c
 end
 
+struct NFaceToMFace
+  data::Vector{Vector{Array{Int,2}}}
+end
+
+Base.getindex(a::NFaceToMFace,i::Int,j::Int) = a.data[i+1][j+1]
+Base.setindex!(a::NFaceToMFace,v::Array{Int,2},i::Int,j::Int) = a.data[i+1][j+1] = v
+
+function NFaceToMFace(ndims::Int)
+  data = [[ zeros(Int,0,0) for i in 0:num_dims] for j in 0:num_dims ]
+  NFaceToMFace(data)
+end
+
+function compute_connectivities(c2v::Array{Int,2})
+  
+  num_dims = size(c2v,1) - 1
+  nF_to_mF = NFaceToMFace(num_dims)
+  nF_to_mF[num_dims,0] = c2v
+
+  for d in reverse(1:num_dims-1)
+    nF_to_mF[d+1,d] = compute_face_to_nfaces( nF_to_mF[d+1,0] )
+    nF_to_mF[d,0] = compute_nface_to_vertices( nF_to_mF[d+1,d], nF_to_mF[d+1,0] )
+  end
+
+  for d in reverse(1:num_dims-2)
+    nF_to_mF[num_dims,d] = chain_maps( nF_to_mF[num_dims,d+1], nF_to_mF[d+1,d] )
+  end
+  nF_to_mF
+end
+
+function compute_mesh(x::Array{Float64,2})
+  c2v, = delaunay( x )
+  c2v = correct_cell_orientation(x,c2v)
+  compute_connectivities(c2v)
+end
+
 t2 = RefCell(TetCell,2)
 
 x = [ t2.coordinates center(t2) ]
@@ -245,44 +280,20 @@ v2f = dual_map(f2v)
 
 
 
-struct NFaceToMFace
-  data::Vector{Vector{Array{Int,2}}}
-end
-
-Base.getindex(a::NFaceToMFace,i::Int,j::Int) = a.data[i+1][j+1]
-
-function NFaceToMFace(ndims::Int)
-  data = [[ zeros(Int,0,0) for i in 0:num_dims] for j in 0:num_dims ]
-  NFaceToMFace(data)
-end
 
 
 #c2v = correct_cell_orientation(x,c2v)
 @show c2e=chain_maps(c2f,f2e)
 
 
-c2v, = delaunay( x )
-c2v = correct_cell_orientation(x,c2v)
-
-num_dims = size(x,1)
-
-nF_to_mF = [[ zeros(Int,0,0) for i in 0:num_dims] for j in 0:num_dims ]
-
-nF_to_mF[num_dims+1][1] = c2v
-for d in reverse(2:num_dims)
-  nF_to_mF[d+1][d] = compute_face_to_nfaces( nF_to_mF[d+1][1] )
-  nF_to_mF[d][1] = compute_nface_to_vertices( nF_to_mF[d+1][d], nF_to_mF[d+1][1] )
-end
-
-D = num_dims
-d = 3
-for d in reverse(2:num_dims-1)
-  nF_to_mF[D+1][d] = chain_maps( nF_to_mF[D+1][d+1], nF_to_mF[d+1][d] )
-end
 
 
 
+t3 = RefCell(TetCell,3)
 
+x = [ t3.coordinates center(t3) ]
+
+f2f = compute_mesh(x)
 
 
 # TODO: 
@@ -292,7 +303,7 @@ end
 # subNfacet to Nfacet
 # [x] flip nface creation (opposite to N-i-1)
 # [x] reorient cells
-# create container of submesh
+# [x] create container of submesh
 # build refCell connectivities with the same functions
 # test
 # rename comp_c2nf as chain map or something similar
