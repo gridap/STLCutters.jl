@@ -11,75 +11,6 @@ function delaunay(x::Array{T,2}) where T
   p2j(d.simplices), p2j(d.neighbors)
 end
 
-x=reshape([0 0  0 1  1 0  1 1],2,:)
-c=delaunay(x)
-
-x=reshape([0 0 0  0 1 0  1 0 0  0 0 1  1 1 1],3,:)
-c=delaunay(x)
-
-
-struct RefCell
-  cell_type::String
-  num_dims::Int
-  coordinates::Array{Float64,2}
-  facet_to_vertices::Array{Int,2}
-end
-
-
-const HexCell = "hex"
-const TetCell = "tet"
-function RefCell(ctype::String,ndims::Int)
-  if ndims == 2
-    if ctype == TetCell
-      x = reshape([ 0. 0.  1. 0.  0. 1. ],ndims,:)
-      f2v = reshape([ 1 2  1 3  2 3 ],ndims,:)
-    elseif ctype == HexCell
-      x = reshape([ -1. -1.  1. -1.  -1. 1.  1. 1. ],ndims,:)
-      f2v = reshape([ 1 2  3 4  1 3  2 4 ],2^(ndims-1),:)
-    else
-      throw(ArgumentError("Cell type $ctype not defined"))
-    end 
-  elseif ndims == 3
-    if ctype == TetCell
-      x = reshape([ 0. 0. 0.  1. 0. 0.  0. 1. 0.  0. 0. 1. ],ndims,:)
-      f2v = reshape([ 1 2 3  1 2 4  1 3 4  2 3 4 ],ndims,:)
-    elseif ctype == HexCell
-      x = reshape(
-        [ -1. -1. -1.  1. -1. -1.  -1. 1. -1.  1. 1. -1.  -1. -1. 1.  1. -1. 1.  -1. 1. 1.  1. 1. 1.],
-        ndims,:)
-      f2v = reshape( [ 1 2 3 4  5 6 7 8  1 2 5 6  3 4 7 8  1 3 5 7  2 4 6 8],2^(ndims-1),:)
-    else
-      throw(ArgumentError("Cell type $ctype not defined"))
-    end
-  else
-    throw(ArgumentError("RefCell not defined for $ndims dimensions"))
-  end
-  RefCell(ctype,ndims,x,f2v)
-end
-
-@show RefCell(TetCell,2)
-@show RefCell(TetCell,3)
-@show RefCell(HexCell,2)
-@show RefCell(HexCell,3)
-
-rh = RefCell(HexCell,3)
-
-x = rh.coordinates
-c2v,c2n = delaunay(rh.coordinates)
-
-
-function average(x::Array{T,2}) where T
-  sum(x,dims=2)./size(x,2)
-end
-
-function center(c::RefCell)
-  average(c.coordinates)
-end
-
-function facet_center(c::RefCell,i::Int)
-  average( c.coordinates[ :,c.facet_to_vertices[:,i] ] )
-end
-
 function compute_cell_to_facets(c2n::Array{Int,2})
   c2f = zeros(Int,size(c2n))
   count_f = 0
@@ -213,14 +144,23 @@ function chain_maps(a2b::Array{Int,2},b2c::Array{Int,2})
 end
 
 struct NFaceToMFace
-  data::Vector{Vector{Array{Int,2}}}
+  data::Array{Array{Int,2},2}
 end
 
-Base.getindex(a::NFaceToMFace,i::Int,j::Int) = a.data[i+1][j+1]
-Base.setindex!(a::NFaceToMFace,v::Array{Int,2},i::Int,j::Int) = a.data[i+1][j+1] = v
+Base.getindex(a::NFaceToMFace,i::Int,j::Int) = a.data[i+1,j+1]
+Base.getindex(a::NFaceToMFace,I::Colon,j::Int) = a.data[I,j+1]
+Base.getindex(a::NFaceToMFace,i::Int,J::Colon) = a.data[i+1,J]
+Base.getindex(a::NFaceToMFace,I::UnitRange{Int},j::Int) = a.data[I.+1,j+1]
+Base.getindex(a::NFaceToMFace,i::Int,J::UnitRange{Int}) = a.data[i+1,J.+1]
+Base.getindex(a::NFaceToMFace,I::UnitRange{Int},J::UnitRange{Int}) = a.data[I.+1,J.+1]
 
-function NFaceToMFace(ndims::Int)
-  data = [[ zeros(Int,0,0) for i in 0:num_dims] for j in 0:num_dims ]
+Base.setindex!(a::NFaceToMFace,v::Array{Int,2},i::Int,j::Int) = a.data[i+1,j+1] = v
+
+Base.lastindex(a::NFaceToMFace,i::Int) = lastindex(a.data,i) - 1
+
+
+function NFaceToMFace(num_dims::Int)
+  data = reshape([ zeros(Int,0,0) for i in 0:num_dims, j in 0:num_dims ],num_dims+1,num_dims+1) 
   NFaceToMFace(data)
 end
 
@@ -246,6 +186,72 @@ function compute_mesh(x::Array{Float64,2})
   c2v = correct_cell_orientation(x,c2v)
   compute_connectivities(c2v)
 end
+
+struct RefCell
+  cell_type::String
+  num_dims::Int
+  coordinates::Array{Float64,2}
+  dfacet_to_vertices::Vector{Array{Int,2}}
+end
+
+const HexCell = "hex"
+const TetCell = "tet"
+function RefCell(ctype::String,ndims::Int)
+  if ndims == 2
+    if ctype == TetCell
+      x = reshape([ 0. 0.  1. 0.  0. 1. ],ndims,:)
+    elseif ctype == HexCell
+      x = reshape([ -1. -1.  1. -1.  -1. 1.  1. 1. ],ndims,:)
+      f2v = reshape([ 1 2  3 4  1 3  2 4 ],2^(ndims-1),:)
+    else
+      throw(ArgumentError("Cell type $ctype not defined"))
+    end 
+  elseif ndims == 3
+    if ctype == TetCell
+      x = reshape([ 0. 0. 0.  1. 0. 0.  0. 1. 0.  0. 0. 1. ],ndims,:)
+    elseif ctype == HexCell
+      x = reshape(
+        [ -1. -1. -1.  1. -1. -1.  -1. 1. -1.  1. 1. -1.  -1. -1. 1.  1. -1. 1.  -1. 1. 1.  1. 1. 1.],
+        ndims,:)
+      f2v = reshape( [ 1 2 3 4  5 6 7 8  1 2 5 6  3 4 7 8  1 3 5 7  2 4 6 8],2^(ndims-1),:)
+    else
+      throw(ArgumentError("Cell type $ctype not defined"))
+    end
+  else
+    throw(ArgumentError("RefCell not defined for $ndims dimensions"))
+  end
+  if ctype == TetCell
+    c2v = reshape(collect(1:ndims+1),:,1)
+    df2v = compute_connectivities(c2v)[1:end-1,0]
+  else
+    df2v = [ f2v ]
+  end
+
+  RefCell(ctype,ndims,x,df2v)
+end
+
+function average(x::Array{T,2}) where T
+  sum(x,dims=2)./size(x,2)
+end
+
+function center(c::RefCell)
+  average(c.coordinates)
+end
+
+function facet_center(c::RefCell,i::Int)
+  average( c.coordinates[ :,c.facet_to_vertices[:,i] ] )
+end
+
+
+@show RefCell(TetCell,2)
+@show RefCell(TetCell,3)
+@show RefCell(HexCell,2)
+@show RefCell(HexCell,3)
+
+rh = RefCell(HexCell,3)
+
+x = rh.coordinates
+c2v,c2n = delaunay(rh.coordinates)
 
 t2 = RefCell(TetCell,2)
 
@@ -277,12 +283,6 @@ v2f = dual_map(f2v)
 
 @show c2f == compute_face_to_nfaces(c2v)
 
-
-
-
-
-
-#c2v = correct_cell_orientation(x,c2v)
 @show c2e=chain_maps(c2f,f2e)
 
 
@@ -294,6 +294,11 @@ t3 = RefCell(TetCell,3)
 x = [ t3.coordinates center(t3) ]
 
 f2f = compute_mesh(x)
+
+
+num_dims = 3
+c2v = reshape(collect(1:num_dims+1),:,1)
+df2v = compute_connectivities(c2v)[1:end-1,0]
 
 
 # TODO: 
