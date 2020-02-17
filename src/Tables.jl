@@ -66,6 +66,9 @@ set_to_list!(a::TableOfVectors{T},i::Int,j::Int,value::T) where {T} = a._vectors
 
 @inline Base.:(==)(a::TableOfVectors{T},b::TableOfVectors{T}) where T = ( a._vectors == b._vectors )
 
+# TableOfLists -> CompressedTable
+# _l -> data
+# _p -> ptrs
 struct TableOfLists{T} <: AbstractTable
   _l::Vector{T}
   _p::Vector{Int}

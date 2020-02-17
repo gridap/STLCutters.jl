@@ -101,23 +101,23 @@ function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
       return true
     end
   end
-  t_pos = positivize_normal(bb,t)
+  t_pos = _fix_triangle(bb,t)
   n = abs(normal(t_pos))
   p0 = center(t_pos)
   main_d = max_dimension( n .* ( bb.pmax - bb.pmin ) )
   main_length = bb.pmax[main_d] - bb.pmin[main_d]
 
   i_int = 0
-  sq = project_on_square(bb,main_d)
-  d = mutable(VectorValue{num_components(sq),Float64})
-  for i in 1:num_components(sq)
+  sq = _square_vertices(bb,main_d)
+  d = mutable(VectorValue{length(sq),Float64})
+  for i in 1:length(sq)
     d[i] = ( n ⋅ (p0 -sq[i]) ) / n[main_d]
     if d[i] ≥ 0 || d[i] ≤ main_length
       i_int = i
     end
   end
 
-  if d[1] < 0 || d[num_components(sq)] > main_length
+  if d[1] < 0 || d[length(sq)] > main_length
     return false
   else
     main_x = canonical_vector(n,main_d)
@@ -132,7 +132,7 @@ end
 
 @inline have_intersection(t::Triangle{D},h::HexaCell{D}) where{D} = have_intersection(t,h.bb)
 
-function positivize_normal(bb::BoundingBox{D},t::Triangle{D}) where {D}
+function _fix_triangle(bb::BoundingBox{D},t::Triangle{D}) where {D}
   n = normal(t)
 
   function mirror(point::Point{D,T}) where {D,T}
@@ -151,7 +151,7 @@ function positivize_normal(bb::BoundingBox{D},t::Triangle{D}) where {D}
   Triangle(points)
 end
 
-function project_on_square(bb::BoundingBox{D},x::Int) where D
+function _square_vertices(bb::BoundingBox{D},axis::Int) where D
   n_vertices = 2^(D-1)
   p_i = mutable(Point{D,Float64})
   v = mutable(VectorValue{n_vertices,Point{D,Float64}})
@@ -159,7 +159,7 @@ function project_on_square(bb::BoundingBox{D},x::Int) where D
     c = 2
     b = 0
     for j in 1:D
-      if j ≠ x
+      if j ≠ axis
         b = (i-1)÷c - b*2
         p_i[j] = (1-b)*bb.pmin[j] + b*bb.pmax[j]
         c -= 1
@@ -169,7 +169,7 @@ function project_on_square(bb::BoundingBox{D},x::Int) where D
     end
     v[i] = p_i
   end
-  VectorValue(v.data)
+  v.data
 end
 
 function have_intersection(bb1::BoundingBox{D},bb2::BoundingBox{D}) where {D}

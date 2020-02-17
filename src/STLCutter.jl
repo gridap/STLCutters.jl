@@ -46,6 +46,17 @@ export writevtk
 export num_cells
 export get_cell
 
+macro check(test)
+  quote
+    @assert($test)
+  end
+end
+
+macro check(test,msg)
+  quote
+    @assert($test,$msg)
+  end
+end
 
 include("MutableVectorValues.jl")
 

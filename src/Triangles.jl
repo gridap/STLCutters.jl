@@ -9,17 +9,31 @@ end
 
 num_dims(::Triangle{D}) where D = D
 
+num_edges(::Type{<:Triangle}) = 3
+
+num_edges(::T) where T<:Triangle = num_edges(T)
+
+num_vertices(::Type{<:Triangle}) = 2
+
+num_vertices(::T) where T<:Triangle = num_vertices(T)
+
 @inline vertices(t::Triangle) = t.points
 
-const num_edges_per_triangle = 3
-const ledge_to_triangle_point = ((1,2),(2,3),(3,1))
+get_edge_to_vertices(::Type{<:Triangle}) = ((1,2),(2,3),(3,1))
+
+get_edge_to_vertices(::T) where T<:Triangle = get_edge_to_vertices(T)
 
 function get_edge(t::Triangle,i::Integer)
-  lpoints = ledge_to_triangle_point[i]
+  edge_to_vertices = get_edge_to_vertices(t)
+  lpoints = edge_to_vertices[i]
   Segment(t.points[lpoints[1]],t.points[lpoints[2]])
 end
 
 function normal(t::Triangle{D}) where D
+  throw(ArgumentError("normal(::Triangle{$D}) not defined, only defined in 3D"))
+end
+
+function normal(t::Triangle{3})
   v1 = t.points[2] - t.points[1]
   v2 = t.points[3] - t.points[1]
   v1 × v2
@@ -56,7 +70,7 @@ end
 function distance(p::Point{3},t::Triangle{3})
   if !have_intersection(p,t)
     d = typemax(Float64)
-    for i in 1:num_edges_per_triangle
+    for i in 1:num_edges(t)
       e = get_edge(t,i)
       d_e = distance(p,e)
       if d_e < d
@@ -83,7 +97,7 @@ end
 function have_intersection(p::Point{2},t::Triangle{2})
   o = orientation(t)
   o != 0 || throw(ErrorException("Triangle has no orientation"))
-  for i ∈ 1:num_edges_per_triangle
+  for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
     n = normal(e) * o
     c = center(e)
@@ -97,7 +111,7 @@ end
 function have_intersection(p::Point{3},t::Triangle{3})
   n = normal(t)
   n = n / norm(n)
-  for i ∈ 1:num_edges_per_triangle
+  for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
     v_e = e[2] - e[1]
     c_e = center(e)
@@ -133,6 +147,7 @@ end
 @inline have_intersection(t::Triangle,s::Segment) = have_intersection(s,t)
 
 function intersection(s::Segment{D},t::Triangle{D}) where D
+  @check have_intersection(s,t)
   n = normal(t)
   c = center(t)
   s1_s2 = s[2] - s[1]

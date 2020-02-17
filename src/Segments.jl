@@ -55,7 +55,10 @@ end
 @inline have_intersection(s::Segment{D},p::Point{D}) where D = have_intersection(p,s)
 
 function distance(s1::Segment{D},s2::Segment{D}) where D
-  D == 3 || throw(DimensionMismatch("distance between two segments is only defined in 3D"))
+  throw(DimensionMismatch("distance between two segments is only implemented in 3D"))
+end
+
+function distance(s1::Segment{3},s2::Segment{3})
 
   v1 = s1[2] - s1[1]
   v2 = s2[2] - s2[1]
@@ -122,6 +125,7 @@ function have_intersection(s1::Segment{D},s2::Segment{D}) where D
 end
 
 function intersection(s1::Segment{2},s2::Segment{2})
+  @check have_intersection(s1,s2) "The provided segments have no intersection"
   v1 = s1[2] - s1[1]
   n2 = normal(s2)
   n2 = n2 / norm(n2)

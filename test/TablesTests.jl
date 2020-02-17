@@ -33,4 +33,27 @@ t = TableOfVectors(Int,5,2)
 
 @test getlist(t,1) == [0,0]
 
+
+
+
+cache = table_cache(cell_to_edges)
+for cell in 1:length(cell_to_edges)
+  edges = getlist!(cache,cell_to_edges,cell)
+  for (ledge,edge) in enumerate(edges)
+  end
+end
+
+
+for cell in 1:length(cell_to_edges)
+  for ledge in 1:length(cell_to_edges,cell)
+    edge = cell_to_edges[cell,ledge]
+    cell_to_edges[cell,ledge] = edge
+  end
+end
+
+
+
+
+
+
 end # module
