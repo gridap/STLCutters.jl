@@ -3,6 +3,27 @@ using LinearAlgebra
 
 scipy_spatial = pyimport("scipy.spatial")
 
+struct NFaceToMFace
+  data::Array{Array{Int,2},2}
+end
+
+function NFaceToMFace(num_dims::Int)
+  data = reshape([ zeros(Int,0,0) for i in 0:num_dims, j in 0:num_dims ],num_dims+1,num_dims+1) 
+  NFaceToMFace(data)
+end
+
+Base.getindex(a::NFaceToMFace,i::Int,j::Int) = a.data[i+1,j+1]
+Base.getindex(a::NFaceToMFace,I::Colon,j::Int) = a.data[I,j+1]
+Base.getindex(a::NFaceToMFace,i::Int,J::Colon) = a.data[i+1,J]
+Base.getindex(a::NFaceToMFace,I::UnitRange{Int},j::Int) = a.data[I.+1,j+1]
+Base.getindex(a::NFaceToMFace,i::Int,J::UnitRange{Int}) = a.data[i+1,J.+1]
+Base.getindex(a::NFaceToMFace,I::UnitRange{Int},J::UnitRange{Int}) = a.data[I.+1,J.+1]
+
+Base.setindex!(a::NFaceToMFace,v::Array{Int,2},i::Int,j::Int) = a.data[i+1,j+1] = v
+
+Base.lastindex(a::NFaceToMFace,i::Int) = lastindex(a.data,i) - 1
+
+Base.ndims(f::NFaceToMFace) = size(f.data,1) - 1
 
 function delaunay(x::Array{T,2}) where T
   x = copy(transpose(x))
@@ -30,26 +51,26 @@ end
 
 function dual_map(map::Array{Int,2})
   n = maximum(map)
-  d_map = [ [] for i in 1:n ]
+  d_map = [ Int[] for i in 1:n ]
   for i in 1:size(map,2), j in 1:size(map,1)
     push!( d_map[ map[j,i] ],i )
   end
   d_map
 end
 
-"""
-  `compute_face_to_nfaces(f2v::Array{Int,2})`
+function chain_maps(a2b::Array{Int,2},b2c::Array{Int,2})
+  
+  cs(i::Int) = unique(b2c[:,a2b[:,i]])
 
- - Given n-faces to vertices (or 0-faces) map:
+  num_cxa = length( cs(1) )
+  num_a = size(a2b,2)
+  a2c = zeros(Int,num_cxa,num_a)
+  for i in 1:num_a
+    a2c[:,i] = cs(i)
+  end
+  a2c
+end
 
-    * computes the map from n-faces to (n-1)-faces 
-
-    * n-faces are called `faces` or just `f`
-
-    * (n-1)-faces are called `nfaces` or just `nf`
-
-    * All n-faces are simplicies
-"""  
 function compute_face_to_nfaces(f2v::Array{Int,2})
 
   function faces_around(i::Int,j::Int)
@@ -79,7 +100,6 @@ function compute_face_to_nfaces(f2v::Array{Int,2})
   end
   f2nf
 end
-
 
 function compute_nface_to_vertices(f2nf::Array{Int,2},f2v::Array{Int,2})
 
@@ -123,45 +143,10 @@ function correct_cell_orientation(x::Array{Float64,2},c2v::Array{Int,2})
   num_cells = size(c2v,2)
   for i in 1:num_cells
     if orientation(x[:,c2v[:,i]]) < 0 
-      println("Cell $i has negative orientation")
       c2v[[1,end],i] = reverse(c2v[[1,end],i])
     end
   end
   c2v
-end
-
-function chain_maps(a2b::Array{Int,2},b2c::Array{Int,2})
-  
-  cs(i::Int) = unique(b2c[:,a2b[:,i]])
-
-  num_cxa = length( cs(1) )
-  num_a = size(a2b,2)
-  a2c = zeros(Int,num_cxa,num_a)
-  for i in 1:num_a
-    a2c[:,i] = cs(i)
-  end
-  a2c
-end
-
-struct NFaceToMFace
-  data::Array{Array{Int,2},2}
-end
-
-Base.getindex(a::NFaceToMFace,i::Int,j::Int) = a.data[i+1,j+1]
-Base.getindex(a::NFaceToMFace,I::Colon,j::Int) = a.data[I,j+1]
-Base.getindex(a::NFaceToMFace,i::Int,J::Colon) = a.data[i+1,J]
-Base.getindex(a::NFaceToMFace,I::UnitRange{Int},j::Int) = a.data[I.+1,j+1]
-Base.getindex(a::NFaceToMFace,i::Int,J::UnitRange{Int}) = a.data[i+1,J.+1]
-Base.getindex(a::NFaceToMFace,I::UnitRange{Int},J::UnitRange{Int}) = a.data[I.+1,J.+1]
-
-Base.setindex!(a::NFaceToMFace,v::Array{Int,2},i::Int,j::Int) = a.data[i+1,j+1] = v
-
-Base.lastindex(a::NFaceToMFace,i::Int) = lastindex(a.data,i) - 1
-
-
-function NFaceToMFace(num_dims::Int)
-  data = reshape([ zeros(Int,0,0) for i in 0:num_dims, j in 0:num_dims ],num_dims+1,num_dims+1) 
-  NFaceToMFace(data)
 end
 
 function compute_connectivities(c2v::Array{Int,2})
@@ -187,15 +172,56 @@ function compute_mesh(x::Array{Float64,2})
   compute_connectivities(c2v)
 end
 
+function compute_cell_to_facet_orientation(x::Array{Float64,2},c2v::Array{Int,2},f2v::Array{Int,2},c2f::Array{Int,2})
+  num_c = size(c2f,2)
+  num_fxc = size(c2f,1)
+  c2f_orientation = zeros(Int,num_fxc,num_c)
+
+  for i in 1:num_c, j in 1:num_fxc
+    c = c2v[:,i]
+    f = f2v[:,c2f[j,i]]
+    cp = vcat( f, setdiff(c,f) )
+    c2f_orientation[j,i] = -orientation(x[:,cp])
+  end
+  c2f_orientation
+end
+
+function compute_cell_to_facet_orientation(x::Array{Float64,2},nf_to_mf::NFaceToMFace)
+  D = ndims(nf_to_mf)
+  c2v=nf_to_mf[D,0]
+  f2v=nf_to_mf[D-1,0]
+  c2f=nf_to_mf[D,D-1]
+  compute_cell_to_facet_orientation(x,c2v,f2v,c2f) 
+end
+
+function compute_face_to_initial_face(v_to_nF::Vector{Vector{Vector{Int}}},nf_to_v::Vector{Array{Int,2}})
+  nf_to_nF = [ zeros(Int,size( nf_to_v[d],2)) for d in 1:length(v_to_nF) ]
+  for d in 1:length(v_to_nF)
+    for i in 1:size( nf_to_v[d],2)
+      F = intersect(v_to_nF[d][ nf_to_v[d][:,i]]...)
+      if length(F) == 1
+        nf_to_nF[d][i] = F[1]
+      else
+        length(F) == 0 || throw(ErrorException("$d-Face of $i not idenfitied: intersection = $F"))
+      end
+    end
+  end
+  nf_to_nF
+end
+
+# RefCell
+
 struct RefCell
   cell_type::String
   num_dims::Int
   coordinates::Array{Float64,2}
-  dfacet_to_vertices::Vector{Array{Int,2}}
+  dface_to_vertices::Vector{Array{Int,2}}
+  d_face_to_dplus1_face::Vector{Vector{Vector{Int}}}
 end
 
 const HexCell = "hex"
 const TetCell = "tet"
+
 function RefCell(ctype::String,ndims::Int)
   if ndims == 2
     if ctype == TetCell
@@ -220,14 +246,48 @@ function RefCell(ctype::String,ndims::Int)
   else
     throw(ArgumentError("RefCell not defined for $ndims dimensions"))
   end
+
+  f_to_dplus1f = Vector{Vector{Vector{Int}}}(undef,max(1,ndims-2))
   if ctype == TetCell
+    x = zeros(Float64,ndims,ndims+1)
+    for d in 1:ndims
+      x[d,d+1] = 1
+    end
     c2v = reshape(collect(1:ndims+1),:,1)
-    df2v = compute_connectivities(c2v)[1:end-1,0]
+    nf_to_mf = compute_connectivities(c2v)
+    df_to_v = nf_to_mf[1:end,0]
+    for d in 1:ndims-2
+      f_to_dplus1f[d] = dual_map( nf_to_mf[d+1,d] )
+    end
+  elseif ctype == HexCell
+    if ndims == 2
+      x = reshape([ -1. -1.  1. -1.  -1. 1.  1. 1. ],ndims,:)
+      f2v = reshape([ 1 2  3 4  1 3  2 4 ],2^(ndims-1),:)
+    elseif ndims == 3
+      x = reshape(
+        [ -1. -1. -1.  1. -1. -1.  -1. 1. -1.  1. 1. -1.  -1. -1. 1.  1. -1. 1.  -1. 1. 1.  1. 1. 1.],
+        ndims,:)
+      f2v = reshape( [ 1 2 3 4  5 6 7 8  1 2 5 6  3 4 7 8  1 3 5 7  2 4 6 8],2^(ndims-1),:)
+    else
+      throw(ArgumentError("RefCell not defined for $ndims dimensions"))
+    end
+    df_to_v = [ f2v ]
   else
-    df2v = [ f2v ]
+    throw(ArgumentError("RefCell not defined for $ndims dimensions"))
   end
 
-  RefCell(ctype,ndims,x,df2v)
+  RefCell(ctype,ndims,x,df_to_v,f_to_dplus1f)
+end
+
+
+Base.ndims(c::RefCell) = c.num_dims
+
+function num_dfaces(c::RefCell,d::Int)
+  if d == 0
+    size(c.coordinates,2)
+  else
+    size(c.dface_to_vertices[d],2)
+  end
 end
 
 function average(x::Array{T,2}) where T
@@ -242,102 +302,57 @@ function facet_center(c::RefCell,i::Int)
   average( c.coordinates[ :,c.facet_to_vertices[:,i] ] )
 end
 
-function dfacet_center(c::RefCell,d::Int,i::Int)
-  average( c.coordinates[ :,c.dfacet_to_vertices[d][:,i] ] )
+function dface_center(c::RefCell,d::Int,i::Int)
+  average( c.coordinates[ :,c.dface_to_vertices[d][:,i] ] )
 end
 
-@show RefCell(TetCell,2)
-@show RefCell(TetCell,3)
-@show RefCell(HexCell,2)
-@show RefCell(HexCell,3)
-
-rh = RefCell(HexCell,3)
-
-x = rh.coordinates
-c2v,c2n = delaunay(rh.coordinates)
-
-t2 = RefCell(TetCell,2)
-
-x = [ t2.coordinates center(t2) ]
-
-c2v,c2n = delaunay( x )
-
-c2f = compute_cell_to_facets(c2n)
-f2v = compute_nface_to_vertices(c2f,c2v)
-@show f2v
-
-
-t3 = RefCell(TetCell,3)
-
-x = [ t3.coordinates center(t3) ]
-
-c2v,c2n = delaunay( x )
-
-c2n = reverse(c2n,dims=1)
-c2f = compute_cell_to_facets(c2n)
-f2v = compute_nface_to_vertices(c2f,c2v)
-v2c = dual_map(c2v)
-v2f = dual_map(f2v)
-
-
-@show f2e = compute_face_to_nfaces(f2v)
-@show e2v = compute_nface_to_vertices(f2e,f2v)
-
-
-@show c2f == compute_face_to_nfaces(c2v)
-
-@show c2e=chain_maps(c2f,f2e)
-
-
-
-
-
-t3 = RefCell(TetCell,3)
-
-x = [ t3.coordinates center(t3) ]
-
-f2f = compute_mesh(x)
-
-# Setu the map
-num_dims = 3
-v2f = [ dual_map( t3.dfacet_to_vertices[d] ) for d in 1:2 ]
-push!(v2f[1],Int[])
-push!(v2f[2],Int[])
-
-
-#Build map: (Cell nFace) ↦ (SubMesh nFace)
-f2F = [ zeros(Int,size(f2f[d,0],2)) for d in 1:3 ]
-for d in 1:num_dims-1
-  for i in 1:size(f2f[d,0],2)
-    F = intersect(v2f[d][f2f[d,0][:,i]]...)
-    if length(F) == 1
-      f2F[d][i] = F[1]
-    else
-      length(F) == 0 || throw(ErrorException("$d-Face of $i not idenfitied: $F"))
+function dfaces_around_nface(c::RefCell,d::Int,n::Int,i::Int)
+  if n == ndims(c) || d < n
+    Int[]
+  elseif d == ndims(c) 
+    throw(ArgumentError("$(d)-face (cell) not in boundary"))
+  elseif d == 0 || n == 0
+    throw(ArgumentError("0-face (point) not refined"))
+  else
+    dfaces = [ i ]
+    for k in n:d-1
+      dfaces = union(c.d_face_to_dplus1_face[n][dfaces]...)
     end
+    dfaces
+  end
+end
+
+function compute_face_to_initial_face(cell::RefCell,nf_to_mf::NFaceToMFace,d::Int,i::Int)
+  nf_to_v = nf_to_mf[1:end-1,0]
+  v_to_nF = [ dual_map( cell.dface_to_vertices[d] ) for d in 1:ndims(cell)-1 ]
+  for n in 1:ndims(cell)-1 
+    push!(v_to_nF[n], dfaces_around_nface(cell,n,d,i) )
+  end
+  nf_to_nF = compute_face_to_initial_face(v_to_nF,nf_to_v)
+end
+
+
+
+t = RefCell(TetCell,3)
+
+combinations = []
+for d in 1:ndims(t)
+  for i in 1:num_dfaces(t,d)
+    x = [ t.coordinates dface_center(t,d,i) ]
+    nf_to_mf = compute_mesh( x )
+    nf_to_nF = compute_face_to_initial_face(t,nf_to_mf,d,i)
+    c2f_orientation = compute_cell_to_facet_orientation(x,nf_to_mf) 
+    push!(combinations,(x,nf_to_mf,nf_to_nF,c2f_orientation))
   end
 end
 
 
-#Setup orientation computation
-D = 3
-c2v=f2f[D,0]
-f2v=f2f[D-1,0]
-c2f=f2f[D,D-1]
-
-# Compute relative orientation facet to cell
-num_c = size(c2f,2)
-num_fxc = size(c2f,1)
-c2f_orientation = zeros(Int,num_fxc,num_c)
-
-for i in 1:num_c, j in 1:num_fxc
-  c = c2v[:,i]
-  f = f2v[:,c2f[j,i]]
-  cp = vcat( f, setdiff(c,f) )
-  c2f_orientation[i,j] = orientation(x[:,cp])
-end
 
 
+#outfile = "tables.jl"
+#f = open(outfile, "w")
+
+#println(f,)
 
 # TODO: 
 # Considering renaming when refering to nface and (n-1)face by face(f) and nface(nf) respectvely
@@ -351,6 +366,8 @@ end
 # general cell for hex refs
 # test
 # [x] rename comp_c2nf as chain map or something similar
+#
+# 
 
 
 
