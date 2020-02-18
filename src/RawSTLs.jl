@@ -47,19 +47,19 @@ function map_repeated_vertices(stl::RawSTL{D}) where D
   partition = (ones(Int,D)...,)
   partition = partition .* n_x
   mesh = StructuredBulkMesh(origin,sizes,partition)
-  cell_to_vertices = TableOfVectors(Int,num_cells(mesh),0)
+  cell_to_vertices = [ Int[] for i in 1:num_cells(mesh) ]
   cell_cache = Int[]
   for (i,v) ∈ enumerate(stl.vertex_coordinates)
     for k ∈ cells_around!(cell_cache,mesh,v)
       h = get_cell(mesh,k)
       if have_intersection(v,h)
-        push_to_list!(cell_to_vertices,k,i)
+        push!(cell_to_vertices[k],i)
       end
     end
   end
   vertices_map = Vector{Int}(1:num_vertices(stl))
   for k in 1:num_cells(mesh)
-    list = getlist(cell_to_vertices,k)
+    list = cell_to_vertices[k]
     for i in 1:length(list), j in i+1:length(list) 
       vi = stl.vertex_coordinates[list[i]]
       vj = stl.vertex_coordinates[list[j]]
@@ -97,11 +97,11 @@ function compact_map(map::Vector{Int})
 end
 
 function apply_map(v::TableOfVectors{Int}, map::Vector{Int})
-  mapped_v = typeof(v)([])
+  mapped_v = Vector{Int}[]
   for i = 1:length(v)
-    pushlist!(mapped_v, map[getlist(v, i)])
+    push!(mapped_v, map[getlist(v, i)])
   end
-  mapped_v
+  TableOfVectors(mapped_v)
 end
 
 function BoundingBox(stl::RawSTL)

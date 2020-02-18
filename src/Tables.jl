@@ -56,13 +56,13 @@ function getlist!(::Nothing,a::TableOfVectors,i::Integer)
   a._vectors[i]
 end
 
+Base.getindex(a::TableOfVectors,i::Int,j::Int) = a._vectors[i][j]
+
+Base.setindex!(a::TableOfVectors{T},i::Int,j::Int,v::T) where T = a._vectors[i][j]=v
+
 Base.length(a::TableOfVectors) = length(a._vectors)
 
-pushlist!(a::TableOfVectors{T},list::Vector{T}) where{T} = push!(a._vectors,list)
-
-push_to_list!(a::TableOfVectors{T},i::Int,value::T) where{T} = push!(a._vectors[i],value)
-
-set_to_list!(a::TableOfVectors{T},i::Int,j::Int,value::T) where {T} = a._vectors[i][j]=value
+Base.length(a::TableOfVectors,i::Int) = length(a._vectors[i])
 
 @inline Base.:(==)(a::TableOfVectors{T},b::TableOfVectors{T}) where T = ( a._vectors == b._vectors )
 
