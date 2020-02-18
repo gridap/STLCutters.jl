@@ -236,20 +236,24 @@ function RefCell(ctype::String,ndims::Int)
       f_to_dplus1f[d] = dual_map( nf_to_mf[d+1,d] )
     end
   elseif ctype == HexCell
-    if ndims == 2
-      x = reshape([ -1. -1.  1. -1.  -1. 1.  1. 1. ],ndims,:)
-      f2v = reshape([ 1 2  3 4  1 3  2 4 ],2^(ndims-1),:)
-    elseif ndims == 3
-      x = reshape(
-        [ -1. -1. -1.  1. -1. -1.  -1. 1. -1.  1. 1. -1.  -1. -1. 1.  1. -1. 1.  -1. 1. 1.  1. 1. 1.],
-        ndims,:)
-      f2v = reshape( [ 1 2 3 4  5 6 7 8  1 2 5 6  3 4 7 8  1 3 5 7  2 4 6 8],2^(ndims-1),:)
-    else
-      throw(ArgumentError("RefCell not defined for $ndims dimensions"))
+
+    x = zeros(Float64,ndims,2^ndims)
+    for i in 1:2^ndims
+      x[:,i] = digits( (i-1), base=2, pad=ndims )
     end
-    df_to_v = [ f2v ]
+    x = x.*2 .- 1 
+    c2v = reshape(collect(1:2^ndims),:,1)
+    f2v = hex_facet_to_vertices(ndims)
+    if ndims == 2
+      df_to_v = [ f2v, c2v ]
+    elseif ndims == 3
+      e2v = reshape( [ 1 2  3 4  5 6  7 8  1 3  2 4  5 7  6 8  1 5  2 6  3 7  4 8 ],2,: )
+      df_to_v = [ e2v, f2v, c2v ]
+    else
+      throw(ArgumentError(""))
+    end
   else
-    throw(ArgumentError("RefCell not defined for $ndims dimensions"))
+    throw(ArgumentError("RefCell not implemented for $ctype"))
   end
 
   RefCell(ctype,ndims,x,df_to_v,f_to_dplus1f)
@@ -298,6 +302,25 @@ function dfaces_around_nface(c::RefCell,d::Int,n::Int,i::Int)
   end
 end
 
+function hex_facet_to_vertices(num_dims::Int)
+  num_faces = 2*num_dims
+  f2v = zeros(Int,2^(num_dims-1),2*num_dims)
+  num_vxf = 2^(num_dims-1)
+
+  bin = zeros(Bool,num_dims)
+  for i in 1:2*num_dims
+    lv = num_dims - (i-1) ÷ 2
+    b = (i-1) % 2
+    for j in 1:num_vxf
+      ids = setdiff(1:num_dims,lv)
+      bin[ids] = digits(j-1,base=2,pad=num_dims-1)
+      bin[lv] = b
+      f2v[j,i] = sum( [  bin[n]*2^(n-1) for n in 1:length(bin) ] ) + 1
+    end
+  end
+  f2v
+end
+
 function compute_face_to_initial_face(cell::RefCell,nf_to_mf::NFaceToMFace,d::Int,i::Int)
   nf_to_v = nf_to_mf[1:end-1,0]
   v_to_nF = [ dual_map( cell.dface_to_vertices[d] ) for d in 1:ndims(cell)-1 ]
@@ -322,32 +345,18 @@ for d in 1:ndims(t)
   end
 end
 
-num_dims = 4
-x = zeros(Float64,num_dims,2^num_dims)
+t = RefCell(HexCell,2)
 
-for i in 1:2^num_dims
-  x[:,i] = digits( (i-1), base=2, pad=num_dims )
-end
 
-num_faces = 2*num_dims
-f2v = zeros(Int,2^(num_dims-1),2*num_dims)
-num_vxf = 2^(num_dims-1)
+x = t.coordinates
+nf_to_mf = compute_mesh( x )
+nf_to_v = nf_to_mf[1:end-1,0]
+v_to_nF = [ dual_map( t.dface_to_vertices[d] ) for d in 1:ndims(t)-1 ]
+nf_to_nF = compute_face_to_initial_face(v_to_nF,nf_to_v)
+c2f_orientation = compute_cell_to_facet_orientation(x,nf_to_mf) 
+m = (x,nf_to_mf,nf_to_nF,c2f_orientation)
 
-bin = zeros(Bool,num_dims)
-for i in 1:2*num_dims
-  lv = num_dims - (i-1) ÷ 2
-  b = (i-1) % 2
-  for j in 1:num_vxf
-    ids = setdiff(1:num_dims,lv)
-    bin[ids] = digits(j-1,base=2,pad=num_dims-1)
-    bin[lv] = b
-    f2v[j,i] = sum( [  bin[n]*2^(n-1) for n in 1:length(bin) ] ) + 1
-  end
-end
 
-num_edges = num_dims*2^(num_dims-1)
-
-num_dfaces = num_dims * 2^(num_dims-d)
 
 #outfile = "tables.jl"
 #f = open(outfile, "w")
