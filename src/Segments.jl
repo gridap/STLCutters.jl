@@ -1,24 +1,24 @@
 
 struct Segment{D,T}
-  points::Tuple{Point{D,T},Point{D,T}}
+  vertices::Tuple{Point{D,T},Point{D,T}}
 end
 
 @inline function Segment(p1::Point,p2::Point)
   Segment((p1,p2))
 end
 
-@inline Base.getindex(s::Segment,i::Integer) = s.points[i]
+@inline Base.getindex(s::Segment,i::Integer) = s.vertices[i]
 
-@inline get_vertices(s::Segment) = s.points
+@inline get_vertices(s::Segment) = s.vertices
 
-@inline volume(s::Segment) = distance(s[1],s[2])
+@inline Base.length(s::Segment) = distance(s[1],s[2])
 
-@inline Base.length(s::Segment) = volume(s)
+@inline measure(s::Segment) = length(s)
 
 num_dims(::Segment{D}) where D = D
 
 function center(s::Segment)
-  average(s.points)
+  average( get_vertices(s) )
 end
 
 function distance(p::Point{D},s::Segment{D}) where D
@@ -55,7 +55,7 @@ end
 @inline have_intersection(s::Segment{D},p::Point{D}) where D = have_intersection(p,s)
 
 function distance(s1::Segment{D},s2::Segment{D}) where D
-  throw(DimensionMismatch("distance between two segments is only implemented in 3D"))
+  throw(ArgumentError("distance between two segments is only implemented in 3D"))
 end
 
 function distance(s1::Segment{3},s2::Segment{3})
@@ -101,7 +101,7 @@ function normal(s::Segment{2})
 end
 
 function normal(s::Segment{D}) where D
-  throw(DimensionMismatch("normal to a segment is only defined in 2D"))
+  throw(ArgumentError("normal to a segment is only defined in 2D"))
 end
 
 function have_intersection(s1::Segment{2},s2::Segment{2})
@@ -121,7 +121,7 @@ function have_intersection(s1::Segment{2},s2::Segment{2})
 end
 
 function have_intersection(s1::Segment{D},s2::Segment{D}) where D
-  throw(DimensionMismatch("intersection between two segments is only defined in 2D"))
+  throw(ArgumentError("intersection between two segments is only defined in 2D"))
 end
 
 function intersection(s1::Segment{2},s2::Segment{2})
@@ -135,7 +135,7 @@ function intersection(s1::Segment{2},s2::Segment{2})
 end
 
 function intersection(s1::Segment{D},s2::Segment{D}) where D
-  throw(DimensionMismatch("intersection between two segments is only defined in 2D"))
+  throw(ArgumentError("intersection between two segments is only defined in 2D"))
 end
 
 function projection(p::Point{D},s::Segment{D}) where D
@@ -163,5 +163,5 @@ function closest_point(s1::Segment{3},s2::Segment{3})
 end
 
 function closest_point(s1::Segment{D},s2::Segment{D}) where D
-  throw(DimensionMismatch("distance between two segments is only defined in 3D"))
+  throw(ArgumentError("distance between two segments is only implemented in 3D"))
 end

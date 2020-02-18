@@ -19,7 +19,7 @@ function get_cell(m::StructuredBulkMesh{D},i::Integer) where D
   n_coords = int_coordinates(m,i)
   x_min = get_data(m.origin) .+ get_data(m.sizes) .* (n_coords.-1) ./ m.partition
   x_max = get_data(m.origin) .+ get_data(m.sizes) .* n_coords ./ m.partition
-  HexaCell(Point(x_min),Point(x_max))
+  BoundingBox(Point(x_min),Point(x_max))
 end
 
 function find_container(m::StructuredBulkMesh{D},p::Point{D}) where D
@@ -52,7 +52,7 @@ function get_cell_id(m::StructuredBulkMesh{D},n::NTuple{D,Integer}) where D
 end
 
 
-function cells_around!(buffer::Vector{Int},m::StructuredBulkMesh{D},p::Point{D}) where {D}
+function cells_around!(cache::Vector{Int},m::StructuredBulkMesh{D},p::Point{D}) where {D}
   id = find_container(m,p)
   int_coord = int_coordinates(m,id)
 
@@ -63,14 +63,14 @@ function cells_around!(buffer::Vector{Int},m::StructuredBulkMesh{D},p::Point{D})
   max_int_coord = min.(max_int_coord,m.partition)
 
   A=UnitRange.(min_int_coord,max_int_coord)
-  resize!(buffer,0)
+  resize!(cache,0)
   for i in CartesianIndices(A)
-    push!(buffer,get_cell_id(m,i.I))
+    push!(cache,get_cell_id(m,i.I))
   end
-  buffer
+  cache
 end
 
-function cells_around!(buffer::Vector{Int},m::StructuredBulkMesh{D},bb::BoundingBox{D}) where {D}
+function cells_around!(cache::Vector{Int},m::StructuredBulkMesh{D},bb::BoundingBox{D}) where {D}
   min_id = find_container(m,bb.pmin)
   min_int_coord = int_coordinates(m,min_id)
   min_int_coord = min_int_coord .- 1
@@ -82,19 +82,19 @@ function cells_around!(buffer::Vector{Int},m::StructuredBulkMesh{D},bb::Bounding
   max_int_coord = min.(max_int_coord,m.partition)
 
   A=UnitRange.(min_int_coord,max_int_coord)
-  resize!(buffer,0)
+  resize!(cache,0)
   for i in CartesianIndices(A)
-    push!(buffer,get_cell_id(m,i.I))
+    push!(cache,get_cell_id(m,i.I))
   end
-  buffer
+  cache
 end
 
 function compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{D}) where D
   cell_to_stl_nfaces = TableOfVectors(Int,num_cells(m),0)
   for k in 1:num_cells(m)
-    hex = get_cell(m,k)
+    cell = get_cell(m,k)
     for stl_nface in 1:num_dfaces(stl)
-      if have_intersection(hex,stl,stl_nface)
+      if have_intersection(cell,stl,stl_nface)
         push_to_list!(cell_to_stl_nfaces, k, stl_nface )
       end
     end
@@ -104,12 +104,12 @@ end
 
 function optimized_compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{D}) where D
   cell_to_stl_nfaces = TableOfVectors(Int,num_cells(m),0)
-  cell_buffer = Int[]
+  cell_cache = Int[]
   for stl_nface in 1:num_dfaces(stl)
     bb = BoundingBox(stl,stl_nface)
-    for k in cells_around!(cell_buffer,m,bb)
-      hex = get_cell(m,k)
-      if have_intersection(hex,stl,stl_nface)
+    for k in cells_around!(cell_cache,m,bb)
+      cell = get_cell(m,k)
+      if have_intersection(cell,stl,stl_nface)
         push_to_list!(cell_to_stl_nfaces, k, stl_nface )
       end
     end

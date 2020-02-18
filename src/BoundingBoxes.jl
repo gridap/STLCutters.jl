@@ -4,32 +4,20 @@ struct BoundingBox{D,T}
   pmax::Point{D,T}
 end
 
-struct HexaCell{D,T}
-  bb::BoundingBox{D,T}
-end
-
 function BoundingBox(p::Point{D,T}) where {D,T}
   BoundingBox{D,T}(p,p)
 end
 
 function BoundingBox(s::Segment{D,T}) where {D,T}
-  BoundingBox{D,T}(min.(s.points...),max.(s.points...))
+  BoundingBox{D,T}(min.(get_vertices(s)...),max.(get_vertices(s)...))
 end
 
 function BoundingBox(t::Triangle{D,T}) where {D,T}
-  BoundingBox{D,T}(min.(t.points...),max.(t.points...))
+  BoundingBox{D,T}(min.(get_vertices(t)...),max.(get_vertices(t)...))
 end
 
 function BoundingBox(t::Tetrahedron{D,T}) where {D,T}
   BoundingBox{D,T}(min.(t.p...),max.(t.p...))
-end
-
-
-function HexaCell(pmin::Point{D},pmax::Point{D}) where {D}
-  for d in 1:D
-    @assert pmin[d] <= pmax[d]
-  end
-  HexaCell(BoundingBox(pmin,pmax))
 end
 
 const BB_tolerance = 1e-5
@@ -46,16 +34,14 @@ function have_intersection(p::Point{D},bb::BoundingBox{D}) where D
   true
 end
 
-@inline have_intersection(p::Point,h::HexaCell) = have_intersection(p,h.bb)
-
 function have_intersection(s::Segment{D},bb::BoundingBox{D}) where D
   bb = expand(bb,BB_tolerance)
   t = mutable(VectorValue{D,Float64})
   t_min = 0.0
   t_max = 1.0
   for d in 1:D
-    p_d = s.points[1][d]
-    v_d = s.points[2][d] - s.points[1][d]
+    p_d = s[1][d]
+    v_d = s[2][d] - s[1][d]
     if v_d < 0
       v_d = - v_d
       p_d = - p_d + bb.pmin[d] + bb.pmax[d]
@@ -85,17 +71,15 @@ function have_intersection(s::Segment{D},bb::BoundingBox{D}) where D
   end
 end
 
-@inline have_intersection(s::Segment,h::HexaCell) where{D} = have_intersection(s,h.bb)
-
 function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
   bb = expand(bb,BB_tolerance)
   have_intersection(bb,BoundingBox(t)) || return false
-  for p ∈ vertices(t)
+  for p ∈ get_vertices(t)
     if have_intersection(p,bb)
       return true
     end
   end
-  for i ∈ 1:num_edges_per_triangle
+  for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
     if have_intersection(e,bb)
       return true
@@ -130,8 +114,6 @@ function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
   end
 end
 
-@inline have_intersection(t::Triangle{D},h::HexaCell{D}) where{D} = have_intersection(t,h.bb)
-
 function _fix_triangle(bb::BoundingBox{D},t::Triangle{D}) where {D}
   n = normal(t)
 
@@ -147,7 +129,7 @@ function _fix_triangle(bb::BoundingBox{D},t::Triangle{D}) where {D}
     Point(m)
   end
 
-  points = mirror.(t.points)
+  points = mirror.( get_vertices(t) )
   Triangle(points)
 end
 

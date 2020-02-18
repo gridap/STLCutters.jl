@@ -14,7 +14,7 @@ using Test
 
 @testset "TetrahedronsTests" begin include("TetrahedronsTests.jl") end
 
-@testset "HexaCellsTests" begin include("HexaCellsTests.jl") end
+@testset "BoundingBoxesTests" begin include("BoundingBoxesTests.jl") end
 
 @testset "TablesTests" begin include("TablesTests.jl") end
 

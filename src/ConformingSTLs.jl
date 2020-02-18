@@ -236,23 +236,23 @@ function writevtk(stl::ConformingSTL{D,T},file_base_name) where {D,T}
   vtk_save(vtkfile)
 end
 
-function have_intersection(hex::HexaCell{D},stl::ConformingSTL{D},d::Int,i::Int) where D
+function have_intersection(bb::BoundingBox{D},stl::ConformingSTL{D},d::Int,i::Int) where D
   if d == 0
     p = get_vertex(stl,i)
-    have_intersection(p,hex)
+    have_intersection(p,bb)
   elseif d == 1
     e = get_edge(stl,i)
-    have_intersection(e,hex)
+    have_intersection(e,bb)
   elseif d == 2
     f = get_facet(stl,i)
-    have_intersection(f,hex)
+    have_intersection(f,bb)
   else
-    throw(ArgumentError("$d-face does not exist"))
+    throw(ArgumentError("$d-face not implemented"))
   end
 end
 
-function have_intersection(hex::HexaCell,stl::ConformingSTL,gid::Int)
-  have_intersection(hex,stl,local_dface(stl,gid)...)
+function have_intersection(bb::BoundingBox,stl::ConformingSTL,gid::Int)
+  have_intersection(bb,stl,local_dface(stl,gid)...)
 end
 
 function BoundingBox(stl::ConformingSTL{D},d::Int,i::Int) where D

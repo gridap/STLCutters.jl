@@ -14,8 +14,8 @@ m = StructuredBulkMesh(o,s,p)
 
 @test num_cells(m) == 8
 
-@test get_cell(m,2).bb.pmin == Point(0.5,0.0,0.0)
-@test get_cell(m,2).bb.pmax == Point(1.0,0.5,0.5)
+@test get_cell(m,2).pmin == Point(0.5,0.0,0.0)
+@test get_cell(m,2).pmax == Point(1.0,0.5,0.5)
 
 o = Point(-0.5,-0.5,0.0)
 s = VectorValue(1.0,1.0,1.0)

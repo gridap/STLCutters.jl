@@ -14,7 +14,7 @@ s = Segment((p1,p2))
 @test isa(s,Segment{3})
 @test num_dims(s) == 3
 
-@test length(s) == volume(s) == sqrt(3)
+@test length(s) == measure(s) == sqrt(3)
 
 c = center(s)
 @test get_data(c) == (1.5,1.5,1.5)

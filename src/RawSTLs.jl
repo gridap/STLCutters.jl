@@ -48,9 +48,9 @@ function map_repeated_vertices(stl::RawSTL{D}) where D
   partition = partition .* n_x
   mesh = StructuredBulkMesh(origin,sizes,partition)
   cell_to_vertices = TableOfVectors(Int,num_cells(mesh),0)
-  cell_buffer = Int[]
+  cell_cache = Int[]
   for (i,v) ∈ enumerate(stl.vertex_coordinates)
-    for k ∈ cells_around!(cell_buffer,mesh,v)
+    for k ∈ cells_around!(cell_cache,mesh,v)
       h = get_cell(mesh,k)
       if have_intersection(v,h)
         push_to_list!(cell_to_vertices,k,i)
