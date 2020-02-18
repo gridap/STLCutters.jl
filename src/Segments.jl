@@ -38,7 +38,7 @@ end
 
 @inline distance(s::Segment{D},p::Point{D}) where D = distance(p,s)
 
-function have_intersection(p::Point{D},s::Segment{D}) where D
+function contains_projection(p::Point{D},s::Segment{D}) where D
   s1_s2 = s[2] - s[1]
   s1_s2 = s1_s2 / norm(s1_s2)
   s1_p = p - s[1]
@@ -52,10 +52,10 @@ function have_intersection(p::Point{D},s::Segment{D}) where D
   end
 end
 
-@inline have_intersection(s::Segment{D},p::Point{D}) where D = have_intersection(p,s)
+@inline contains_projection(s::Segment{D},p::Point{D}) where D = contains_projection(p,s)
 
 function distance(s1::Segment{D},s2::Segment{D}) where D
-  throw(ArgumentError("distance between two segments is only implemented in 3D"))
+  throw(ArgumentError("distance(::Segment{$D},::Segment{$D}) not implemented, only in 3D"))
 end
 
 function distance(s1::Segment{3},s2::Segment{3})
@@ -101,10 +101,10 @@ function normal(s::Segment{2})
 end
 
 function normal(s::Segment{D}) where D
-  throw(ArgumentError("normal to a segment is only defined in 2D"))
+  throw(ArgumentError("normal(::Segment{D}) only defined in 2D"))
 end
 
-function have_intersection(s1::Segment{2},s2::Segment{2})
+function have_intersection_point(s1::Segment{2},s2::Segment{2})
   n1 = normal(s1)
   n1 = n1 / norm(n1)
   c1 = center(s1)
@@ -120,12 +120,14 @@ function have_intersection(s1::Segment{2},s2::Segment{2})
   true
 end
 
-function have_intersection(s1::Segment{D},s2::Segment{D}) where D
-  throw(ArgumentError("intersection between two segments is only defined in 2D"))
+function have_intersection_point(s1::Segment{D},s2::Segment{D}) where D
+  throw(ArgumentError("intersection(::Segment{$D},::Segment{$D} not defined, only in 2D"))
 end
 
+have_intersection(s1::Segment,s2::Segment) = have_intersection_point(s1,s2)
+
 function intersection(s1::Segment{2},s2::Segment{2})
-  @check have_intersection(s1,s2) "The provided segments have no intersection"
+  @check have_intersection_point(s1,s2) "The provided segments have no intersection"
   v1 = s1[2] - s1[1]
   n2 = normal(s2)
   n2 = n2 / norm(n2)
@@ -135,7 +137,7 @@ function intersection(s1::Segment{2},s2::Segment{2})
 end
 
 function intersection(s1::Segment{D},s2::Segment{D}) where D
-  throw(ArgumentError("intersection between two segments is only defined in 2D"))
+  throw(ArgumentError("intersection(::Segment{$D},::Segment{$D} not defined, only in 2D"))
 end
 
 function projection(p::Point{D},s::Segment{D}) where D
@@ -163,5 +165,5 @@ function closest_point(s1::Segment{3},s2::Segment{3})
 end
 
 function closest_point(s1::Segment{D},s2::Segment{D}) where D
-  throw(ArgumentError("distance between two segments is only implemented in 3D"))
+  throw(ArgumentError("distance(:Segment{$D},s2::Segment{$D}) not implemented, only in 3D"))
 end

@@ -71,7 +71,7 @@ function measure_sign(t::Triangle{D}) where D
 end
 
 function distance(p::Point{3},t::Triangle{3})
-  if !have_intersection(p,t)
+  if !contains_projection(p,t)
     d = typemax(Float64)
     for i in 1:num_edges(t)
       e = get_edge(t,i)
@@ -92,12 +92,12 @@ function distance(p::Point{3},t::Triangle{3})
 end
 
 function distance(p::Point{D},t::Triangle{D}) where D
-  throw(ArgumentError("distance Point{D} to Triangle{D} only valid for 3 dimensions"))
+  throw(ArgumentError("distance(::Point{D},::Triangle{D}) only imlemented for 3 dimensions"))
 end
 
 @inline distance(t::Triangle,p::Point) = distance(p,t)
 
-function have_intersection(p::Point{2},t::Triangle{2})
+function contains_projection(p::Point{2},t::Triangle{2})
   s = measure_sign(t)
   s != 0 || throw(ErrorException("Triangle area is 0"))
   for i ∈ 1:num_edges(t)
@@ -111,7 +111,11 @@ function have_intersection(p::Point{2},t::Triangle{2})
   true
 end
 
-function have_intersection(p::Point{3},t::Triangle{3})
+have_intersection(p::Point{2},t::Triangle{2}) = contains_projection(p,t)
+
+have_intersection_point(p::Point{2},t::Triangle{2}) = contains_projection(p,t)
+
+function contains_projection(p::Point{3},t::Triangle{3})
   n = normal(t)
   n = n / norm(n)
   for i ∈ 1:num_edges(t)
@@ -127,13 +131,25 @@ function have_intersection(p::Point{3},t::Triangle{3})
   true
 end
 
-function have_intersection(p::Point{D},t::Triangle{D}) where D
-  throw(ArgumentError("have_intersection Point{D} and Triangle{D} only defined for 2 and 3 dimensions"))
+function contains_projection(p::Point{D},t::Triangle{D}) where D
+  throw(ArgumentError("contains_projection(::Point{$D},::Triangle{$D}) not implemented, only for 2D and 3D"))
 end
 
-@inline have_intersection(t::Triangle,p::Point) = have_intersection(p,t)
+function have_intersection(p::Point{D},t::Triangle{D}) where D
+  throw(ArgumentError("have_intersection(::Point{$D},::Triangle{$D}) not implemented"))
+end
 
-function have_intersection(s::Segment{D},t::Triangle{D}) where D
+function have_intersection_point(p::Point{D},t::Triangle{D}) where D
+  throw(ArgumentError("have_intersection_point(::Point{D},::Triangle{D}) not defined, only in 2D"))
+end
+
+contains_projection(t::Triangle,p::Point) = contains_projection(p,t)
+
+have_intersection(t::Triangle,p::Point) = have_intersection(p,t)
+
+have_intersection_point(t::Triangle,p::Point) = have_intersection_point(p,t)
+
+function have_intersection_point(s::Segment{3},t::Triangle{3})
   n = normal(t)
   c = center(t)
   s1_s2 = s[2] - s[1]
@@ -143,14 +159,26 @@ function have_intersection(s::Segment{D},t::Triangle{D}) where D
     false
   else
     x = s[1] + s1_s2 * α
-    have_intersection(x,t)
+    contains_projection(x,t)
   end
 end
 
-@inline have_intersection(t::Triangle,s::Segment) = have_intersection(s,t)
+have_intersection(s::Segment{3},t::Triangle{3}) = have_intersection_point(s,t)
+
+have_intersection_point(t::Triangle,s::Segment) = have_intersection_point(s,t)
+
+have_intersection(t::Triangle,s::Segment) = have_intersection(s,t)
+
+function have_intersection_point(s::Segment{D},t::Triangle{D}) where D
+  throw(ArgumentError("have_intersection_point(::Segment{D},::Triangle{D}) only defined in 2D"))
+end
+
+function have_intersection(s::Segment{D},t::Triangle{D}) where D
+  throw(ArgumentError("have_intersection(::Segment{$D},::Triangle{$D}) not implemented"))
+end
 
 function intersection(s::Segment{D},t::Triangle{D}) where D
-  @check have_intersection(s,t)
+  @check have_intersection_point(s,t)
   n = normal(t)
   c = center(t)
   s1_s2 = s[2] - s[1]

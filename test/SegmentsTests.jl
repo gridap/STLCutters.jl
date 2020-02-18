@@ -28,14 +28,14 @@ p = Point(0,0,0)
 p = Point(1.5,1.5,1.5)
 @test distance(s,p) < 1e-15
 
-@test have_intersection(s[1],s)
+@test contains_projection(s[1],s)
 
 p = Point(0,0,0)
-@test !have_intersection(s,p)
-@test !have_intersection(s,p)
+@test !contains_projection(s,p)
+@test !contains_projection(s,p)
 
 p = Point(1.5,1.5,1.5)
-@test have_intersection(s,p)
+@test contains_projection(s,p)
 
 p1 = Point(0.0,0.0,0.0)
 p2 = Point(1.0,1.0,1.0)

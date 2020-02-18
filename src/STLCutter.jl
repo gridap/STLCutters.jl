@@ -35,6 +35,8 @@ export area
 export volume
 export measure
 export measure_sign
+export contains_projection
+export have_intersection_point
 export have_intersection
 export intersection
 export projection

@@ -35,7 +35,7 @@ end
 
 measure(t::Tetrahedron) = volume(t)
 
-function have_intersection(p::Point{D},t::Tetrahedron{D}) where D
+function have_intersection(p::Point{3},t::Tetrahedron{3})
   for i in 1:num_facets(t)
     facet = get_facet(t,i)
     n = normal(facet)
@@ -48,3 +48,8 @@ function have_intersection(p::Point{D},t::Tetrahedron{D}) where D
   end
   true
 end
+
+have_intersection_point(p::Point{3},t::Tetrahedron{3}) = have_intersection(p,t)
+
+contains_projection(p::Point{3},t::Tetrahedron{3}) = have_intersection(p,t)
+

@@ -71,7 +71,7 @@ function have_intersection(s::Segment{D},bb::BoundingBox{D}) where D
   end
 end
 
-function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
+function have_intersection(t::Triangle{3},bb::BoundingBox{3})
   bb = expand(bb,BB_tolerance)
   have_intersection(bb,BoundingBox(t)) || return false
   for p ∈ get_vertices(t)
@@ -110,7 +110,7 @@ function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
     else
       throw(ErrorException(""))
     end
-    have_intersection(intersection,t_pos)
+    contains_projection(intersection,t_pos)
   end
 end
 
@@ -137,7 +137,7 @@ function _square_vertices(bb::BoundingBox{D},axis::Int) where D
   n_vertices = 2^(D-1)
   p_i = mutable(Point{D,Float64})
   v = mutable(VectorValue{n_vertices,Point{D,Float64}})
-  for i in 1:4
+  for i in 1:n_vertices
     c = 2
     b = 0
     for j in 1:D
@@ -152,6 +152,10 @@ function _square_vertices(bb::BoundingBox{D},axis::Int) where D
     v[i] = p_i
   end
   v.data
+end
+
+function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where D
+  throw(ArgumentError("have_intersection(::Triangle{$D},::BoundingBox{$D}) not implemented"))
 end
 
 function have_intersection(bb1::BoundingBox{D},bb2::BoundingBox{D}) where {D}
