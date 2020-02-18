@@ -14,7 +14,7 @@ s = Segment((p1,p2))
 @test isa(s,Segment{3})
 @test num_dims(s) == 3
 
-@test length(s) == volume(s) == sqrt(3)
+@test length(s) == measure(s) == sqrt(3)
 
 c = center(s)
 @test get_data(c) == (1.5,1.5,1.5)
@@ -28,14 +28,14 @@ p = Point(0,0,0)
 p = Point(1.5,1.5,1.5)
 @test distance(s,p) < 1e-15
 
-@test have_intersection(s[1],s)
+@test contains_projection(s[1],s)
 
 p = Point(0,0,0)
-@test !have_intersection(s,p)
-@test !have_intersection(s,p)
+@test !contains_projection(s,p)
+@test !contains_projection(s,p)
 
 p = Point(1.5,1.5,1.5)
-@test have_intersection(s,p)
+@test contains_projection(s,p)
 
 p1 = Point(0.0,0.0,0.0)
 p2 = Point(1.0,1.0,1.0)

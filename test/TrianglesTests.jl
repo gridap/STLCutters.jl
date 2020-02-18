@@ -2,7 +2,7 @@ module TrianglesTests
 
 using Test
 using STLCutter
-using STLCutter: num_dims, get_edge, vertices
+using STLCutter: num_dims, get_edge, get_vertices
 
 p1 = Point(0,0,0)
 p2 = Point(1,0,0)
@@ -13,7 +13,7 @@ t = Triangle(p1,p2,p3)
 
 t = Triangle((p1,p2,p3))
 @test isa(t,Triangle{3})
-@test vertices(t)[1] == p1
+@test get_vertices(t)[1] == p1
 @test num_dims(t) == 3
 
 n = normal(t)
@@ -21,7 +21,7 @@ n = normal(t)
 
 e = get_edge(t,1)
 @test isa(e,Segment{3})
-@test e.points == Segment(p1,p2).points
+@test e.vertices == get_vertices(Segment(p1,p2))
 
 p = Point(0.5,0.5,1.0)
 @test distance(p,t) ==  distance(t,p) == 1
@@ -34,14 +34,14 @@ t = Triangle(p1,p2,p3)
 c = center(t)
 @test get_data(c) == (1.0,1.0,0.0)
 
-@test volume(t) == 4.5
+@test area(t) == measure(t) == 4.5
 
 
 p1 = Point(0,0)
 p2 = Point(3,0)
 p3 = Point(0,3)
 t = Triangle(p1,p2,p3)
-@test volume(t) == 4.5
+@test area(t) == measure(t) == 4.5
 
 p1 = Point(0,0,0)
 p2 = Point(3,0,0)
@@ -49,11 +49,11 @@ p3 = Point(0,3,0)
 p = Point(0.5,0.5,1.0)
 t = Triangle(p1,p2,p3)
 
-@test have_intersection(p1,t)
-@test have_intersection(t,p1)
-@test have_intersection(t,p2)
-@test have_intersection(t,p3)
-@test have_intersection(t,p)
+@test contains_projection(p1,t)
+@test contains_projection(t,p1)
+@test contains_projection(t,p2)
+@test contains_projection(t,p3)
+@test contains_projection(t,p)
 
 s1 = Point(0.5,0.5,1.0)
 s2 = Point(0.5,0.5,-1.0)

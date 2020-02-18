@@ -1,6 +1,6 @@
 
 struct Triangle{D,T}
-  points::Tuple{Point{D,T},Point{D,T},Point{D,T}}
+  vertices::Tuple{Point{D,T},Point{D,T},Point{D,T}}
 end
 
 @inline function Triangle(p1::Point,p2::Point,p3::Point)
@@ -9,54 +9,71 @@ end
 
 num_dims(::Triangle{D}) where D = D
 
-@inline vertices(t::Triangle) = t.points
+num_edges(::Type{<:Triangle}) = 3
 
-const num_edges_per_triangle = 3
-const ledge_to_triangle_point = ((1,2),(2,3),(3,1))
+num_edges(::T) where T<:Triangle = num_edges(T)
+
+num_vertices(::Type{<:Triangle}) = 2
+
+num_vertices(::T) where T<:Triangle = num_vertices(T)
+
+@inline get_vertices(t::Triangle) = t.vertices
+
+get_edge_to_vertices(::Type{<:Triangle}) = ((1,2),(2,3),(3,1))
+
+get_edge_to_vertices(::T) where T<:Triangle = get_edge_to_vertices(T)
 
 function get_edge(t::Triangle,i::Integer)
-  lpoints = ledge_to_triangle_point[i]
-  Segment(t.points[lpoints[1]],t.points[lpoints[2]])
+  edge_to_vertices = get_edge_to_vertices(t)
+  lpoints = edge_to_vertices[i]
+  vertices = get_vertices(t)
+  Segment(vertices[lpoints[1]],vertices[lpoints[2]])
 end
 
 function normal(t::Triangle{D}) where D
-  v1 = t.points[2] - t.points[1]
-  v2 = t.points[3] - t.points[1]
+  throw(ArgumentError("normal(::Triangle{$D}) not defined, only defined in 3D"))
+end
+
+function normal(t::Triangle{3})
+  v1 = t.vertices[2] - t.vertices[1]
+  v2 = t.vertices[3] - t.vertices[1]
   v1 × v2
 end
 
 function center(t::Triangle)
-  average(t.points)
+  average(get_vertices(t))
 end
 
-function volume(t::Triangle{D}) where D
+function area(t::Triangle{D}) where D
   factor = 1/2
-  v1 = t.points[2] - t.points[1]
-  v2 = t.points[3] - t.points[1]
+  v1 = t.vertices[2] - t.vertices[1]
+  v2 = t.vertices[3] - t.vertices[1]
   if D == 2
     n1 = VectorValue(v1[2],-v1[1])
     abs( v2 ⋅ n1 ) * factor
   elseif D == 3
     norm( v1 × v2 ) * factor
   else
-    throw(DimensionMismatch("volume of Triangle{D} (area) only defined in 2 and 3 dimensions"))
+    throw(ArgumentError("Triangle{D} area only implemented in 2 and 3 dimensions"))
   end
 end
 
-function orientation(t::Triangle{2})
-  v1 = t.points[2] - t.points[1]
-  v2 = t.points[3] - t.points[1]
+measure(t::Triangle) = area(t)
+
+function measure_sign(t::Triangle{2})
+  v1 = t.vertices[2] - t.vertices[1]
+  v2 = t.vertices[3] - t.vertices[1]
   sign( v1[1]*v2[2] - v1[2]*v2[1] )
 end
 
-function orientation(t::Triangle{D}) where D
-  throw(DimensionMismatch("orientation of Triangle{D} only defined in 2"))
+function measure_sign(t::Triangle{D}) where D
+  throw(ArgumentError("measure_sign(::Triangle{$D}) not defined, only in 2D"))
 end
 
 function distance(p::Point{3},t::Triangle{3})
-  if !have_intersection(p,t)
+  if !contains_projection(p,t)
     d = typemax(Float64)
-    for i in 1:num_edges_per_triangle
+    for i in 1:num_edges(t)
       e = get_edge(t,i)
       d_e = distance(p,e)
       if d_e < d
@@ -75,17 +92,17 @@ function distance(p::Point{3},t::Triangle{3})
 end
 
 function distance(p::Point{D},t::Triangle{D}) where D
-  throw(DimensionMismatch("distance Point{D} to Triangle{D} only valid for 3 dimensions"))
+  throw(ArgumentError("distance(::Point{D},::Triangle{D}) only imlemented for 3 dimensions"))
 end
 
 @inline distance(t::Triangle,p::Point) = distance(p,t)
 
-function have_intersection(p::Point{2},t::Triangle{2})
-  o = orientation(t)
-  o != 0 || throw(ErrorException("Triangle has no orientation"))
-  for i ∈ 1:num_edges_per_triangle
+function contains_projection(p::Point{2},t::Triangle{2})
+  s = measure_sign(t)
+  s != 0 || throw(ErrorException("Triangle area is 0"))
+  for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
-    n = normal(e) * o
+    n = normal(e) * s
     c = center(e)
     if ( p - c ) ⋅ n < 0
       return false
@@ -94,10 +111,14 @@ function have_intersection(p::Point{2},t::Triangle{2})
   true
 end
 
-function have_intersection(p::Point{3},t::Triangle{3})
+have_intersection(p::Point{2},t::Triangle{2}) = contains_projection(p,t)
+
+have_intersection_point(p::Point{2},t::Triangle{2}) = contains_projection(p,t)
+
+function contains_projection(p::Point{3},t::Triangle{3})
   n = normal(t)
   n = n / norm(n)
-  for i ∈ 1:num_edges_per_triangle
+  for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
     v_e = e[2] - e[1]
     c_e = center(e)
@@ -110,13 +131,25 @@ function have_intersection(p::Point{3},t::Triangle{3})
   true
 end
 
-function have_intersection(p::Point{D},t::Triangle{D}) where D
-  throw(DimensionMismatch("have_intersection Point{D} and Triangle{D} only defined for 2 and 3 dimensions"))
+function contains_projection(p::Point{D},t::Triangle{D}) where D
+  throw(ArgumentError("contains_projection(::Point{$D},::Triangle{$D}) not implemented, only for 2D and 3D"))
 end
 
-@inline have_intersection(t::Triangle,p::Point) = have_intersection(p,t)
+function have_intersection(p::Point{D},t::Triangle{D}) where D
+  throw(ArgumentError("have_intersection(::Point{$D},::Triangle{$D}) not implemented"))
+end
 
-function have_intersection(s::Segment{D},t::Triangle{D}) where D
+function have_intersection_point(p::Point{D},t::Triangle{D}) where D
+  throw(ArgumentError("have_intersection_point(::Point{D},::Triangle{D}) not defined, only in 2D"))
+end
+
+contains_projection(t::Triangle,p::Point) = contains_projection(p,t)
+
+have_intersection(t::Triangle,p::Point) = have_intersection(p,t)
+
+have_intersection_point(t::Triangle,p::Point) = have_intersection_point(p,t)
+
+function have_intersection_point(s::Segment{3},t::Triangle{3})
   n = normal(t)
   c = center(t)
   s1_s2 = s[2] - s[1]
@@ -126,13 +159,26 @@ function have_intersection(s::Segment{D},t::Triangle{D}) where D
     false
   else
     x = s[1] + s1_s2 * α
-    have_intersection(x,t)
+    contains_projection(x,t)
   end
 end
 
-@inline have_intersection(t::Triangle,s::Segment) = have_intersection(s,t)
+have_intersection(s::Segment{3},t::Triangle{3}) = have_intersection_point(s,t)
+
+have_intersection_point(t::Triangle,s::Segment) = have_intersection_point(s,t)
+
+have_intersection(t::Triangle,s::Segment) = have_intersection(s,t)
+
+function have_intersection_point(s::Segment{D},t::Triangle{D}) where D
+  throw(ArgumentError("have_intersection_point(::Segment{D},::Triangle{D}) only defined in 2D"))
+end
+
+function have_intersection(s::Segment{D},t::Triangle{D}) where D
+  throw(ArgumentError("have_intersection(::Segment{$D},::Triangle{$D}) not implemented"))
+end
 
 function intersection(s::Segment{D},t::Triangle{D}) where D
+  @check have_intersection_point(s,t)
   n = normal(t)
   c = center(t)
   s1_s2 = s[2] - s[1]

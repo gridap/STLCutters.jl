@@ -21,8 +21,8 @@ stl = ConformingSTL(joinpath(@__DIR__,"data/cube.stl"))
 outfiles = writevtk(stl,"cube")
 rm(outfiles...)
 
-h = HexaCell(Point(0.1,0.1,0.1),Point(1.0,1.0,1.0))
-@test have_intersection(h,stl,2,1)
+box = BoundingBox(Point(0.1,0.1,0.1),Point(1.0,1.0,1.0))
+@test have_intersection(box,stl,2,1)
 
 @test global_dface(stl,0,8) == 8
 @test global_dface(stl,1,2) == 10

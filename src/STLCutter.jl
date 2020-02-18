@@ -16,7 +16,7 @@ export Point
 export Segment
 export Triangle
 export Tetrahedron
-export HexaCell
+export BoundingBox
 export RawSTL
 export ConformingSTL
 export StructuredBulkMesh
@@ -31,7 +31,12 @@ export norm
 export distance
 export normal
 export center
+export area
 export volume
+export measure
+export measure_sign
+export contains_projection
+export have_intersection_point
 export have_intersection
 export intersection
 export projection
@@ -40,12 +45,23 @@ export table_cache
 export getlist
 export getlist!
 export TableOfVectors
-export TableOfLists
+export CompressedTable
 export AbstractTable
 export writevtk
 export num_cells
 export get_cell
 
+macro check(test)
+  quote
+    @assert $(esc(test)) $(string(test))
+  end
+end
+
+macro check(test,msg)
+  quote
+    @assert $(esc(test)) $msg
+  end
+end
 
 include("MutableVectorValues.jl")
 
@@ -59,7 +75,7 @@ include("Triangles.jl")
 
 include("Tetrahedrons.jl")
 
-include("HexaCells.jl")
+include("BoundingBoxes.jl")
 
 include("Tables.jl")
 

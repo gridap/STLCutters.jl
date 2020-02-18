@@ -4,32 +4,20 @@ struct BoundingBox{D,T}
   pmax::Point{D,T}
 end
 
-struct HexaCell{D,T}
-  bb::BoundingBox{D,T}
-end
-
 function BoundingBox(p::Point{D,T}) where {D,T}
   BoundingBox{D,T}(p,p)
 end
 
 function BoundingBox(s::Segment{D,T}) where {D,T}
-  BoundingBox{D,T}(min.(s.points...),max.(s.points...))
+  BoundingBox{D,T}(min.(get_vertices(s)...),max.(get_vertices(s)...))
 end
 
 function BoundingBox(t::Triangle{D,T}) where {D,T}
-  BoundingBox{D,T}(min.(t.points...),max.(t.points...))
+  BoundingBox{D,T}(min.(get_vertices(t)...),max.(get_vertices(t)...))
 end
 
 function BoundingBox(t::Tetrahedron{D,T}) where {D,T}
   BoundingBox{D,T}(min.(t.p...),max.(t.p...))
-end
-
-
-function HexaCell(pmin::Point{D},pmax::Point{D}) where {D}
-  for d in 1:D
-    @assert pmin[d] <= pmax[d]
-  end
-  HexaCell(BoundingBox(pmin,pmax))
 end
 
 const BB_tolerance = 1e-5
@@ -46,16 +34,14 @@ function have_intersection(p::Point{D},bb::BoundingBox{D}) where D
   true
 end
 
-@inline have_intersection(p::Point,h::HexaCell) = have_intersection(p,h.bb)
-
 function have_intersection(s::Segment{D},bb::BoundingBox{D}) where D
   bb = expand(bb,BB_tolerance)
   t = mutable(VectorValue{D,Float64})
   t_min = 0.0
   t_max = 1.0
   for d in 1:D
-    p_d = s.points[1][d]
-    v_d = s.points[2][d] - s.points[1][d]
+    p_d = s[1][d]
+    v_d = s[2][d] - s[1][d]
     if v_d < 0
       v_d = - v_d
       p_d = - p_d + bb.pmin[d] + bb.pmax[d]
@@ -85,39 +71,37 @@ function have_intersection(s::Segment{D},bb::BoundingBox{D}) where D
   end
 end
 
-@inline have_intersection(s::Segment,h::HexaCell) where{D} = have_intersection(s,h.bb)
-
-function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
+function have_intersection(t::Triangle{3},bb::BoundingBox{3})
   bb = expand(bb,BB_tolerance)
   have_intersection(bb,BoundingBox(t)) || return false
-  for p ∈ vertices(t)
+  for p ∈ get_vertices(t)
     if have_intersection(p,bb)
       return true
     end
   end
-  for i ∈ 1:num_edges_per_triangle
+  for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
     if have_intersection(e,bb)
       return true
     end
   end
-  t_pos = positivize_normal(bb,t)
+  t_pos = _fix_triangle(bb,t)
   n = abs(normal(t_pos))
   p0 = center(t_pos)
   main_d = max_dimension( n .* ( bb.pmax - bb.pmin ) )
   main_length = bb.pmax[main_d] - bb.pmin[main_d]
 
   i_int = 0
-  sq = project_on_square(bb,main_d)
-  d = mutable(VectorValue{num_components(sq),Float64})
-  for i in 1:num_components(sq)
+  sq = _square_vertices(bb,main_d)
+  d = mutable(VectorValue{length(sq),Float64})
+  for i in 1:length(sq)
     d[i] = ( n ⋅ (p0 -sq[i]) ) / n[main_d]
     if d[i] ≥ 0 || d[i] ≤ main_length
       i_int = i
     end
   end
 
-  if d[1] < 0 || d[num_components(sq)] > main_length
+  if d[1] < 0 || d[length(sq)] > main_length
     return false
   else
     main_x = canonical_vector(n,main_d)
@@ -126,13 +110,11 @@ function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where {D}
     else
       throw(ErrorException(""))
     end
-    have_intersection(intersection,t_pos)
+    contains_projection(intersection,t_pos)
   end
 end
 
-@inline have_intersection(t::Triangle{D},h::HexaCell{D}) where{D} = have_intersection(t,h.bb)
-
-function positivize_normal(bb::BoundingBox{D},t::Triangle{D}) where {D}
+function _fix_triangle(bb::BoundingBox{D},t::Triangle{D}) where {D}
   n = normal(t)
 
   function mirror(point::Point{D,T}) where {D,T}
@@ -147,19 +129,19 @@ function positivize_normal(bb::BoundingBox{D},t::Triangle{D}) where {D}
     Point(m)
   end
 
-  points = mirror.(t.points)
+  points = mirror.( get_vertices(t) )
   Triangle(points)
 end
 
-function project_on_square(bb::BoundingBox{D},x::Int) where D
+function _square_vertices(bb::BoundingBox{D},axis::Int) where D
   n_vertices = 2^(D-1)
   p_i = mutable(Point{D,Float64})
   v = mutable(VectorValue{n_vertices,Point{D,Float64}})
-  for i in 1:4
+  for i in 1:n_vertices
     c = 2
     b = 0
     for j in 1:D
-      if j ≠ x
+      if j ≠ axis
         b = (i-1)÷c - b*2
         p_i[j] = (1-b)*bb.pmin[j] + b*bb.pmax[j]
         c -= 1
@@ -169,7 +151,11 @@ function project_on_square(bb::BoundingBox{D},x::Int) where D
     end
     v[i] = p_i
   end
-  VectorValue(v.data)
+  v.data
+end
+
+function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where D
+  throw(ArgumentError("have_intersection(::Triangle{$D},::BoundingBox{$D}) not implemented"))
 end
 
 function have_intersection(bb1::BoundingBox{D},bb2::BoundingBox{D}) where {D}
