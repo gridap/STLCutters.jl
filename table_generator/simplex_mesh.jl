@@ -1,0 +1,222 @@
+
+struct NFaceToMFace
+  data::Array{Array{Int,2},2}
+end
+
+function NFaceToMFace(num_dims::Int)
+  data = reshape([ zeros(Int,0,0) for i in 0:num_dims, j in 0:num_dims ],num_dims+1,num_dims+1) 
+  NFaceToMFace(data)
+end
+
+Base.getindex(a::NFaceToMFace,i::Int,j::Int) = a.data[i+1,j+1]
+Base.getindex(a::NFaceToMFace,I::Colon,j::Int) = a.data[I,j+1]
+Base.getindex(a::NFaceToMFace,i::Int,J::Colon) = a.data[i+1,J]
+Base.getindex(a::NFaceToMFace,I::UnitRange{Int},j::Int) = a.data[I.+1,j+1]
+Base.getindex(a::NFaceToMFace,i::Int,J::UnitRange{Int}) = a.data[i+1,J.+1]
+Base.getindex(a::NFaceToMFace,I::UnitRange{Int},J::UnitRange{Int}) = a.data[I.+1,J.+1]
+
+Base.setindex!(a::NFaceToMFace,v::Array{Int,2},i::Int,j::Int) = a.data[i+1,j+1] = v
+
+Base.lastindex(a::NFaceToMFace,i::Int) = lastindex(a.data,i) - 1
+
+Base.ndims(f::NFaceToMFace) = size(f.data,1) - 1
+
+function vectors(a::NFaceToMFace) 
+  [a.data[i,:] for i in 1:size(a.data,1)]
+end
+
+function Base.print(io::IO,a::Vector{NFaceToMFace})
+  v = vectors.(a)
+  print(io,v)
+end
+
+Base.print(io::IO,a::NFaceToMFace) = print(io,vectors(a))
+
+function Base.string(a::Vector{Array{T,N}}) where {T,N}
+  data =join([ "$(string(a[i])), \n  " for i in 1:length(a) ])
+  length(data) >= 3 ? data = data[1:end-3] : data = ""
+  "[$data]"
+end
+
+function Base.print(io::IO,a::Vector{T}) where T<:Array
+  data =join([ "$(string(a[i])) , \n \n  " for i in 1:length(a) ])
+  data = replace(data, "Array{Int64}(undef,0,0)" => "empty_matrix")
+  str = "$(string(T))[\n  $(rstrip(data)) \n]"
+  print(io::IO,str)
+end
+
+function delaunay(x::Array{T,2}) where T
+  x = copy(transpose(x))
+  d = scipy_spatial.Delaunay(x)
+  p2j(a::Array{T,2}) where T = copy(transpose(a)) .+ 1
+  p2j(d.simplices), p2j(d.neighbors)
+end
+
+function compute_cell_to_facets(c2n::Array{Int,2})
+  c2f = zeros(Int,size(c2n))
+  count_f = 0
+  for i in 1:size(c2n,2), j in 1:size(c2n,1)
+    if c2f[j,i] == 0
+      count_f += 1
+      c2f[j,i] = count_f
+      if c2n[j,i] != 0
+        ineig = c2n[j,i]
+        jneig = findfirst( x->x == i, c2n[:,ineig])
+        c2f[jneig,ineig] = count_f
+      end
+    end
+  end
+  c2f
+end
+
+function dual_map(map::Array{Int,2})
+  n = maximum(map)
+  d_map = [ Int[] for i in 1:n ]
+  for i in 1:size(map,2), j in 1:size(map,1)
+    push!( d_map[ map[j,i] ],i )
+  end
+  d_map
+end
+
+function chain_maps(a2b::Array{Int,2},b2c::Array{Int,2})
+  
+  cs(i::Int) = unique(b2c[:,a2b[:,i]])
+
+  num_cxa = length( cs(1) )
+  num_a = size(a2b,2)
+  a2c = zeros(Int,num_cxa,num_a)
+  for i in 1:num_a
+    a2c[:,i] = cs(i)
+  end
+  a2c
+end
+
+function compute_face_to_nfaces(f2v::Array{Int,2})
+
+  function faces_around(i::Int,j::Int)
+    
+    function nface()
+      k = size(f2v,1) - j + 1
+      setdiff(f2v[:,i],f2v[k,i])
+    end
+
+    fs = intersect(v2f[nface()]...)
+    setdiff(fs,i)
+  end
+  
+  v2f = dual_map(f2v)
+  f2nf = zeros(Int,size(f2v))
+  count_nf = 0
+  for i in 1:size(f2v,2), j in 1:size(f2v,1)
+    if f2nf[j,i] == 0
+      count_nf += 1
+      f2nf[j,i] = count_nf
+      for ineig in faces_around(i,j), jneig in 1:size(f2v,1)
+        if i in faces_around(ineig,jneig)
+          f2nf[jneig,ineig] = count_nf
+        end
+      end
+    end
+  end
+  f2nf
+end
+
+function compute_nface_to_vertices(f2nf::Array{Int,2},f2v::Array{Int,2})
+
+  function nface(i::Int,j::Int)
+    k = size(f2v,1) - j + 1
+    setdiff(f2v[:,i],f2v[k,i])
+  end
+
+  num_nf = maximum(f2nf)
+  num_vxnf = size(f2nf,1) - 1
+  nf2v = zeros(Int,num_vxnf,num_nf)
+  count_nf = 1
+  for i in 1:size(f2nf,2), j in 1:size(f2nf,1)
+    if f2nf[j,i] == count_nf
+      nf2v[:,count_nf] = nface(i,j)
+      count_nf += 1
+    end
+  end
+  nf2v
+end
+
+function signed_volume(x::Array{Float64,2})
+  size(x,1) + 1 == size(x,2) || throw(DimensionMismatch("volume only implemented for symplices"))
+  A = zeros(size(x,1),size(x,1))
+  for d in 1:size(x,1)
+    A[:,d] = x[:,d+1] - x[:,1]
+  end
+  det(A) / factorial(size(x,1))
+end
+
+
+function correct_cell_orientation(x::Array{Float64,2},c2v::Array{Int,2})
+  num_cells = size(c2v,2)
+  for i in 1:num_cells
+    if signed_volume(x[:,c2v[:,i]]) < 0 
+      c2v[[1,end],i] = reverse(c2v[[1,end],i])
+    end
+  end
+  c2v
+end
+
+function compute_connectivities(c2v::Array{Int,2})
+  
+  num_dims = size(c2v,1) - 1
+  nF_to_mF = NFaceToMFace(num_dims)
+  nF_to_mF[num_dims,0] = c2v
+
+  for d in reverse(1:num_dims-1)
+    nF_to_mF[d+1,d] = compute_face_to_nfaces( nF_to_mF[d+1,0] )
+    nF_to_mF[d,0] = compute_nface_to_vertices( nF_to_mF[d+1,d], nF_to_mF[d+1,0] )
+  end
+
+  for d in reverse(1:num_dims-2)
+    nF_to_mF[num_dims,d] = chain_maps( nF_to_mF[num_dims,d+1], nF_to_mF[d+1,d] )
+  end
+  nF_to_mF
+end
+
+function compute_mesh(x::Array{Float64,2})
+  c2v, = delaunay( x )
+  c2v = correct_cell_orientation(x,c2v)
+  compute_connectivities(c2v)
+end
+
+function compute_cell_to_facet_orientation(x::Array{Float64,2},c2v::Array{Int,2},f2v::Array{Int,2},c2f::Array{Int,2})
+  num_c = size(c2f,2)
+  num_fxc = size(c2f,1)
+  c2f_orientation = zeros(Int,num_fxc,num_c)
+
+  for i in 1:num_c, j in 1:num_fxc
+    c = c2v[:,i]
+    f = f2v[:,c2f[j,i]]
+    cp = vcat( f, setdiff(c,f) )
+    c2f_orientation[j,i] = -sign( signed_volume(x[:,cp]) )
+  end
+  c2f_orientation
+end
+
+function compute_cell_to_facet_orientation(x::Array{Float64,2},nf_to_mf::NFaceToMFace)
+  D = ndims(nf_to_mf)
+  c2v=nf_to_mf[D,0]
+  f2v=nf_to_mf[D-1,0]
+  c2f=nf_to_mf[D,D-1]
+  compute_cell_to_facet_orientation(x,c2v,f2v,c2f) 
+end
+
+function compute_face_to_initial_face(v_to_nF::Vector{Vector{Vector{Int}}},nf_to_v::Vector{Array{Int,2}})
+  nf_to_nF = [ zeros(Int,size( nf_to_v[d],2)) for d in 1:length(v_to_nF) ]
+  for d in 1:length(v_to_nF)
+    for i in 1:size( nf_to_v[d],2)
+      F = intersect(v_to_nF[d][ nf_to_v[d][:,i]]...)
+      if length(F) == 1
+        nf_to_nF[d][i] = F[1]
+      else
+        length(F) == 0 || throw(ErrorException("$d-Face of $i not idenfitied: intersection = $F"))
+      end
+    end
+  end
+  nf_to_nF
+end
