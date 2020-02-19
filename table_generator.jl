@@ -139,10 +139,20 @@ function orientation(x::Array{Float64,2})
   end
 end
 
+function signed_volume(x::Array{Float64,2})
+  size(x,1) + 1 == size(x,2) || throw(DimensionMismatch("volume only implemented for symplices"))
+  A = zeros(size(x,1),size(x,1))
+  for d in 1:size(x,1)
+    A[:,d] = x[:,d+1] - x[:,1]
+  end
+  det(A) / factorial(size(x,1))
+end
+
+
 function correct_cell_orientation(x::Array{Float64,2},c2v::Array{Int,2})
   num_cells = size(c2v,2)
   for i in 1:num_cells
-    if orientation(x[:,c2v[:,i]]) < 0 
+    if signed_volume(x[:,c2v[:,i]]) < 0 
       c2v[[1,end],i] = reverse(c2v[[1,end],i])
     end
   end
@@ -181,7 +191,7 @@ function compute_cell_to_facet_orientation(x::Array{Float64,2},c2v::Array{Int,2}
     c = c2v[:,i]
     f = f2v[:,c2f[j,i]]
     cp = vcat( f, setdiff(c,f) )
-    c2f_orientation[j,i] = -orientation(x[:,cp])
+    c2f_orientation[j,i] = -sign( signed_volume(x[:,cp]) )
   end
   c2f_orientation
 end
@@ -296,7 +306,7 @@ function dfaces_around_nface(c::RefCell,d::Int,n::Int,i::Int)
   else
     dfaces = [ i ]
     for k in n:d-1
-      dfaces = union(c.d_face_to_dplus1_face[n][dfaces]...)
+      dfaces = union(c.d_face_to_dplus1_face[k][dfaces]...)
     end
     dfaces
   end
@@ -357,9 +367,7 @@ end
 
 
 
-cell = RefCell(TetCell,3)
-prefix = "cut_$(cell.cell_type)$(ndims(cell))"
-filename = "$(prefix)_tables.jl"
+filename = "cut_tet_tables.jl"
 f = open(filename,"w")
 
 header = 
@@ -376,7 +384,7 @@ println(f, header )
 println(f, "const empty_matrix = Array{Int64}(undef,0,0)" ); println(f)
 
 
-for num_dims in 2:3
+for num_dims in 2:4
   
   cell = RefCell(TetCell,num_dims)
   prefix = "cut_$(cell.cell_type)$(ndims(cell))"
@@ -386,19 +394,24 @@ for num_dims in 2:3
   global_nf_to_mf = NFaceToMFace[]
   global_nf_to_nF = Vector{Vector{Int}}[]
   global_c2f_orientation = Array{Int,2}[]
+  cut_dface_to_case = [ zeros(Int,num_dfaces(cell,d)) for d in 1:num_dims ]
+  count = 0
   for d in 1:ndims(cell)
     for i in 1:num_dfaces(cell,d)
-    x = [ cell.coordinates dface_center(cell,d,i) ]
-    nf_to_mf = compute_mesh( x )
-    nf_to_nF = compute_face_to_initial_face(cell,nf_to_mf,d,i)
-    c2f_orientation = compute_cell_to_facet_orientation(x,nf_to_mf)
+      x = [ cell.coordinates dface_center(cell,d,i) ]
+      nf_to_mf = compute_mesh( x )
+      nf_to_nF = compute_face_to_initial_face(cell,nf_to_mf,d,i)
+      c2f_orientation = compute_cell_to_facet_orientation(x,nf_to_mf)
+      count += 1
 
-    push!( global_x, x )
-    push!( global_nf_to_mf, nf_to_mf )
-    push!( global_nf_to_nF, nf_to_nF )
-    push!( global_c2f_orientation, c2f_orientation )
+      cut_dface_to_case[d][i] = count 
+      push!( global_x, x )
+      push!( global_nf_to_mf, nf_to_mf )
+      push!( global_nf_to_nF, nf_to_nF )
+      push!( global_c2f_orientation, c2f_orientation )
     end
   end
+  print(f, "const $(prefix)_dface_to_case = " ); println(f, cut_dface_to_case ); println(f)
   print(f, "const $(prefix)_nface_to_mface = " ); println(f, global_nf_to_mf ); println(f)
   print(f, "const $(prefix)_nsubface_to_nface = " ); println(f, global_nf_to_nF ); println(f)
   print(f, "const $(prefix)_orientation_cell_to_facet = " ); println(f, global_c2f_orientation ); println(f)
@@ -422,7 +435,7 @@ header =
 println(f, header )
 
 for num_dims in 2:3
-  prefix = "hex_to_tet$(num_dims)"
+  prefix = "hex$(num_dims)_to_tet$(num_dims)"
   cell = RefCell(HexCell,num_dims)
   println(f,"## Connectivities for $prefix"); println(f)
 
@@ -438,7 +451,4 @@ for num_dims in 2:3
   print(f, "const $(prefix)_orientation_cell_to_facet = " ); println(f, c2f_orientation ); println(f);
 end
 close(f)
-
-
-
 
