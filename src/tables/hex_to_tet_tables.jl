@@ -7,7 +7,7 @@
 ## Connectivities for hex2_to_tet2
 
 const hex2_to_tet2_nface_to_mface = Array{Array{Int64,2},1}[
-  [empty_matrix, 
+  [[1 2 3 4], 
   empty_matrix, 
   empty_matrix, ] , 
  
@@ -29,7 +29,7 @@ const hex2_to_tet2_orientation_cell_to_facet = [-1 -1; 1 1; -1 -1]
 ## Connectivities for hex3_to_tet3
 
 const hex3_to_tet3_nface_to_mface = Array{Array{Int64,2},1}[
-  [empty_matrix, 
+  [[1 2 3 4 5 6 7 8], 
   empty_matrix, 
   empty_matrix, 
   empty_matrix, ] , 
@@ -57,4 +57,12 @@ const hex3_to_tet3_nsubface_to_mface = Array{Int64,1}[
 ]
 
 const hex3_to_tet3_orientation_cell_to_facet = [-1 -1 -1 -1 -1 -1; 1 1 1 -1 1 -1; -1 1 1 -1 -1 1; 1 1 1 1 1 1]
+
+## Dictionaries
+
+const hex_to_tet_nface_to_mface = Dict(2 => hex2_to_tet2_nface_to_mface, 3 => hex3_to_tet3_nface_to_mface, )
+
+const hex_to_tet_nsubface_to_mface = Dict(2 => hex2_to_tet2_nsubface_to_mface, 3 => hex3_to_tet3_nsubface_to_mface, )
+
+const hex_to_tet_orientation_cell_to_facet = Dict(2 => hex2_to_tet2_orientation_cell_to_facet, 3 => hex3_to_tet3_orientation_cell_to_facet, )
 

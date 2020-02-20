@@ -8,6 +8,12 @@ include("simplex_mesh.jl")
 
 include("reference_cell.jl")
 
+function printdict(io::IO,varname::String,range::Vector)
+  data = join([ "$i => $(replace( varname, '#' => "$i" )), " for i in range ] )
+  dict_name = replace(varname, '#' => "" )
+  println(io,"const $(dict_name) = Dict($data)");println(io)
+end
+
 
 dir = @__DIR__
 
@@ -43,7 +49,7 @@ header =
 "
 println(f, header )
 
-for num_dims in 2:4
+for num_dims in 1:4
   
   cell = RefCell(TetCell,num_dims)
   prefix = "cut_$(cell.cell_type)$(ndims(cell))"
@@ -94,6 +100,8 @@ header =
 "
 println(f, header )
 
+
+
 for num_dims in 2:3
   prefix = "hex$(num_dims)_to_tet$(num_dims)"
   cell = RefCell(HexCell,num_dims)
@@ -110,6 +118,12 @@ for num_dims in 2:3
   print(f, "const $(prefix)_nsubface_to_mface = " ); println(f, nf_to_nF ); println(f);
   print(f, "const $(prefix)_orientation_cell_to_facet = " ); println(f, c2f_orientation ); println(f);
 end
+
+
+println(f, "## Dictionaries" ); println(f)
+printdict(f, "hex#_to_tet#_nface_to_mface", [2:3;] )
+printdict(f, "hex#_to_tet#_nsubface_to_mface", [2:3;] )
+printdict(f, "hex#_to_tet#_orientation_cell_to_facet", [2:3;] )
 close(f)
 
 close(main_f)

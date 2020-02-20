@@ -13,7 +13,7 @@ num_edges(::Type{<:Triangle}) = 3
 
 num_edges(::T) where T<:Triangle = num_edges(T)
 
-num_vertices(::Type{<:Triangle}) = 2
+num_vertices(::Type{<:Triangle}) = 3
 
 num_vertices(::T) where T<:Triangle = num_vertices(T)
 

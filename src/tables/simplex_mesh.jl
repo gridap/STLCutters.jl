@@ -179,9 +179,16 @@ function compute_connectivities(c2v::Array{Int,2})
 end
 
 function compute_mesh(x::Array{Float64,2})
-  c2v, = delaunay( x )
-  c2v = correct_cell_orientation(x,c2v)
-  compute_connectivities(c2v)
+  if size(x,1) == 1
+    nf_to_mf = NFaceToMFace(1)
+    nf_to_mf[1,0] = [ 1 3; 3 2 ]
+  else
+    c2v, = delaunay( x )
+    c2v = correct_cell_orientation(x,c2v)
+    nf_to_mf = compute_connectivities(c2v)
+  end
+  nf_to_mf[0,0] = collect( reshape( 1:maximum(nf_to_mf[end,0]), 1, : ) )
+  nf_to_mf
 end
 
 function compute_cell_to_facet_orientation(x::Array{Float64,2},c2v::Array{Int,2},f2v::Array{Int,2},c2f::Array{Int,2})
