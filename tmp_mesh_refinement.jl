@@ -14,7 +14,7 @@ include("src/tables/lookup_cut_tables.jl");
 
 struct CellSubMesh{D,T}
   vertex_coordinates::Vector{Point{D,T}}
-  dface_to_vertices::Vector{Vector{Vector{Int}}}
+  dface_to_nfaces::Vector{Vector{Vector{Vector{Int}}}}
 end
 
 struct HexaCell{N,D,T}
@@ -57,35 +57,40 @@ end
 
 function initialize(c::HexaCell{N,D,T}) where {N,D,T}
   coordinates = [ v for v in get_vertices(c) ]
-  dface_to_vertices = [ Vector{Int}[] for d in 0:D ]
+  dface_to_nfaces = [ Vector{Vector{Int}}[] for d in 0:D ]
 
   for d in 0:D
-    df_to_v = hex_to_tet_nface_to_mface[D][d+1][0+1]
-    for i in 1:size(df_to_v,2)
-      push!( dface_to_vertices[d+1], Int[] )
-      for j in 1:size(df_to_v,1)
-        push!( dface_to_vertices[d+1][i], df_to_v[j,i] )
+    dface_to_nfaces[d+1] = [ Vector{Int}[] for n in 0:d-1 ]
+    for n in 0:d-1
+      df_to_nf = hex_to_tet_nface_to_mface[D][d+1][n+1]
+      for i in 1:size(df_to_nf,2)
+        push!( dface_to_nfaces[d+1][n+1], Int[] )
+        for j in 1:size(df_to_nf,1)
+          push!( dface_to_nfaces[d+1][n+1][i], df_to_nf[j,i] )
+        end
       end
     end
   end
-  CellSubMesh{D,T}(coordinates,dface_to_vertices)
+  CellSubMesh{D,T}(coordinates,dface_to_nfaces)
 end
 
 function initialize!(m::CellSubMesh{D,T},c::HexaCell{N,D,T}) where {N,D,T}
   resize!(m.vertex_coordinates,N)
-  resize!(m.dface_to_vertices,D+1)
+  resize!(m.dface_to_nfaces,D+1)
 
   for d in 0:D
-    df_to_v = hex_to_tet_nface_to_mface[D][d+1][0+1]
-    resize!(m.dface_to_vertices[d+1],size(df_to_v,2))
-    for i in 1:size(df_to_v,2)
-      resize!(m.dface_to_vertices[d+1][i],size(df_to_v,1))
-      for j in 1:size(df_to_v,1)
-        m.dface_to_vertices[d+1][i][j] = df_to_v[j,i]
+    resize!(m.dface_to_nfaces,d+1,d)
+    for n in 0:d-1
+      df_to_nf = hex_to_tet_nface_to_mface[D][d+1][n+1]
+      resize!(m.dface_to_nfaces[d+1],n+1,size(df_to_nf,2))
+      for i in 1:size(df_to_nf,2)
+        resize!(m.dface_to_nfaces[d+1][n+1],i,size(df_to_nf,1))
+        for j in 1:size(df_to_nf,1)
+          m.dface_to_nfaces[d+1][n+1][i][j] = df_to_nf[j,i]
+        end
       end
     end
   end
-
   m
 end
 
@@ -128,10 +133,20 @@ stl_point = Point(0.5,0.25)
 
 const intersection_tolerance = 1e-10
 
-num_dfaces(m::CellSubMesh,d::Int) = length(m.dface_to_vertices[d+1])
+function num_vertices(m::CellSubMesh) 
+  length(m.vertex_coordinates)
+end
+
+function num_dfaces(m::CellSubMesh,d::Int)
+  if d == 0
+    num_vertices(m)
+  else
+    length(m.dface_to_nfaces[d+1])
+  end
+end
 
 function dface_vertices(m::CellSubMesh,d::Int) 
-  m.dface_to_vertices[d+1]
+  m.dface_to_nfaces[d+1][0+1]
 end
 
 function vertex_coordinates(m::CellSubMesh) 
@@ -183,21 +198,6 @@ function distance(m::CellSubMesh{D,T},d::Int,i::Int,p::Point{D,T}) where {D,T}
   end
 end
 
-
-function add_dface!(m::CellSubMesh,d::Int,new_df_to_v::Vector{Vector{Int}}) 
-  df_to_v = dface_vertices(m,d)
-  resize!(df_to_v, length(df_to_v) + length(new_df_to_v) )
-  for i in 1:length(new_df_to_v)
-    k = i + length(df_to_v) - length(new_df_to_v) 
-    isassigned(df_to_v,k) || ( df_to_v[k] = Int[] )
-    resize!(df_to_v[k],length(new_df_to_v[i]))
-    for j in 1:length(new_df_to_v[i])
-      df_to_v[k][j] = new_df_to_v[i][j]
-    end
-  end
-  m
-end
-
 function Base.resize!(v::Vector{Vector{T}},i::Int,n::Int) where T
   if !isassigned(v,i)
     v[i] = T[]
@@ -205,19 +205,31 @@ function Base.resize!(v::Vector{Vector{T}},i::Int,n::Int) where T
   resize!(v[i],n)
 end
 
+function add_dface!(m::CellSubMesh,d::Int,new_df_to_v::Vector{Vector{Int}}) 
+  df_to_v = dface_vertices(m,d)
+  resize!(df_to_v, length(df_to_v) + length(new_df_to_v) )
+  for i in 1:length(new_df_to_v)
+    k = i + length(df_to_v) - length(new_df_to_v) 
+    resize!(df_to_v,k,length(new_df_to_v[i]))
+    for j in 1:length(new_df_to_v[i])
+      df_to_v[k][j] = new_df_to_v[i][j]
+    end
+  end
+  m
+end
+
 function add_vertex!(m::CellSubMesh{D,T},p::Point{D,T}) where {D,T}
-  v_to_v = dface_vertices(m,0)
-  resize!(v_to_v, length(v_to_v)+1 )
-  resize!(v_to_v,length(v_to_v),1)
-  v_to_v[end][1] = length(v_to_v)
   push!( vertex_coordinates(m), p )
+end
+
+function delete_dface!(m::CellSubMesh,d::Int,i::Int) 
+  deleteat!(m.dface_to_nfaces[d+1],i)
 end
 
 function refine!(m::CellSubMesh{D,T},d::Int,id::Int,p::Point{D,T}) where {D,T}
   if d == 0
     return m
   else
-    @show D,d,id
     case = cut_tet_dface_to_case[D][d][1]
     dface = dface_vertices(m,d)[id]
     vertices_cache = Int[]
@@ -230,13 +242,12 @@ function refine!(m::CellSubMesh{D,T},d::Int,id::Int,p::Point{D,T}) where {D,T}
     df_to_v_cache = Vector{Int}[]
     resize!(df_to_v_cache,size(df_to_v,2))
     for i in 1:size(df_to_v,2)
-      isassigned(df_to_v_cache,i) || ( df_to_v_cache[i] = Int[] )
-      resize!(df_to_v_cache[i],size(df_to_v,1))
+      resize!(df_to_v_cache,i,size(df_to_v,1))
       for j in 1:size(df_to_v,1)
         df_to_v_cache[i][j] = vertices_cache[ df_to_v[j,i] ] 
       end
     end
-    deleteat!(m.dface_to_vertices[d+1],id)
+    delete_dface!(m,d,id) 
     add_vertex!(m,point)
     add_dface!(m,d,df_to_v_cache,)
     return m
@@ -254,23 +265,18 @@ for d in 0:D
   global min_distance
   global idface
   for i in 1:num_dfaces(mesh,d)
-    println(distance(mesh,d,i,point))
     if distance(mesh,d,i,point) ≤ min_distance
       min_distance = distance(mesh,d,i,point)
       idface = i
     end
   end
   if idface != 0
-    println("refine!(m,$d,$idface,p)")
     refine!(mesh,d,idface,point)
     break
   end
 end
 
-function num_vertices(m::CellSubMesh) 
-  @check length(m.vertex_coordinates) == num_dfaces(m,0)
-  num_dfaces(m,0)
-end
+
 
 function writevtk(m::CellSubMesh{D,T},file_base_name) where {D,T}
   d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5) # tets
@@ -280,7 +286,7 @@ function writevtk(m::CellSubMesh{D,T},file_base_name) where {D,T}
     points[d,i] = p[d]
   end
   cells = MeshCell{Vector{Int64}}[]
-  for d in 0:D
+  for d in 1:D
     dface_to_vertices = dface_vertices(m,d)
     num_dfaces = length(dface_to_vertices)
     vtk_type = VTKCellType(d_to_vtk_type_id[d])
