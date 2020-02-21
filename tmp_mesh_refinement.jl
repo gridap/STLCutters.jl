@@ -136,7 +136,7 @@ cell = HexaCell(box)
 
 mesh = initialize(cell)
 
-stl_point = Point(0.5,0.25)
+stl_points = [ Point(0.5,0.25), Point(0.25,0.5), ]
 
 const intersection_tolerance = 1e-10
 
@@ -212,7 +212,7 @@ function dface_nfaces(m::CellSubMesh,d::Int,n::Int)
   m.dface_to_nfaces[d+1][n+1]
 end
 
-function add_dface!(m::CellSubMesh,d::Int,new_df_to_nf::Vector{Vector{Vector{Int}}}) 
+function add_dface!(m::CellSubMesh,d::Int,new_df_to_nf::Vector{Vector{Vector{Int}}})
   for n in 0:d-1
     nfaces = dface_nfaces(m,d,n)
     new_nfaces = new_df_to_nf[n+1]
@@ -245,26 +245,19 @@ function refine!(m::CellSubMesh{D,T},d::Int,id::Int,p::Point{D,T}) where {D,T}
     @check d == D "smaller cuts not implemented yet"
     case = cut_tet_dface_to_case[D][d][1]
     dface = dface_vertices(m,d)[id]
-    vertices_cache = Int[]
-    
-    resize!(vertices_cache, length(dface) + 1 )
-    vertices_cache[1:length(dface)] = dface
-    vertices_cache[end] = num_dfaces(m,0) + 1
     
     nf_to_mf = cut_tet_nface_to_mface[D][case]
-    df_to_nf = nf_to_mf[d+1]
     nf_to_nF = cut_tet_nsubface_to_nface[D][case]
-
-    df_to_nf_cache = Vector{Vector{Int}}[]
-    resize!(df_to_nf_cache,d)
-
+    
     nfaces_cache = Vector{Int}[]
-    resize!(nfaces_cache,d)
 
+    resize!(nfaces_cache,d)
     resize!(nfaces_cache,0+1, length(dface) + 1 )
     nfaces_cache[0+1][1:length(dface)] = dface
     nfaces_cache[0+1][end] = num_dfaces(m,0) + 1 
-    add_vertex!(m,point)
+    df_to_nf_cache = Vector{Vector{Int}}[]
+    resize!(df_to_nf_cache,d)
+
 
     for n in 1:d-1
       resize!(nfaces_cache,n+1,length(nf_to_nF[n]))
@@ -279,45 +272,54 @@ function refine!(m::CellSubMesh{D,T},d::Int,id::Int,p::Point{D,T}) where {D,T}
       end
     end
     
-    resize!(df_to_nf_cache,d)
-    for n in 0:d-1
-      resize!(df_to_nf_cache,n+1,size(df_to_nf[n+1],2)) 
-      for i in 1:size(df_to_nf[n+1],2)
-        resize!(df_to_nf_cache[n+1],i,size(df_to_nf[n+1],1))
-        for j in 1:size(df_to_nf[n+1],1)
-          df_to_nf_cache[n+1][i][j] = nfaces_cache[n+1][ df_to_nf[n+1][j,i] ] 
+
+    nf_to_mf_cache = Vector{Vector{Vector{Int}}}[]
+    resize!(nf_to_mf_cache,d+1)
+
+    for dim in 1:d
+      df_to_nf = nf_to_mf[dim+1]
+      resize!(nf_to_mf_cache,dim+1,dim)
+      df_to_nf_cache = nf_to_mf_cache[dim+1]
+      for n in 0:dim-1
+        resize!(df_to_nf_cache,n+1,size(df_to_nf[n+1],2)) 
+        for i in 1:size(df_to_nf[n+1],2)
+          resize!(df_to_nf_cache[n+1],i,size(df_to_nf[n+1],1))
+          for j in 1:size(df_to_nf[n+1],1)
+            df_to_nf_cache[n+1][i][j] = nfaces_cache[n+1][ df_to_nf[n+1][j,i] ] 
+          end
         end
       end
     end
-    delete_dface!(m,d,id) 
-    add_dface!(m,d,df_to_nf_cache,)
+
+    delete_dface!(m,d,id)
+
+    add_vertex!(m,point)
+    for dim in 1:d
+      add_dface!(m,dim,nf_to_mf_cache[dim+1])
+    end
+
     return m
   end
 end
 
-## TODO: do it for df_to_nf ∀ n ≤ d (instead of df_to_v)
-# Adde more cube connectivities to reach this
-# manage cache data in a dface_cutter
-point = stl_point
-D = 2
-min_distance = intersection_tolerance 
-idface = 0
-for d in 0:D
-  global min_distance
-  global idface
-  for i in 1:num_dfaces(mesh,d)
-    if distance(mesh,d,i,point) ≤ min_distance
-      min_distance = distance(mesh,d,i,point)
-      idface = i
+for k in 2
+  point = stl_points[k]
+  D = 2
+  min_distance = intersection_tolerance 
+  idface = 0
+  for d in 0:D
+    for i in 1:num_dfaces(mesh,d)
+      if distance(mesh,d,i,point) ≤ min_distance
+        min_distance = distance(mesh,d,i,point)
+        idface = i
+      end
+    end
+    if idface != 0
+      refine!(mesh,d,idface,point)
+      break
     end
   end
-  if idface != 0
-    refine!(mesh,d,idface,point)
-    break
-  end
 end
-
-
 
 function writevtk(m::CellSubMesh{D,T},file_base_name) where {D,T}
   d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5) # tets
@@ -341,5 +343,12 @@ end
 
 writevtk(mesh,"sub_mesh")
 # struct DFaceCutter end
+
+
+## TODO encapsulate refinement procedures
+## encapsulate cache in DFaceCutter
+## allow to cut edges and dfaces with d < D
+## revise why is not cut properly in the example of more than one point
+## sort procedures and tests properly
 
 end # module
