@@ -9,5 +9,7 @@ const empty_matrix = Array{Int64}(undef,0,0)
 
 include("cut_tet_tables.jl")
 
+include("cut_hex_tables.jl")
+
 include("hex_to_tet_tables.jl")
 

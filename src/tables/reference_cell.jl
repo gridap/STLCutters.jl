@@ -17,7 +17,8 @@ function RefCell(ctype::String,ndims::Int)
     for d in 1:ndims
       x[d,d+1] = 1
     end
-    c2v = reshape(collect(1:ndims+1),:,1)
+    num_v = size(x,2)
+    c2v = reshape([1:num_v;],:,1)
     nf_to_mf = compute_connectivities(c2v)
     df_to_v = nf_to_mf[1:end,0]
     for d in 1:ndims-2
@@ -29,16 +30,13 @@ function RefCell(ctype::String,ndims::Int)
     for i in 1:2^ndims
       x[:,i] = digits( (i-1), base=2, pad=ndims )
     end
-    x = x.*2 .- 1 
-    c2v = reshape(collect(1:2^ndims),:,1)
-    f2v = hex_facet_to_vertices(ndims)
-    if ndims == 2
-      df_to_v = [ f2v, c2v ]
-    elseif ndims == 3
-      e2v = reshape( [ 1 2  3 4  5 6  7 8  1 3  2 4  5 7  6 8  1 5  2 6  3 7  4 8 ],2,: )
-      df_to_v = [ e2v, f2v, c2v ]
-    else
-      throw(ArgumentError(""))
+    x = x.*2 .- 1
+    num_v = size(x,2)
+    c2v = reshape([1:num_v;],:,1)
+    nf_to_mf = compute_hex_connectivities(c2v,ndims)
+    df_to_v = nf_to_mf[1:end,0]
+    for d in 1:ndims-2
+      f_to_dplus1f[d] = dual_map( nf_to_mf[d+1,d] )
     end
   else
     throw(ArgumentError("RefCell not implemented for $ctype"))
@@ -108,6 +106,73 @@ function hex_facet_to_vertices(num_dims::Int)
   end
   f2v
 end
+
+function compute_face_to_nfaces(f2v::Array{Int,2},nf_to_lv::Array{Int,2})
+
+  function faces_around(i::Int,j::Int)
+    
+    function nface()
+      f2v[nf_to_lv[:,j],i]
+    end
+    fs = intersect(v2f[nface()]...)
+    setdiff(fs,i)
+  end
+  
+  v2f = dual_map(f2v)
+  f2nf = zeros(Int,size(nf_to_lv,2),size(f2v,2))
+  count_nf = 0
+  for i in 1:size(f2v,2), j in 1:size(nf_to_lv,2)
+    if f2nf[j,i] == 0
+      count_nf += 1
+      f2nf[j,i] = count_nf
+      for ineig in faces_around(i,j), jneig in 1:size(nf_to_lv,2)
+        if i in faces_around(ineig,jneig)
+          f2nf[jneig,ineig] = count_nf
+        end
+      end
+    end
+  end
+  f2nf
+end
+
+function compute_nface_to_vertices(f2nf::Array{Int,2},f2v::Array{Int,2},nf_to_lv::Array{Int,2})
+
+  function nface(i::Int,j::Int)
+    f2v[nf_to_lv[:,j],i]
+  end
+
+  num_nf = maximum(f2nf)
+  num_vxnf = size(nf_to_lv,1)
+  nf2v = zeros(Int,num_vxnf,num_nf)
+  count_nf = 1
+  for i in 1:size(f2nf,2), j in 1:size(f2nf,1)
+    if f2nf[j,i] == count_nf
+      nf2v[:,count_nf] = nface(i,j)
+      count_nf += 1
+    end
+  end
+  nf2v
+end
+
+function compute_hex_connectivities(c2v::Array{Int,2},num_dims::Int)
+  
+  nF_to_mF = NFaceToMFace(num_dims)
+  nF_to_mF[num_dims,0] = c2v
+
+  for d in reverse(1:num_dims-1)
+    df_to_lv = hex_facet_to_vertices(d+1)
+    nF_to_mF[d+1,d] = compute_face_to_nfaces( nF_to_mF[d+1,0], df_to_lv )
+    nF_to_mF[d,0] = compute_nface_to_vertices( nF_to_mF[d+1,d], nF_to_mF[d+1,0], df_to_lv )
+  end
+  for d in reverse(1:num_dims-2)
+    nF_to_mF[num_dims,d] = chain_maps( nF_to_mF[num_dims,d+1], nF_to_mF[d+1,d] )
+  end
+  nF_to_mF
+end
+
+
+
+
 
 function compute_face_to_initial_face(cell::RefCell,nf_to_mf::NFaceToMFace,d::Int,i::Int)
   nf_to_v = nf_to_mf[1:end-1,0]

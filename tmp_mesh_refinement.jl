@@ -2,6 +2,8 @@ module CellSubMeshes
 
 using STLCutter
 
+using WriteVTK
+
 using STLCutter: @check
 
 import STLCutter: distance
@@ -182,15 +184,68 @@ function distance(m::CellSubMesh{D,T},d::Int,i::Int,p::Point{D,T}) where {D,T}
 end
 
 
-function refine!(m::CellSubMesh{D,T},d::Int,i::Int,p::Point{D,T}) where {D,T}
+function add_dface!(m::CellSubMesh,d::Int,new_df_to_v::Vector{Vector{Int}}) 
+  df_to_v = dface_vertices(m,d)
+  resize!(df_to_v, length(df_to_v) + length(new_df_to_v) )
+  for i in 1:length(new_df_to_v)
+    k = i + length(df_to_v) - length(new_df_to_v) 
+    isassigned(df_to_v,k) || ( df_to_v[k] = Int[] )
+    resize!(df_to_v[k],length(new_df_to_v[i]))
+    for j in 1:length(new_df_to_v[i])
+      df_to_v[k][j] = new_df_to_v[i][j]
+    end
+  end
+  m
+end
+
+function Base.resize!(v::Vector{Vector{T}},i::Int,n::Int) where T
+  if !isassigned(v,i)
+    v[i] = T[]
+  end
+  resize!(v[i],n)
+end
+
+function add_vertex!(m::CellSubMesh{D,T},p::Point{D,T}) where {D,T}
+  v_to_v = dface_vertices(m,0)
+  resize!(v_to_v, length(v_to_v)+1 )
+  resize!(v_to_v,length(v_to_v),1)
+  v_to_v[end][1] = length(v_to_v)
+  push!( vertex_coordinates(m), p )
+end
+
+function refine!(m::CellSubMesh{D,T},d::Int,id::Int,p::Point{D,T}) where {D,T}
   if d == 0
     return m
   else
+    @show D,d,id
+    case = cut_tet_dface_to_case[D][d][1]
+    dface = dface_vertices(m,d)[id]
+    vertices_cache = Int[]
+    resize!(vertices_cache, length(dface) + 1 )
+    vertices_cache[1:length(dface)] = dface
+    vertices_cache[end] = num_dfaces(m,0) + 1
+    nf_to_mf = cut_tet_nface_to_mface[D][case]
+    df_to_v = nf_to_mf[d+1][0+1]
+    #add_dface!()
+    df_to_v_cache = Vector{Int}[]
+    resize!(df_to_v_cache,size(df_to_v,2))
+    for i in 1:size(df_to_v,2)
+      isassigned(df_to_v_cache,i) || ( df_to_v_cache[i] = Int[] )
+      resize!(df_to_v_cache[i],size(df_to_v,1))
+      for j in 1:size(df_to_v,1)
+        df_to_v_cache[i][j] = vertices_cache[ df_to_v[j,i] ] 
+      end
+    end
+    deleteat!(m.dface_to_vertices[d+1],id)
+    add_vertex!(m,point)
+    add_dface!(m,d,df_to_v_cache,)
     return m
   end
 end
 
-
+## TODO: do it for df_to_nf ∀ n ≤ d (instead of df_to_v)
+# Adde more cube connectivities to reach this
+# manage cache data in a dface_cutter
 point = stl_point
 D = 2
 min_distance = intersection_tolerance 
@@ -207,14 +262,37 @@ for d in 0:D
   end
   if idface != 0
     println("refine!(m,$d,$idface,p)")
+    refine!(mesh,d,idface,point)
     break
   end
 end
 
+function num_vertices(m::CellSubMesh) 
+  @check length(m.vertex_coordinates) == num_dfaces(m,0)
+  num_dfaces(m,0)
+end
 
+function writevtk(m::CellSubMesh{D,T},file_base_name) where {D,T}
+  d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5) # tets
+  num_points = num_vertices(m)
+  points = zeros(T,D,num_points)
+  for (i ,p ) in enumerate(vertex_coordinates(m)), d in 1:D
+    points[d,i] = p[d]
+  end
+  cells = MeshCell{Vector{Int64}}[]
+  for d in 0:D
+    dface_to_vertices = dface_vertices(m,d)
+    num_dfaces = length(dface_to_vertices)
+    vtk_type = VTKCellType(d_to_vtk_type_id[d])
+    for i in 1:num_dfaces
+      push!( cells, MeshCell(vtk_type,dface_to_vertices[i]) )
+    end
+  end
+  vtkfile = vtk_grid(file_base_name,points,cells)
+  vtk_save(vtkfile)
+end
 
-
-
-#@show m
+writevtk(mesh,"sub_mesh")
+# struct DFaceCutter end
 
 end # module
