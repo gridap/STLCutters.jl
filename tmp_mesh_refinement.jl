@@ -12,6 +12,13 @@ using Test
 
 include("src/tables/lookup_cut_tables.jl");
 
+function Base.resize!(v::Vector{Vector{T}},i::Int,n::Int) where T
+  if !isassigned(v,i)
+    v[i] = T[]
+  end
+  resize!(v[i],n)
+end
+
 struct CellSubMesh{D,T}
   vertex_coordinates::Vector{Point{D,T}}
   dface_to_nfaces::Vector{Vector{Vector{Vector{Int}}}}
@@ -198,21 +205,24 @@ function distance(m::CellSubMesh{D,T},d::Int,i::Int,p::Point{D,T}) where {D,T}
   end
 end
 
-function Base.resize!(v::Vector{Vector{T}},i::Int,n::Int) where T
-  if !isassigned(v,i)
-    v[i] = T[]
-  end
-  resize!(v[i],n)
+
+
+
+function dface_nfaces(m::CellSubMesh,d::Int,n::Int)
+  m.dface_to_nfaces[d+1][n+1]
 end
 
-function add_dface!(m::CellSubMesh,d::Int,new_df_to_v::Vector{Vector{Int}}) 
-  df_to_v = dface_vertices(m,d)
-  resize!(df_to_v, length(df_to_v) + length(new_df_to_v) )
-  for i in 1:length(new_df_to_v)
-    k = i + length(df_to_v) - length(new_df_to_v) 
-    resize!(df_to_v,k,length(new_df_to_v[i]))
-    for j in 1:length(new_df_to_v[i])
-      df_to_v[k][j] = new_df_to_v[i][j]
+function add_dface!(m::CellSubMesh,d::Int,new_df_to_nf::Vector{Vector{Vector{Int}}}) 
+  for n in 0:d-1
+    nfaces = dface_nfaces(m,d,n)
+    new_nfaces = new_df_to_nf[n+1]
+    resize!( nfaces, length(nfaces) + length(new_nfaces) )
+    for i in 1:length(new_nfaces)
+      k = i + length(nfaces) - length(new_nfaces) 
+      resize!( nfaces, k, length(new_nfaces[i]) )
+      for j in 1:length(new_nfaces[i])
+        nfaces[k][j] = new_nfaces[i][j]
+      end
     end
   end
   m
@@ -222,34 +232,65 @@ function add_vertex!(m::CellSubMesh{D,T},p::Point{D,T}) where {D,T}
   push!( vertex_coordinates(m), p )
 end
 
-function delete_dface!(m::CellSubMesh,d::Int,i::Int) 
-  deleteat!(m.dface_to_nfaces[d+1],i)
+function delete_dface!(m::CellSubMesh,d::Int,i::Int)
+  for n in 0:d-1
+    deleteat!(m.dface_to_nfaces[d+1][n+1],i)
+  end
 end
 
 function refine!(m::CellSubMesh{D,T},d::Int,id::Int,p::Point{D,T}) where {D,T}
   if d == 0
     return m
   else
+    @check d == D "smaller cuts not implemented yet"
     case = cut_tet_dface_to_case[D][d][1]
     dface = dface_vertices(m,d)[id]
     vertices_cache = Int[]
+    
     resize!(vertices_cache, length(dface) + 1 )
     vertices_cache[1:length(dface)] = dface
     vertices_cache[end] = num_dfaces(m,0) + 1
+    
     nf_to_mf = cut_tet_nface_to_mface[D][case]
-    df_to_v = nf_to_mf[d+1][0+1]
-    #add_dface!()
-    df_to_v_cache = Vector{Int}[]
-    resize!(df_to_v_cache,size(df_to_v,2))
-    for i in 1:size(df_to_v,2)
-      resize!(df_to_v_cache,i,size(df_to_v,1))
-      for j in 1:size(df_to_v,1)
-        df_to_v_cache[i][j] = vertices_cache[ df_to_v[j,i] ] 
+    df_to_nf = nf_to_mf[d+1]
+    nf_to_nF = cut_tet_nsubface_to_nface[D][case]
+
+    df_to_nf_cache = Vector{Vector{Int}}[]
+    resize!(df_to_nf_cache,d)
+
+    nfaces_cache = Vector{Int}[]
+    resize!(nfaces_cache,d)
+
+    resize!(nfaces_cache,0+1, length(dface) + 1 )
+    nfaces_cache[0+1][1:length(dface)] = dface
+    nfaces_cache[0+1][end] = num_dfaces(m,0) + 1 
+    add_vertex!(m,point)
+
+    for n in 1:d-1
+      resize!(nfaces_cache,n+1,length(nf_to_nF[n]))
+      n_dfaces = num_dfaces(m,n)
+      for i in 1:length(nf_to_nF[n])
+        if nf_to_nF[n][i] == 0
+          n_dfaces += n_dfaces 
+          nfaces_cache[n+1][i] = n_dfaces
+        else
+          nfaces_cache[n+1][i] = dface_nfaces(m,d,n)[id][ nf_to_nF[n][i] ]
+        end
+      end
+    end
+    
+    resize!(df_to_nf_cache,d)
+    for n in 0:d-1
+      resize!(df_to_nf_cache,n+1,size(df_to_nf[n+1],2)) 
+      for i in 1:size(df_to_nf[n+1],2)
+        resize!(df_to_nf_cache[n+1],i,size(df_to_nf[n+1],1))
+        for j in 1:size(df_to_nf[n+1],1)
+          df_to_nf_cache[n+1][i][j] = nfaces_cache[n+1][ df_to_nf[n+1][j,i] ] 
+        end
       end
     end
     delete_dface!(m,d,id) 
-    add_vertex!(m,point)
-    add_dface!(m,d,df_to_v_cache,)
+    add_dface!(m,d,df_to_nf_cache,)
     return m
   end
 end
