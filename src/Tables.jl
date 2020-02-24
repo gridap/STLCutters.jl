@@ -1,9 +1,138 @@
 
-macro abstractmethod()
-  quote
-    error("This function belongs to an interface definition and cannot be used.")
+struct Table{T}
+  data::Vector{T}
+  ptrs::Vector{Int32}
+  masks::Vector{Bool}
+
+  function Table(data::Vector,rows::Vector{Int},n::Int)
+    T = eltype(data)
+    _data, _ptrs = compress_data(data,rows,n)
+    _mask = fill(true,n)
+    new{T}(_data,_ptrs,_masks)
+  end
+
+  function Table(data::Vector,ptrs::Vector)
+    T = eltype(data)
+    masks = fill(true,length(ptrs)-1)
+    new{T}(data,ptrs,masks)
+  end
+
+end
+
+Base.length(a::Table) = length(a.ptrs)-1
+
+@inline Base.length(a::Table,i::Integer) = a.ptrs[i+1] - a.ptrs[i]
+
+Base.eltype(::Type{Table{T}}) where T = T
+
+Base.eltype(::Table{T}) where T = T
+
+@inline function Base.getindex(a::Table,i::Integer,j::Integer)
+  @check isactive(a,i)
+  p = a.ptrs[i]-1
+  a.data[p+j]
+end
+
+@inline function Base.setindex!(a::Table,v,i::Integer,j::Integer)
+  @check isactive(a,i)
+  p = a.ptrs[i]-1
+  a.data[p+j] = v
+end
+
+function Base.push!(a::Table,b::Vector)
+  push!(a.data,b)
+  push!(a.masks,true)
+  push!(a.ptrs,length(data)+1)
+end
+
+function remove!(a::Table,i::Integer)
+  @check isactive(a,i)
+  a.masks[i] = false
+end
+
+@inline function isactive(a::Table,i::Integer)
+  a.masks[i]
+end
+
+function compact!(a::Table)
+  k = 0
+  for i in 1:length(a)
+    if isactive(a,i)
+      for j in 1:length(a,i)
+        k +=1
+        a.data[k] = a[i,j]
+      end
+    end
+  end
+  resize!(a.data,k)
+  k = 0
+  for i in 1:(length(a.ptrs)-1)
+    if isactive(a,i)
+      k +=1
+      n = a.ptrs[i+1] - a.ptrs[i]
+      a.ptrs[k+1] = a.ptrs[k] + n
+    end
+  end
+  resize!(a.ptrs,k+1)
+  resize!(a.masks,k)
+  fill!(a.masks,true)
+end
+
+# Helpers
+
+function compress_data(data::Vector,rows::Vector{Int},n::Int)
+  @check length(data) == length(rows)
+  T = eltype(data)
+  _ptrs = zeros(Int32,n+1)
+  for r in rows
+    _ptrs[r+1] +=  1
+  end
+  length_to_ptrs!(_ptrs)
+  ndata = _ptrs[end]-1
+  _data = zeros(T,ndata)
+  for k in 1:length(data)
+    r = rows[k]
+    p = _ptrs[r]
+    _data[p] = data[k]
+    _ptrs[r] += 1
+  end
+  rewind_ptrs!(_ptrs)
+  (_data, _ptrs)
+end
+
+function rewind_ptrs!(ptrs::AbstractVector{<:Integer})
+  @inbounds for i in (length(ptrs)-1):-1:1
+    ptrs[i+1] = ptrs[i]
+  end
+  ptrs[1] = 1
+end
+
+function length_to_ptrs!(ptrs::AbstractArray{<:Integer})
+  ptrs[1] = 1
+  @inbounds for i in 1:(length(ptrs)-1)
+    ptrs[i+1] += ptrs[i]
   end
 end
+
+
+
+
+
+
+
+
+
+
+
+const Table =  Vector{Vector{T}} where T
+
+
+t[cell][lvertex]
+
+t.data[ t.ptrs[cell] + lvertex  - 1 ]
+
+t[i,j]
+
 
 abstract type AbstractTable end
 
@@ -12,10 +141,6 @@ function table_cache(a::AbstractTable)
 end
 
 function getlist!(cache,a::AbstractTable,i::Integer)
-  @abstractmethod
-end
-
-function pushlist!(a::AbstractTable,list::Vector)
   @abstractmethod
 end
 
@@ -45,11 +170,6 @@ struct TableOfVectors{T} <: AbstractTable
   _vectors::Vector{Vector{T}}
 end
 
-function TableOfVectors(::Type{T},ni::Integer,nj::Integer) where T
-  data = [ zeros(T,nj) for i in 1:ni ]
-  TableOfVectors{T}( data )
-end
-
 table_cache(a::TableOfVectors) = nothing
 
 function getlist!(::Nothing,a::TableOfVectors,i::Integer)
@@ -66,38 +186,3 @@ Base.length(a::TableOfVectors,i::Int) = length(a._vectors[i])
 
 @inline Base.:(==)(a::TableOfVectors{T},b::TableOfVectors{T}) where T = ( a._vectors == b._vectors )
 
-struct CompressedTable{T} <: AbstractTable
-  data::Vector{T}
-  ptrs::Vector{Int}
-end
-
-function CompressedTable(indices::Vector{Int},values::Vector{T},n::Int) where T
-  if length(indices) != length(values) 
-    throw(ArgumentError("CompressedTable: indices and values must have the same length"))
-  end
-  l = zeros(T,length(values))
-  p = zeros(Int,n+1)
-  for i in indices 
-    p[i+1] += 1
-  end
-  p[1]=1
-  for i in 1:n
-    p[i+1] = p[i+1]+p[i]
-  end
-  for (j,id) in enumerate(indices) 
-    l[p[id]] = values[j]
-    p[id] += 1
-  end
-  for i in 1:n-1
-    p[n-i+1]=p[n-i]
-  end
-  p[1]=1
-  CompressedTable(l,p)
-end
-
-
-Base.length(a::CompressedTable) = length(a.ptrs)-1
-
-Base.length(a::CompressedTable,i::Int) = a.ptrs[i+1] - a.ptrs[i]
-
-Base.getindex(t::CompressedTable,i::Int,j::Int) = t.data[t.ptrs[i]+j-1]

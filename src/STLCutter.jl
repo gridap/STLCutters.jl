@@ -63,6 +63,12 @@ macro check(test,msg)
   end
 end
 
+macro abstractmethod()
+  quote
+    error("This function belongs to an interface definition and cannot be used.")
+  end
+end
+
 include("MutableVectorValues.jl")
 
 include("VectorValues.jl")

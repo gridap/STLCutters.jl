@@ -16,24 +16,6 @@ for face in 1:nfaces
 end
 @test nfaces == length(vectors)
 
-x=[(1,2),(3,5),(5,10),(3,4)]
-
-ids = [ 1, 3, 5,  3 ]
-vls = [ 2, 5, 10, 4 ]
-
-n=7
-
-t=CompressedTable(ids,vls,n)
-
-@test t[1,1] == 2
-@test t[3,1] == 5
-@test t[3,2] == 4
-@test t[5,1] == 10
-@test length(t,1) == 1
-@test length(t,2) == 0
-@test length(t,3) == 2
-@test length(t) == n
-
 t = TableOfVectors(Int,5,0)
 
 @test length(t) == 5
@@ -42,28 +24,6 @@ t = TableOfVectors(Int,5,0)
 t = TableOfVectors(Int,5,2)
 
 @test getlist(t,1) == [0,0]
-
-
-
-
-#cache = table_cache(cell_to_edges)
-#for cell in 1:length(cell_to_edges)
-#  edges = getlist!(cache,cell_to_edges,cell)
-#  for (ledge,edge) in enumerate(edges)
-#  end
-#end
-#
-#
-#for cell in 1:length(cell_to_edges)
-#  for ledge in 1:length(cell_to_edges,cell)
-#    edge = cell_to_edges[cell,ledge]
-#    cell_to_edges[cell,ledge] = edge
-#  end
-#end
-
-
-
-
 
 
 end # module

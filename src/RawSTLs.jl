@@ -39,6 +39,7 @@ Base.convert( ::Type{Point{D,T}}, x::MeshIO.Normal{D} )  where {D,T} = Point{D,T
 Base.convert( ::Type{Vector}, x::MeshIO.Face ) = collect(x.data)
 
 const STL_tolerance = 1e-8
+# TODO map -> identify
 function map_repeated_vertices(stl::RawSTL{D}) where D
   bb = BoundingBox(stl)
   origin = bb.pmin
@@ -47,6 +48,7 @@ function map_repeated_vertices(stl::RawSTL{D}) where D
   partition = (ones(Int,D)...,)
   partition = partition .* n_x
   mesh = StructuredBulkMesh(origin,sizes,partition)
+  #TODO cell_to_stl_vertices
   cell_to_vertices = [ Int[] for i in 1:num_cells(mesh) ]
   cell_cache = Int[]
   for (i,v) ∈ enumerate(stl.vertex_coordinates)
@@ -73,6 +75,7 @@ function map_repeated_vertices(stl::RawSTL{D}) where D
   vertices_map
 end
 
+# TODO extract_unique_vertex_coordinates
 function extract_unique_vertices(stl::RawSTL, vertices_map::Vector{Int})
   vertex_coordinates = typeof(stl.vertex_coordinates)([])
   for (i, v) in enumerate(stl.vertex_coordinates)
