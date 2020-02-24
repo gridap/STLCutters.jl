@@ -101,43 +101,6 @@ function initialize!(m::CellSubMesh{D,T},c::HexaCell{N,D,T}) where {N,D,T}
   m
 end
 
-p1 = Point(1,2,3)
-p2 = Point(4,5,6)
-
-b=BoundingBox(p1,p2)
-
-h = HexaCell(b)
-
-b2 = BoundingBox(h)
-
-@test b2 == b
-
-
-
-m = initialize(h)
-
-p1 = Point(1,2,4)
-p2 = Point(5,3,5)
-
-box = BoundingBox(p1,p2)
-
-cell = HexaCell(box)
-
-initialize!(m,cell)
-
-@test @allocated(initialize!(m,cell))== 0
-
-
-
-p0 = Point(0.0,0.0)
-p1 = Point(1.0,1.0)
-box = BoundingBox(p0,p1)
-cell = HexaCell(box)
-
-mesh = initialize(cell)
-
-stl_points = [ Point(0.5,0.25), Point(0.25,0.5), ]
-
 const intersection_tolerance = 1e-10
 
 function num_vertices(m::CellSubMesh) 
@@ -148,7 +111,7 @@ function num_dfaces(m::CellSubMesh,d::Int)
   if d == 0
     num_vertices(m)
   else
-    length(m.dface_to_nfaces[d+1])
+    length(m.dface_to_nfaces[d+1][0+1])
   end
 end
 
@@ -204,9 +167,6 @@ function distance(m::CellSubMesh{D,T},d::Int,i::Int,p::Point{D,T}) where {D,T}
     throw(ErrorException(""))
   end
 end
-
-
-
 
 function dface_nfaces(m::CellSubMesh,d::Int,n::Int)
   m.dface_to_nfaces[d+1][n+1]
@@ -302,25 +262,6 @@ function refine!(m::CellSubMesh{D,T},d::Int,id::Int,p::Point{D,T}) where {D,T}
   end
 end
 
-for k in 2
-  point = stl_points[k]
-  D = 2
-  min_distance = intersection_tolerance 
-  idface = 0
-  for d in 0:D
-    for i in 1:num_dfaces(mesh,d)
-      if distance(mesh,d,i,point) ≤ min_distance
-        min_distance = distance(mesh,d,i,point)
-        idface = i
-      end
-    end
-    if idface != 0
-      refine!(mesh,d,idface,point)
-      break
-    end
-  end
-end
-
 function writevtk(m::CellSubMesh{D,T},file_base_name) where {D,T}
   d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5) # tets
   num_points = num_vertices(m)
@@ -341,6 +282,60 @@ function writevtk(m::CellSubMesh{D,T},file_base_name) where {D,T}
   vtk_save(vtkfile)
 end
 
+p1 = Point(1,2,3)
+p2 = Point(4,5,6)
+
+b=BoundingBox(p1,p2)
+
+h = HexaCell(b)
+
+b2 = BoundingBox(h)
+
+@test b2 == b
+
+m = initialize(h)
+
+p1 = Point(1,2,4)
+p2 = Point(5,3,5)
+
+box = BoundingBox(p1,p2)
+
+cell = HexaCell(box)
+
+initialize!(m,cell)
+
+@test @allocated(initialize!(m,cell)) == 0
+
+p0 = Point(0.0,0.0)
+p1 = Point(1.0,1.0)
+box = BoundingBox(p0,p1)
+cell = HexaCell(box)
+
+mesh = initialize(cell)
+
+stl_points = [ Point(0.5,0.25), Point(0.25,0.5), Point(0.75,0.25), Point(0.75,0.5)  ]
+point = stl_points[1]
+
+for k in 1:4
+  global stl_points, point
+  point = stl_points[k]
+  D = 2
+  min_distance = intersection_tolerance 
+  idface = 0
+  for d in 0:D
+    for i in 1:num_dfaces(mesh,d) 
+      if distance(mesh,d,i,point) ≤ min_distance
+        min_distance = distance(mesh,d,i,point)
+        idface = i
+      end
+    end
+    if idface != 0
+      refine!(mesh,d,idface,point)
+      break
+    end
+  end
+end
+
 writevtk(mesh,"sub_mesh")
 # struct DFaceCutter end
 
@@ -349,6 +344,5 @@ writevtk(mesh,"sub_mesh")
 ## encapsulate cache in DFaceCutter
 ## allow to cut edges and dfaces with d < D
 ## revise why is not cut properly in the example of more than one point
-## sort procedures and tests properly
 
 end # module
