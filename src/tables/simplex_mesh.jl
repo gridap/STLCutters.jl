@@ -151,14 +151,22 @@ function signed_volume(x::Array{Float64,2})
 end
 
 
-function correct_cell_orientation(x::Array{Float64,2},c2v::Array{Int,2})
+function fix_cell_volume(x::Array{Float64,2},c2v::Array{Int,2})
   num_cells = size(c2v,2)
+  count = 0
   for i in 1:num_cells
     if signed_volume(x[:,c2v[:,i]]) < 0 
-      c2v[[1,end],i] = reverse(c2v[[1,end],i])
+      c2v[[end-1,end],i] = reverse(c2v[[end-1,end],i])
+    end
+
+    @assert (signed_volume(x[:,c2v[:,i]]) ≥ 0) "Volume still negative after permutation of `x = $((x[:,c2v[:,i]]))`"
+
+    if signed_volume(x[:,c2v[:,i]]) > 1e-5
+      count += 1
+      c2v[:,count] = c2v[:,i]
     end
   end
-  c2v
+  c2v[:,1:count]
 end
 
 function compute_connectivities(c2v::Array{Int,2})
@@ -184,7 +192,7 @@ function compute_mesh(x::Array{Float64,2})
     nf_to_mf[1,0] = [ 1 3; 3 2 ]
   else
     c2v, = delaunay( x )
-    c2v = correct_cell_orientation(x,c2v)
+    c2v = fix_cell_volume(x,c2v)
     nf_to_mf = compute_connectivities(c2v)
   end
   nf_to_mf[0,0] = collect( reshape( 1:maximum(nf_to_mf[end,0]), 1, : ) )

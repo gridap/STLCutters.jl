@@ -198,40 +198,41 @@ function delete_dface!(m::CellSubMesh,d::Int,i::Int)
   end
 end
 
+function local_to_global_nfaces!(nfaces_cache::Vector{Vector{Int}},m::CellSubMesh,nf_to_nF::Vector{Vector{Int}},d::Int,id::Int) 
+
+  dface = dface_vertices(m,d)[id]
+  resize!(nfaces_cache,d)
+  resize!(nfaces_cache,0+1, length(dface) + 1 )
+  nfaces_cache[0+1][1:length(dface)] = dface
+  nfaces_cache[0+1][end] = num_dfaces(m,0) + 1 
+  for n in 1:d-1
+    resize!(nfaces_cache,n+1,length(nf_to_nF[n]))
+    n_dfaces = num_dfaces(m,n)
+    for i in 1:length(nf_to_nF[n])
+      if nf_to_nF[n][i] == 0
+        n_dfaces += n_dfaces 
+        nfaces_cache[n+1][i] = n_dfaces
+      else
+        nfaces_cache[n+1][i] = dface_nfaces(m,d,n)[id][ nf_to_nF[n][i] ]
+      end
+    end
+  end
+  nfaces_cache
+end
+
 function refine!(m::CellSubMesh{D,T},d::Int,id::Int,p::Point{D,T}) where {D,T}
   if d == 0
     return m
   else
     @check d == D "smaller cuts not implemented yet"
     case = cut_tet_dface_to_case[D][d][1]
-    dface = dface_vertices(m,d)[id]
     
     nf_to_mf = cut_tet_nface_to_mface[D][case]
     nf_to_nF = cut_tet_nsubface_to_nface[D][case]
     
     nfaces_cache = Vector{Int}[]
 
-    resize!(nfaces_cache,d)
-    resize!(nfaces_cache,0+1, length(dface) + 1 )
-    nfaces_cache[0+1][1:length(dface)] = dface
-    nfaces_cache[0+1][end] = num_dfaces(m,0) + 1 
-    df_to_nf_cache = Vector{Vector{Int}}[]
-    resize!(df_to_nf_cache,d)
-
-
-    for n in 1:d-1
-      resize!(nfaces_cache,n+1,length(nf_to_nF[n]))
-      n_dfaces = num_dfaces(m,n)
-      for i in 1:length(nf_to_nF[n])
-        if nf_to_nF[n][i] == 0
-          n_dfaces += n_dfaces 
-          nfaces_cache[n+1][i] = n_dfaces
-        else
-          nfaces_cache[n+1][i] = dface_nfaces(m,d,n)[id][ nf_to_nF[n][i] ]
-        end
-      end
-    end
-    
+    local_to_global_nfaces!(nfaces_cache, m, nf_to_nF,d,id )
 
     nf_to_mf_cache = Vector{Vector{Vector{Int}}}[]
     resize!(nf_to_mf_cache,d+1)

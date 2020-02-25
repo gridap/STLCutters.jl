@@ -56,7 +56,7 @@ println(f, header )
 
 
 
-dim_range = 1:3
+dim_range = 1:4
 
 for num_dims in dim_range
   
