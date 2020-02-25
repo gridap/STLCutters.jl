@@ -89,30 +89,30 @@ function cells_around!(cache::Vector{Int},m::StructuredBulkMesh{D},bb::BoundingB
   cache
 end
 
-function compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{D}) where D
-  cell_to_stl_nfaces = [ Int[] for i in 1:num_cells(m) ]
-  for k in 1:num_cells(m)
-    cell = get_cell(m,k)
-    for stl_nface in 1:num_dfaces(stl)
-      if have_intersection(cell,stl,stl_nface)
-        push!(cell_to_stl_nfaces[k], stl_nface )
-      end
-    end
-  end
-  TableOfVectors(cell_to_stl_nfaces)
-end
-
-function optimized_compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{D}) where D
-  cell_to_stl_nfaces = [ Int[] for i in 1:num_cells(m) ]
-  cell_cache = Int[]
-  for stl_nface in 1:num_dfaces(stl)
-    bb = BoundingBox(stl,stl_nface)
-    for k in cells_around!(cell_cache,m,bb)
-      cell = get_cell(m,k)
-      if have_intersection(cell,stl,stl_nface)
-        push!(cell_to_stl_nfaces[k], stl_nface )
-      end
-    end
-  end
-  TableOfVectors(cell_to_stl_nfaces)
-end
+#function compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{D}) where D
+#  cell_to_stl_nfaces = [ Int[] for i in 1:num_cells(m) ]
+#  for k in 1:num_cells(m)
+#    cell = get_cell(m,k)
+#    for stl_nface in 1:num_dfaces(stl)
+#      if have_intersection(cell,stl,stl_nface)
+#        push!(cell_to_stl_nfaces[k], stl_nface )
+#      end
+#    end
+#  end
+#  TableOfVectors(cell_to_stl_nfaces)
+#end
+#
+#function optimized_compute_cell_to_stl_nfaces(m::StructuredBulkMesh{D},stl::ConformingSTL{D}) where D
+#  cell_to_stl_nfaces = [ Int[] for i in 1:num_cells(m) ]
+#  cell_cache = Int[]
+#  for stl_nface in 1:num_dfaces(stl)
+#    bb = BoundingBox(stl,stl_nface)
+#    for k in cells_around!(cell_cache,m,bb)
+#      cell = get_cell(m,k)
+#      if have_intersection(cell,stl,stl_nface)
+#        push!(cell_to_stl_nfaces[k], stl_nface )
+#      end
+#    end
+#  end
+#  TableOfVectors(cell_to_stl_nfaces)
+#end

@@ -7,7 +7,7 @@ struct Table{T}
   function Table(data::Vector,rows::Vector{Int},n::Int)
     T = eltype(data)
     _data, _ptrs = compress_data(data,rows,n)
-    _mask = fill(true,n)
+    _masks = fill(true,n)
     new{T}(_data,_ptrs,_masks)
   end
 
@@ -15,6 +15,12 @@ struct Table{T}
     T = eltype(data)
     masks = fill(true,length(ptrs)-1)
     new{T}(data,ptrs,masks)
+  end
+
+  function Table(data::Vector{Vector{T}}) where T
+    _data, _ptrs = compress_data(data)
+    _masks = fill(true,length(data))
+    new{T}(_data,_ptrs,_masks)
   end
 
 end
@@ -114,24 +120,21 @@ function length_to_ptrs!(ptrs::AbstractArray{<:Integer})
   end
 end
 
-
-
-
-
-
-
-
-
-
-
-const Table =  Vector{Vector{T}} where T
-
-
-t[cell][lvertex]
-
-t.data[ t.ptrs[cell] + lvertex  - 1 ]
-
-t[i,j]
+function compress_data(data::Vector{Vector{T}}) where T
+  n = length(data)
+  _ptrs = zeros(Int32,n+1)
+  for i in 1:n
+    _ptrs[i+1] = length(data[i])
+  end
+  length_to_ptrs!(_ptrs)
+  ndata = _ptrs[end]-1
+  _data = zeros(T,ndata)
+  c = 0
+  for i in 1:n, j in 1:length(data[i])
+    _data[c+=1] = data[i][j]
+  end
+  (_data,_ptrs)
+end
 
 
 abstract type AbstractTable end

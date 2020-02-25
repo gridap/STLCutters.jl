@@ -18,7 +18,7 @@ using Test
 
 @testset "TablesTests" begin include("TablesTests.jl") end
 
-@testset "RawSTLs" begin include("RawSTLsTests.jl") end
+@testset "STLs" begin include("STLsTests.jl") end
 
 @testset "ConformingSTLs" begin include("ConformingSTLsTests.jl") end
 
