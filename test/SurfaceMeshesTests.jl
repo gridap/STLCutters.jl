@@ -41,6 +41,46 @@ box = BoundingBox(Point(0.1,0.1,0.1),Point(1.0,1.0,1.0))
 @test local_dface(s_mesh,27,2) == 1
 
 
+@test num_faces(s_mesh,0) == 8
+@test num_faces(s_mesh,1) == 18
+@test num_faces(s_mesh,2) == 12
+
+@test num_faces(s_mesh) == 38
+
+@test num_vertices(s_mesh) == num_faces(s_mesh,0)
+
+
+b = BoundingBox(s_mesh)
+@test num_dims(s_mesh) == 3
+
+for d in 0:num_dims(s_mesh)-1
+  for i in 1:num_faces(s_mesh,d)
+    @test have_intersection(b,s_mesh,d,i) 
+  end
+end
+
+df_to_v = get_dface_to_vertices(s_mesh,0)
+num_v = [ length(df_to_v,i) for i in 1:length(df_to_v) ]
+
+@test maximum(num_v) == minimum(num_v) == 1
+
+df_to_v = get_dface_to_vertices(s_mesh,1)
+num_v = [ length(df_to_v,i) for i in 1:length(df_to_v) ]
+
+@test maximum(num_v) == minimum(num_v) == 2
+
+df_to_v = get_dface_to_vertices(s_mesh,2)
+num_v = [ length(df_to_v,i) for i in 1:length(df_to_v) ]
+
+@test maximum(num_v) == minimum(num_v) == 3
+
+
+df_to_nf = get_dface_to_nfaces(s_mesh,1,2)
+
+num_df = [ length(df_to_nf,i) for i in 1:length(df_to_nf) ]
+
+@test maximum(num_df) == minimum(num_df) == 2
+
 #using STLCutter: BoundingBox, optimized_compute_cell_to_s_mesh_nfaces
 
 

@@ -1,6 +1,7 @@
 module STLCutter
 
 using FileIO
+using MeshIO
 using LinearAlgebra
 using WriteVTK
 import LinearAlgebra: dot, norm
@@ -19,13 +20,13 @@ export Tetrahedron
 export BoundingBox
 export STL
 export SurfaceMesh
-export StructuredBulkMesh
+export CartesianMesh
 
 export average
 export num_vertices
 export num_edges
 export num_facets
-export num_dfaces
+export num_faces
 export num_dims
 export norm
 export distance
@@ -42,15 +43,14 @@ export intersection
 export projection
 export closest_point
 export Table
-export table_cache
-export getlist
-export getlist!
-export TableOfVectors
-export CompressedTable
-export AbstractTable
+export isactive
+export remove!
+export compact!
 export writevtk
 export num_cells
 export get_cell
+export get_dface_to_vertices
+export get_dface_to_nfaces
 
 macro check(test)
   quote
@@ -104,6 +104,8 @@ include("Tables.jl")
 include("STLs.jl")
 
 include("SurfaceMeshes.jl")
+
+include("CartesianMeshes.jl")
 
 include("BulkMeshes.jl")
 

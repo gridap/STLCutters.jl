@@ -20,8 +20,8 @@ using Test
 
 @testset "STLs" begin include("STLsTests.jl") end
 
-@testset "ConformingSTLs" begin include("ConformingSTLsTests.jl") end
+@testset "SurfaceMeshes" begin include("SurfaceMeshesTests.jl") end
 
-@testset "BulkMeshesTests" begin include("BulkMeshesTests.jl") end
+@testset "CartesianMeshes" begin include("CartesianMeshesTests.jl") end
 
 end # module

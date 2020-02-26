@@ -13,13 +13,13 @@ struct SurfaceMesh{D,T,M}
 
     mfaces_to_nfaces = _compute_mfaces_to_nfaces(facet_to_vertices,Val{D}()) 
 
-    d_to_offset = _compute_d_to_offset(mfaces_to_nfaces,Val{D}())
+    d_to_offset = _compute_d_to_offset(mfaces_to_nfaces)
     new{D,T,M}(vertex_coordinates, facet_normals, mfaces_to_nfaces, d_to_offset)
   end
 end
 
 function SurfaceMesh(stl::STL)
-  stl = delete_repeated_vertices!(stl)
+  stl = delete_repeated_vertices(stl)
   SurfaceMesh( 
     get_vertex_coordinates(stl), 
     get_facet_normals(stl), 
@@ -42,6 +42,7 @@ function _compute_mfaces_to_nfaces(facet_to_vertices::Table,::Val{D}) where D
     mf_to_nf[d+1,d], n_dfaces[d] = compute_nface_to_dfaces_primal(mf_to_nf[d+1,0+1],mf_to_nf[0+1,d+1],ldface_to_lvertex)
     mf_to_nf[d,0+1] = compute_dface_to_vertices( mf_to_nf[d+1,0+1], mf_to_nf[d+1,d],ldface_to_lvertex,n_dfaces[d])
     mf_to_nf[0+1,d] = compute_nface_to_dfaces_dual( mf_to_nf[d,0+1],n_dfaces[0+1])
+    mf_to_nf[d,d+1] = compute_nface_to_dfaces_dual( mf_to_nf[d+1,d],n_dfaces[d])
   end
 
   for d in 0:D-1
@@ -53,8 +54,9 @@ function _compute_mfaces_to_nfaces(facet_to_vertices::Table,::Val{D}) where D
   mf_to_nf
 end
 
-function _compute_d_to_offset(mfaces_to_nfaces::Matrix,::Val{D}) where D
-  d_to_offset = zeros(Int,D+2)
+function _compute_d_to_offset(mfaces_to_nfaces::Matrix)
+  D = size(mfaces_to_nfaces,1)
+  d_to_offset = zeros(Int,D+1)
   for d in 0:D-1
     d_to_offset[d+2] = d_to_offset[d+1] + length(mfaces_to_nfaces[d+1,d+1])
   end
@@ -66,8 +68,7 @@ const tetn_ldface_to_lvertex =
  [[[1,2],[1,3],[2,3]]],
  [[[1,2],[1,3],[2,3],[1,4],[2,4],[3,4]],[[1,2,3],[1,2,4],[1,3,4],[1,2,4]]]]
 
-
-Base.maximum(a::Table) = maximum(a.data)
+num_dims(s::SurfaceMesh{D}) where D = D
 
 function get_dface_to_nfaces(s::SurfaceMesh,d::Integer,n::Integer)
   s.mfaces_to_nfaces[d+1,n+1]
@@ -83,11 +84,11 @@ get_vertex_coordinates(s::SurfaceMesh) = s.vertex_coordinates
   length(s.vertex_coordinates)
 end
 
-@inline function num_dfaces(s::SurfaceMesh,d::Integer)
+@inline function num_faces(s::SurfaceMesh,d::Integer)
   length( get_dface_to_vertices(s,d) )
 end
 
-function num_dfaces(s::SurfaceMesh)
+function num_faces(s::SurfaceMesh)
   s.d_to_offset[end]
 end
 
@@ -367,13 +368,6 @@ function compute_dface_to_vertices(
 
 end
 
-function compute_dface_to_mfaces(
-  dface_to_nfaces::Table,
-  nface_to_mfaces::Table)
-  T = eltype(dface_to_nfaces)
-
-end
-
 function compute_dface_to_dface(n_dfaces,::Val{T}) where T
   ptrs = fill(Int32(1),n_dfaces+1)
   length_to_ptrs!(ptrs)
@@ -381,17 +375,16 @@ function compute_dface_to_dface(n_dfaces,::Val{T}) where T
   Table(data,ptrs)
 end
 
-
-function writevtk(smesh::SurfaceMesh{D,T},file_base_name) where {D,T}
+function writevtk(sm::SurfaceMesh{D,T},file_base_name) where {D,T}
   d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5,3=>10)
-  num_points = num_vertices(smesh)
+  num_points = num_vertices(sm)
   points = zeros(T,D,num_points)
-  for (i ,p ) in enumerate( get_vertex_coordinates(smesh) ), d in 1:D
+  for (i ,p ) in enumerate( get_vertex_coordinates(sm) ), d in 1:D
     points[d,i] = p[d]
   end
   cells = MeshCell{Vector{Int64}}[]
   for d in 0:D-1
-    dface_to_vertices = get_dface_to_vertices(smesh,d)
+    dface_to_vertices = get_dface_to_vertices(sm,d)
     num_dfaces = length(dface_to_vertices)
     vtk_type = VTKCellType(d_to_vtk_type_id[d])
     for i in 1:num_dfaces
@@ -403,43 +396,19 @@ function writevtk(smesh::SurfaceMesh{D,T},file_base_name) where {D,T}
   vtk_save(vtkfile)
 end
 
-#function have_intersection(bb::BoundingBox{D},stl::ConformingSTL{D},d::Int,i::Int) where D
-#  if d == 0
-#    p = get_vertex(stl,i)
-#    have_intersection(p,bb)
-#  elseif d == 1
-#    e = get_edge(stl,i)
-#    have_intersection(e,bb)
-#  elseif d == 2
-#    f = get_facet(stl,i)
-#    have_intersection(f,bb)
-#  else
-#    throw(ArgumentError("$d-face not implemented"))
-#  end
-#end
-#
-function have_intersection(bb::BoundingBox,smesh::SurfaceMesh,gid::Integer)
-  d = dface_dimension(smesh,gid)
-  lid = local_dface(smesh,gid,d)
-  have_intersection(bb,smesh,d,lid)
+function have_intersection(bb::BoundingBox,sm::SurfaceMesh,gid::Integer)
+  d = dface_dimension(sm,gid)
+  lid = local_dface(sm,gid,d)
+  have_intersection(bb,sm,d,lid)
 end
 
-function BoundingBox(smesh::SurfaceMesh,gid::Integer)
-  d = dface_dimension(smesh,gid)
-  lid = local_dface(smesh,gid,d)
-  BoundingBox(smesh,d,lid)
+function BoundingBox(sm::SurfaceMesh,gid::Integer)
+  d = dface_dimension(sm,gid)
+  lid = local_dface(sm,gid,d)
+  BoundingBox(sm,d,lid)
 end
 
-function BoundingBox(s::SurfaceMesh)
-  pmin = s.vertex_coordinates[1]
-  pmax = s.vertex_coordinates[1]
-  for v ∈ s.vertex_coordinates
-    pmin = min.(pmin,v)
-    pmax = max.(pmax,v)
-  end
-  BoundingBox(pmin,pmax)
-end
-
+BoundingBox(s::SurfaceMesh) = BoundingBox(s.vertex_coordinates)
 
 @generated function BoundingBox(s::SurfaceMesh{D},d::Integer,i::Integer) where D
   body = ""
@@ -462,7 +431,7 @@ end
     body *= "  have_intersection(f$d,b) \n"
     body *= "else"
   end
-  error = "throw(ArgumentError(\" \$d-face does not exist \"))"
+  error = "throw(ArgumentError(\" \$d-face does not exist\"))"
   str = "$body \n  $error \nend"
   Meta.parse(str)
 end
