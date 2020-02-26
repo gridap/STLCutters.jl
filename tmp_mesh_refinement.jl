@@ -24,11 +24,11 @@ struct CellSubMesh{D,T}
   dface_to_nfaces::Vector{Vector{Vector{Vector{Int}}}}
 end
 
-struct HexaCell{N,D,T}
+struct Hexahedron{N,D,T}
   vertices::NTuple{N,Point{D,T}}
 end
 
-@generated function HexaCell(b::BoundingBox{D,T}) where {D,T}
+@generated function Hexahedron(b::BoundingBox{D,T}) where {D,T}
   N = 2^D
   d = Dict( 0 => "pmin", 1 => "pmax" )
   v_str = [ "" for i in 1:N ]
@@ -38,31 +38,31 @@ end
     v_str[i] = "Point{$D,$T}($data),"
   end
   vertices = join(v_str)
-  str = "HexaCell{$N,$D,$T}(($vertices))"
+  str = "Hexahedron{$N,$D,$T}(($vertices))"
   Meta.parse(str)
 end
 
-function num_vertices(::Type{<:HexaCell{N,D}}) where {N,D}
+function num_vertices(::Type{<:Hexahedron{N,D}}) where {N,D}
   @check N == 2^D
   N
 end
 
-num_vertices(::T) where T<:HexaCell = num_vertices(T)
+num_vertices(::T) where T<:Hexahedron = num_vertices(T)
 
-num_dims(::Type{<:HexaCell{N,D}}) where {N,D} = D
+num_dims(::Type{<:Hexahedron{N,D}}) where {N,D} = D
 
-num_dims(::T) where T<:HexaCell = num_dims(T)
+num_dims(::T) where T<:Hexahedron = num_dims(T)
 
-Base.getindex(c::HexaCell,i::Int) = c.vertices[i]
+Base.getindex(c::Hexahedron,i::Int) = c.vertices[i]
 
-get_vertices(c::HexaCell) = c.vertices
+get_vertices(c::Hexahedron) = c.vertices
 
-function BoundingBox(c::HexaCell{N,D,T}) where {N,D,T}
+function BoundingBox(c::Hexahedron{N,D,T}) where {N,D,T}
   @check all( get_data(c[1]) .<= get_data( c[N] ) )
   BoundingBox{D,T}( c[1], c[N] )
 end
 
-function initialize(c::HexaCell{N,D,T}) where {N,D,T}
+function initialize(c::Hexahedron{N,D,T}) where {N,D,T}
   coordinates = [ v for v in get_vertices(c) ]
   dface_to_nfaces = [ Vector{Vector{Int}}[] for d in 0:D ]
 
@@ -81,7 +81,7 @@ function initialize(c::HexaCell{N,D,T}) where {N,D,T}
   CellSubMesh{D,T}(coordinates,dface_to_nfaces)
 end
 
-function initialize!(m::CellSubMesh{D,T},c::HexaCell{N,D,T}) where {N,D,T}
+function initialize!(m::CellSubMesh{D,T},c::Hexahedron{N,D,T}) where {N,D,T}
   resize!(m.vertex_coordinates,N)
   resize!(m.dface_to_nfaces,D+1)
 
@@ -123,26 +123,42 @@ function vertex_coordinates(m::CellSubMesh)
   m.vertex_coordinates
 end
 
-function get_0face(m::CellSubMesh{D,T},i::Int) where {D,T}
+function get_dface(m::CellSubMesh{D,T},::Val{0},i::Int) where {D,T}
   vertex_coordinates(m)[i]
 end
 
-function get_1face(m::CellSubMesh{D,T},i::Int) where {D,T}
+function get_dface(m::CellSubMesh{D,T},::Val{1},i::Int) where {D,T}
   l = dface_vertices(m,1)[i]
   v = vertex_coordinates(m)
   Segment(v[l[1]],v[l[2]])
 end
 
-function get_2face(m::CellSubMesh{D,T},i::Int) where {D,T}
+function get_dface(m::CellSubMesh{D,T},::Val{2},i::Int) where {D,T}
   l = dface_vertices(m,2)[i]
   v = vertex_coordinates(m)
   Triangle(v[l[1]],v[l[2]],v[l[3]])
 end
 
-function get_3face(m::CellSubMesh{D,T},i::Int) where {D,T}
+function get_dface(m::CellSubMesh{D,T},::Val{3},i::Int) where {D,T}
   l = dface_vertices(m,3)[i]
   v = vertex_coordinates(m)
   Tetrahedron(v[l[1]],v[l[2]],v[l[3]],v[l[4]])
+end
+
+function get_vertex(m::CellSubMesh,i)
+  get_dface(m,Val{0}(),i)
+end
+
+function get_edge(m::CellSubMesh,i)
+  get_dface(m,Val{1}(),i)
+end
+
+function get_facet(m::CellSubMesh{D},i) where D
+  get_dface(m,Val{D-1}(),i)
+end
+
+function get_cell(m::CellSubMesh{D},i) where D
+  get_dface(m,Val{D}(),i)
 end
 
 function distance(p::Point{2},t::Triangle{2})
@@ -153,19 +169,17 @@ function distance(p::Point{2},t::Triangle{2})
   end
 end
 
-function distance(m::CellSubMesh{D,T},d::Int,i::Int,p::Point{D,T}) where {D,T}
-  @check d <= D
-  if d == 0
-    distance(p,get_0face(m,i))
-  elseif d == 1
-    distance(p,get_1face(m,i))
-  elseif d == 2
-    distance(p,get_2face(m,i))
-  elseif d == 3
-    distance(p,get_3face(m,i))
-  else
-    throw(ErrorException(""))
+@generated function distance(m::CellSubMesh{D,T},d::Int,i::Int,p::Point{D,T}) where {D,T}
+  body = ""
+  for d in 0:D
+    body *= "if d == $d \n"
+    body *= "  f$d = get_dface(m,Val{$d}(),i) \n"
+    body *= "  distance(p,f$d) \n"
+    body *= "else"
   end
+  error = "  throw(ErrorException(\"\$d-face does not exist\"))\n"
+  str = body * '\n' * error * "end"
+  Meta.parse(str)
 end
 
 function dface_nfaces(m::CellSubMesh,d::Int,n::Int)
@@ -288,7 +302,7 @@ p2 = Point(4,5,6)
 
 b=BoundingBox(p1,p2)
 
-h = HexaCell(b)
+h = Hexahedron(b)
 
 b2 = BoundingBox(h)
 
@@ -301,7 +315,7 @@ p2 = Point(5,3,5)
 
 box = BoundingBox(p1,p2)
 
-cell = HexaCell(box)
+cell = Hexahedron(box)
 
 initialize!(m,cell)
 
@@ -310,7 +324,7 @@ initialize!(m,cell)
 p0 = Point(0.0,0.0)
 p1 = Point(1.0,1.0)
 box = BoundingBox(p0,p1)
-cell = HexaCell(box)
+cell = Hexahedron(box)
 
 mesh = initialize(cell)
 
