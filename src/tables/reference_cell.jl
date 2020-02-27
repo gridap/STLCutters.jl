@@ -20,7 +20,7 @@ function RefCell(ctype::String,ndims::Int)
     num_v = size(x,2)
     c2v = reshape([1:num_v;],:,1)
     nf_to_mf = compute_connectivities(c2v)
-    df_to_v = nf_to_mf[1:end,0]
+    df_to_v = nf_to_mf[:,0]
     for d in 1:ndims-2
       f_to_dplus1f[d] = dual_map( nf_to_mf[d+1,d] )
     end
@@ -34,7 +34,7 @@ function RefCell(ctype::String,ndims::Int)
     num_v = size(x,2)
     c2v = reshape([1:num_v;],:,1)
     nf_to_mf = compute_hex_connectivities(c2v,ndims)
-    df_to_v = nf_to_mf[1:end,0]
+    df_to_v = nf_to_mf[:,0]
     for d in 1:ndims-2
       f_to_dplus1f[d] = dual_map( nf_to_mf[d+1,d] )
     end
@@ -49,11 +49,11 @@ end
 Base.ndims(c::RefCell) = c.num_dims
 
 function num_dfaces(c::RefCell,d::Int)
-  if d == 0
-    size(c.coordinates,2)
-  else
-    size(c.dface_to_vertices[d],2)
-  end
+  size( dface_to_vertices(c,d), 2 )
+end
+
+function dface_to_vertices(c::RefCell,d::Int)
+  c.dface_to_vertices[d+1]
 end
 
 function average(x::Array{T,2}) where T
@@ -64,12 +64,8 @@ function center(c::RefCell)
   average(c.coordinates)
 end
 
-function facet_center(c::RefCell,i::Int)
-  average( c.coordinates[ :,c.facet_to_vertices[:,i] ] )
-end
-
 function dface_center(c::RefCell,d::Int,i::Int)
-  average( c.coordinates[ :,c.dface_to_vertices[d][:,i] ] )
+  average( c.coordinates[ :,dface_to_vertices(c,d)[:,i] ] )
 end
 
 function dfaces_around_nface(c::RefCell,d::Int,n::Int,i::Int)
@@ -158,27 +154,30 @@ function compute_hex_connectivities(c2v::Array{Int,2},num_dims::Int)
   
   nF_to_mF = NFaceToMFace(num_dims)
   nF_to_mF[num_dims,0] = c2v
+  num_dfaces = zeros(Int,num_dims+1)
+  num_dfaces[0+1] = maximum(c2v)
+  num_dfaces[num_dims+1] = size(c2v,2)
 
   for d in reverse(1:num_dims-1)
     df_to_lv = hex_facet_to_vertices(d+1)
     nF_to_mF[d+1,d] = compute_face_to_nfaces( nF_to_mF[d+1,0], df_to_lv )
     nF_to_mF[d,0] = compute_nface_to_vertices( nF_to_mF[d+1,d], nF_to_mF[d+1,0], df_to_lv )
+    num_dfaces[d+1] = size( nF_to_mF[d,0], 2 )
   end
   for d in reverse(1:num_dims-2)
     nF_to_mF[num_dims,d] = chain_maps( nF_to_mF[num_dims,d+1], nF_to_mF[d+1,d] )
   end
+  for d in 0:num_dims
+    nF_to_mF[d,d] = reshape([1:num_dfaces[d+1];],1,:)
+  end
   nF_to_mF
 end
 
-
-
-
-
 function compute_face_to_initial_face(cell::RefCell,nf_to_mf::NFaceToMFace,d::Int,i::Int)
-  nf_to_v = nf_to_mf[1:end-1,0]
-  v_to_nF = [ dual_map( cell.dface_to_vertices[d] ) for d in 1:ndims(cell)-1 ]
-  for n in 1:ndims(cell)-1 
-    push!(v_to_nF[n], dfaces_around_nface(cell,n,d,i) )
+  nf_to_v = nf_to_mf[0:end-1,0]
+  v_to_nF = [ dual_map( dface_to_vertices(cell,d) ) for d in 0:ndims(cell)-1 ]
+  for n in 0:ndims(cell)-1 
+    push!(v_to_nF[n+1], dfaces_around_nface(cell,n,d,i) )
   end
   nf_to_nF = compute_face_to_initial_face(v_to_nF,nf_to_v)
 end

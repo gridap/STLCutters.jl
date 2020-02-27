@@ -141,6 +141,7 @@ function compute_nface_to_vertices(f2nf::Array{Int,2},f2v::Array{Int,2})
   nf2v
 end
 
+
 function signed_volume(x::Array{Float64,2})
   size(x,1) + 1 == size(x,2) || throw(DimensionMismatch("volume only implemented for symplices"))
   A = zeros(size(x,1),size(x,1))
@@ -174,28 +175,39 @@ function compute_connectivities(c2v::Array{Int,2})
   num_dims = size(c2v,1) - 1
   nF_to_mF = NFaceToMFace(num_dims)
   nF_to_mF[num_dims,0] = c2v
+  num_dfaces = zeros(Int,num_dims+1)
+  num_dfaces[0+1] = maximum(c2v)
+  num_dfaces[num_dims+1] = size(c2v,2)
 
   for d in reverse(1:num_dims-1)
     nF_to_mF[d+1,d] = compute_face_to_nfaces( nF_to_mF[d+1,0] )
     nF_to_mF[d,0] = compute_nface_to_vertices( nF_to_mF[d+1,d], nF_to_mF[d+1,0] )
+    num_dfaces[d+1] = size( nF_to_mF[d,0], 2 )
   end
 
   for d in reverse(1:num_dims-2)
     nF_to_mF[num_dims,d] = chain_maps( nF_to_mF[num_dims,d+1], nF_to_mF[d+1,d] )
   end
+
+  for d in 0:num_dims
+    nF_to_mF[d,d] = reshape([1:num_dfaces[d+1];],1,:)
+  end
+
   nF_to_mF
 end
 
 function compute_mesh(x::Array{Float64,2})
   if size(x,1) == 1
+    @assert size(x,2) == 3
     nf_to_mf = NFaceToMFace(1)
+    nf_to_mf[0,0] = [ 1 2 3 ]
     nf_to_mf[1,0] = [ 1 3; 3 2 ]
+    nf_to_mf[1,1] = [ 1 2 ]
   else
     c2v, = delaunay( x )
     c2v = fix_cell_volume(x,c2v)
     nf_to_mf = compute_connectivities(c2v)
   end
-  nf_to_mf[0,0] = collect( reshape( 1:maximum(nf_to_mf[end,0]), 1, : ) )
   nf_to_mf
 end
 

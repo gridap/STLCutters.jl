@@ -24,6 +24,14 @@ struct Table{T}
   end
 
   Table(data::Vector{Vector{T}}) where T = Table{T}(data)
+  
+  function Table(data::Matrix)
+    T = eltype(data)
+    _data, _ptrs = compress_data(data)
+    _masks = fill(true,length(data))
+    new{T}(_data,_ptrs,_masks)
+  end
+
 end
 
 Base.length(a::Table) = length(a.ptrs)-1
@@ -47,8 +55,8 @@ end
 end
 
 function Base.show(io::IO,a::Table)
-  print(io,typeof(a))
-  print(io,"([")
+  T = eltype(a)
+  print(io,"$(typeof(a))( Vector{$T}[")
   for i in 1:length(a)
     i == 1 || print(io,",")
     print(io," [")
@@ -58,7 +66,7 @@ function Base.show(io::IO,a::Table)
     end
     print(io," ]")
   end
-  print(io," ])")
+  print(io," ] )")
 end
 
 function Base.:(==)(a::Table,b::Table)
@@ -67,10 +75,57 @@ end
  
 Base.maximum(a::Table) = maximum(a.data)
 
+function Base.zero(::Type{<:Table{T}}) where T
+  _data = T[]
+  _ptrs = Int32[1]
+  Table(_data,_ptrs)
+end
+
+Base.zero(::T) where T<:Table = zero(T)
+
+function Base.resize!(a::Table,n::Int)
+  @check n <= length(a)
+  resize!(a.ptrs,n+1)
+  resize!(a.masks,n)
+  resize!(a.data,a.ptrs[n+1]-1)
+  a
+end
+
 function Base.push!(a::Table,b::Vector)
   push!(a.data,b...)
   push!(a.masks,true)
   push!(a.ptrs,length(a.data)+1)
+  a
+end
+
+function Base.push!(a::Table,b::Matrix)
+  n = size(b,2)
+  m = size(b,1)
+  for i in 1:n
+    for j in 1:m
+      push!(a.data,b[j,i])
+    end
+    push!(a.ptrs,length(a.data)+1)
+    push!(a.masks,true)
+  end
+  a
+end
+
+function Base.push!(a::Table,b::Table)
+  for i in 1:length(b)
+    for j in 1:length(b,i)
+      push!(a.data,b[i,j])
+    end
+    push!(a.ptrs,length(a.data)+1)
+    push!(a.masks,true)
+  end
+  a
+end
+
+function Base.push!(a::Table,b::Vector{<:Vector})
+  for i in 1:length(b)
+    push!(a,b[i])
+  end
   a
 end
 
@@ -160,3 +215,11 @@ function compress_data(data::Vector{Vector{T}}) where T
   (_data,_ptrs)
 end
 
+function compress_data(data::Matrix)
+  n = size(data,2)
+  m = size(data,1)
+  _ptrs = fill(Int32(m),n+1)
+  length_to_ptrs!(_ptrs)
+  _data = [ data[i] for i in 1:length(data) ]
+  (_data,_ptrs)
+end

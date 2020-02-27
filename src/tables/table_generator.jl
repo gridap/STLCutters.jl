@@ -54,12 +54,10 @@ header =
 "
 println(f, header )
 
-
-
 dim_range = 1:4
 
 for num_dims in dim_range
-  
+
   cell = RefCell(ctype,num_dims)
 
   prefix = replace( hash_prefix, '#' => num_dims )
@@ -124,8 +122,8 @@ for num_dims in 2:4
 
   x = cell.coordinates
   nf_to_mf = compute_mesh( x )
-  nf_to_v = nf_to_mf[1:end-1,0]
-  v_to_nF = [ dual_map( cell.dface_to_vertices[d] ) for d in 1:ndims(cell)-1 ]
+  nf_to_v = nf_to_mf[0:end-1,0]
+  v_to_nF = [ dual_map( dface_to_vertices(cell,d) ) for d in 0:ndims(cell)-1 ]
   nf_to_nF = compute_face_to_initial_face(v_to_nF,nf_to_v)
   c2f_orientation = compute_cell_to_facet_orientation(x,nf_to_mf)
 
