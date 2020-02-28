@@ -139,6 +139,11 @@ function get_dface(m::CellSubMesh,::Val{d},i::Integer) where d
   throw(ArgumentError("get_dface(::CellSubMesh,::Val($d),::Integer) not implemented"))
 end
 
+function STLCutter.isactive(m::CellSubMesh,d::Integer,i::Integer)
+  d != 0 || return true
+  isactive(dface_vertices(m,d),i)
+ end
+
 function get_vertex(m::CellSubMesh,i::Integer)
   get_dface(m,Val{0}(),i)
 end
@@ -209,7 +214,10 @@ function refine!(m::CellSubMesh{D,T},d::Integer,id::Integer,p::Point{D,T}) where
     tables_nf_to_nF = cut_tet_nsubface_to_nface[D][case]
     
     nfaces_cache = zero(Table{Int})
-    nf_to_mf_cache = zeros(Table{Int},D+1,D+1)
+    nf_to_mf_cache = Matrix(undef,D+1,D+1)
+    for i in 1:D+1, j in 1:D+1
+      nf_to_mf_cache[i,j] = zero(Table{Int})
+    end
 
     resize!(nfaces_cache,0)
     push!(nfaces_cache,tables_nf_to_nF)
@@ -226,7 +234,6 @@ function refine!(m::CellSubMesh{D,T},d::Integer,id::Integer,p::Point{D,T}) where
       end
     end
 
-    nfaces_cache,id
     for dim in 1:d, n in 0:dim-1
       df_to_nf = nf_to_mf_cache[dim+1,n+1]
       resize!( df_to_nf, 0 )
@@ -236,13 +243,13 @@ function refine!(m::CellSubMesh{D,T},d::Integer,id::Integer,p::Point{D,T}) where
       end
     end
 
-    delete_dface!(m,d,id)
-
     add_vertex!(m,point)
     for dim in 1:d, n in 0:dim-1
       df_to_nf = dface_to_nfaces(m,dim,n)
       push!( df_to_nf, nf_to_mf_cache[dim+1,n+1] )
     end
+
+    delete_dface!(m,d,id)
 
     return m
   end
@@ -309,17 +316,19 @@ mesh = initialize(cell)
 
 stl_points = [ Point(0.5,0.25), Point(0.25,0.5), Point(0.75,0.25), Point(0.75,0.5)  ]
 point = stl_points[1]
-for k in 1
+for k in 1:4
   global stl_points, point
   point = stl_points[k]
   D = 2
   min_distance = intersection_tolerance 
   idface = 0
   for d in 0:D
-    for i in 1:num_dfaces(mesh,d) 
-      if distance(mesh,d,i,point) ≤ min_distance
-        min_distance = distance(mesh,d,i,point)
-        idface = i
+    for i in 1:num_dfaces(mesh,d)
+      if isactive(mesh,d,i)
+        if distance(mesh,d,i,point) ≤ min_distance
+          min_distance = distance(mesh,d,i,point)
+          idface = i
+        end
       end
     end
     if idface != 0
