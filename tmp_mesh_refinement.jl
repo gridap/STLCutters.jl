@@ -22,6 +22,7 @@ end
 struct CellSubMesh{D,T}
   vertex_coordinates::Vector{Point{D,T}}
   dface_to_nfaces::Matrix{Table{Int}}
+  dface_to_new_dfaces::Vector{Vector{Vector{Int}}}
 end
 
 struct Hexahedron{N,D,T}
@@ -66,11 +67,18 @@ function initialize(c::Hexahedron{N,D,T}) where {N,D,T}
   coordinates = [ v for v in get_vertices(c) ]
   dface_to_nfaces = Matrix{Table{Int}}(undef,D+1,D+1)
 
-  for d in 0:D, n in 0:d-1
+  for d in 0:D, n in 0:d
     df_to_nf = hex_to_tet_nface_to_mface[D][d+1][n+1]
     dface_to_nfaces[d+1,n+1] = Table( df_to_nf )
   end
-  CellSubMesh{D,T}(coordinates,dface_to_nfaces)
+
+  nf_to_new_df = [ Vector{Int}[] for d in 1:D ]
+
+  for d in 1:D
+    nf_to_new_df[d] = [ Int[] for i in 1:length( dface_to_nfaces[d+1,0+1] ) ]
+  end
+
+  CellSubMesh{D,T}(coordinates,dface_to_nfaces,nf_to_new_df)
 end
 
 function initialize!(m::CellSubMesh{D,T},c::Hexahedron{N,D,T}) where {N,D,T}
@@ -78,10 +86,16 @@ function initialize!(m::CellSubMesh{D,T},c::Hexahedron{N,D,T}) where {N,D,T}
   for (i,v) in enumerate( get_vertices(c) )
     m.vertex_coordinates[i] = v
   end
-  for d in 0:D, n in 0:d-1
+  for d in 0:D, n in 0:d
     df_to_nf = hex_to_tet_nface_to_mface[D][d+1][n+1]
     resize!( m.dface_to_nfaces[d+1,n+1], 0 )
     push!( m.dface_to_nfaces[d+1,n+1], df_to_nf )
+  end
+  for d in 1:D
+    resize!( m.dface_to_new_dfaces[d], num_dfaces(m,d) )
+    for i in 1:num_dfaces(m,d)
+      resize!( m.dface_to_new_dfaces[d][i],0)
+    end
   end
   m
 end
@@ -142,7 +156,7 @@ end
 function STLCutter.isactive(m::CellSubMesh,d::Integer,i::Integer)
   d != 0 || return true
   isactive(dface_vertices(m,d),i)
- end
+end
 
 function get_vertex(m::CellSubMesh,i::Integer)
   get_dface(m,Val{0}(),i)
@@ -203,16 +217,16 @@ function delete_dface!(m::CellSubMesh,d::Integer,i::Int)
   end
 end
 
-function refine!(m::CellSubMesh{D,T},d::Integer,id::Integer,p::Point{D,T}) where {D,T}
-  if d == 0
+function refine!(m::CellSubMesh{D,T},dim::Integer,id::Integer,p::Point{D,T}) where {D,T}
+  if dim == 0
     return m
   else
-    @check d == D "smaller cuts not implemented yet"
-    case = cut_tet_dface_to_case[D][d][1]
-    
+    @check dim == D "smaller cuts not implemented yet"
+    case = cut_tet_dface_to_case[D][dim][1]
+
     tables_nf_to_mf = cut_tet_nface_to_mface[D][case]
     tables_nf_to_nF = cut_tet_nsubface_to_nface[D][case]
-    
+
     nfaces_cache = zero(Table{Int})
     nf_to_mf_cache = Matrix(undef,D+1,D+1)
     for i in 1:D+1, j in 1:D+1
@@ -221,8 +235,8 @@ function refine!(m::CellSubMesh{D,T},d::Integer,id::Integer,p::Point{D,T}) where
 
     resize!(nfaces_cache,0)
     push!(nfaces_cache,tables_nf_to_nF)
-    for n in 0:d-1
-      df_to_nf = dface_to_nfaces(m,d,n)
+    for n in 0:dim
+      df_to_nf = dface_to_nfaces(m,dim,n)
       n_dfaces = num_dfaces(m,n)
       for i in 1:length(nfaces_cache,n+1)
         if nfaces_cache[n+1,i] == 0
@@ -234,24 +248,64 @@ function refine!(m::CellSubMesh{D,T},d::Integer,id::Integer,p::Point{D,T}) where
       end
     end
 
-    for dim in 1:d, n in 0:dim-1
-      df_to_nf = nf_to_mf_cache[dim+1,n+1]
+    for d in 0:dim, n in 0:d
+      df_to_nf = nf_to_mf_cache[d+1,n+1]
       resize!( df_to_nf, 0 )
-      push!( df_to_nf, tables_nf_to_mf[dim+1][n+1] )
+      push!( df_to_nf, tables_nf_to_mf[d+1][n+1] )
       for i in 1:length(df_to_nf), j in 1:length(df_to_nf,i)
         df_to_nf[i,j] = nfaces_cache[ n+1, df_to_nf[i,j] ]
       end
     end
 
-    add_vertex!(m,point)
-    for dim in 1:d, n in 0:dim-1
-      df_to_nf = dface_to_nfaces(m,dim,n)
-      push!( df_to_nf, nf_to_mf_cache[dim+1,n+1] )
+    for d in 0:dim-1, n in 0:d
+      df_to_nf = nf_to_mf_cache[d+1,n+1]
+      for i in 1:length(nfaces_cache,d+1)
+        if nfaces_cache[d+1,i] <= num_dfaces(m,d)
+          nfaces_cache[d+1,i], num_dfaces(m,d) 
+          remove!(df_to_nf,i)
+        end
+      end
+    end
+    
+    for d in 1:dim
+      df_to_new_df = m.dface_to_new_dfaces[d]
+      for i in 1:length(nfaces_cache,d+1)
+        if nfaces_cache[d+1,i] > length( df_to_new_df )
+          resize!( df_to_new_df,nfaces_cache[d+1,i] )
+        end
+        if !isassigned(df_to_new_df,nfaces_cache[d+1,i])
+          df_to_new_df[nfaces_cache[d+1,i]] = Int[]
+        elseif nfaces_cache[d+1,i] > num_dfaces(m,d)
+          resize!(df_to_new_df[nfaces_cache[d+1,i]],0)
+        end
+      end
+    end
+    for i in 1:length(nfaces_cache,dim+1)
+      push!( m.dface_to_new_dfaces[dim][id], nfaces_cache[dim+1,i] )
     end
 
-    delete_dface!(m,d,id)
+    add_vertex!(m,point)
 
+    for d in 0:dim, n in 0:d
+      push!( dface_to_nfaces(m,d,n), nf_to_mf_cache[d+1,n+1] )
+    end
+    delete_dface!(m,dim,id)
     return m
+  end
+end
+
+function case_ref(m::CellSubMesh{D},dim::Integer,id::Integer) where D
+  for d in dim:D
+    df_to_nf = dface_to_nfaces(m,d,dim)
+    for i in 1:length(df_to_nf)
+      for j in 1:length(df_to_nf,i)
+        if df_to_nf[i,j] == id
+          #refine
+          cut_tet_dface_to_case[D][d][j]
+          break
+        end
+      end
+    end
   end
 end
 
@@ -330,10 +384,10 @@ for k in 1:4
           idface = i
         end
       end
-    end
-    if idface != 0
-      refine!(mesh,d,idface,point)
-      break
+      if idface != 0
+        refine!(mesh,d,idface,point)
+        break
+      end
     end
   end
 end

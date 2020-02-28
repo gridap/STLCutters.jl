@@ -113,11 +113,13 @@ end
 
 function Base.push!(a::Table,b::Table)
   for i in 1:length(b)
-    for j in 1:length(b,i)
-      push!(a.data,b[i,j])
+    if isactive(b,i)
+      for j in 1:length(b,i)
+        push!(a.data,b[i,j])
+      end
+      push!(a.ptrs,length(a.data)+1)
+      push!(a.masks,true)
     end
-    push!(a.ptrs,length(a.data)+1)
-    push!(a.masks,true)
   end
   a
 end

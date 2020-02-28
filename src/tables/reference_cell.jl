@@ -11,7 +11,7 @@ const HexCell = "hex"
 const TetCell = "tet"
 
 function RefCell(ctype::String,ndims::Int)
-  f_to_dplus1f = Vector{Vector{Vector{Int}}}(undef,max(1,ndims-2))
+  f_to_dplus1f = Vector{Vector{Vector{Int}}}(undef,max(1,ndims-1))
   if ctype == TetCell
     x = zeros(Float64,ndims,ndims+1)
     for d in 1:ndims
@@ -21,7 +21,7 @@ function RefCell(ctype::String,ndims::Int)
     c2v = reshape([1:num_v;],:,1)
     nf_to_mf = compute_connectivities(c2v)
     df_to_v = nf_to_mf[:,0]
-    for d in 1:ndims-2
+    for d in 1:ndims-1
       f_to_dplus1f[d] = dual_map( nf_to_mf[d+1,d] )
     end
   elseif ctype == HexCell
@@ -35,7 +35,7 @@ function RefCell(ctype::String,ndims::Int)
     c2v = reshape([1:num_v;],:,1)
     nf_to_mf = compute_hex_connectivities(c2v,ndims)
     df_to_v = nf_to_mf[:,0]
-    for d in 1:ndims-2
+    for d in 1:ndims-1
       f_to_dplus1f[d] = dual_map( nf_to_mf[d+1,d] )
     end
   else
@@ -69,10 +69,8 @@ function dface_center(c::RefCell,d::Int,i::Int)
 end
 
 function dfaces_around_nface(c::RefCell,d::Int,n::Int,i::Int)
-  if n == ndims(c) || d < n
-    Int[]
-  elseif d == ndims(c) 
-    throw(ArgumentError("$(d)-face (cell) not in boundary"))
+  if d < n || d == ndims(c)
+    Int[] 
   elseif d == 0 || n == 0
     throw(ArgumentError("0-face (point) not refined"))
   else
@@ -174,9 +172,9 @@ function compute_hex_connectivities(c2v::Array{Int,2},num_dims::Int)
 end
 
 function compute_face_to_initial_face(cell::RefCell,nf_to_mf::NFaceToMFace,d::Int,i::Int)
-  nf_to_v = nf_to_mf[0:end-1,0]
-  v_to_nF = [ dual_map( dface_to_vertices(cell,d) ) for d in 0:ndims(cell)-1 ]
-  for n in 0:ndims(cell)-1 
+  nf_to_v = nf_to_mf[:,0]
+  v_to_nF = [ dual_map( dface_to_vertices(cell,d) ) for d in 0:ndims(cell) ]
+  for n in 0:ndims(cell) 
     push!(v_to_nF[n+1], dfaces_around_nface(cell,n,d,i) )
   end
   nf_to_nF = compute_face_to_initial_face(v_to_nF,nf_to_v)
