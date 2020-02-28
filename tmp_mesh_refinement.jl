@@ -466,7 +466,7 @@ mesh = CellSubMesh(cell)
 
 cutter = FaceCutter(mesh)
 
-stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.7,0.5)  ]
+stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.75,0.4)  ]
 point = stl_points[1]
 for k in 1:4
   global stl_points, point
@@ -497,3 +497,10 @@ compact!(mesh)
 writevtk(mesh,"sub_mesh")
 
 end # module
+
+
+## TODO: 
+#  Save in src/ test/
+#  Rename lookup tables file with CapitalNames
+#  Print reference connectivities to use in SurfaceMeshes.jl
+#  Use arrays instead of dicts in lookup tables
