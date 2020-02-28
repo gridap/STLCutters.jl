@@ -22,12 +22,12 @@ function center(s::Segment)
 end
 
 function distance(p::Point{D},s::Segment{D}) where D
-  v = s[2] - s[1]
-  l = norm(v)
-  v = v / l
+  s1_s2 = s[2] - s[1]
+  l = norm(s1_s2)
+  v = s1_s2 / l
   s1_p = p - s[1]
   s1_projection = ( s1_p ⋅ v ) * v
-  s2_projection = s1_projection
+  s2_projection = s1_projection - s1_s2
   p_projection = s1_projection - s1_p
   if norm( s1_projection ) > l || norm( s2_projection) > l
     min( distance(s[1],p), distance(s[2],p) )

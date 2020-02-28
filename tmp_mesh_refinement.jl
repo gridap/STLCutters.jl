@@ -29,7 +29,7 @@ struct Hexahedron{N,D,T}
   vertices::NTuple{N,Point{D,T}}
 end
 
-struct DFaceCutter{D}
+struct FaceCutter{D}
   dfaces::Table{Int}
   dface_to_nfaces::Matrix{Table{Int}}
 end
@@ -218,24 +218,24 @@ function add_vertex!(m::CellSubMesh{D,T},p::Point{D,T}) where {D,T}
 end
 
 function delete_dface!(m::CellSubMesh,d::Integer,i::Int)
-  for n in 0:d-1
+  for n in 0:d
     df_to_nf = dface_to_nfaces(m,d,n)
     remove!(df_to_nf,i)
   end
 end
 
-DFaceCutter(::T) where T<:CellSubMesh = DFaceCutter(T)
+FaceCutter(::T) where T<:CellSubMesh = FaceCutter(T)
 
-function DFaceCutter(::Type{<:CellSubMesh{D}}) where D
+function FaceCutter(::Type{<:CellSubMesh{D}}) where D
   dfaces = zero(Table{Int})
   dface_to_nfaces = Matrix(undef,D+1,D+1)
   for i in 1:D+1, j in 1:D+1
     dface_to_nfaces[i,j] = zero(Table{Int})
   end
-  DFaceCutter{D}(dfaces,dface_to_nfaces)
+  FaceCutter{D}(dfaces,dface_to_nfaces)
 end
 
-function load_tables!(cutter::DFaceCutter,dim::Integer,ldim::Integer,lid::Integer)
+function load_tables!(cutter::FaceCutter,dim::Integer,ldim::Integer,lid::Integer)
   case = cut_tet_dface_to_case[dim][ldim][lid]
   tables_nf_to_nF = cut_tet_nsubface_to_nface[dim][case]
   tables_nf_to_mf = cut_tet_nface_to_mface[dim][case]
@@ -247,18 +247,18 @@ function load_tables!(cutter::DFaceCutter,dim::Integer,ldim::Integer,lid::Intege
   end
 end
 
-num_dfaces(cutter::DFaceCutter,d::Integer) = length(cutter.dfaces,d+1)
+num_dfaces(cutter::FaceCutter,d::Integer) = length(cutter.dfaces,d+1)
 
-num_dims(cutter::DFaceCutter) = length(cutter.dfaces)-1
+num_dims(cutter::FaceCutter) = length(cutter.dfaces)-1
 
-get_dface(cutter::DFaceCutter,d::Integer,i::Integer) = cutter.dfaces[d+1,i]
+get_dface(cutter::FaceCutter,d::Integer,i::Integer) = cutter.dfaces[d+1,i]
 
-set_dface!(cutter::DFaceCutter,d::Integer,i::Integer,val) = cutter.dfaces[d+1,i] = val
+set_dface!(cutter::FaceCutter,d::Integer,i::Integer,val) = cutter.dfaces[d+1,i] = val
 
-dface_to_nfaces(cutter::DFaceCutter,d::Integer,n::Integer) = cutter.dface_to_nfaces[d+1,n+1]
+dface_to_nfaces(cutter::FaceCutter,d::Integer,n::Integer) = cutter.dface_to_nfaces[d+1,n+1]
 
 function setup_dfaces!(
-  cutter::DFaceCutter,
+  cutter::FaceCutter,
   mesh::CellSubMesh,
   id::Integer,
   ldim::Integer,
@@ -284,7 +284,7 @@ function setup_dfaces!(
   cutter
 end
 
-function _find_coincident_dface(m::CellSubMesh,c::DFaceCutter,dim::Integer,id::Integer,ldim::Integer,ldf::Integer)
+function _find_coincident_dface(m::CellSubMesh,c::FaceCutter,dim::Integer,id::Integer,ldim::Integer,ldf::Integer)
   lid = get_dface(c,ldim,ldf)
   df_id = dface_to_nfaces(m,dim,ldim)[id,lid]
   df_to_v = dface_to_nfaces(m,ldim,0)
@@ -312,7 +312,7 @@ function _find_coincident_dface(m::CellSubMesh,c::DFaceCutter,dim::Integer,id::I
   return UNSET
 end
         
-function setup_connectivities!(cutter::DFaceCutter)
+function setup_connectivities!(cutter::FaceCutter)
   dim = num_dims(cutter)
   for d in 0:dim, n in 0:d
     df_to_nf = dface_to_nfaces(cutter,d,n)
@@ -323,7 +323,7 @@ function setup_connectivities!(cutter::DFaceCutter)
   cutter
 end
 
-function remove_repeated_faces!(cutter::DFaceCutter,mesh::CellSubMesh)
+function remove_repeated_faces!(cutter::FaceCutter,mesh::CellSubMesh)
   dim = num_dims(cutter)
   for d in 0:dim-1, n in 0:d
     df_to_nf = dface_to_nfaces(cutter,d,n)
@@ -336,7 +336,7 @@ function remove_repeated_faces!(cutter::DFaceCutter,mesh::CellSubMesh)
   cutter
 end
 
-function update_dface_to_new_dfaces!(mesh::CellSubMesh,cutter::DFaceCutter,id::Integer)
+function update_dface_to_new_dfaces!(mesh::CellSubMesh,cutter::FaceCutter,id::Integer)
   dim = num_dims(cutter)
   for d in 1:dim
     df_to_new_df = mesh.dface_to_new_dfaces[d]
@@ -358,7 +358,7 @@ function update_dface_to_new_dfaces!(mesh::CellSubMesh,cutter::DFaceCutter,id::I
   mesh
 end
 
-function add_faces!(mesh::CellSubMesh,cutter::DFaceCutter)
+function add_faces!(mesh::CellSubMesh,cutter::FaceCutter)
   dim = num_dims(cutter)
   for d in 0:dim, n in 0:d
     push!( dface_to_nfaces(mesh,d,n), dface_to_nfaces(cutter,d,n) )
@@ -366,7 +366,7 @@ function add_faces!(mesh::CellSubMesh,cutter::DFaceCutter)
   mesh
 end
 
-function refine!(cutter::DFaceCutter,mesh::CellSubMesh,dim::Integer,id::Integer,ldim::Integer,lid::Integer)
+function refine!(cutter::FaceCutter,mesh::CellSubMesh,dim::Integer,id::Integer,ldim::Integer,lid::Integer)
   load_tables!(cutter,dim,ldim,lid)
   setup_dfaces!(cutter,mesh,id,ldim,lid)
   setup_connectivities!(cutter)
@@ -375,7 +375,7 @@ function refine!(cutter::DFaceCutter,mesh::CellSubMesh,dim::Integer,id::Integer,
 end
 
 
-function update!(mesh::CellSubMesh,cutter::DFaceCutter,id::Integer)
+function update!(mesh::CellSubMesh,cutter::FaceCutter,id::Integer)
   dim = num_dims(cutter)
   update_dface_to_new_dfaces!(mesh,cutter,id)
   add_faces!(mesh,cutter)
@@ -383,7 +383,7 @@ function update!(mesh::CellSubMesh,cutter::DFaceCutter,id::Integer)
   mesh
 end
 
-function refine!(mesh::CellSubMesh{D},cutter::DFaceCutter,dim::Integer,id::Integer) where D
+function refine!(mesh::CellSubMesh{D},cutter::FaceCutter,dim::Integer,id::Integer) where D
   if dim == 0
     return mesh
   end
@@ -427,7 +427,7 @@ end
 
 import STLCutter: compact!
 function compact!(m::CellSubMesh{D}) where D
-  for d in 0:D, n in 0:d-1
+  for d in 0:D, n in 0:d
     compact!( dface_to_nfaces(mesh,d,n) )
   end
   #TODO: Update connectivities with new indexes
@@ -464,11 +464,11 @@ cell = Hexahedron(box)
 
 mesh = CellSubMesh(cell)
 
-cutter = DFaceCutter(mesh)
+cutter = FaceCutter(mesh)
 
-stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.75,0.5)  ]
+stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.7,0.5)  ]
 point = stl_points[1]
-for k in 1:3
+for k in 1:4
   global stl_points, point
   point = stl_points[k]
   D = 2
@@ -493,14 +493,7 @@ end
 
 compact!(mesh)
 
+
 writevtk(mesh,"sub_mesh")
-
-# struct DFaceCutter end
-
-
-## TODO encapsulate refinement procedures
-## encapsulate cache in DFaceCutter
-## allow to cut edges and dfaces with d < D
-## revise why is not cut properly in the example of more than one point
 
 end # module
