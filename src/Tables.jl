@@ -58,15 +58,37 @@ function Base.show(io::IO,a::Table)
   T = eltype(a)
   print(io,"$(typeof(a))( Vector{$T}[")
   for i in 1:length(a)
-    i == 1 || print(io,",")
-    print(io," [")
-    for j in 1:length(a,i)
-      j == 1 || print(io,",")
-      print(io," $(a[i,j])")
+    if isactive(a,i)
+      i == 1 || print(io,",")
+      print(io," [")
+      for j in 1:length(a,i)
+        j == 1 || print(io,",")
+        print(io," $(a[i,j])")
+      end
+      print(io," ]")
     end
-    print(io," ]")
   end
   print(io," ] )")
+end
+
+function Base.show(io::IO,::MIME"text/plain",a::Table)
+  T = typeof(a)
+  n = length(a)
+  println(io,"$n-row $T:")
+  for i in 1:n
+    print(io,"[")
+    if isactive(a,i)
+      for j in 1:length(a,i)
+        print(io,a[i,j])
+        if j < length(a,i)
+          print(io,",")
+        end
+      end
+    else
+      print(io,"-")
+    end
+    println(io,"]")
+  end
 end
 
 function Base.:(==)(a::Table,b::Table)
