@@ -38,7 +38,7 @@ function _compute_mfaces_to_nfaces(facet_to_vertices::Table,::Val{D}) where D
   mf_to_nf[0+1,D] = compute_nface_to_dfaces_dual( mf_to_nf[D,0+1],n_dfaces[0+1])
     
   for d in reverse(2:D-1)
-    ldface_to_lvertex = tetn_ldface_to_lvertex[d][d-1]
+    ldface_to_lvertex = _get_simplex_dface_to_lvertices(d,d-1)
     mf_to_nf[d+1,d], n_dfaces[d] = compute_nface_to_dfaces_primal(mf_to_nf[d+1,0+1],mf_to_nf[0+1,d+1],ldface_to_lvertex)
     mf_to_nf[d,0+1] = compute_dface_to_vertices( mf_to_nf[d+1,0+1], mf_to_nf[d+1,d],ldface_to_lvertex,n_dfaces[d])
     mf_to_nf[0+1,d] = compute_nface_to_dfaces_dual( mf_to_nf[d,0+1],n_dfaces[0+1])
@@ -48,9 +48,7 @@ function _compute_mfaces_to_nfaces(facet_to_vertices::Table,::Val{D}) where D
   for d in 0:D-1
     mf_to_nf[d+1,d+1] = compute_dface_to_dface(n_dfaces[d+1],Val{T}())
   end
-
-  # Build ldface_to_vertex in lookup tables/ first hard coded
-  # Complete matrix
+  # TODO: Complete matrix
   mf_to_nf
 end
 
@@ -63,11 +61,10 @@ function _compute_d_to_offset(mfaces_to_nfaces::Matrix)
   d_to_offset
 end
 
-const tetn_ldface_to_lvertex =
-[Vector{Vector{Int}}[],
- [[[1,2],[1,3],[2,3]]],
- [[[1,2],[1,3],[2,3],[1,4],[2,4],[3,4]],[[1,2,3],[1,2,4],[1,3,4],[1,2,4]]]]
-
+function _get_simplex_dface_to_lvertices(D::Integer,d::Integer)
+  tet_dface_to_vertices[D][d]
+end
+  
 num_dims(s::SurfaceMesh{D}) where D = D
 
 function get_dface_to_nfaces(s::SurfaceMesh,d::Integer,n::Integer)

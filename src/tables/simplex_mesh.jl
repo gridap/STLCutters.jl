@@ -40,7 +40,7 @@ end
 
 function Base.print(io::IO,a::Vector{T}) where T<:Array
   data =join([ "$(string(a[i])) , \n \n  " for i in 1:length(a) ])
-  data = replace(data, "Array{Int64}(undef,0,0)" => "empty_matrix")
+  data = replace(data, "Array{Int64}(undef,0,0)" => "_empty_matrix")
   str = "$(string(T))[\n  $(rstrip(data)) \n]"
   print(io::IO,str)
 end

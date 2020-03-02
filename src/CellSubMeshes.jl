@@ -1,23 +1,3 @@
-module CellSubMeshes
-
-using STLCutter
-
-using WriteVTK
-
-using STLCutter: @check
-
-import STLCutter: distance
-
-using Test
-
-include("src/tables/lookup_cut_tables.jl");
-
-function Base.resize!(v::Vector{Vector{T}},i::Int,n::Int) where T
-  if !isassigned(v,i)
-    v[i] = T[]
-  end
-  resize!(v[i],n)
-end
 
 struct CellSubMesh{D,T}
   vertex_coordinates::Vector{Point{D,T}}
@@ -25,47 +5,9 @@ struct CellSubMesh{D,T}
   dface_to_new_dfaces::Vector{Vector{Vector{Int}}}
 end
 
-struct Hexahedron{N,D,T}
-  vertices::NTuple{N,Point{D,T}}
-end
-
 struct FaceCutter{D}
   dfaces::Table{Int}
   dface_to_nfaces::Matrix{Table{Int}}
-end
-
-@generated function Hexahedron(b::BoundingBox{D,T}) where {D,T}
-  N = 2^D
-  d = Dict( 0 => "pmin", 1 => "pmax" )
-  v_str = [ "" for i in 1:N ]
-  for i in 1:N
-    bin = digits(i-1,base=2,pad=D)
-    data = join([ "b.$(d[b])[$i]," for (i,b) in enumerate(bin) ])
-    v_str[i] = "Point{$D,$T}($data),"
-  end
-  vertices = join(v_str)
-  str = "Hexahedron{$N,$D,$T}(($vertices))"
-  Meta.parse(str)
-end
-
-function num_vertices(::Type{<:Hexahedron{N,D}}) where {N,D}
-  @check N == 2^D
-  N
-end
-
-num_vertices(::T) where T<:Hexahedron = num_vertices(T)
-
-num_dims(::Type{<:Hexahedron{N,D}}) where {N,D} = D
-
-num_dims(::T) where T<:Hexahedron = num_dims(T)
-
-Base.getindex(c::Hexahedron,i::Int) = c.vertices[i]
-
-get_vertices(c::Hexahedron) = c.vertices
-
-function BoundingBox(c::Hexahedron{N,D,T}) where {N,D,T}
-  @check all( get_data(c[1]) .<= get_data( c[N] ) )
-  BoundingBox{D,T}( c[1], c[N] )
 end
 
 CellSubMesh(b::BoundingBox) = CellSubMesh(Hexahedron(b))
@@ -88,26 +30,16 @@ function CellSubMesh(c::Hexahedron{N,D,T}) where {N,D,T}
   CellSubMesh{D,T}(coordinates,dface_to_nfaces,nf_to_new_df)
 end
 
-function initialize!(m::CellSubMesh{D,T},c::Hexahedron{N,D,T}) where {N,D,T}
-  resize!(m.vertex_coordinates,N)
-  for (i,v) in enumerate( get_vertices(c) )
-    m.vertex_coordinates[i] = v
-  end
-  for d in 0:D, n in 0:d
-    df_to_nf = hex_to_tet_nface_to_mface[D][d+1][n+1]
-    resize!( m.dface_to_nfaces[d+1,n+1], 0 )
-    push!( m.dface_to_nfaces[d+1,n+1], df_to_nf )
-  end
-  for d in 1:D
-    resize!( m.dface_to_new_dfaces[d], num_dfaces(m,d) )
-    for i in 1:num_dfaces(m,d)
-      resize!( m.dface_to_new_dfaces[d][i],0)
-    end
-  end
-  m
-end
+FaceCutter(::T) where T<:CellSubMesh = FaceCutter(T)
 
-const intersection_tolerance = 1e-10
+function FaceCutter(::Type{<:CellSubMesh{D}}) where D
+  dfaces = zero(Table{Int})
+  dface_to_nfaces = Matrix(undef,D+1,D+1)
+  for i in 1:D+1, j in 1:D+1
+    dface_to_nfaces[i,j] = zero(Table{Int})
+  end
+  FaceCutter{D}(dfaces,dface_to_nfaces)
+end
 
 function num_vertices(m::CellSubMesh) 
   length(m.vertex_coordinates)
@@ -160,7 +92,7 @@ function get_dface(m::CellSubMesh,::Val{d},i::Integer) where d
   throw(ArgumentError("get_dface(::CellSubMesh,::Val($d),::Integer) not implemented"))
 end
 
-function STLCutter.isactive(m::CellSubMesh,d::Integer,i::Integer)
+function isactive(m::CellSubMesh,d::Integer,i::Integer)
   d != 0 || return true
   isactive(dface_vertices(m,d),i)
 end
@@ -181,21 +113,15 @@ function get_cell(m::CellSubMesh{D},i::Integer) where D
   get_dface(m,Val{D}(),i)
 end
 
-function distance(p::Point{2},t::Triangle{2})
-  if have_intersection(p,t)
-    distance = 0.0
-  else
-    distance = typemax(0.0)
-  end
-end
+num_dfaces(cutter::FaceCutter,d::Integer) = length(cutter.dfaces,d+1)
 
-function distance(p::Point{3},t::Tetrahedron{3})
-  if have_intersection(p,t)
-    distance = 0.0
-  else
-    distance = typemax(0.0)
-  end
-end
+num_dims(cutter::FaceCutter) = length(cutter.dfaces)-1
+
+get_dface(cutter::FaceCutter,d::Integer,i::Integer) = cutter.dfaces[d+1,i]
+
+set_dface!(cutter::FaceCutter,d::Integer,i::Integer,val) = cutter.dfaces[d+1,i] = val
+
+dface_to_nfaces(cutter::FaceCutter,d::Integer,n::Integer) = cutter.dface_to_nfaces[d+1,n+1]
 
 @generated function distance(m::CellSubMesh{D},d::Int,i::Int,p::Point{D}) where D
   body = ""
@@ -210,7 +136,26 @@ end
   Meta.parse(str)
 end
 
+function initialize!(m::CellSubMesh{D,T},c::Hexahedron{N,D,T}) where {N,D,T}
+  resize!(m.vertex_coordinates,N)
+  for (i,v) in enumerate( get_vertices(c) )
+    m.vertex_coordinates[i] = v
+  end
+  for d in 0:D, n in 0:d
+    df_to_nf = hex_to_tet_nface_to_mface[D][d+1][n+1]
+    resize!( m.dface_to_nfaces[d+1,n+1], 0 )
+    push!( m.dface_to_nfaces[d+1,n+1], df_to_nf )
+  end
+  for d in 1:D
+    resize!( m.dface_to_new_dfaces[d], num_dfaces(m,d) )
+    for i in 1:num_dfaces(m,d)
+      resize!( m.dface_to_new_dfaces[d][i],0)
+    end
+  end
+  m
+end
 
+initialize!(m::CellSubMesh,b::BoundingBox) = initialize!(m,Hexahedron(b))
 
 function add_vertex!(m::CellSubMesh{D,T},p::Point{D,T}) where {D,T}
   v = get_vertex_coordinates(m)
@@ -224,17 +169,6 @@ function delete_dface!(m::CellSubMesh,d::Integer,i::Int)
   end
 end
 
-FaceCutter(::T) where T<:CellSubMesh = FaceCutter(T)
-
-function FaceCutter(::Type{<:CellSubMesh{D}}) where D
-  dfaces = zero(Table{Int})
-  dface_to_nfaces = Matrix(undef,D+1,D+1)
-  for i in 1:D+1, j in 1:D+1
-    dface_to_nfaces[i,j] = zero(Table{Int})
-  end
-  FaceCutter{D}(dfaces,dface_to_nfaces)
-end
-
 function load_tables!(cutter::FaceCutter,dim::Integer,ldim::Integer,lid::Integer)
   case = cut_tet_dface_to_case[dim][ldim][lid]
   tables_nf_to_nF = cut_tet_nsubface_to_nface[dim][case]
@@ -246,16 +180,6 @@ function load_tables!(cutter::FaceCutter,dim::Integer,ldim::Integer,lid::Integer
     push!( cutter.dface_to_nfaces[d+1,n+1], tables_nf_to_mf[d+1][n+1] )
   end
 end
-
-num_dfaces(cutter::FaceCutter,d::Integer) = length(cutter.dfaces,d+1)
-
-num_dims(cutter::FaceCutter) = length(cutter.dfaces)-1
-
-get_dface(cutter::FaceCutter,d::Integer,i::Integer) = cutter.dfaces[d+1,i]
-
-set_dface!(cutter::FaceCutter,d::Integer,i::Integer,val) = cutter.dfaces[d+1,i] = val
-
-dface_to_nfaces(cutter::FaceCutter,d::Integer,n::Integer) = cutter.dface_to_nfaces[d+1,n+1]
 
 function setup_dfaces!(
   cutter::FaceCutter,
@@ -405,7 +329,7 @@ function refine!(mesh::CellSubMesh{D},cutter::FaceCutter,dim::Integer,id::Intege
 end
 
 function writevtk(m::CellSubMesh{D,T},file_base_name) where {D,T}
-  d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5) # tets
+  d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5,3=>10)
   num_points = num_vertices(m)
   points = zeros(T,D,num_points)
   for (i ,p ) in enumerate(get_vertex_coordinates(m)), d in 1:D
@@ -425,82 +349,3 @@ function writevtk(m::CellSubMesh{D,T},file_base_name) where {D,T}
   vtk_save(vtkfile)
 end
 
-import STLCutter: compact!
-function compact!(m::CellSubMesh{D}) where D
-  for d in 0:D, n in 0:d
-    compact!( dface_to_nfaces(mesh,d,n) )
-  end
-  #TODO: Update connectivities with new indexes
-end
-
-p1 = Point(1,2,3)
-p2 = Point(4,5,6)
-
-b=BoundingBox(p1,p2)
-
-h = Hexahedron(b)
-
-b2 = BoundingBox(h)
-
-@test b2 == b
-
-m = CellSubMesh(h)
-
-p1 = Point(1,2,4)
-p2 = Point(5,3,5)
-
-box = BoundingBox(p1,p2)
-
-cell = Hexahedron(box)
-
-initialize!(m,cell)
-
-@test @allocated(initialize!(m,cell)) == 0
-
-p0 = Point(0.0,0.0)
-p1 = Point(1.0,1.0)
-box = BoundingBox(p0,p1)
-cell = Hexahedron(box)
-
-mesh = CellSubMesh(cell)
-
-cutter = FaceCutter(mesh)
-
-stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.75,0.4)  ]
-point = stl_points[1]
-for k in 1:4
-  global stl_points, point
-  point = stl_points[k]
-  D = 2
-  min_distance = intersection_tolerance 
-  idface = 0
-  for d in 0:D
-    for i in 1:num_dfaces(mesh,d)
-      if isactive(mesh,d,i)
-        if distance(mesh,d,i,point) ≤ min_distance
-          min_distance = distance(mesh,d,i,point)
-          idface = i
-        end
-      end
-    end
-    if idface != 0
-      refine!(mesh,cutter,d,idface)
-      add_vertex!(mesh,point)
-      break
-    end
-  end
-end
-
-compact!(mesh)
-
-
-writevtk(mesh,"sub_mesh")
-
-end # module
-
-
-## TODO: 
-#  Save in src/ test/
-#  Rename lookup tables file with CapitalNames
-#  Print reference connectivities to use in SurfaceMeshes.jl
-#  Use arrays instead of dicts in lookup tables

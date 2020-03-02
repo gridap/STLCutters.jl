@@ -53,3 +53,11 @@ have_intersection_point(p::Point{3},t::Tetrahedron{3}) = have_intersection(p,t)
 
 contains_projection(p::Point{3},t::Tetrahedron{3}) = have_intersection(p,t)
 
+function distance(p::Point{3},t::Tetrahedron{3})
+  if have_intersection(p,t)
+    distance = 0.0
+  else
+    distance = typemax(0.0)
+  end
+end
+

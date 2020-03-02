@@ -17,6 +17,8 @@ t1 = Table(data,rows,n)
 @test length(t1,2) == 2
 @test length(t1,5) == 0
 
+@test maximum(t1) == 7
+
 data = [ 3, 1, 7, 4, 2 ]
 ptrs = [ 1, 2, 4, 5, 6, 6 ]
 
@@ -54,8 +56,55 @@ compact!(t)
 @test length(t,2) == 1
 @test t[2,1] == 4
 
+data = [ 1, 2, 3, 4, 7 ]
+rows = [ 2, 4, 1, 3, 2 ]
+n = 5
 
+t = Table(data,rows,n)
+A = 
+  [ 1 4 
+    2 5 
+    3 6 ]
 
-# TODO: Test push! functions
+push!(t,A)
+@test length(t) == 5+2
+@test length(t,n+1) == length(t,n+2) == 3
+@test t[n+1,1] == 1
+@test t[n+1,2] == 2
+@test t[n+1,3] == 3
+
+resize!(t,n) 
+
+@test length(t) == n
+
+v = Vector{Int}[ [ 1,2,3], [], [4,5] ]
+push!(t,v)
+@test length(t) == 5+3
+@test length(t,n+1) == 3
+@test length(t,n+2) == 0
+@test length(t,n+3) == 2
+@test t[n+1,1] == 1
+@test t[n+1,2] == 2
+@test t[n+1,3] == 3
+@test t[n+3,1] == 4
+@test t[n+3,2] == 5
+
+resize!(t,n)
+
+t2 = Table(v)
+push!(t,t2)
+@test length(t) == 5+3
+@test length(t,n+1) == 3
+@test length(t,n+2) == 0
+@test length(t,n+3) == 2
+@test t[n+1,1] == 1
+@test t[n+1,2] == 2
+@test t[n+1,3] == 3
+@test t[n+3,1] == 4
+@test t[n+3,2] == 5
+
+resize!(t,0)
+@test t == zero(t)
+
 
 end # module

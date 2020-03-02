@@ -16,6 +16,8 @@ using Test
 
 @testset "BoundingBoxesTests" begin include("BoundingBoxesTests.jl") end
 
+@testset "HexahedronsTests" begin include("HexahedronsTests.jl") end
+
 @testset "TablesTests" begin include("TablesTests.jl") end
 
 @testset "STLs" begin include("STLsTests.jl") end
@@ -23,5 +25,7 @@ using Test
 @testset "SurfaceMeshes" begin include("SurfaceMeshesTests.jl") end
 
 @testset "CartesianMeshes" begin include("CartesianMeshesTests.jl") end
+
+@testset "CellSubMeshes" begin include("CellSubMeshesTests.jl") end
 
 end # module

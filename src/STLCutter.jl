@@ -18,16 +18,19 @@ export Segment
 export Triangle
 export Tetrahedron
 export BoundingBox
+export Hexahedron
 export STL
 export SurfaceMesh
 export CartesianMesh
+export FaceCutter
+export CellSubMesh
 
 export average
 export num_vertices
 export num_edges
 export num_facets
 export num_faces
-export num_dims
+
 export norm
 export distance
 export normal
@@ -51,39 +54,12 @@ export num_cells
 export get_cell
 export get_dface_to_vertices
 export get_dface_to_nfaces
+export refine!
+export add_vertex!
 
-macro check(test)
-  quote
-    @assert $(esc(test)) $(string(test))
-  end
-end
+include("tables/LookupCutTables.jl");
 
-macro check(test,msg)
-  quote
-    @assert $(esc(test)) $msg
-  end
-end
-
-macro abstractmethod()
-  quote
-    error("This function belongs to an interface definition and cannot be used.")
-  end
-end
-
-"""
-    tfill(v, ::Val{D}) where D
-Returns a tuple of length `D` that contains `D` times the object `v`.
-In contrast to `tuple(fill(v,D)...)` which returns the same result, this function is type-stable.
-"""
-function tfill(v, ::Val{D}) where D
-  t = tfill(v, Val{D-1}())
-  (v,t...)
-end
-
-tfill(v,::Val{0}) = ()
-tfill(v,::Val{1}) = (v,)
-tfill(v,::Val{2}) = (v,v)
-tfill(v,::Val{3}) = (v,v,v)
+include("Helpers.jl")
 
 include("MutableVectorValues.jl")
 
@@ -99,6 +75,8 @@ include("Tetrahedrons.jl")
 
 include("BoundingBoxes.jl")
 
+include("Hexahedrons.jl")
+
 include("Tables.jl")
 
 include("STLs.jl")
@@ -106,6 +84,8 @@ include("STLs.jl")
 include("SurfaceMeshes.jl")
 
 include("CartesianMeshes.jl")
+
+include("CellSubMeshes.jl")
 
 include("BulkMeshes.jl")
 

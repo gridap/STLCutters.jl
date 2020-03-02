@@ -91,8 +91,16 @@ function distance(p::Point{3},t::Triangle{3})
   d
 end
 
+function distance(p::Point{2},t::Triangle{2})
+  if have_intersection(p,t)
+    distance = 0.0
+  else
+    distance = typemax(0.0)
+  end
+end
+
 function distance(p::Point{D},t::Triangle{D}) where D
-  throw(ArgumentError("distance(::Point{D},::Triangle{D}) only imlemented for 3 dimensions"))
+  throw(ArgumentError("distance(::Point{$D},::Triangle{$D}) not imlemented"))
 end
 
 @inline distance(t::Triangle,p::Point) = distance(p,t)

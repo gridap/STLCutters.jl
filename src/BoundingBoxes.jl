@@ -17,7 +17,7 @@ function BoundingBox(t::Triangle{D,T}) where {D,T}
 end
 
 function BoundingBox(t::Tetrahedron{D,T}) where {D,T}
-  BoundingBox{D,T}(min.(t.p...),max.(t.p...))
+  BoundingBox{D,T}(min.(get_vertices(t)...),max.(get_vertices(t)...))
 end
 
 const BB_tolerance = 1e-5
