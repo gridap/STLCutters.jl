@@ -2,7 +2,7 @@ module CellMeshesTests
 
 using STLCutter
 
-using STLCutter: initialize!, num_dfaces, get_faces, CutterCache
+using STLCutter: initialize!, num_dfaces, get_faces, get_cache
 
 import STLCutter: compact!
 
@@ -39,7 +39,7 @@ box = BoundingBox(p0,p1)
 
 mesh = CellMesh(box)
 
-cutter = CutterCache(mesh)
+cache = get_cache(mesh)
 
 stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.75,0.4)  ]
 point = stl_points[1]
@@ -61,7 +61,7 @@ for k in 1:4
       end
     end
     if iface != 0
-      add_vertex!(mesh,cutter,d,iface,point)
+      add_vertex!(mesh,cache,d,iface,point)
       break
     end
   end
