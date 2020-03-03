@@ -2,15 +2,15 @@ module CellSubMeshesTests
 
 using STLCutter
 
-using STLCutter: initialize!, num_dfaces, dface_to_nfaces
+using STLCutter: initialize!, num_dfaces, get_faces, CutterCache
 
 import STLCutter: compact!
 
 using Test
 
-function compact!(m::CellSubMesh{D}) where D
+function STLCutter.compact!(m::CellMesh{D}) where D
   for d in 0:D, n in 0:d
-    compact!( dface_to_nfaces(mesh,d,n) )
+    compact!( get_faces(mesh,d,n) )
   end
   #TODO: Update connectivities with new indexes
 end
@@ -22,7 +22,7 @@ b = BoundingBox(p1,p2)
 
 h = Hexahedron(b)
 
-m = CellSubMesh(h)
+m = CellMesh(h)
 
 
 p1 = Point(1,2,4)
@@ -38,16 +38,15 @@ initialize!(m,box)
 
 @test @allocated(initialize!(m,box)) == 0
 
-@test @allocated(initialize!(m,cell)) == 0
 
 p0 = Point(0.0,0.0)
 p1 = Point(1.0,1.0)
 box = BoundingBox(p0,p1)
 cell = Hexahedron(box)
 
-mesh = CellSubMesh(cell)
+mesh = CellMesh(cell)
 
-cutter = FaceCutter(mesh)
+cutter = CutterCache(mesh)
 
 stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.75,0.4)  ]
 point = stl_points[1]

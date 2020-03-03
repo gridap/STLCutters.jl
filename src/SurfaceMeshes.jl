@@ -62,7 +62,7 @@ function _compute_d_to_offset(mfaces_to_nfaces::Matrix)
 end
 
 function _get_simplex_dface_to_lvertices(D::Integer,d::Integer)
-  tet_dface_to_vertices[D][d]
+  D_to_d_to_dface_to_vertices_for_tet[D][d]
 end
   
 num_dims(s::SurfaceMesh{D}) where D = D

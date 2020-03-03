@@ -8,18 +8,12 @@ include("simplex_mesh.jl")
 
 include("reference_cell.jl")
 
-function printdict(io::IO,varname::String,range::UnitRange)
-  data = join([ "$i => $(replace( varname, '#' => "$i" )), " for i in range ] )
-  dict_name = replace(varname, '#' => "" )
-  println(io,"const $(dict_name) = Dict($data)");println(io)
-end
-
 function printvector(io::IO,varname::String,range::UnitRange)
   @assert range[1] > 0
   data  = join([ "[], " for i in 1:range[1]-1 ])
   data *= join([ "$(replace( varname, '#' => "$i" )), " for i in range ] )
-  vector_name = replace(varname, '#' => "" )
-  println(io,"const $(vector_name) = [ $data ]");println(io)
+  vector_name = replace(varname, '#' => "D" )
+  println(io,"const D_to_$(vector_name) = [ $data ]");println(io)
 end
 
 dir = @__DIR__
@@ -91,17 +85,17 @@ for num_dims in dim_range
       push!( global_c2f_orientation, c2f_orientation )
     end
   end
-  print(f, "const $(prefix)_dface_to_case = " ); println(f, cut_dface_to_case ); println(f)
-  print(f, "const $(prefix)_nface_to_mface = " ); println(f, global_nf_to_mf ); println(f)
-  print(f, "const $(prefix)_nsubface_to_nface = " ); println(f, global_nf_to_nF ); println(f)
-  print(f, "const $(prefix)_orientation_cell_to_facet = " ); println(f, global_c2f_orientation ); println(f)
+  print(f, "const d_to_dface_to_case_for_$prefix = " ); println(f, cut_dface_to_case ); println(f)
+  print(f, "const case_to_m_n_to_mface_to_nfaces_for_$prefix = " ); println(f, global_nf_to_mf ); println(f)
+  print(f, "const case_to_d_to_subdface_to_dface_for_$prefix = " ); println(f, global_nf_to_nF ); println(f)
+  print(f, "const case_to_cell_lfacet_to_orientation_for_$prefix  = " ); println(f, global_c2f_orientation ); println(f)
 end
 
 println(f, "## Summary:" ); println(f)
-printvector(f, "$(hash_prefix)_dface_to_case", dim_range )
-printvector(f, "$(hash_prefix)_nface_to_mface", dim_range )
-printvector(f, "$(hash_prefix)_nsubface_to_nface", dim_range )
-printvector(f, "$(hash_prefix)_orientation_cell_to_facet", dim_range )
+printvector(f, "d_to_dface_to_case_for_$hash_prefix", dim_range )
+printvector(f, "case_to_m_n_to_mface_to_nfaces_for_$hash_prefix", dim_range )
+printvector(f, "case_to_d_to_subdface_to_dface_for_$hash_prefix", dim_range )
+printvector(f, "case_to_cell_lfacet_to_orientation_for_$hash_prefix", dim_range )
 close(f)
 end
 
@@ -135,16 +129,16 @@ for num_dims in dim_range
   nf_to_nF = compute_face_to_initial_face(v_to_nF,nf_to_v)
   c2f_orientation = compute_cell_to_facet_orientation(x,nf_to_mf)
 
-  print(f, "const $(prefix)_nface_to_mface = " ); println(f, nf_to_mf ); println(f);
-  print(f, "const $(prefix)_nsubface_to_mface = " ); println(f, nf_to_nF ); println(f);
-  print(f, "const $(prefix)_orientation_cell_to_facet = " ); println(f, c2f_orientation ); println(f);
+  print(f, "const m_n_to_mface_to_nfaces_for_$prefix = " ); println(f, nf_to_mf ); println(f);
+  print(f, "const d_to_subdface_to_dface_for_$prefix = " ); println(f, nf_to_nF ); println(f);
+  print(f, "const cell_lfacet_to_orientation_for_$prefix  = " ); println(f, c2f_orientation ); println(f);
 end
 
 
 println(f, "## Summary:" ); println(f)
-printvector(f, "hex#_to_tet#_nface_to_mface", dim_range )
-printvector(f, "hex#_to_tet#_nsubface_to_mface", dim_range )
-printvector(f, "hex#_to_tet#_orientation_cell_to_facet", dim_range )
+printvector(f, "m_n_to_mface_to_nfaces_for_hex#_to_tet#", dim_range )
+printvector(f, "d_to_subdface_to_dface_for_hex#_to_tet#", dim_range )
+printvector(f, "cell_lfacet_to_orientation_for_hex#_to_tet#", dim_range )
 close(f)
 
 
@@ -169,8 +163,8 @@ for ctype in (TetCell,HexCell)
   coordinates = [ cells[d].coordinates for d in dim_range ]
   df_to_vs = [ cells[d].dface_to_vertices[2:d] for d in dim_range ]
   df_to_vs = [ [ [ f[:,i] for i in 1:size(f,2) ] for f in df_to_v ] for df_to_v in df_to_vs ]
-  print(f,"const $(ctype)_reference_coordinates = "); println(f,coordinates); println(f)
-  print(f,"const $(ctype)_dface_to_vertices = "); println(f,df_to_vs); println(f)
+  print(f,"const D_to_reference_coordinates_for_$ctype = "); println(f,coordinates); println(f)
+  print(f,"const D_to_d_to_dface_to_vertices_for_$ctype = "); println(f,df_to_vs); println(f)
 end
 close(f)
 

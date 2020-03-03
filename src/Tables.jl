@@ -34,6 +34,14 @@ struct Table{T}
 
 end
 
+function Table{T}() where T
+  _data = T[]
+  _ptrs = Int32[1]
+  Table(_data,_ptrs)
+end
+
+Table(::Type{T}) where T = Table{T}() 
+
 Base.length(a::Table) = length(a.ptrs)-1
 
 @inline Base.length(a::Table,i::Integer) = a.ptrs[i+1] - a.ptrs[i]
@@ -97,14 +105,6 @@ end
  
 Base.maximum(a::Table) = maximum(a.data)
 
-function Base.zero(::Type{<:Table{T}}) where T
-  _data = T[]
-  _ptrs = Int32[1]
-  Table(_data,_ptrs)
-end
-
-Base.zero(::T) where T<:Table = zero(T)
-
 function Base.resize!(a::Table,n::Int)
   @check n <= length(a)
   resize!(a.ptrs,n+1)
@@ -114,13 +114,13 @@ function Base.resize!(a::Table,n::Int)
 end
 
 function Base.push!(a::Table,b::Vector)
-  push!(a.data,b...)
+  append!(a.data,b)
   push!(a.masks,true)
   push!(a.ptrs,length(a.data)+1)
   a
 end
 
-function Base.push!(a::Table,b::Matrix)
+function Base.append!(a::Table,b::Matrix)
   n = size(b,2)
   m = size(b,1)
   for i in 1:n
@@ -133,7 +133,7 @@ function Base.push!(a::Table,b::Matrix)
   a
 end
 
-function Base.push!(a::Table,b::Table)
+function Base.append!(a::Table,b::Table)
   for i in 1:length(b)
     if isactive(b,i)
       for j in 1:length(b,i)
@@ -146,7 +146,7 @@ function Base.push!(a::Table,b::Table)
   a
 end
 
-function Base.push!(a::Table,b::Vector{<:Vector})
+function Base.append!(a::Table,b::Vector{<:Vector})
   for i in 1:length(b)
     push!(a,b[i])
   end

@@ -21,24 +21,56 @@ Base.lastindex(a::NFaceToMFace,i::Int) = lastindex(a.data,i) - 1
 
 Base.ndims(f::NFaceToMFace) = size(f.data,1) - 1
 
+get_data(a::NFaceToMFace) = a.data
+
+function get_m_of_v_of_v(a::NFaceToMFace)
+  vectors.(a.data)
+end
+
+function vectors(a::Matrix)
+  [ a[:,i] for i in 1:size(a,2) ]
+end
+
 function vectors(a::NFaceToMFace) 
   [a.data[i,:] for i in 1:size(a.data,1)]
 end
 
 function Base.print(io::IO,a::Vector{NFaceToMFace})
-  v = vectors.(a)
+  v = get_m_of_v_of_v.(a)
   print(io,v)
 end
 
-Base.print(io::IO,a::NFaceToMFace) = print(io,vectors(a))
+function Base.print(io::IO,a::NFaceToMFace) 
+  m = get_m_of_v_of_v(a)
+  T = typeof(m)
+  data = string( m )
+  str = "$(string(T))(\n  $data )"
+  print(io,str)
+end
 
-function Base.string(a::Vector{Array{T,N}}) where {T,N}
-  data =join([ "$(string(a[i])), \n  " for i in 1:length(a) ])
-  length(data) >= 3 ? data = data[1:end-3] : data = ""
+function Base.string(a::Matrix{<:Array})
+  data = ""
+  for i in a 
+    data *= "   $(string(i)),\n"
+  end
+  "reshape([\n$data  ], $(size(a)) )"
+end
+
+function Base.string(v::Vector{<:Vector})
+  data = join([ "$(string(i))," for i in v ])
   "[$data]"
 end
 
-function Base.print(io::IO,a::Vector{T}) where T<:Array
+function Base.string(::Type{Vector{T}}) where T
+  "Vector{$(string(T))}"
+end
+
+function Base.string(::Type{Matrix{T}}) where T
+  "Matrix{$(string(T))}"
+end
+
+
+function Base.print(io::IO,a::Vector{T}) where T<:Array#{<:Array}
   data =join([ "$(string(a[i])) , \n \n  " for i in 1:length(a) ])
   data = replace(data, "Array{Int64}(undef,0,0)" => "_empty_matrix")
   str = "$(string(T))[\n  $(rstrip(data)) \n]"

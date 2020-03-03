@@ -66,7 +66,7 @@ A =
     2 5 
     3 6 ]
 
-push!(t,A)
+append!(t,A)
 @test length(t) == 5+2
 @test length(t,n+1) == length(t,n+2) == 3
 @test t[n+1,1] == 1
@@ -78,7 +78,7 @@ resize!(t,n)
 @test length(t) == n
 
 v = Vector{Int}[ [ 1,2,3], [], [4,5] ]
-push!(t,v)
+append!(t,v)
 @test length(t) == 5+3
 @test length(t,n+1) == 3
 @test length(t,n+2) == 0
@@ -92,7 +92,7 @@ push!(t,v)
 resize!(t,n)
 
 t2 = Table(v)
-push!(t,t2)
+append!(t,t2)
 @test length(t) == 5+3
 @test length(t,n+1) == 3
 @test length(t,n+2) == 0
@@ -104,7 +104,7 @@ push!(t,t2)
 @test t[n+3,2] == 5
 
 resize!(t,0)
-@test t == zero(t)
+@test t == Table(eltype(t)) == Table{eltype(t)}()
 
 
 end # module

@@ -22,8 +22,8 @@ export Hexahedron
 export STL
 export SurfaceMesh
 export CartesianMesh
-export FaceCutter
-export CellSubMesh
+export MeshCutter
+export CellMesh
 
 export average
 export num_vertices
@@ -31,6 +31,7 @@ export num_edges
 export num_facets
 export num_faces
 
+export num_dims
 export norm
 export distance
 export normal
