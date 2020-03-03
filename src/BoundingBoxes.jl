@@ -20,6 +20,29 @@ function BoundingBox(t::Tetrahedron{D,T}) where {D,T}
   BoundingBox{D,T}(min.(get_vertices(t)...),max.(get_vertices(t)...))
 end
 
+@generated function get_vertices(b::BoundingBox{D,T}) where {D,T}
+  N = 2^D
+  d = Dict( 0 => "pmin", 1 => "pmax" )
+  v_str = [ "" for i in 1:N ]
+  for i in 1:N
+    bin = digits(i-1,base=2,pad=D)
+    data = join([ "b.$(d[b])[$i]," for (i,b) in enumerate(bin) ])
+    v_str[i] = "Point{$D,$T}($data),"
+  end
+  vertices = join(v_str)
+  str = "($vertices)"
+  Meta.parse(str)
+end
+
+num_vertices(::T) where T<:BoundingBox = num_vertices(T)
+
+num_vertices(::Type{<:BoundingBox{D}}) where D = 2^D
+
+num_dims(::Type{<:BoundingBox{D}}) where D = D
+
+num_dims(::T) where T<:BoundingBox = num_dims(T)
+
+
 const BB_tolerance = 1e-5
 function expand(bb::BoundingBox,ε::Number)
   d = bb.pmax - bb.pmin

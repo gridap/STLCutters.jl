@@ -1,4 +1,4 @@
-module CellSubMeshesTests
+module CellMeshesTests
 
 using STLCutter
 
@@ -20,19 +20,13 @@ p2 = Point(4,5,6)
 
 b = BoundingBox(p1,p2)
 
-h = Hexahedron(b)
-
-m = CellMesh(h)
+m = CellMesh(b)
 
 
 p1 = Point(1,2,4)
 p2 = Point(5,3,5)
 
 box = BoundingBox(p1,p2)
-
-cell = Hexahedron(box)
-
-initialize!(m,cell)
 
 initialize!(m,box)
 
@@ -42,9 +36,8 @@ initialize!(m,box)
 p0 = Point(0.0,0.0)
 p1 = Point(1.0,1.0)
 box = BoundingBox(p0,p1)
-cell = Hexahedron(box)
 
-mesh = CellMesh(cell)
+mesh = CellMesh(box)
 
 cutter = CutterCache(mesh)
 
@@ -57,19 +50,18 @@ for k in 1:4
   point = stl_points[k]
   D = 2
   min_distance = intersection_tolerance 
-  idface = 0
+  iface = 0
   for d in 0:D
     for i in 1:num_dfaces(mesh,d)
       if isactive(mesh,d,i)
         if distance(mesh,d,i,point) ≤ min_distance
           min_distance = distance(mesh,d,i,point)
-          idface = i
+          iface = i
         end
       end
     end
-    if idface != 0
-      refine!(mesh,cutter,d,idface)
-      add_vertex!(mesh,point)
+    if iface != 0
+      add_vertex!(mesh,cutter,d,iface,point)
       break
     end
   end

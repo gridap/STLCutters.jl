@@ -76,8 +76,6 @@ include("Tetrahedrons.jl")
 
 include("BoundingBoxes.jl")
 
-include("Hexahedrons.jl")
-
 include("Tables.jl")
 
 include("STLs.jl")
@@ -86,7 +84,7 @@ include("SurfaceMeshes.jl")
 
 include("CartesianMeshes.jl")
 
-include("CellSubMeshes.jl")
+include("CellMeshes.jl")
 
 include("BulkMeshes.jl")
 

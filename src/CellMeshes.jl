@@ -19,10 +19,8 @@ struct MeshCaches
   cutter::CutterCache
 end
 
-CellMesh(b::BoundingBox) = CellMesh(Hexahedron(b))
-
-function CellMesh(c::Hexahedron{N,D,T}) where {N,D,T}
-  coordinates = [ v for v in get_vertices(c) ]
+function CellMesh(box::BoundingBox{D,T}) where {D,T}
+  coordinates = [ v for v in get_vertices(box) ]
   m_n_to_mf_to_nf = Matrix{Table{Int}}(undef,D+1,D+1)
 
   table_m_n_to_mf_to_nf = D_to_m_n_to_mface_to_nfaces_for_hexD_to_tetD[D]
@@ -58,9 +56,10 @@ end
 
 function num_dfaces(m::CellMesh,d::Int)
   if d == 0
-    return length(m.vertex_coordinates)
+    length(m.vertex_coordinates)
+  else
+    length( get_faces(m,d,0) ) 
   end
-  length( get_faces(m,d,0) ) 
 end
 
 function get_faces(m::CellMesh,d::Int,n::Int)
@@ -153,10 +152,10 @@ end
   Meta.parse(str)
 end
 
-function initialize!(m::CellMesh{D,T},c::Hexahedron{N,D,T}) where {N,D,T} 
+function initialize!(m::CellMesh{D,T},box::BoundingBox{D,T}) where {D,T} 
   table_m_n_to_mface_to_nfaces = D_to_m_n_to_mface_to_nfaces_for_hexD_to_tetD[D]
-  resize!(m.vertex_coordinates,N)
-  for (i,v) in enumerate( get_vertices(c) )
+  resize!(m.vertex_coordinates,num_vertices(box))
+  for (i,v) in enumerate( get_vertices(box) )
     m.vertex_coordinates[i] = v
   end
   for d in 0:D, n in 0:d
@@ -165,13 +164,18 @@ function initialize!(m::CellMesh{D,T},c::Hexahedron{N,D,T}) where {N,D,T}
     append!( get_faces(m,d,n), df_to_nf )
   end
   for d in 1:D
-    resize!( m.d_to_dface_to_new_dfaces[d], num_dfaces(m,d) )
+    df_to_new_df = get_dface_to_new_dfaces(m,d)
+    resize!( df_to_new_df, num_dfaces(m,d) )
     for i in 1:num_dfaces(m,d)
-      resize!( m.d_to_dface_to_new_dfaces[d][i],0)
+      resize!( df_to_new_df[i],0)
     end
   end
   m
 end
+
+get_dface_to_new_dfaces(m::CellMesh,d) = m.d_to_dface_to_new_dfaces[d]
+
+get_new_faces(m::CellMesh,d,i) = m.d_to_dface_to_new_dfaces[d][i]
 
 initialize!(m::CellMesh,b::BoundingBox) = initialize!(m,Hexahedron(b))
 
@@ -231,7 +235,7 @@ function _find_coincident_dface(m::CellMesh,c::CutterCache,dim::Integer,id::Inte
   df_id = get_faces(m,dim,ldim)[id,lid]
   df_to_v = get_faces(m,ldim,0)
   ldf_to_lv = get_faces(c,ldim,0)
-  for new_df in m.d_to_dface_to_new_dfaces[ldim][df_id]
+  for new_df in get_new_faces(m,ldim,df_id)
     found = true
     for i in 1:length(df_to_v,df_id)
       coincident = false
@@ -281,7 +285,7 @@ end
 function update_dface_to_new_dfaces!(mesh::CellMesh,cutter::CutterCache,id::Integer)
   dim = num_dims(cutter)
   for d in 1:dim
-    df_to_new_df = mesh.d_to_dface_to_new_dfaces[d]
+    df_to_new_df = get_dface_to_new_dfaces(mesh,d)
     for i in 1:num_dfaces(cutter,d)
       dface = get_dface(cutter,d,i)
       if dface > length( df_to_new_df )
@@ -295,7 +299,7 @@ function update_dface_to_new_dfaces!(mesh::CellMesh,cutter::CutterCache,id::Inte
     end
   end
   for i in 1:num_dfaces(cutter,dim)
-    push!( mesh.d_to_dface_to_new_dfaces[dim][id], get_dface(cutter,dim,i) )
+    push!( get_new_faces(mesh,dim,id), get_dface(cutter,dim,i) )
   end
   mesh
 end
@@ -325,7 +329,7 @@ function update!(mesh::CellMesh,cutter::CutterCache,id::Integer)
   mesh
 end
 
-function refine!(mesh::CellMesh{D},cutter::CutterCache,dim::Integer,id::Integer) where D
+function add_vertex!(mesh::CellMesh{D},cutter::CutterCache,dim::Integer,id::Integer,point::Point) where D
   if dim == 0
     return mesh
   end
@@ -343,6 +347,7 @@ function refine!(mesh::CellMesh{D},cutter::CutterCache,dim::Integer,id::Integer)
       end
     end
   end
+  add_vertex!(mesh,point)
   mesh
 end
 

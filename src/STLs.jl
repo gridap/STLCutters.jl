@@ -75,7 +75,7 @@ function identify_repeated_vertices(vertex_coordinates::Vector{Point{D,T}}) wher
   cell_to_stl_vertices = [ Int[] for i in 1:num_cells(mesh) ]
   cell_cache = Int[]
   for (i,v) ∈ enumerate(vertex_coordinates)
-    for k ∈ cells_around!(cell_cache,mesh,v)
+    for k ∈ cells_touching_bounding_box!(cell_cache,mesh,v)
       h = get_cell(mesh,k)
       if have_intersection(v,h)
         push!(cell_to_stl_vertices[k],i)
