@@ -303,7 +303,7 @@ function remove_repeated_faces!(cutter::CutterCache,mesh::CellMesh)
   for d in 0:dim-1, n in 0:d
     df_to_nf = get_faces(cutter,d,n)
     for i in 1:num_dfaces(cutter,d)
-      if get_dface(cutter,d,i) <= num_dfaces(mesh,d)
+      if get_dface(cutter,d,i) <= length( get_faces(mesh,d,n) )
         remove!(df_to_nf,i)
       end
     end
@@ -387,6 +387,37 @@ function add_vertex!(mesh::CellMesh{D},caches::MeshCaches,dim::Integer,face::Int
   mesh
 end
 
+function compact!(mesh::CellMesh{D}) where D
+  for d in 0:D
+    n_dfaces = 0
+    df_to_df = get_faces(mesh,d,d)
+    for i in 1:length(df_to_df)
+      if isactive(df_to_df,i)
+        @check length(df_to_df,i) == 1
+        n_dfaces += 1
+        df_to_df[i,1] = n_dfaces
+      end
+    end
+  end
+
+  for d in 1:D, n in 0:d-1
+    nf_to_nf = get_faces(mesh,n,n)
+    df_to_nf = get_faces(mesh,d,n)
+    for i in 1:length(df_to_nf)
+      if isactive(df_to_nf,i)
+        for j in 1:length(df_to_nf,i)
+          df_to_nf[i,j] = nf_to_nf[ df_to_nf[i,j], 1 ]
+        end
+      end
+    end
+  end
+  
+  for d in 0:D, n in 0:d
+    compact!( get_faces(mesh,d,n) )
+  end
+  mesh
+end
+
 function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
   d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5,3=>10)
   num_points = num_vertices(m)
@@ -395,7 +426,7 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
     points[d,i] = p[d]
   end
   cells = MeshCell{Vector{Int64}}[]
-  for d in 0:D
+  for d in 1:D
     dface_to_vertices = get_dface_to_vertices(m,d)
     num_dfaces = length(dface_to_vertices)
     vtk_type = VTKCellType(d_to_vtk_type_id[d])

@@ -2,18 +2,12 @@ module CellMeshesTests
 
 using STLCutter
 
-using STLCutter: initialize!, num_dfaces, get_faces, get_cache
+using STLCutter: initialize!, num_dfaces, get_faces, get_cache, compact!
 
 import STLCutter: compact!
 
 using Test
 
-function STLCutter.compact!(m::CellMesh{D}) where D
-  for d in 0:D, n in 0:d
-    compact!( get_faces(mesh,d,n) )
-  end
-  #TODO: Update connectivities with new indexes
-end
 
 p1 = Point(1,2,3)
 p2 = Point(4,5,6)
