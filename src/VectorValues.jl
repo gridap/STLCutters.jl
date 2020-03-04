@@ -123,19 +123,19 @@ end
   Meta.parse(str)
 end
 
-@inline function LinearAlgebra.dot(a::VectorValue{D},b::VectorValue{D}) where D
+@inline function dot(a::VectorValue{D},b::VectorValue{D}) where D
   a*b
 end
 
-@inline function LinearAlgebra.norm(v::VectorValue)
+@inline function norm(v::VectorValue)
   √( v ⋅ v )
 end
 
-function LinearAlgebra.cross(a::VectorValue,b::VectorValue)
+function cross(a::VectorValue,b::VectorValue)
   throw(DimensionMismatch("cross product only supports VectorValues of 3 components"))
 end
 
-@inline function LinearAlgebra.cross(a::VectorValue{3},b::VectorValue{3})
+@inline function cross(a::VectorValue{3},b::VectorValue{3})
   data = (
     (a[2]*b[3] - a[3]*b[2]),
     (a[3]*b[1] - a[1]*b[3]),
@@ -183,4 +183,80 @@ function get_datas(a,b...)
   b_data = get_datas(b...)
   (a_data, b_data...)
 end
+
+function det(a::VectorValue{1})
+  a[1]
+end
+
+function det(a::VectorValue{2},b::VectorValue{2})
+  a[1]*b[2] - a[2]*b[1]
+end
+
+@generated function det(a::NTuple{D,VectorValue{D}}) where D
+  str = ""
+  for i in 1:D
+    vectors = " "
+    for j in 2:D
+      data = ""
+      for k in 1:D
+        if k != i
+          data *= "a[$j][$k],"
+        end
+      end
+      vectors *= "VectorValue($data), "
+    end
+    if isodd(i)
+      str *= " + "
+    else
+      str *= " - "
+    end
+    str *= "a[1][$i] * det($vectors)"
+    if i != D
+      str *= " + \n"
+    end
+  end
+  Meta.parse(str)
+end
+
+function det(::NTuple{N,VectorValue}) where N
+  throw(ArgumentError("det(::VectorValue{D}...) only valid for D VectorValue{D}'s, i.e., square matrix"))
+end
+
+det(a::VectorValue...) = det(a,)
+
+function orthogonal(a::VectorValue{2})
+  VectorValue( -a[2], a[1] )
+end
+
+@generated function orthogonal(a::NTuple{N,VectorValue{D}}) where {N,D}
+  entries = ""
+  for i in 1:D
+    vectors = " "
+    for j in 1:D-1
+      data = ""
+      for k in 1:D
+        if k != i
+          data *= "a[$j][$k],"
+        end
+      end
+      vectors *= "VectorValue($data), "
+    end
+    if iseven(D+i)
+      entries *= " + "
+    else
+      entries *= " - "
+    end
+    entries *= "det($vectors),\n"
+  end
+  str = "VectorValue(\n$entries)"
+  Meta.parse(str)
+end
+
+function orthogonal(a::VectorValue{D}...) where D
+  if length(a) != D-1
+    throw(ArgumentError("orthogonal(::VectorValue{D}...) only well-defined for D-1 VectorValues{D}'s"))
+  end
+  orthogonal(a,)
+end
+
 

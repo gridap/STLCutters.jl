@@ -4,7 +4,7 @@ using FileIO
 using MeshIO
 using LinearAlgebra
 using WriteVTK
-import LinearAlgebra: dot, norm
+import LinearAlgebra: dot, norm, det, cross
 
 
 export num_components
@@ -33,6 +33,7 @@ export num_faces
 
 export num_dims
 export norm
+export orthogonal
 export distance
 export normal
 export center

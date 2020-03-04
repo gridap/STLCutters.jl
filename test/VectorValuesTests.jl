@@ -144,4 +144,46 @@ w = VectorValue(2,1,4)
 @test min.(u,v,w).data == (0,1,2)
 @test max.(u,v,w).data == (2,2,4)
 
+v1 = VectorValue(1,2)
+@test orthogonal(v1) ⋅ v1 == 0
+
+v1 = VectorValue(1,2)
+v2 = VectorValue(3,4)
+A = [ 1 2; 3 4 ]
+@test det(v1,v2) == det(A)
+
+
+v1 = VectorValue(1,2,3)
+v2 = VectorValue(4,5,6)
+v3 = VectorValue(1,1,2)
+A = [ 1 2 3; 4 5 6; 1 1 2 ]
+@test orthogonal(v1,v2) == v1 × v2 
+@test det(v1,v2,v3) == (v1×v2)⋅v3 == det(A)
+
+
+v1 = VectorValue(1,0,0,0)
+v2 = VectorValue(0,1,0,0)
+v3 = VectorValue(0,0,1,0)
+v4 = orthogonal(v1,v2,v3)
+@test v4 == VectorValue(0,0,0,1)
+
+v1 = VectorValue(1,2,3,4)
+v2 = VectorValue(5,6,7,8)
+v3 = VectorValue(6,2,9,9)
+v4 = orthogonal(v1,v2,v3)
+@test v1 ⋅ v4 == 0 
+@test v2 ⋅ v4 == 0
+@test v3 ⋅ v4 == 0
+
+v1 = VectorValue(1,2,3,4)
+v2 = VectorValue(5,6,7,8)
+v3 = VectorValue(6,2,9,9)
+v4 = VectorValue(5,7,8,5)
+A = [
+1 2 3 4; 
+5 6 7 8;
+6 2 9 9;
+5 7 8 5 ]
+@test det(v1,v2,v3,v4) == det(A)
+
 end # module
