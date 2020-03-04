@@ -1,16 +1,26 @@
 
+const FACE_UNDEF = 0
+const FACE_IN = 1
+const FACE_OUT = 2
+const FACE_BOUNDARY = 3
+
 struct CellMesh{D,T}
   vertex_coordinates::Vector{Point{D,T}}
   m_n_to_mface_to_nfaces::Matrix{Table{Int}}
+  d_to_dface_to_cell_dface::Vector{Table{Int}}
+  d_to_dface_to_in_out_boundary::Table{Int}
 end
 
 struct CellMeshCache
   d_to_dface_to_new_dfaces::Vector{Vector{Vector{Int}}}
+  cell_to_lfacet_to_orientation::Table{Int}
+  d_to_dface_to_surface_mesh_faces::Vector{Vector{Vector{Int}}}
 end
 
 struct CutterCache
   d_to_ldface_to_dface::Table{Int}
   m_n_to_mface_to_nfaces::Matrix{Table{Int}}
+  cell_to_lfacet_to_orientation::Table{Int}
 end
 
 struct MeshCaches
@@ -19,31 +29,43 @@ struct MeshCaches
 end
 
 function CellMesh(box::BoundingBox{D,T}) where {D,T}
+  table_m_n_to_mf_to_nf = D_to_m_n_to_mface_to_nfaces_for_hexD_to_tetD[D]
+  table_d_to_df_to_cdf = D_to_case_to_d_to_subdface_to_dface_for_cut_tetD[D]
+  
   coordinates = [ v for v in get_vertices(box) ]
   m_n_to_mf_to_nf = Matrix{Table{Int}}(undef,D+1,D+1)
-
-  table_m_n_to_mf_to_nf = D_to_m_n_to_mface_to_nfaces_for_hexD_to_tetD[D]
+  d_to_df_to_cdf = Vector{Table{Int}}(undef,D+1)
+  d_df_to_io = Table{Int}()
 
   for d in 0:D, n in 0:d
     df_to_nf = table_m_n_to_mf_to_nf[d+1,n+1]
     m_n_to_mf_to_nf[d+1,n+1] = Table( df_to_nf )
   end
 
-  d_to_df_to_new_df = [ Vector{Int}[] for d in 1:D ]
-
-  for d in 1:D
-    d_to_df_to_new_df[d] = [ Int[] for i in 1:length( m_n_to_mf_to_nf[d+1,0+1] ) ]
+  for d in 0:D
+    df_to_cdf = table_d_to_df_to_cdf[d+1]
+    d_to_df_to_cdf[d+1] = Table( df_to_cdf )
   end
 
-  CellMesh{D,T}( coordinates, m_n_to_mf_to_nf )
+  CellMesh{D,T}( coordinates, m_n_to_mf_to_nf, d_to_df_to_cdf, d_df_to_io )
 end
 
 function CellMeshCache(mesh::CellMesh{D}) where D
+  table_c_lf_to_o = D_to_cell_lfacet_to_orientation_for_hexD_to_tetD[D] 
+
   d_to_df_to_new_df = [ Vector{Int}[] for d in 1:D ]
+  c_lf_to_o = Table( table_c_lf_to_o )
+  d_to_df_to_smf = [ Vector{Int}[] for d in 0:D-1 ]
+
   for d in 1:D
     d_to_df_to_new_df[d] = [ Int[] for i in 1:num_dfaces(mesh,d) ]
   end
-  CellMeshCache( d_to_df_to_new_df )
+
+  for d in 0:D-1
+    d_to_df_to_smf[d+1] = [ Int[] for i in 1:num_dfaces(mesh,d) ]
+  end
+
+  CellMeshCache( d_to_df_to_new_df, c_lf_to_o, d_to_df_to_smf )
 end
 
 CutterCache(::T) where T<:CellMesh = CutterCache(T)
@@ -51,10 +73,11 @@ CutterCache(::T) where T<:CellMesh = CutterCache(T)
 function CutterCache(::Type{<:CellMesh{D}}) where D
   d_to_ldf_to_df = Table{Int}()
   m_n_to_mf_to_nf = Matrix(undef,D+1,D+1)
+  c_ldf_to_o = Table{Int}()
   for i in 1:D+1, j in 1:D+1
     m_n_to_mf_to_nf[i,j] = Table{Int}()
   end
-  CutterCache( d_to_ldf_to_df, m_n_to_mf_to_nf )
+  CutterCache( d_to_ldf_to_df, m_n_to_mf_to_nf, c_ldf_to_o )
 end
 
 function MeshCaches(mesh::CellMesh)
@@ -169,20 +192,34 @@ end
 
 function initialize!(m::CellMesh{D,T},box::BoundingBox{D,T}) where {D,T} 
   table_m_n_to_mface_to_nfaces = D_to_m_n_to_mface_to_nfaces_for_hexD_to_tetD[D]
+  table_d_to_df_to_cdf = D_to_case_to_d_to_subdface_to_dface_for_cut_tetD[D]
+  
   resize!(m.vertex_coordinates,num_vertices(box))
   for (i,v) in enumerate( get_vertices(box) )
     m.vertex_coordinates[i] = v
   end
+  
   for d in 0:D, n in 0:d
     df_to_nf = table_m_n_to_mface_to_nfaces[d+1,n+1]
     resize!( get_faces(m,d,n), 0 )
     append!( get_faces(m,d,n), df_to_nf )
   end
+  
+  for d in 0:D
+    df_to_cdf = table_d_to_df_to_cdf[d+1]
+    resize!( m.d_to_dface_to_cell_dface[d+1], 0 )
+    append!( m.d_to_dface_to_cell_dface[d+1], df_to_cdf )
+  end
+
+  resize!(m.d_to_dface_to_in_out_boundary, 0 )
+
   m
 end
 
 
 function initialize!(cache::CellMeshCache,mesh::CellMesh{D}) where D
+  table_c_lf_to_o = D_to_cell_lfacet_to_orientation_for_hexD_to_tetD[D] 
+
   for d in 1:D
     df_to_new_df = get_dface_to_new_dfaces(cache,d)
     resize!( df_to_new_df, num_dfaces(mesh,d) )
@@ -190,14 +227,24 @@ function initialize!(cache::CellMeshCache,mesh::CellMesh{D}) where D
       resize!( df_to_new_df[i],0)
     end
   end
+
+  resize!( cell_lfacet_to_orientation, 0 )
+  append!( cell_lfacet_to_orientation, table_c_lf_to_o )
+ 
+  for d in 0:D-1
+    df_to_smf = cache.d_to_dface_to_surface_mesh_faces[d+1]
+    resize!( d_to_smf[i], num_dfaces(mesh,d) )
+    for i in 1:num_dfaces(mesh,d)
+      resize!(d_to_smf[i],0) 
+    end
+  end
+
   cache
 end
 
 get_dface_to_new_dfaces(a::CellMeshCache,d) = a.d_to_dface_to_new_dfaces[d]
 
 get_new_faces(a::CellMeshCache,d,i) = a.d_to_dface_to_new_dfaces[d][i]
-
-initialize!(m::CellMesh,b::BoundingBox) = initialize!(m,Hexahedron(b))
 
 function add_vertex!(m::CellMesh{D,T},p::Point{D,T}) where {D,T}
   v = get_vertex_coordinates(m)
