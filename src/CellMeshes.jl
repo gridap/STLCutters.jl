@@ -351,16 +351,17 @@ function setup_d_to_ldface_to_dface!(
   dim = num_dims(cutter) 
   for n in 0:dim
     df_to_nf = get_faces(mesh,dim,n)
-    n_dfaces = num_dfaces(mesh,n)
-    for iface in 1:num_dfaces(cutter,n)
-      if get_dface(cutter,n,iface) == 0
-        n_dfaces += 1
-        set_dface!( cutter, n,iface, n_dfaces )
+    n_nfaces = num_dfaces(mesh,n)
+    for tnface in 1:num_dfaces(cutter,n)
+      if get_dface(cutter,n,tnface) == 0
+        n_nfaces += 1
+        set_dface!( cutter, n,tnface, n_nfaces )
       else
-        if n == ldim && get_dface(cutter,n,iface) == lface
-          set_dface!( cutter, n,iface, _find_coincident_dface(mesh,cache,cutter, dim,face, ldim,iface) )
+        nface = df_to_nf[face,get_dface(cutter,n,tnface)]
+        if n > 0 && length( get_new_faces(cache,n,nface) ) > 0
+          set_dface!( cutter, n,tnface, _find_coincident_dface(mesh,cache,cutter, n, nface, tnface ) )
         else
-          set_dface!( cutter, n,iface, df_to_nf[face,get_dface(cutter,n,iface)] )
+          set_dface!( cutter, n,tnface, nface )
         end
       end
     end
@@ -372,16 +373,14 @@ function _find_coincident_dface(
   mesh::CellMesh,
   cache::CellMeshCache,
   cutter::CutterCache,
-  dim::Integer,
-  face::Integer,
-  ldim::Integer,
+  d::Integer,
+  dface::Integer,
   tdface::Integer)
 
-  ldface = get_dface(cutter,ldim,tdface)
-  dface = get_faces(mesh,dim,ldim)[face,ldface]
-  df_to_v = get_faces(mesh,ldim,0)
-  tdf_to_tv = get_faces(cutter,ldim,0)
-  for new_dface in get_new_faces(cache,ldim,dface)
+  df_to_v = get_faces(mesh,d,0)
+  tdf_to_tv = get_faces(cutter,d,0)
+
+  for new_dface in get_new_faces(cache,d,dface)
     found = true
     for lvertex in 1:length(df_to_v,dface)
       coincident = false
@@ -584,7 +583,7 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
   end
 
   cells = MeshCell{Vector{Int64}}[]
-  for d in D
+  for d in 0:D
     dface_to_vertices = get_dface_to_vertices(m,d)
     vtk_type = VTKCellType(d_to_vtk_type_id[d])
     for i in 1:num_dfaces(m,d)

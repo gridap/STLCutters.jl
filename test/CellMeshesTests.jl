@@ -59,15 +59,13 @@ initialize_cache!(cache,mesh)
 stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.75,0.4), Point(0.0,0.5)  ]
 
 
-for k in 1:4
-
-  point = stl_points[k]
+for point in stl_points
 
   d,face = find_closest_face(mesh,point)
 
-  face != UNSET || break
-   
-  add_vertex!(mesh,cache,d,face,point)
+  if face != UNSET 
+    add_vertex!(mesh,cache,d,face,point)
+  end
 
 end
 
@@ -90,17 +88,17 @@ initialize_cache!(cache,mesh)
 stl_points = [ 
   Point(0.3,0.3,0.0), 
   Point(0.25,0.5,0.1), 
-  Point(0.5,0.5,0.0), 
+  Point(0.4,0.6,0.0), 
   Point(0.75,0.4,0.2), 
   Point(0.0,0.5,0.0)  ]
 
-for k in 1:2
+for point in stl_points
 
-  point = stl_points[k]
-
-  face != UNSET || break
-   
-  add_vertex!(mesh,cache,d,face,point)
+  d,face = find_closest_face(mesh,point)
+  
+  if face != UNSET 
+    add_vertex!(mesh,cache,d,face,point)
+  end
 
 end
 
