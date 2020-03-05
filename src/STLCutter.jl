@@ -30,6 +30,7 @@ export num_vertices
 export num_edges
 export num_facets
 export num_faces
+export num_dfaces
 
 export num_dims
 export norm
@@ -55,9 +56,10 @@ export writevtk
 export num_cells
 export get_cell
 export get_dface_to_vertices
-export get_dface_to_nfaces
+export get_faces
 export refine!
 export add_vertex!
+export is_watter_tight
 
 include("tables/LookupCutTables.jl");
 

@@ -75,11 +75,56 @@ num_v = [ length(df_to_v,i) for i in 1:length(df_to_v) ]
 @test maximum(num_v) == minimum(num_v) == 3
 
 
-df_to_nf = get_dface_to_nfaces(s_mesh,1,2)
+df_to_nf = get_faces(s_mesh,1,2)
 
 num_df = [ length(df_to_nf,i) for i in 1:length(df_to_nf) ]
 
 @test maximum(num_df) == minimum(num_df) == 2
+
+@test is_watter_tight(s_mesh)
+
+v = [
+  Point(0.0,0.0),
+  Point(0.0,1.0),
+  Point(1.0,1.0) ]
+
+f2v = Table( [
+  1 2;
+  2 3 ] )
+
+sm = SurfaceMesh(v,f2v)
+
+@test !is_watter_tight(sm)
+
+@test num_dims(sm) == 2
+
+@test num_vertices(sm) == num_faces(sm,0) == 3
+@test num_edges(sm) == num_facets(sm) == num_faces(sm,1) == 2
+
+@test num_faces(sm) == 5
+
+v = [
+  Point(0.0,0.0,0.0),
+  Point(0.0,1.0,0.0),
+  Point(1.0,1.0,0.0),
+  Point(0.0,1.0,1.0), ]
+
+f2v = Table( [
+  1 2 ;
+  2 3 ;
+  3 4 ] )
+
+sm = SurfaceMesh(v,f2v)
+
+@test !is_watter_tight(sm)
+
+@test num_dims(sm) == 3
+
+@test num_vertices(sm) == num_dfaces(sm,0) == 4
+@test num_edges(sm) == num_dfaces(sm,1) == 5
+@test num_facets(sm) == num_dfaces(sm,2) == 2
+
+@test num_faces(sm) == 11
 
 #using STLCutter: BoundingBox, optimized_compute_cell_to_s_mesh_nfaces
 

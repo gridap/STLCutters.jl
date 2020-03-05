@@ -239,6 +239,8 @@ function compute_mesh(x::Array{Float64,2})
     c2v, = delaunay( x )
     c2v = fix_cell_volume(x,c2v)
     nf_to_mf = compute_connectivities(c2v)
+    D = size(x,1)
+    fix_boundary_orientation!( nf_to_mf[D,D-1], nf_to_mf[D,0], nf_to_mf[D-1,0], x)
   end
   nf_to_mf
 end
@@ -279,3 +281,16 @@ function compute_face_to_initial_face(v_to_nF::Vector{Vector{Vector{Int}}},nf_to
   end
   nf_to_nF
 end
+
+function fix_boundary_orientation!(c_to_f::Matrix,c_to_v::Matrix,f_to_v::Matrix,x::Matrix)
+  for i in 1:size(c_to_f,2), j in 1:size(c_to_f,1)
+    c = c_to_v[:,i]
+    f = f_to_v[:,c_to_f[j,i]]
+    cp = vcat( f, setdiff(c,f) )
+    if sign( signed_volume(x[:,cp]) ) > 0
+      f_to_v[ [end-1,end], c_to_f[j,i] ] = reverse( f_to_v[ [end-1,end], c_to_f[j,i] ] ) 
+    end
+  end
+  f_to_v
+end
+

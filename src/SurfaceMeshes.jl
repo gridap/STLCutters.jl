@@ -26,6 +26,30 @@ function SurfaceMesh(stl::STL)
     get_facet_to_vertices(stl) )
 end
 
+function SurfaceMesh(vertex_coordinates::Vector{Point{D,T}},facet_to_vertices::M) where {D,T,M}
+  facet_normals = Vector{VectorValue{D,T}}(undef,length(facet_to_vertices))
+  for i in 1:length(facet_to_vertices)
+    facet = _get_facet(vertex_coordinates,facet_to_vertices,i)
+    facet_normal = normal(facet)
+    facet_normal = facet_normal / norm(facet_normal)
+    facet_normals[i] = normal(facet)
+  end
+  SurfaceMesh(vertex_coordinates,facet_normals,facet_to_vertices)
+end
+
+function _get_facet(vertex_coordinates::Vector{<:Point{2}},facet_to_vertices,i::Integer) 
+  v = vertex_coordinates
+  f = facet_to_vertices
+  Segment( v[f[i,1]], v[f[i,2]] )
+end
+
+function _get_facet(vertex_coordinates::Vector{<:Point{3}},facet_to_vertices,i::Integer) 
+  v = vertex_coordinates
+  f = facet_to_vertices
+  Triangle( v[f[i,1]], v[f[i,2]], v[f[i,3]] )
+end
+
+
 function _compute_mfaces_to_nfaces(facet_to_vertices::Table,::Val{D}) where D
   T = eltype(facet_to_vertices)
   mf_to_nf = Matrix{Table{T}}(undef,D,D)
@@ -67,23 +91,29 @@ end
   
 num_dims(s::SurfaceMesh{D}) where D = D
 
-function get_dface_to_nfaces(s::SurfaceMesh,d::Integer,n::Integer)
+function get_faces(s::SurfaceMesh,d::Integer,n::Integer)
   s.mfaces_to_nfaces[d+1,n+1]
 end
 
 function get_dface_to_vertices(s::SurfaceMesh,d::Integer)
-  get_dface_to_nfaces(s,d,0)
+  get_faces(s,d,0)
 end
 
 get_vertex_coordinates(s::SurfaceMesh) = s.vertex_coordinates
 
-@inline function num_vertices(s::SurfaceMesh)
+function num_vertices(s::SurfaceMesh)
   length(s.vertex_coordinates)
 end
 
-@inline function num_faces(s::SurfaceMesh,d::Integer)
+function num_faces(s::SurfaceMesh,d::Integer)
   length( get_dface_to_vertices(s,d) )
 end
+
+num_dfaces(s::SurfaceMesh,d::Integer) = num_faces(s,d)
+
+num_edges(s::SurfaceMesh) = num_faces(s,1)
+
+num_facets(s::SurfaceMesh{D}) where D = num_faces(s,D-1)
 
 function num_faces(s::SurfaceMesh)
   s.d_to_offset[end]
@@ -382,9 +412,8 @@ function writevtk(sm::SurfaceMesh{D,T},file_base_name) where {D,T}
   cells = MeshCell{Vector{Int64}}[]
   for d in 0:D-1
     dface_to_vertices = get_dface_to_vertices(sm,d)
-    num_dfaces = length(dface_to_vertices)
     vtk_type = VTKCellType(d_to_vtk_type_id[d])
-    for i in 1:num_dfaces
+    for i in 1:num_faces(sm,d)
       vertices = [ dface_to_vertices[i,j] for j in 1:vtk_type.nodes ]
       push!( cells, MeshCell(vtk_type,vertices) )
     end
@@ -431,4 +460,14 @@ end
   error = "throw(ArgumentError(\" \$d-face does not exist\"))"
   str = "$body \n  $error \nend"
   Meta.parse(str)
+end
+
+function is_watter_tight(s::SurfaceMesh{D}) where D
+  lface_to_facets = get_faces(s,D-2,D-1)
+  for i in 1:length(lface_to_facets)
+    if length(lface_to_facets,i) != 2
+      return false
+    end
+  end
+  true
 end
