@@ -24,4 +24,10 @@ a = average(p1,p2,p3)
 @test get_data(a) == (1.0,1.0,1.0)
 @test a == average((p1,p2,p3))
 
+a = Point(1,1,1)
+b = Point(2,3,3)
+
+@test closest_point(a,b) == a
+@test closest_point(b,a) == b
+
 end # module

@@ -185,7 +185,7 @@ function have_intersection(s::Segment{D},t::Triangle{D}) where D
   throw(ArgumentError("have_intersection(::Segment{$D},::Triangle{$D}) not implemented"))
 end
 
-function intersection(s::Segment{D},t::Triangle{D}) where D
+function intersection(s::Segment{3},t::Triangle{3})
   @check have_intersection_point(s,t)
   n = normal(t)
   c = center(t)
@@ -195,9 +195,28 @@ function intersection(s::Segment{D},t::Triangle{D}) where D
   s[1] + s1_s2 * α
 end
 
-function projection(p::Point{D},t::Triangle{D}) where D
+function projection(p::Point{3},t::Triangle{3})
+  @check contains_projection(p,t)
   c = center(t)
   n = normal(t)
   n = n / norm(n)
   p + ( ( c - p ) ⋅ n ) * n
 end
+
+function projection(p::Point{2},t::Triangle{2})
+  @check contains_projection(p,t)
+  p
+end
+
+function closest_point(t::Triangle,p::Point)
+  projection(p,t)
+end
+
+function closest_point(s::Segment{3},t::Triangle{3})
+  intersection(s,t)
+end
+
+function closest_point(t::Triangle{3},s::Segment{3})
+  intersection(s,t)
+end
+

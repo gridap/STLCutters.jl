@@ -113,6 +113,22 @@ function Base.resize!(a::Table,n::Int)
   a
 end
 
+function Base.fill!(a::Table,val)
+  fill!(a.data,val)
+  a
+end
+
+function Base.resize!(a::Table,len::Vector)
+  n = length(a)
+  resize!(a.ptrs,1)
+  append!(a.ptrs,len)
+  length_to_ptrs!(a.ptrs)
+  resize!(a.data,a.ptrs[end]-1)
+  resize!(a.masks,a.ptrs[end]-1)
+  fill!(a.masks,true)
+  a
+end
+
 function Base.push!(a::Table,b::Vector)
   append!(a.data,b)
   push!(a.masks,true)

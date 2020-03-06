@@ -55,8 +55,17 @@ end
 @inline contains_projection(s::Segment{D},p::Point{D}) where D = contains_projection(p,s)
 
 function distance(s1::Segment{D},s2::Segment{D}) where D
-  throw(ArgumentError("distance(::Segment{$D},::Segment{$D}) not implemented, only in 3D"))
+  throw(ArgumentError("distance(::Segment{$D},::Segment{$D}) not implemented"))
 end
+
+function distance(s1::Segment{2},s2::Segment{2})
+  if have_intersection(s1,s2)
+    0.0
+  else
+    typemax(0.0)
+  end
+end
+
 
 function distance(s1::Segment{3},s2::Segment{3})
 
@@ -132,7 +141,7 @@ function intersection(s1::Segment{2},s2::Segment{2})
   n2 = normal(s2)
   n2 = n2 / norm(n2)
   c2 = center(s2)
-  α = abs( ( c2 - s1[1] ) ⋅ n2 ) / norm(v1)
+  α = abs( ( ( c2 - s1[1] ) ⋅ n2 ) / ( v1 ⋅ n2 ) )
   s1[1] + α * v1
 end
 
@@ -165,5 +174,13 @@ function closest_point(s1::Segment{3},s2::Segment{3})
 end
 
 function closest_point(s1::Segment{D},s2::Segment{D}) where D
-  throw(ArgumentError("distance(:Segment{$D},s2::Segment{$D}) not implemented, only in 3D"))
+  throw(ArgumentError("distance(:Segment{$D},s2::Segment{$D}) not implemented"))
+end
+
+function closest_point(s::Segment,p::Point)
+  projection(p,s)
+end
+
+function closest_point(s1::Segment{2},s2::Segment{2})
+  intersection(s1,s2)
 end

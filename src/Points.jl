@@ -171,3 +171,17 @@ function Base.zero(::Type{Point{D,T}}) where {D,T}
   Point(zero(VectorValue{D,T}))
 end
 
+"""
+  closest point in the first argument to the segond argument
+  
+  `closest_point(a,b)` is not simmetric, i.e.,
+
+    closest_point(p::Point,s::Segment) = p
+
+    closest_point(s::Segment,p::Point) = projection(p,s)
+
+"""
+function closest_point(a::Point,b)
+  a
+end
+

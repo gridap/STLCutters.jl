@@ -74,4 +74,24 @@ t = Triangle(p1,p2,p3)
 p = Point(0.5,0.5,0.5)
 @test projection(p,t) == Point(0.5,0.5,0.0)
 
+
+p = Point(1,1)
+p1 = Point(0,0)
+p2 = Point(3,0)
+p3 = Point(0,3)
+t = Triangle(p1,p2,p3)
+
+@test projection(p,t) == p
+@test closest_point(p,t) == closest_point(t,p) == p
+
+p = Point(1,1,1)
+p1 = Point(0,0,0)
+p2 = Point(3,0,0)
+p3 = Point(0,3,0)
+
+t = Triangle(p1,p2,p3)
+
+@test closest_point(p,t) == p
+@test closest_point(t,p) == projection(p,t)
+
 end # module

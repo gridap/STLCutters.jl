@@ -61,3 +61,7 @@ function distance(p::Point{3},t::Tetrahedron{3})
   end
 end
 
+function closest_point(t::Tetrahedron{3},p::Point{3})
+  p
+end
+

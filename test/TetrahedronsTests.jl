@@ -29,3 +29,5 @@ p = Point(0.0,0.9,0.0)
 
 p = Point(0.0,0.0,0.9)
 @test have_intersection(p,tet)
+
+@test closest_point(p,tet) == closest_point(tet,p) == p

@@ -96,4 +96,19 @@ x = closest_point(s1,s2)
 @test distance(x,s1) < 1e-13
 @test distance(x,s2) == distance(s1,s2)
 
+p1 = Point(0,0)
+p2 = Point(1,1)
+p3 = Point(0,1)
+p4 = Point(1,0)
+
+p = Point(1,2)
+
+s1 = Segment(p1,p2)
+s2 = Segment(p3,p4)
+
+@test closest_point(s1,s2) == intersection(s1,s2)
+@test closest_point(p,s1) == p
+@test closest_point(s1,p) == projection(p,s1)
+@test have_intersection(s1,s2)
+
 end # module
