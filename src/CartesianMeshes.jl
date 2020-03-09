@@ -5,10 +5,10 @@ struct CartesianMesh{D,T}
   partition::NTuple{D,Int}
 end
 
-function CartesianMesh(b::BoundingBox,p::Tuple)
+function CartesianMesh(b::BoundingBox,partition::Tuple)
   origin = b.pmin
   sizes = b.pmax - b.pmin
-  CartesianMesh(origin,sizes,p)
+  CartesianMesh(origin,sizes,partition)
 end
 
 function CartesianMesh(b::BoundingBox{D},n::Integer) where D
@@ -86,32 +86,32 @@ function cells_touching_bounding_box!(cache::Vector,m::CartesianMesh{D},bb::Boun
   cache
 end
 
-function all_to_all_compute_cell_to_stl_faces(m::CartesianMesh{D},stl::SurfaceMesh{D}) where D
+function all_to_all_compute_cell_to_surface_mesh_faces(m::CartesianMesh{D},sm::SurfaceMesh{D}) where D
   cells = Int[]
   faces = Int[]
   for k in 1:num_cells(m)
     cell = get_cell(m,k)
-    for stl_face in 1:num_faces(stl)
-      if have_intersection(cell,stl,stl_face)
+    for sm_face in 1:num_faces(sm)
+      if have_intersection(cell,sm,sm_face)
         push!(cells,k)
-        push!(faces,stl_face)
+        push!(faces,sm_face)
       end
     end
   end
   Table(faces,cells,num_cells(m))
 end
 
-function compute_cell_to_stl_faces(m::CartesianMesh{D},stl::SurfaceMesh{D}) where D
+function compute_cell_to_surface_mesh_faces(m::CartesianMesh{D},sm::SurfaceMesh{D}) where D
   cells = Int[]
   faces = Int[]
   cell_cache = Int[]
-  for stl_face in 1:num_faces(stl)
-    bb = BoundingBox(stl,stl_face)
+  for sm_face in 1:num_faces(sm)
+    bb = BoundingBox(sm,sm_face)
     for k in cells_touching_bounding_box!(cell_cache,m,bb)
       cell = get_cell(m,k)
-      if have_intersection(cell,stl,stl_face)
+      if have_intersection(cell,sm,sm_face)
         push!(cells,k)
-        push!(faces,stl_face)
+        push!(faces,sm_face)
       end
     end
   end

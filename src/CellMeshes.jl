@@ -193,6 +193,64 @@ function facet_center(m::CellMesh{D},i::Integer) where D
   face_center(m,Val{D-1}(),i)
 end
 
+function set_face_in_out_boundary!(mesh::CellMesh,d::Integer,face::Integer,val)
+  mesh.d_to_dface_to_in_out_boundary[d+1,face] = val
+end
+
+function get_face_in_out_boundary(mesh::CellMesh,d::Integer,face::Integer)
+  mesh.d_to_dface_to_in_out_boundary[d+1,face]
+end
+
+function set_face_as_interior!(mesh::CellMesh,d::Integer,face::Integer)
+  set_face_in_out_boundary!(mesh,d,face,FACE_IN)
+end
+
+function set_face_as_exterior!(mesh::CellMesh,d::Integer,face::Integer)
+  set_face_in_out_boundary!(mesh,d,face,FACE_OUT)
+end
+
+function set_face_as_boundary!(mesh::CellMesh,d::Integer,face::Integer)
+  set_face_in_out_boundary!(mesh,d,face,FACE_BOUNDARY)
+end
+
+function set_cell_in_out!(mesh::CellMesh{D},cell::Integer,val) where D
+  @check val != FACE_BOUNDARY
+  set_face_in_out_boundary!(mesh,D,cell,val)
+end
+
+function get_cell_in_out(mesh::CellMesh{D},cell::Integer) where D
+  get_face_in_out_boundary(mesh,D,cell)
+end
+
+function is_face_interior(mesh::CellMesh,d::Integer,face::Integer)
+  get_face_in_out_boundary(mesh,d,face) == FACE_IN
+end
+
+function is_face_exterior(mesh::CellMesh,d::Integer,face::Integer)
+  get_face_in_out_boundary(mesh,d,face) == FACE_OUT
+end
+
+function is_face_boundary(mesh::CellMesh,d::Integer,face::Integer)
+  get_face_in_out_boundary(mesh,d,face) == FACE_BOUNDARY
+end
+
+function is_face_defined(mesh::CellMesh,d::Integer,face::Integer)
+  get_face_in_out_boundary(mesh,d,face) != FACE_UNDEF
+end
+
+function is_cell_defined(mesh::CellMesh{D},cell::Integer) where D
+  is_face_defined(mesh,D,cell)
+end
+
+function are_all_faces_defined(mesh::CellMesh{D}) where D
+  for d in 0:D, dface in 1:num_dfaces(mesh,d)
+    if !is_face_defined(mesh,d,dface)
+      return false
+    end
+  end
+  true
+end
+
 num_dims(cache::CellMeshCache) = length(cache.d_to_dface_to_new_dfaces)
 
 num_dfaces(cutter::CutterCache,d::Integer) = length(cutter.d_to_ldface_to_dface,d+1)
@@ -248,7 +306,6 @@ function initialize!(m::CellMesh{D,T},box::BoundingBox{D,T}) where {D,T}
 
   m
 end
-
 
 function initialize!(cache::CellMeshCache,mesh::CellMesh{D}) where D
   table_c_lf_to_o = D_to_cell_lfacet_to_orientation_for_hexD_to_tetD[D] 
@@ -579,14 +636,9 @@ function add_vertex!(mesh::CellMesh,cache::MeshCaches,d::Integer,face::Integer,p
   mesh
 end
 
-
-
-function compact!(mesh::CellMesh{D},cache::MeshCaches) where D
-  
+function compact_cache!(cache::MeshCaches,mesh::CellMesh{D}) where D
   cell_cache = cache.cell
-  
   resize!(cell_cache.d_to_dface_to_new_dfaces,0)
-
   for d in 0:D
     iface = 0
     for i in 1:num_dfaces(mesh,d)
@@ -597,14 +649,16 @@ function compact!(mesh::CellMesh{D},cache::MeshCaches) where D
       end
     end
   end
-
   for i in 1:num_cells(mesh)
     if !isactive(mesh,D,i)
       remove!(cell_cache.cell_to_lfacet_to_orientation,i)
     end
   end
   compact!(cell_cache.cell_to_lfacet_to_orientation)
+  cache
+end
 
+function compact!(mesh::CellMesh{D}) where D
   for d in 0:D
     n_dfaces = 0
     df_to_df = get_faces(mesh,d,d)
@@ -633,6 +687,14 @@ function compact!(mesh::CellMesh{D},cache::MeshCaches) where D
     compact!( get_faces(mesh,d,n) )
   end
 
+  mesh
+end
+
+function compact!(mesh::CellMesh{D},cache::MeshCaches) where D
+  
+  compact_cache!(cache,mesh)
+
+  compact!(mesh)
 
   initialize_d_to_dface_to_in_out_boundary!(mesh,cache)
   compute_facet_to_cells!(mesh,cache)
@@ -894,65 +956,6 @@ function define_boundary_faces!(mesh::CellMesh,cache::MeshCaches)
   end
   mesh
 end
-
-function set_face_in_out_boundary!(mesh::CellMesh,d::Integer,face::Integer,val)
-  mesh.d_to_dface_to_in_out_boundary[d+1,face] = val
-end
-
-function get_face_in_out_boundary(mesh::CellMesh,d::Integer,face::Integer)
-  mesh.d_to_dface_to_in_out_boundary[d+1,face]
-end
-
-function set_face_as_interior!(mesh::CellMesh,d::Integer,face::Integer)
-  set_face_in_out_boundary!(mesh,d,face,FACE_IN)
-end
-
-function set_face_as_exterior!(mesh::CellMesh,d::Integer,face::Integer)
-  set_face_in_out_boundary!(mesh,d,face,FACE_OUT)
-end
-
-function set_face_as_boundary!(mesh::CellMesh,d::Integer,face::Integer)
-  set_face_in_out_boundary!(mesh,d,face,FACE_BOUNDARY)
-end
-
-function set_cell_in_out!(mesh::CellMesh{D},cell::Integer,val) where D
-  @check val != FACE_BOUNDARY
-  set_face_in_out_boundary!(mesh,D,cell,val)
-end
-
-function get_cell_in_out(mesh::CellMesh{D},cell::Integer) where D
-  get_face_in_out_boundary(mesh,D,cell)
-end
-
-function is_face_interior(mesh::CellMesh,d::Integer,face::Integer)
-  get_face_in_out_boundary(mesh,d,face) == FACE_IN
-end
-
-function is_face_exterior(mesh::CellMesh,d::Integer,face::Integer)
-  get_face_in_out_boundary(mesh,d,face) == FACE_OUT
-end
-
-function is_face_boundary(mesh::CellMesh,d::Integer,face::Integer)
-  get_face_in_out_boundary(mesh,d,face) == FACE_BOUNDARY
-end
-
-function is_face_defined(mesh::CellMesh,d::Integer,face::Integer)
-  get_face_in_out_boundary(mesh,d,face) != FACE_UNDEF
-end
-
-function is_cell_defined(mesh::CellMesh{D},cell::Integer) where D
-  is_face_defined(mesh,D,cell)
-end
-
-function are_all_faces_defined(mesh::CellMesh{D}) where D
-  for d in 0:D, dface in 1:num_dfaces(mesh,d)
-    if !is_face_defined(mesh,d,dface)
-      return false
-    end
-  end
-  true
-end
-
 
 function compute_in_out!(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh)
   compute_facet_to_surface_mesh_facet!(mesh,cache,sm)

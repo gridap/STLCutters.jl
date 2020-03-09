@@ -3,7 +3,7 @@ module CartesianMeshTests
 using Test
 using STLCutter
 
-using STLCutter: BoundingBox,find_container, get_cell_id, all_to_all_compute_cell_to_stl_faces,compute_cell_to_stl_faces
+using STLCutter: BoundingBox,find_container, get_cell_id, all_to_all_compute_cell_to_surface_mesh_faces,compute_cell_to_surface_mesh_faces
 
 o = Point(0.0,0.0,0.0)
 s = VectorValue(1.0,1.0,1.0)
@@ -24,8 +24,8 @@ m = CartesianMesh(o,s,p)
 stl = STL(joinpath(@__DIR__,"data/cube.stl"))
 sm = SurfaceMesh(stl)
 
-cell_to_stl_faces = compute_cell_to_stl_faces(m,sm)
-@test length(cell_to_stl_faces,1) == num_faces(sm)
+cell_to_sm_faces = compute_cell_to_surface_mesh_faces(m,sm)
+@test length(cell_to_sm_faces,1) == num_faces(sm)
 
 o = Point(0.0,0.0,0.0)
 s = VectorValue(1.0,1.0,1.0)
@@ -69,8 +69,8 @@ s = VectorValue(1.0,1.0,1.0)
 p = (2,3,4)
 m = CartesianMesh(o,s,p)
 
-opt_c2s = compute_cell_to_stl_faces(m,sm)
-non_opt_c2s = all_to_all_compute_cell_to_stl_faces(m,sm)
+opt_c2s = compute_cell_to_surface_mesh_faces(m,sm)
+non_opt_c2s = all_to_all_compute_cell_to_surface_mesh_faces(m,sm)
 
 @test opt_c2s == non_opt_c2s
 
@@ -79,8 +79,8 @@ s = VectorValue(2.0,1.0,1.0)
 p = (10,1,1)
 m = CartesianMesh(o,s,p)
 
-opt_c2s = compute_cell_to_stl_faces(m,sm)
-non_opt_c2s = all_to_all_compute_cell_to_stl_faces(m,sm)
+opt_c2s = compute_cell_to_surface_mesh_faces(m,sm)
+non_opt_c2s = all_to_all_compute_cell_to_surface_mesh_faces(m,sm)
 
 @test opt_c2s == non_opt_c2s
 
