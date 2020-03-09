@@ -38,9 +38,13 @@ function CellMesh(box::BoundingBox{D,T}) where {D,T}
   m_n_to_mf_to_nf = Matrix{Table{Int}}(undef,D+1,D+1)
   d_df_to_io = Table{Int}()
 
-  for d in 0:D, n in 0:d
-    df_to_nf = table_m_n_to_mf_to_nf[d+1,n+1]
-    m_n_to_mf_to_nf[d+1,n+1] = Table( df_to_nf )
+  for d in 0:D, n in 0:D
+    if n ≤ d
+     df_to_nf = table_m_n_to_mf_to_nf[d+1,n+1]
+     m_n_to_mf_to_nf[d+1,n+1] = Table( df_to_nf )
+   else
+     m_n_to_mf_to_nf[d+1,n+1] = Table{Int}()
+   end
   end
 
 
@@ -195,6 +199,8 @@ num_dfaces(cutter::CutterCache,d::Integer) = length(cutter.d_to_ldface_to_dface,
 
 num_dims(cutter::CutterCache) = length(cutter.d_to_ldface_to_dface)-1
 
+num_mesh_dims(a::CutterCache) = size(a.m_n_to_mface_to_nfaces,1)-1
+
 function get_dface(cutter::CutterCache,d::Integer,i::Integer) 
   cutter.d_to_ldface_to_dface[d+1,i]
 end
@@ -322,7 +328,9 @@ function load_tables!(cutter::CutterCache,dim::Integer,ldim::Integer,lid::Intege
   end
 
   resize!( cutter.cell_to_lfacet_to_orientation, 0 )
-  append!( cutter.cell_to_lfacet_to_orientation, tables_c_to_lf_to_o )
+  if num_mesh_dims(cutter) == dim
+    append!( cutter.cell_to_lfacet_to_orientation, tables_c_to_lf_to_o )
+  end
 
   cutter
 end
@@ -581,16 +589,16 @@ function compact!(mesh::CellMesh{D},cache::MeshCaches) where D
 
   for d in 0:D
     iface = 0
-    for i in num_dfaces(mesh,d)
+    for i in 1:num_dfaces(mesh,d)
       iface += 1
       if !isactive(mesh,d,i)
-        deleteat!(cell_cache.d_to_dface_to_cell_dface,iface)
+        deleteat!(cell_cache.d_to_dface_to_cell_dface[d],iface)
         iface -= 1
       end
     end
   end
 
-  for i in num_cells(mesh)
+  for i in 1:num_cells(mesh)
     if !isactive(mesh,D,i)
       remove!(cell_cache.cell_to_lfacet_to_orientation,i)
     end
@@ -624,6 +632,11 @@ function compact!(mesh::CellMesh{D},cache::MeshCaches) where D
   for d in 0:D, n in 0:d
     compact!( get_faces(mesh,d,n) )
   end
+
+
+  initialize_d_to_dface_to_in_out_boundary!(mesh,cache)
+  compute_facet_to_cells!(mesh,cache)
+
   mesh
 end
 
@@ -662,9 +675,18 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
 
   vtkfile = vtk_grid(file_base_name,points,cells)
   vtkfile["facet_normals",VTKPointData()] = normals
-  vtkfile["IO",VTKCellData()] = m.d_to_dface_to_in_out_boundary.data
+  vtkfile["IO",VTKCellData()] = _get_in_out_face_data(m,0:D)
 
   vtk_save(vtkfile)
+end
+
+function _get_in_out_face_data(m::CellMesh,range)
+  data = Int[]
+  for d in range, i in 1:num_dfaces(m,d)
+    push!(data,get_face_in_out_boundary(m,d,i))
+  end
+  data
+  data
 end
 
 @generated function distance(
@@ -752,7 +774,7 @@ function _find_surface_mesh_facet(mesh::CellMesh,cache::MeshCaches,facet::Intege
       d = dface_dimension(sm,sm_face)
       sm_dface = local_dface(sm,sm_face,d)
       smdf_to_smf = get_faces(sm,d,D-1)
-      for i in length(smdf_to_smf,sm_dface)
+      for i in 1:length(smdf_to_smf,sm_dface)
         sm_facet = smdf_to_smf[sm_dface,i]
         push!(intersection_cache_bis,sm_facet)
       end
@@ -792,29 +814,18 @@ function compute_facet_to_surface_mesh_facet!(mesh::CellMesh,cache::MeshCaches,s
 end
 
 
-function define_boundary_cells!(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh)
+function define_cells_touching_boundary!(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh)
   D = num_dims(mesh)
-
-  sizes = get_vector(cache)
-  resize!(sizes,D+1)
-  for d in 0:D
-    sizes[d+1] = num_dfaces(mesh,d)
-  end
-
-  d_to_df_to_io = mesh.d_to_dface_to_in_out_boundary
-
-  resize!(d_to_df_to_io,sizes)
-  fill!(d_to_df_to_io,FACE_UNDEF)
 
   c_to_f = get_faces(mesh,D,D-1)
   f_to_smf = cache.cell.facet_to_surface_mesh_facet
-  
+
   for cell in 1:num_cells(mesh)
     if isactive(mesh,D,cell)
       for lfacet in 1:length(c_to_f,cell)
         facet = c_to_f[cell,lfacet]
         if f_to_smf[facet] != UNSET
-          d_to_df_to_io[D+1,cell] = _define_cell(mesh,cache,sm,cell,lfacet)
+          set_cell_in_out!(mesh,cell, _define_cell(mesh,cache,sm,cell,lfacet) )
         end
       end
     end
@@ -852,9 +863,180 @@ function _define_cell(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh,cell::Int
   end
 end
 
+
+function initialize_d_to_dface_to_in_out_boundary!(mesh::CellMesh,cache::MeshCaches)
+  D = num_dims(mesh)
+  lens = get_vector(cache)
+  resize!(lens,D+1)
+  for d in 0:D
+    lens[d+1] = num_dfaces(mesh,d)
+  end
+  d_to_df_to_io = mesh.d_to_dface_to_in_out_boundary
+  resize!(d_to_df_to_io,lens)
+  fill!(d_to_df_to_io,FACE_UNDEF)
+  mesh
+end
+
+function define_boundary_faces!(mesh::CellMesh,cache::MeshCaches)
+  D = num_dims(mesh)
+  d = D-1
+  f_to_smf = cache.cell.facet_to_surface_mesh_facet
+  for facet in 1:num_facets(mesh)
+    if f_to_smf[facet] != UNSET
+      for d in 0:D-1
+        f_to_df = get_faces(mesh,D-1,d)
+        for ldf in 1:length(f_to_df,facet)
+          dface = f_to_df[facet,ldf]
+          set_face_as_boundary!(mesh,d,dface)
+        end
+      end
+    end
+  end
+  mesh
+end
+
+function set_face_in_out_boundary!(mesh::CellMesh,d::Integer,face::Integer,val)
+  mesh.d_to_dface_to_in_out_boundary[d+1,face] = val
+end
+
+function get_face_in_out_boundary(mesh::CellMesh,d::Integer,face::Integer)
+  mesh.d_to_dface_to_in_out_boundary[d+1,face]
+end
+
+function set_face_as_interior!(mesh::CellMesh,d::Integer,face::Integer)
+  set_face_in_out_boundary!(mesh,d,face,FACE_IN)
+end
+
+function set_face_as_exterior!(mesh::CellMesh,d::Integer,face::Integer)
+  set_face_in_out_boundary!(mesh,d,face,FACE_OUT)
+end
+
+function set_face_as_boundary!(mesh::CellMesh,d::Integer,face::Integer)
+  set_face_in_out_boundary!(mesh,d,face,FACE_BOUNDARY)
+end
+
+function set_cell_in_out!(mesh::CellMesh{D},cell::Integer,val) where D
+  @check val != FACE_BOUNDARY
+  set_face_in_out_boundary!(mesh,D,cell,val)
+end
+
+function get_cell_in_out(mesh::CellMesh{D},cell::Integer) where D
+  get_face_in_out_boundary(mesh,D,cell)
+end
+
+function is_face_interior(mesh::CellMesh,d::Integer,face::Integer)
+  get_face_in_out_boundary(mesh,d,face) == FACE_IN
+end
+
+function is_face_exterior(mesh::CellMesh,d::Integer,face::Integer)
+  get_face_in_out_boundary(mesh,d,face) == FACE_OUT
+end
+
+function is_face_boundary(mesh::CellMesh,d::Integer,face::Integer)
+  get_face_in_out_boundary(mesh,d,face) == FACE_BOUNDARY
+end
+
+function is_face_defined(mesh::CellMesh,d::Integer,face::Integer)
+  get_face_in_out_boundary(mesh,d,face) != FACE_UNDEF
+end
+
+function is_cell_defined(mesh::CellMesh{D},cell::Integer) where D
+  is_face_defined(mesh,D,cell)
+end
+
+function are_all_faces_defined(mesh::CellMesh{D}) where D
+  for d in 0:D, dface in 1:num_dfaces(mesh,d)
+    if !is_face_defined(mesh,d,dface)
+      return false
+    end
+  end
+  true
+end
+
+
 function compute_in_out!(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh)
   compute_facet_to_surface_mesh_facet!(mesh,cache,sm)
-  define_boundary_cells!(mesh,cache,sm)
+  define_cells_touching_boundary!(mesh,cache,sm)
+  define_boundary_faces!(mesh,cache)
+
+  queue = get_vector(cache)
+  resize!(queue,num_cells(mesh))
+
+  D = num_dims(mesh)
+  c_to_f = get_faces(mesh,D,D-1)
+  f_to_c = get_faces(mesh,D-1,D)
+  for cell in 1:num_cells(mesh)
+    if is_cell_defined(mesh,cell)
+      cell_io = get_cell_in_out(mesh,cell)
+      head = 1
+      tail = 1
+      queue[head] = cell
+      while head ≤ tail
+        head_cell = queue[head]
+        head += 1
+        for lfacet in 1:length(c_to_f,head_cell)
+          facet = c_to_f[head_cell,lfacet]
+          if !is_face_boundary(mesh,D-1,facet)
+            for i in 1:length(f_to_c,facet)
+              cell_around = f_to_c[facet,i]
+              if !is_cell_defined(mesh,cell_around)
+                set_cell_in_out!(mesh,cell_around,cell_io)
+                tail += 1
+                queue[tail] = cell_around
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  define_faces!(mesh)
+  mesh
+end
+
+function define_faces!(mesh::CellMesh)
+  D = num_dims(mesh)
+  for cell in 1:num_cells(mesh)
+    cell_io = get_cell_in_out(mesh,cell)
+    for d in 0:D-1
+      c_to_df = get_faces(mesh,D,d)
+      for ldface in 1:length(c_to_df,cell)
+        dface = c_to_df[cell,ldface]
+        if !is_face_defined(mesh,d,dface)
+          set_face_in_out_boundary!(mesh,d,dface,cell_io)
+        end
+      end
+    end
+  end
+  mesh
+end
+
+function compute_facet_to_cells!(mesh::CellMesh,cache::MeshCaches)
+  D = num_dims(mesh)
+  compute_nface_to_dfaces_dual!(mesh,cache,D,D-1)
+end
+
+function compute_nface_to_dfaces_dual!(mesh::CellMesh,cache::MeshCaches,n::Integer,d::Integer)
+  n_dfaces = num_dfaces(mesh,d)
+  n_nfaces = num_dfaces(mesh,n)
+  nf_to_df = get_faces(mesh,n,d)
+  lens = get_vector(cache)
+  resize!(lens,n_dfaces)
+  fill!(lens,0)
+  for i in 1:n_nfaces, j in 1:length(nf_to_df,i)
+    dface = nf_to_df[i,j]
+    lens[dface] += 1
+  end
+  df_to_nf = get_faces(mesh,d,n)
+  resize!(df_to_nf,lens)
+  fill!(df_to_nf,UNSET)
+  fill!(lens,0)
+  for i in 1:n_nfaces, j in 1:length(nf_to_df,i)
+    dface = nf_to_df[i,j]
+    lens[dface] += 1
+    df_to_nf[dface,lens[dface]] = i
+  end
   mesh
 end
 

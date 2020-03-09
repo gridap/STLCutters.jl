@@ -2,7 +2,7 @@ module CellMeshesTests
 
 using STLCutter
 
-using STLCutter: initialize!, num_dfaces, get_faces, get_cache, compact!, initialize_cache!, UNSET, dface_dimension, local_dface, global_dface, get_vertex,@check, get_face, get_dface, compute_in_out!
+using STLCutter: initialize!, num_dfaces, get_faces, get_cache, compact!, initialize_cache!, UNSET, dface_dimension, local_dface, global_dface, get_vertex,@check, get_face, get_dface, compute_in_out!, are_all_faces_defined
 
 import STLCutter: compact!
 
@@ -164,7 +164,7 @@ initialize_cache!(cache,mesh)
 stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.75,0.4), Point(0.0,0.5)  ]
 
 
-for point in stl_points
+for point in stl_points[1:1]
 
   d,face = find_closest_face(mesh,point)
 
@@ -251,9 +251,10 @@ compact!(mesh,cache)
 
 compute_in_out!(mesh,cache,sm)
 
-
 writevtk(sm,"sm")
 writevtk(mesh,"sub_mesh")
+
+@test are_all_faces_defined(mesh)
 
 end # module
 
