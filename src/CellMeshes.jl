@@ -1,8 +1,84 @@
+# API for the vertices phase
+#
+#  # We are at cell id == cell
+#
+# for i in 1:length(cell_to_sm_faces,cell)
+#
+#   sm_face = cell_to_sm_faces[cell,i]
+#   d = get_face_dimension(sm,sm_face)
+#   if d == 0
+#     v = get_vertex(sm,sm_face)
+#     d, iface = find_closest_face(cm,v)
+#     add_vertex!(cm,d,iface,v,i)
+#   end
+#
+# end
+#
+#     sm_dface = get_local_dface_id(sm,sm_face,d)
+#
+# API for edge phase
+#
+# for i in 1:length(cell_to_sm_faces,cell)
+#
+#   sm_face = cell_to_sm_faces[cell,i]
+#   d = get_face_dimension(sm,sm_face)
+#   if d == 1
+#
+#   vertices = find_captured_edge_end_points!(sm,cm,sm_face)
+#
+#   if length(vertices) == 0
+#    _d, iface, p = find_intersection_point_on_boundary_face(sm,cm,s_face)
+#    add_vertex!(cm,_d,iface,p,sm_face)
+#     vertices = find_captured_edge_end_points!(sm,cm,sm_face)
+#   end
+#
+#   while length(vertices) > 0
+#     vertex = pop!(vertices)
+#     _d, iface, new_vertex = find_next_vertex(sm,cm,vertex,sm_face)
+#     new_vertex_id = add_vertex!(cm,_d,iface,new_vertex,sm_face)
+#     if new_vertex_id != UNSET
+#       push!(vertices,new_vertex_id)
+#     end
+#   end
+#
+#   end
+#
+# end
+#
+# API for face phase
+#
+# for i in 1:length(cell_to_sm_faces,cell)
+#
+#   sm_face = cell_to_sm_faces[cell,i]
+#   d = get_face_dimension(sm,sm_face)
+#   if d == 2
+#
+#   edges = find_captured_face_edges!(sm,cm,sm_face)
+#
+#   if length(edges) == 0
+#   end
+#
+#   while length(edges) > 0
+#     edge = pop!(edges)
+#     _d, iface, new_vertex = find_next_vertex_3d(sm,cm,edge,sm_face)
+#     new_vertex_id = add_vertex!(cm,_d,iface,new_vertex,sm_face)
+#     new_edge_1, new_edge_2 = find_edges_closing_triangle(cm,new_vertex_id,edge)
+#     if new_vertex_id != UNSET
+#       push!(edges,new_edge_1)
+#       push!(edges,new_edge_2)
+#     end
+#   end
+#
+#   end
+#
+# end
 
 const FACE_UNDEF = 0
 const FACE_IN = 1
 const FACE_OUT = 2
 const FACE_BOUNDARY = 3
+
+const intersection_tolerance = 1e-10
 
 struct CellMeshCache
   d_to_dface_to_new_dfaces::Vector{Vector{Vector{Int}}}
@@ -34,7 +110,7 @@ end
 
 function CellMesh(box::BoundingBox{D,T}) where {D,T}
   mesh = CellMesh{D,T}()
-  initialize!(mesh,box)
+  reset!(mesh,box)
 end
 
 function CellMesh{D,T}() where {D,T}
@@ -48,7 +124,7 @@ function CellMesh{D,T}() where {D,T}
   CellMesh{D,T}( coordinates, m_n_to_mf_to_nf, d_df_to_io, cache )
 end
 
-function initialize!(m::CellMesh{D,T},box::BoundingBox{D,T}) where {D,T} 
+function reset!(m::CellMesh{D,T},box::BoundingBox{D,T}) where {D,T} 
   table_m_n_to_mface_to_nfaces = D_to_m_n_to_mface_to_nfaces_for_hexD_to_tetD[D]
   resize!(m.vertex_coordinates,num_vertices(box))
   for (i,v) in enumerate( get_vertices(box) )
@@ -60,18 +136,21 @@ function initialize!(m::CellMesh{D,T},box::BoundingBox{D,T}) where {D,T}
     append!( get_faces(m,d,n), df_to_nf )
   end
   resize!(m.d_to_dface_to_in_out_boundary, 0 )
-  initialize_cache!(m.cache,m)
+  reset_cache!(m.cache,m)
   m
 end
 
 function add_vertex!(mesh::CellMesh,d::Integer,face::Integer,point::Point,sm_face::Integer)
-  _add_vertex!(mesh,d,face,point)
-  if d == 0
-    add_surface_mesh_face_to_vertex!(mesh.cache.cell,face,sm_face)
+  if face != UNSET
+    if d == 0
+      add_surface_mesh_face_to_vertex!(mesh.cache.cell,face,sm_face)
+    else
+      push_surface_mesh_face!(mesh.cache.cell,sm_face)
+    end
+    _add_vertex!(mesh,d,face,point)
   else
-    push_surface_mesh_face!(mesh.cache.cell,sm_face)
+    UNSET
   end
-  mesh
 end
 
 function compact!(mesh::CellMesh)
@@ -123,6 +202,29 @@ function compute_in_out!(mesh::CellMesh,sm::SurfaceMesh)
   define_faces!(mesh)
   mesh
 end
+
+# Intersections
+
+function find_closest_face(mesh::CellMesh{D},point::Point{D}) where D
+  min_distance = intersection_tolerance 
+  iface = UNSET
+  for d in 0:D
+    for i in 1:num_dfaces(mesh,d)
+      if isactive(mesh,d,i)
+        if distance(mesh,d,i,point) ≤ min_distance
+          min_distance = distance(mesh,d,i,point)
+          iface = i
+        end
+      end
+    end
+    if iface != UNSET
+      return (d,iface)
+    end
+  end
+  (UNSET,UNSET)
+end
+
+
 
 # Getters
 
@@ -277,6 +379,7 @@ function set_cell_in_out!(mesh::CellMesh{D},cell::Integer,val) where D
   @check val != FACE_BOUNDARY
   set_face_in_out_boundary!(mesh,D,cell,val)
 end
+
 # Geometrical queries
 
 @generated function distance(m::CellMesh{D},d::Int,i::Int,p::Point{D}) where D
@@ -290,6 +393,12 @@ end
   error = "  throw(ArgumentError(\"\$d-face does not exist\"))\n"
   str = body * '\n' * error * "end"
   Meta.parse(str)
+end
+
+function distance(m::CellMesh,d::Integer,face::Integer,sm::SurfaceMesh,sm_face::Integer)
+  sm_d = dface_dimension(sm,sm_face)
+  sm_dface = local_dface(sm,sm_face,sm_d)
+  distance(m,d,face,sm,sm_d,sm_dface)
 end
 
 @generated function distance(
@@ -327,6 +436,12 @@ end
 end
 
 # closest_point_in_mesh_to_surface_mesh
+function closest_point(m::CellMesh,d::Integer,face::Integer,sm::SurfaceMesh,sm_face::Integer)
+  sm_d = dface_dimension(sm,sm_face)
+  sm_dface = local_dface(sm,sm_face,sm_d)
+  closest_point(m,d,face,sm,sm_d,sm_dface)
+end
+
 @generated function closest_point(
   m::CellMesh{D},d::Integer,dface::Integer,
   sm::SurfaceMesh{D},n::Integer,sm_nface::Integer) where D
@@ -432,7 +547,7 @@ function MeshCaches(D::Integer)
   MeshCaches( cell_cache, cutter_cache, vector1, vector2 )
 end
 
-function initialize!(cache::CellMeshCache,mesh::CellMesh{D}) where D
+function reset_cell_cache!(cache::CellMeshCache,mesh::CellMesh{D}) where D
   table_c_lf_to_o = D_to_cell_lfacet_to_orientation_for_hexD_to_tetD[D] 
   table_d_to_df_to_cdf = D_to_d_to_subdface_to_dface_for_hexD_to_tetD[D]
   for d in 1:D
@@ -463,7 +578,7 @@ function initialize!(cache::CellMeshCache,mesh::CellMesh{D}) where D
   cache
 end
 
-function initialize!(cutter::CutterCache)
+function reset_cutter_cache!(cutter::CutterCache)
   resize!(cutter.d_to_ldface_to_dface,0)
   resize!(cutter.cell_to_lfacet_to_orientation,0)
   for t in cutter.m_n_to_mface_to_nfaces
@@ -472,10 +587,10 @@ function initialize!(cutter::CutterCache)
   cutter
 end
 
-function initialize_cache!(caches::MeshCaches,mesh::CellMesh)
-  initialize!(caches.cell,mesh)
-  initialize!(caches.cutter)
-  caches
+function reset_cache!(cache::MeshCaches,mesh::CellMesh)
+  reset_cell_cache!(cache.cell,mesh)
+  reset_cutter_cache!(cache.cutter)
+  cache
 end
 
 get_cache(mesh::CellMesh) = mesh.cache
@@ -497,6 +612,7 @@ get_cell_dface(a::CellMeshCache,d::Integer,i::Integer) = a.d_to_dface_to_cell_df
 function _add_vertex!(m::CellMesh{D,T},p::Point{D,T}) where {D,T}
   v = get_vertex_coordinates(m)
   push!( v, p )
+  num_vertices(m)
 end
 
 function remove_dface!(m::CellMesh,d::Integer,i::Int)
@@ -530,7 +646,7 @@ end
 
 function _add_vertex!(mesh::CellMesh{D},dim::Integer,face::Integer,point::Point) where D
   if dim == 0
-    return mesh
+    return UNSET
   end
   for d in dim:D
     cache = mesh.cache
@@ -549,7 +665,6 @@ function _add_vertex!(mesh::CellMesh{D},dim::Integer,face::Integer,point::Point)
     end
   end
   _add_vertex!(mesh,point)
-  mesh
 end
 
 function append_mesh!(mesh::CellMesh,caches::MeshCaches)
