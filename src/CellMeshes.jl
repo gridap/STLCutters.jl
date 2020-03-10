@@ -64,25 +64,26 @@ function initialize!(m::CellMesh{D,T},box::BoundingBox{D,T}) where {D,T}
   m
 end
 
-function add_vertex!(mesh::CellMesh,cache::MeshCaches,d::Integer,face::Integer,point::Point,sm_face::Integer)
-  add_vertex!(mesh,cache,d,face,point)
+function add_vertex!(mesh::CellMesh,d::Integer,face::Integer,point::Point,sm_face::Integer)
+  _add_vertex!(mesh,d,face,point)
   if d == 0
-    add_surface_mesh_face_to_vertex!(cache.cell,face,sm_face)
+    add_surface_mesh_face_to_vertex!(mesh.cache.cell,face,sm_face)
   else
-    push_surface_mesh_face!(cache.cell,sm_face)
+    push_surface_mesh_face!(mesh.cache.cell,sm_face)
   end
   mesh
 end
 
-function compact!(mesh::CellMesh{D},cache::MeshCaches) where D
-  compact_cache!(cache,mesh)
-  compact!(mesh)
-  initialize_d_to_dface_to_in_out_boundary!(mesh,cache)
-  compute_facet_to_cells!(mesh,cache)
+function compact!(mesh::CellMesh)
+  compact_cache!(mesh.cache,mesh)
+  compact_mesh!(mesh)
+  initialize_d_to_dface_to_in_out_boundary!(mesh,mesh.cache)
+  compute_facet_to_cells!(mesh,mesh.cache)
   mesh
 end
 
-function compute_in_out!(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh)
+function compute_in_out!(mesh::CellMesh,sm::SurfaceMesh)
+  cache = mesh.cache
   compute_facet_to_surface_mesh_facet!(mesh,cache,sm)
   define_cells_touching_boundary!(mesh,cache,sm)
   define_boundary_faces!(mesh,cache)
@@ -493,7 +494,7 @@ get_new_faces(a::CellMeshCache,d::Integer,i::Integer) = a.d_to_dface_to_new_dfac
 
 get_cell_dface(a::CellMeshCache,d::Integer,i::Integer) = a.d_to_dface_to_cell_dface[d+1][i]
 
-function add_vertex!(m::CellMesh{D,T},p::Point{D,T}) where {D,T}
+function _add_vertex!(m::CellMesh{D,T},p::Point{D,T}) where {D,T}
   v = get_vertex_coordinates(m)
   push!( v, p )
 end
@@ -527,18 +528,19 @@ function set_orientation!(cutter::CutterCache,cell::Integer,lfacet::Integer, val
   cutter.cell_to_lfacet_to_orientation[cell,lfacet] = val
 end
 
-function add_vertex!(mesh::CellMesh{D},caches::MeshCaches,dim::Integer,face::Integer,point::Point) where D
+function _add_vertex!(mesh::CellMesh{D},dim::Integer,face::Integer,point::Point) where D
   if dim == 0
     return mesh
   end
   for d in dim:D
+    cache = mesh.cache
     df_to_nf = get_faces(mesh,d,dim)
     for iface in 1:length(df_to_nf)
       if isactive(df_to_nf,iface)
         for lface in 1:length(df_to_nf,iface)
           if df_to_nf[iface,lface] == face
-            refine_dface!( caches, mesh, d,iface, dim,lface )
-            append_mesh!( mesh, caches )
+            refine_dface!( cache, mesh, d,iface, dim,lface )
+            append_mesh!( mesh, cache )
             remove_dface!( mesh, d,iface )
             break
           end
@@ -546,7 +548,7 @@ function add_vertex!(mesh::CellMesh{D},caches::MeshCaches,dim::Integer,face::Int
       end
     end
   end
-  add_vertex!(mesh,point)
+  _add_vertex!(mesh,point)
   mesh
 end
 
@@ -795,7 +797,7 @@ function compact_cache!(cache::MeshCaches,mesh::CellMesh{D}) where D
   cache
 end
 
-function compact!(mesh::CellMesh)
+function compact_mesh!(mesh::CellMesh)
   D = num_dims(mesh)
   for d in 0:D
     n_dfaces = 0

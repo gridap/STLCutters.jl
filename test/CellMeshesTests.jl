@@ -2,9 +2,14 @@ module CellMeshesTests
 
 using STLCutter
 
-using STLCutter: initialize!, num_dfaces, get_faces, get_cache, compact!, initialize_cache!, UNSET, dface_dimension, local_dface, global_dface, get_vertex,@check, get_face, get_dface, compute_in_out!, are_all_faces_defined, get_cell_dface
+# To be public
+using STLCutter: initialize!, compact!, compute_in_out!, num_dfaces, get_faces, dface_dimension, local_dface, global_dface, get_vertex, get_face, get_dface
 
-import STLCutter: compact!
+# Private used in test
+using STLCutter: _add_vertex!, UNSET, are_all_faces_defined
+
+# Temporally included
+using STLCutter: initialize_cache!, @check, get_cell_dface, get_vector, get_vector_bis
 
 using Test
 
@@ -92,11 +97,12 @@ function find_first_boundary_face(mesh::CellMesh,cache,sm::SurfaceMesh,sm_face_d
   (UNSET,UNSET)
 end
 
-function add_surface_mesh_face!(mesh,cache,sm,sm_face)
+function add_surface_mesh_face!(mesh,sm,sm_face)
+  cache = mesh.cache
   d = dface_dimension(sm,sm_face)
   sm_dface = local_dface(sm,sm_face,d)
 
-  boundary_vertices = Int[]
+  boundary_vertices = get_vector(cache)
   for n in 0:d-1 
     df_to_nf = get_faces(sm,d,n)
     for vertex in 1:num_vertices(mesh)
@@ -116,14 +122,14 @@ function add_surface_mesh_face!(mesh,cache,sm,sm_face)
     dim,iface = find_first_boundary_face(mesh,cache,sm,d,sm_dface)
     if iface != UNSET
       point = closest_point(mesh,dim,iface, sm,d,sm_dface)
-      add_vertex!(mesh,cache,dim,iface,point,sm_face)
+      add_vertex!(mesh,dim,iface,point,sm_face)
     end
 
     
   end
 
   D = num_dims(mesh)
-  queue = Int[]
+  queue = get_vector_bis(cache)
   append!(queue,boundary_vertices)
 
   head = 1
@@ -162,7 +168,7 @@ function add_surface_mesh_face!(mesh,cache,sm,sm_face)
     
     if iface != UNSET
       point = closest_point(mesh,opposite_dim,iface, sm,d,sm_dface)
-      add_vertex!(mesh,cache,opposite_dim,iface,point,sm_face)
+      add_vertex!(mesh,opposite_dim,iface,point,sm_face)
       push!(queue,num_vertices(mesh))
     end
 
@@ -195,24 +201,19 @@ box = BoundingBox(p0,p1)
 
 mesh = CellMesh(box)
 
-cache = get_cache(mesh)
-
-initialize_cache!(cache,mesh)
-
 stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.75,0.4), Point(0.0,0.5)  ]
-
 
 for point in stl_points[1:1]
 
   d,face = find_closest_face(mesh,point)
 
   if face != UNSET 
-    add_vertex!(mesh,cache,d,face,point)
+    _add_vertex!(mesh,d,face,point)
   end
 
 end
 
-compact!(mesh,cache)
+compact!(mesh)
 
 writevtk(mesh,"sub_mesh")
 
@@ -223,10 +224,6 @@ p1 = Point(1.0,1.0,1.0)
 box = BoundingBox(p0,p1)
 
 mesh = CellMesh(box)
-
-cache = get_cache(mesh)
-
-initialize_cache!(cache,mesh)
 
 stl_points = [ 
   Point(0.3,0.3,0.0), 
@@ -240,12 +237,12 @@ for point in stl_points
   d,face = find_closest_face(mesh,point)
   
   if face != UNSET 
-    add_vertex!(mesh,cache,d,face,point)
+    _add_vertex!(mesh,d,face,point)
   end
 
 end
 
-compact!(mesh,cache)
+compact!(mesh)
 
 writevtk(mesh,"sub_mesh3")
 
@@ -265,7 +262,6 @@ box = BoundingBox(p0,p1)
 
 mesh = CellMesh(box)
 
-cache = get_cache(mesh)
 
 for sm_face in 1:num_faces(sm)
   if dface_dimension(sm,sm_face) == 0
@@ -276,18 +272,18 @@ for sm_face in 1:num_faces(sm)
     d,face = find_closest_face(mesh,sm_vertex)
 
     if face != UNSET 
-      add_vertex!(mesh,cache,d,face,sm_vertex,sm_face)
+      add_vertex!(mesh,d,face,sm_vertex,sm_face)
     end
 
   else
-    add_surface_mesh_face!(mesh,cache,sm,sm_face)
+    add_surface_mesh_face!(mesh,sm,sm_face)
   end
 end
 
 
-compact!(mesh,cache)
+compact!(mesh)
 
-compute_in_out!(mesh,cache,sm)
+compute_in_out!(mesh,sm)
 
 writevtk(sm,"sm")
 writevtk(mesh,"sub_mesh")
