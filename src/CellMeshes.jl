@@ -893,12 +893,12 @@ end
 function compact_cache!(cache::MeshCaches,mesh::CellMesh{D}) where D
   cell_cache = cache.cell
   resize!(cell_cache.d_to_dface_to_new_dfaces,0)
-  for d in 0:D
+  for d in 0:D-1
     iface = 0
     for i in 1:num_dfaces(mesh,d)
       iface += 1
       if !isactive(mesh,d,i)
-        deleteat!(cell_cache.d_to_dface_to_cell_dface[d],iface)
+        deleteat!(cell_cache.d_to_dface_to_cell_dface[d+1],iface)
         iface -= 1
       end
     end

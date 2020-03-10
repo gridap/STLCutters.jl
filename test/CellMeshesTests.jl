@@ -402,12 +402,14 @@ for sm_face in 1:num_faces(sm)
     if length(vertices) == 0
       _d, iface, point = find_intersection_point_on_boundary_face(mesh,sm,sm_face)
       _vertex = add_vertex!(mesh,_d,iface,point,sm_face)
-      push!(vertices,_vertex)
+      if _vertex != UNSET
+        push!(vertices,_vertex)
+      end
     end
 
     while length(vertices) > 0 
       vertex = pop!(vertices)
-      @show _d, iface, point = find_next_point(mesh,vertex,sm,sm_face)
+      _d, iface, point = find_next_point(mesh,vertex,sm,sm_face)
       _vertex = add_vertex!(mesh,_d,iface,point,sm_face)
       if _vertex != UNSET
         push!(vertices,_vertex)
@@ -415,7 +417,6 @@ for sm_face in 1:num_faces(sm)
     end
   end
 end
-
 
 compact!(mesh)
 
