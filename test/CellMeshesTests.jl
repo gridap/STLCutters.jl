@@ -2,7 +2,7 @@ module CellMeshesTests
 
 using STLCutter
 
-using STLCutter: initialize!, num_dfaces, get_faces, get_cache, compact!, initialize_cache!, UNSET, dface_dimension, local_dface, global_dface, get_vertex,@check, get_face, get_dface, compute_in_out!, are_all_faces_defined
+using STLCutter: initialize!, num_dfaces, get_faces, get_cache, compact!, initialize_cache!, UNSET, dface_dimension, local_dface, global_dface, get_vertex,@check, get_face, get_dface, compute_in_out!, are_all_faces_defined, get_cell_dface
 
 import STLCutter: compact!
 
@@ -62,6 +62,36 @@ function get_opposite_face(mesh::CellMesh,d::Integer,dface::Integer,n::Integer,n
   return UNSET
 end
 
+function find_first_boundary_face(mesh::CellMesh,cache,sm::SurfaceMesh,sm_face_dim::Integer,sm_face::Integer)
+
+  D = num_dims(mesh)
+  for d in 1:D-1
+    for dface in 1:num_dfaces(mesh,d)
+      if isactive(mesh,d,dface)
+        if get_cell_dface(cache.cell,d,dface) != 0 # UNSET, is_cell_boundary_face
+          for n in 1:d
+            df_to_nf = get_faces(mesh,d,n)
+            iface = UNSET
+            min_distance = intersection_tolerance
+            for lnface in 1:length(df_to_nf,dface)
+              nface = df_to_nf[dface,lnface]
+              dist = distance(mesh,n,nface,sm,sm_face_dim,sm_face) 
+              if dist < min_distance
+                min_distance = dist
+                iface = nface
+              end
+            end
+            if iface != UNSET
+              return (d,iface)
+            end
+          end
+        end
+      end
+    end
+  end
+  (UNSET,UNSET)
+end
+
 function add_surface_mesh_face!(mesh,cache,sm,sm_face)
   d = dface_dimension(sm,sm_face)
   sm_dface = local_dface(sm,sm_face,d)
@@ -83,6 +113,13 @@ function add_surface_mesh_face!(mesh,cache,sm,sm_face)
 
   if length(boundary_vertices) == 0
     ## add one starting point
+    dim,iface = find_first_boundary_face(mesh,cache,sm,d,sm_dface)
+    if iface != UNSET
+      point = closest_point(mesh,dim,iface, sm,d,sm_dface)
+      add_vertex!(mesh,cache,dim,iface,point,sm_face)
+    end
+
+    
   end
 
   D = num_dims(mesh)
@@ -126,6 +163,7 @@ function add_surface_mesh_face!(mesh,cache,sm,sm_face)
     if iface != UNSET
       point = closest_point(mesh,opposite_dim,iface, sm,d,sm_dface)
       add_vertex!(mesh,cache,opposite_dim,iface,point,sm_face)
+      push!(queue,num_vertices(mesh))
     end
 
   end
