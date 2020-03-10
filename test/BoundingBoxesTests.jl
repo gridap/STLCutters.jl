@@ -37,14 +37,14 @@ bb = BoundingBox(Point(0,0,0),Point(1,1,1))
 
 @test have_intersection(p,bb)
 
-bb1 = BoundingBox(Point(0,0,0),Point(1,1,1))
-bb2 = BoundingBox(Point(0.5,0.5,0.5),Point(2.0,2.0,2.0))
+#bb1 = BoundingBox(Point(0,0,0),Point(1,1,1))
+#bb2 = BoundingBox(Point(0.5,0.5,0.5),Point(2.0,2.0,2.0))
+#
+#@test have_intersection(bb1,bb2)
 
-@test have_intersection(bb1,bb2)
-
-bb1 = BoundingBox(Point(0,0,0),Point(1,1,1))
-bb2 = BoundingBox(Point(1.5,1.5,1.5),Point(2.0,2.0,2.0))
-
-@test !have_intersection(bb1,bb2)
+#bb1 = BoundingBox(Point(0,0,0),Point(1,1,1))
+#bb2 = BoundingBox(Point(1.5,1.5,1.5),Point(2.0,2.0,2.0))
+#
+#@test !have_intersection(bb1,bb2)
 
 end # module

@@ -25,7 +25,7 @@ function get_facet(t::Tetrahedron,i::Integer)
   Triangle( t.vertices[lpoints[1]],  t.vertices[lpoints[2]],  t.vertices[lpoints[3]] )
 end
 
-function volume(t::Tetrahedron{D}) where D
+function volume(t::Tetrahedron{3})
   factor = 1/6
   v1 = t.vertices[2] - t.vertices[1]
   v2 = t.vertices[3] - t.vertices[1]
@@ -34,6 +34,20 @@ function volume(t::Tetrahedron{D}) where D
 end
 
 measure(t::Tetrahedron) = volume(t)
+
+function measure(t::Tetrahedron{4})
+  v1 = t.vertices[2] - t.vertices[1]
+  v2 = t.vertices[3] - t.vertices[1]
+  v3 = t.vertices[4] - t.vertices[1]
+  norm( orthogonal(v1,v2,v3) )
+end
+
+function normal(t::Tetrahedron{4})
+  v1 = t.vertices[2] - t.vertices[1]
+  v2 = t.vertices[3] - t.vertices[1]
+  v3 = t.vertices[4] - t.vertices[1]
+  orthogonal(v1,v2,v3)
+end
 
 function have_intersection(p::Point{3},t::Tetrahedron{3})
   for i in 1:num_facets(t)

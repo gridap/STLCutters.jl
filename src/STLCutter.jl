@@ -60,6 +60,7 @@ export get_faces
 export refine!
 export add_vertex!
 export is_watter_tight
+export compute_cell_to_surface_mesh_faces
 
 include("tables/LookupCutTables.jl");
 

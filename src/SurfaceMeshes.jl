@@ -49,6 +49,11 @@ function _get_facet(vertex_coordinates::Vector{<:Point{3}},facet_to_vertices,i::
   Triangle( v[f[i,1]], v[f[i,2]], v[f[i,3]] )
 end
 
+function _get_facet(vertex_coordinates::Vector{<:Point{4}},facet_to_vertices,i::Integer) 
+  v = vertex_coordinates
+  f = facet_to_vertices
+  Tetrahedron( v[f[i,1]], v[f[i,2]], v[f[i,3]], v[f[i,4]] )
+end
 
 function _compute_mfaces_to_nfaces(facet_to_vertices::Table,::Val{D}) where D
   T = eltype(facet_to_vertices)
@@ -137,39 +142,41 @@ function local_dface(s::SurfaceMesh,gid::Integer,d::Integer)
   gid - s.d_to_offset[d+1]
 end
 
-function get_vertex(s::SurfaceMesh,i::Int)
+function get_vertex(s::SurfaceMesh,i::Integer)
   get_dface(s,Val{0}(),i)
 end
 
-function get_edge(s::SurfaceMesh,i::Int)
+function get_edge(s::SurfaceMesh,i::Integer)
   get_dface(s,Val{1}(),i)
 end
 
-function get_facet(s::SurfaceMesh{D},i::Int) where D
+function get_facet(s::SurfaceMesh{D},i::Integer) where D
   get_dface(s,Val{D-1}(),i)
 end
 
-function get_dface(s::SurfaceMesh,::Val{d}, i::Int) where d
+function get_dface(s::SurfaceMesh,::Val{d}, i::Integer) where d
   error("Not implemented for dimension = $d")
 end
 
-function get_dface(s::SurfaceMesh,::Val{0}, i::Int)
+function get_dface(s::SurfaceMesh,::Val{0}, i::Integer)
   s.vertex_coordinates[i]
 end
 
-function get_dface(s::SurfaceMesh,::Val{1}, i::Int)
+function get_dface(s::SurfaceMesh,::Val{1}, i::Integer)
   df_to_v = get_dface_to_vertices(s,1)
   v = get_vertex_coordinates(s)
   Segment(v[df_to_v[i,1]],v[df_to_v[i,2]])
 end
 
-function get_dface(s::SurfaceMesh,::Val{2}, i::Int)
+function get_dface(s::SurfaceMesh,::Val{2}, i::Integer)
   df_to_v = get_dface_to_vertices(s,2)
   v = get_vertex_coordinates(s)
   Triangle( v[df_to_v[i,1]], v[df_to_v[i,2]], v[df_to_v[i,3]] )
 end
 
-function compute_nface_to_dfaces_dual(nface_to_dfaces::Table,n_dfaces::Int)
+get_facet_normal(s::SurfaceMesh,i::Integer) = s.facet_normals[i]
+
+function compute_nface_to_dfaces_dual(nface_to_dfaces::Table,n_dfaces::Integer)
 
   ptrs = zeros(Int32,n_dfaces+1)
   for nface in 1:length(nface_to_dfaces)
@@ -405,9 +412,16 @@ end
 function writevtk(sm::SurfaceMesh{D,T},file_base_name) where {D,T}
   d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5,3=>10)
   num_points = num_vertices(sm)
-  points = zeros(T,D,num_points)
+  points = zeros(T,D,num_points+num_facets(sm))
   for (i ,p ) in enumerate( get_vertex_coordinates(sm) ), d in 1:D
     points[d,i] = p[d]
+  end
+  for i in 1:num_facets(sm)
+    facet = get_facet(sm,i)
+    facet_center = center(facet)
+    for d in 1:D
+      points[d,i+num_points] = facet_center[d]
+    end
   end
   cells = MeshCell{Vector{Int64}}[]
   for d in 0:D-1
@@ -418,7 +432,15 @@ function writevtk(sm::SurfaceMesh{D,T},file_base_name) where {D,T}
       push!( cells, MeshCell(vtk_type,vertices) )
     end
   end
+  normals = zeros(3,num_points+num_facets(sm))
+  for i in 1:num_facets(sm)
+    facet_normal = get_facet_normal(sm,i)
+    for d in 1:D
+       normals[d,i+num_points] = facet_normal[d]
+    end
+  end
   vtkfile = vtk_grid(file_base_name,points,cells)
+  vtkfile["facet_normals",VTKPointData()] = normals
   vtk_save(vtkfile)
 end
 

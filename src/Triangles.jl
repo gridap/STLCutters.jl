@@ -105,6 +105,16 @@ end
 
 @inline distance(t::Triangle,p::Point) = distance(p,t)
 
+function distance(s::Segment{3},t::Triangle{3})
+  if have_intersection(s,t)
+    0.0
+  else
+    typemax(0.0)
+  end
+end
+
+distance(t::Triangle,s::Segment) = distance(s,t)
+
 function contains_projection(p::Point{2},t::Triangle{2})
   s = measure_sign(t)
   s != 0 || throw(ErrorException("Triangle area is 0"))

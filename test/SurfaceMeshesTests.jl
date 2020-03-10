@@ -126,18 +126,42 @@ sm = SurfaceMesh(v,f2v)
 
 @test num_faces(sm) == 11
 
-#using STLCutter: BoundingBox, optimized_compute_cell_to_s_mesh_nfaces
+
+v = [
+  Point(0.0,0.0,0.0,0.0),
+  Point(0.0,1.0,0.0,0.0),
+  Point(1.0,1.0,0.0,0.0),
+  Point(0.0,1.0,1.0,0.0), 
+  Point(1.0,1.0,1.0,1.0)]
+
+f2v = Table( [
+  1 2 ;
+  2 3 ;
+  3 4 ;
+  4 5 ] )
+
+sm = SurfaceMesh(v,f2v)
+
+@test !is_watter_tight(sm)
+
+@test num_dims(sm) == 4
+
+@test num_vertices(sm) == num_dfaces(sm,0) == 5
+@test num_edges(sm) == num_dfaces(sm,1) == 9
+@test num_dfaces(sm,2) == 7
+@test num_facets(sm) == 2
+
+@test num_faces(sm) == 23
 
 
-#s_mesh = SurfaceMesh("sbunny.stl")
+#stl = STL("sbunny.stl")
+#sm = SurfaceMesh(stl)
 #bb = BoundingBox(s_mesh)
-#o = bb.pmin
-#s = bb.pmax - bb.pmin
-#p = (100,100,100)
-#m = StructuredBulkMesh(o,s,p)
-#x=optimized_compute_cell_to_s_mesh_nfaces(m,stl);
-#@time x=optimized_compute_cell_to_s_mesh_nfaces(m,stl);
-#@show @allocated optimized_compute_cell_to_s_mesh_nfaces(m,stl)
+#n = 100
+#m = CartesianMesh(bb,n)
+#x=compute_cell_to_surface_mesh_faces(m,sm);
+#@time x=compute_cell_to_surface_mesh_faces(m,sm);
+#@show @allocated compute_cell_to_surface_mesh_faces(m,sm)
 
 
 end # module

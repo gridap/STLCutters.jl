@@ -96,7 +96,6 @@ end
 
 function have_intersection(t::Triangle{3},bb::BoundingBox{3})
   bb = expand(bb,BB_tolerance)
-  have_intersection(bb,BoundingBox(t)) || return false
   for p ∈ get_vertices(t)
     if have_intersection(p,bb)
       return true
@@ -182,9 +181,5 @@ function have_intersection(t::Triangle{D},bb::BoundingBox{D}) where D
 end
 
 function have_intersection(bb1::BoundingBox{D},bb2::BoundingBox{D}) where {D}
-  !have_intersection(bb1.pmin,bb2) || return true
-  !have_intersection(bb1.pmax,bb2) || return true
-  !have_intersection(bb2.pmin,bb1) || return true
-  !have_intersection(bb2.pmax,bb1) || return true
-  false
+  throw(ArgumentError("have_intersection(::BoundingBox,::BoundingBox) not implemented"))
 end
