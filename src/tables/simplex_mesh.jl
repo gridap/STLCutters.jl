@@ -240,7 +240,7 @@ function compute_mesh(x::Array{Float64,2})
     c2v = fix_cell_volume(x,c2v)
     nf_to_mf = compute_connectivities(c2v)
     D = size(x,1)
-    fix_boundary_orientation!( nf_to_mf[D,D-1], nf_to_mf[D,0], nf_to_mf[D-1,0], x)
+    #fix_boundary_orientation!( nf_to_mf[D,D-1], nf_to_mf[D,0], nf_to_mf[D-1,0], x)
   end
   nf_to_mf
 end
