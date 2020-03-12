@@ -78,7 +78,7 @@ stl_points = [
 #  Point((1.0, 0.16666666666666674, 0.3333333333333333)),
 #  Point((0.7000000000000001, 0.29999999999999993, 0.29999999999999993)) ]
 
-for point in stl_points[1:1]
+for point in stl_points
 
   d,face = find_closest_face(mesh,point)
   

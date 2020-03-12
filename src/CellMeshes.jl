@@ -919,7 +919,7 @@ function refine_dface!(caches::MeshCaches,mesh::CellMesh,dim::Integer,face::Inte
   ## Load cutter cache
   load_tables!(cutter_cache,dim,ldim,lface)
   setup_cell_to_lface_to_orientation!(cutter_cache,cell_cache,face)
-  setup_d_to_ldface_to_dface!(cutter_cache,cell_cache,mesh,face,ldim,lface)
+  setup_d_to_tdface_to_dface!(cutter_cache,cell_cache,mesh,face,ldim,lface)
   setup_connectivities!(cutter_cache)
   remove_repeated_faces!(cutter_cache,mesh)
 
@@ -970,87 +970,76 @@ function setup_cell_to_lface_to_orientation!(cutter::CutterCache,cache::CellMesh
   cutter
 end
 
-function setup_d_to_ldface_to_dface!(
+function setup_d_to_tdface_to_dface!(
   cutter::CutterCache,
   cache::CellMeshCache,
   mesh::CellMesh,
   face::Integer,
-  d::Integer,
-  tdface::Integer)
+  cut_dim::Integer,
+  cut_dim_lface::Integer)
   
 
   dim = num_dims(cutter) 
-  dimf_to_df = get_faces(mesh,dim,d)
-  dface = dimf_to_df[face,tdface]
-  for n in 0:dim
-    df_to_nf = get_faces(mesh,dim,n)
-    n_nfaces = num_dfaces(mesh,n)
-    for tnface in 1:num_dfaces(cutter,n)
-      if get_dface(cutter,n,tnface) == 0
-        n_nfaces += 1
-        set_dface!( cutter, n,tnface, n_nfaces )
-      else
-        nface = df_to_nf[face,get_dface(cutter,n,tnface)]
-        if n > 0 && length( get_new_faces(cache,n,nface) ) > 0
-          set_dface!(cutter,n,tnface, _find_coincident_dface(mesh,cache,cutter, n,nface,tnface) )
-#        elseif d > n && _is_tdface_in_tnface_boundary(cutter,n,tnface,d,tdface)
-#         _nface = _find_coincident_xxx(mesh,cache,cutter, n,nface,tnface, d,dface,tdface) 
-#         set_dface!(cutter,n,tnface,_nface)
+  dim_face = face
+  dim_f_to_cut_dim_f = get_faces(mesh,dim,cut_dim)
+  cut_dim_face = dim_f_to_cut_dim_f[dim_face,cut_dim_lface]
+
+  for d in 0:dim
+    dim_f_to_df = get_faces(mesh,dim,d)
+    cut_dim_f_to_df = get_faces(mesh,cut_dim,d)
+    n_dfaces = num_dfaces(mesh,d)
+    for tdface in 1:num_dfaces(cutter,d)
+      if get_dface(cutter,d,tdface) == 0
+        if d == 0 || d > cut_dim
+          n_dfaces += 1
+          set_dface!(cutter,d,tdface, n_dfaces)
         else
-          set_dface!( cutter, n,tnface, nface )
+          _d, _lface = _get_lface_containing_ntface(cutter,d,tdface)
+          if _lface != UNSET
+ 
+            dim_f_to__df = get_faces(mesh,dim,_d)
+            _df_to_df = get_faces(mesh,_d,d)
+
+            _face = dim_f_to__df[dim_face,_lface]
+            @check !isactive(mesh,_d,_face)
+            _dface = UNSET
+            for new_face in get_new_faces(cache,_d,_face)
+              for ldface in 1:length(_df_to_df,new_face)
+                dface = _df_to_df[new_face,ldface]
+                if _are_dface_and_tdface_coincidents(mesh,cutter,d,dface,tdface)
+                  _dface = dface
+                  break
+                end
+              end
+              if _dface != UNSET
+                break
+              end
+            end
+            @check _dface != UNSET
+            set_dface!(cutter,d,tdface, _dface)
+          else
+            n_dfaces += 1
+            set_dface!(cutter,d,tdface, n_dfaces)
+          end
         end
+      else
+        dface = dim_f_to_df[dim_face,get_dface(cutter,d,tdface)]
+        if !isactive(mesh,d,dface)
+          @check d ≥ cut_dim
+          for new_dface in get_new_faces(cache,d,dface)
+            if _are_dface_and_tdface_coincidents(mesh,cutter,d,new_dface,tdface)
+              dface = new_dface
+              break
+            end
+          end
+        end
+        set_dface!(cutter,d,tdface, dface)
       end
     end
   end
-  cutter
 end
 
-## TODO: Avoid to generate new faces when its dimension is not touch, e.g.,
-# do dot add new edges when a facet is cut in 3D
-#
-#  Rewrite those procedures and clarify the method
-#
 
-function _find_coincident_xxx(
-  mesh::CellMesh,
-  cache::CellMeshCache,
-  cutter::CutterCache,
-  d::Integer,
-  dface::Integer,
-  tdface::Integer,
-  n::Integer,
-  nface::Integer,
-  tnface::Integer)
-
-  @check n > d
-
-  if length(get_new_faces(cache,n,nface)) == 0
-    return nface
-  end
-
-  nf_to_df = get_faces(mesh,n,d)
-  for new_nface in get_new_faces(cache,n,nface)
-    for ldface in 1:length(nf_to_df,new_nface)
-      _dface = nf_to_df[new_nface,ldface]
-      if _are_dface_and_tdface_coincidents(mesh,cutter,d,_dface,tdface)
-        return _dface
-      end
-    end
-  end
-  @check false
-  return UNSET
-end
-
-function _is_tdface_in_tnface_boundary(cutter::CutterCache,d::Integer,tdface::Integer,n::Integer,tnface::Integer)
-  @check n > d
-  nf_to_df = get_faces(cutter,n,d)
-  for ltdface in 1:length(nf_to_df,tnface)
-    if nf_to_df[tnface,ltdface] == tdface
-      return true
-    end
-  end
-  false
-end
 
 function setup_connectivities!(cutter::CutterCache)
   dim = num_dims(cutter)
@@ -1124,6 +1113,26 @@ function update_dface_to_cell_dface!(cache::CellMeshCache,cutter::CutterCache,fa
   end
   cache 
 end
+
+function _get_lface_containing_ntface(cutter::CutterCache,n::Integer,nface::Integer)
+  for d in n+1:num_dims(cutter)-1
+    df_to_nf = get_faces(cutter,d,n)
+    df_to_v = get_faces(cutter,d,0)
+    nf_to_v = get_faces(cutter,n,0)
+    for dface in 1:num_dfaces(cutter,d)
+      if get_dface(cutter,d,dface) != 0
+        for lnface in 1:length(df_to_nf,dface)
+          _nface = df_to_nf[dface,lnface]
+          if _nface == nface
+            return d, get_dface(cutter,d,dface)
+          end
+        end
+      end
+    end
+  end
+  (UNSET,UNSET)
+end
+
 
 function _find_coincident_dface(
   mesh::CellMesh,
