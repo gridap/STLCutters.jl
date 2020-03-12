@@ -173,7 +173,7 @@ function have_intersection_point(s::Segment{3},t::Triangle{3})
   s1_s2 = s[2] - s[1]
   s1_c = c - s[1]
   α = ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
-  if α < 0 || α > 1
+  if α < 0 || α > 1 || isnan(α)
     false
   else
     x = s[1] + s1_s2 * α

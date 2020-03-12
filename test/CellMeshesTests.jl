@@ -6,7 +6,7 @@ using STLCutter
 using STLCutter: reset!, compact!, compute_in_out!, num_dfaces, get_faces, dface_dimension, local_dface, global_dface, get_vertex, get_face, get_dface
 
 # Private used in test
-using STLCutter: _add_vertex!, UNSET, are_all_faces_defined, add_surface_mesh_face!, find_closest_face
+using STLCutter: _add_vertex!, UNSET, are_all_faces_defined, add_surface_mesh_face!, find_closest_face, expand
 
 using Test
 
@@ -198,6 +198,41 @@ compact!(cell_mesh)
 compute_in_out!(cell_mesh,sm)
 writevtk(sm,"sm3")
 writevtk(cell_mesh,"cell_mesh3")
+
+# Real STL
+
+stl = STL(joinpath(@__DIR__,"data/cube.stl"))
+
+sm = SurfaceMesh(stl)
+
+box = BoundingBox(sm)
+
+box = expand(box,0.5)
+
+bg_mesh = CartesianMesh(box,1)
+
+c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
+
+cell_id = 1
+
+reset!(cell_mesh,get_cell(bg_mesh,1))
+
+
+c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
+
+reset!(cell_mesh,get_cell(bg_mesh,1))
+
+for i in 1:length(c_to_sm_f,cell_id)
+  sm_face = c_to_sm_f[cell_id,i]
+  add_surface_mesh_face!(cell_mesh,sm,sm_face)
+end
+
+compact!(cell_mesh)
+
+compute_in_out!(cell_mesh,sm)
+writevtk(sm,"sm3")
+writevtk(cell_mesh,"cell_mesh3")
+
 
 end # module
 

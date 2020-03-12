@@ -284,7 +284,7 @@ end
 function find_next_boundary_point(mesh::CellMesh,d::Integer,dface::Integer,sm::SurfaceMesh,sm_face::Integer)
   D = num_dims(mesh)
   sm_d = dface_dimension(sm,sm_face)
-  for k in d+1:D
+  for k in d+1:D-1
     for n in d+1:k
       dim = n-d-1
       kf_to_nf = get_faces(mesh,k,n)
@@ -322,6 +322,9 @@ end
 
 
 function find_container_dface(mesh::CellMesh,d::Integer,n::Integer,nface::Integer,vertex::Integer)
+  if vertex == UNSET
+    return UNSET
+  end
   @check d == n+1
   df_to_nf = get_faces(mesh,d,n)
   df_to_v = get_dface_to_vertices(mesh,d)
