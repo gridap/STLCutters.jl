@@ -1,77 +1,3 @@
-# API for the vertices phase
-#
-#  # We are at cell id == cell
-#
-# for i in 1:length(cell_to_sm_faces,cell)
-#
-#   sm_face = cell_to_sm_faces[cell,i]
-#   d = get_face_dimension(sm,sm_face)
-#   if d == 0
-#     v = get_vertex(sm,sm_face)
-#     d, iface = find_closest_face(cm,v)
-#     add_vertex!(cm,d,iface,v,i)
-#   end
-#
-# end
-#
-#     sm_dface = get_local_dface_id(sm,sm_face,d)
-#
-# API for edge phase
-#
-# for i in 1:length(cell_to_sm_faces,cell)
-#
-#   sm_face = cell_to_sm_faces[cell,i]
-#   d = get_face_dimension(sm,sm_face)
-#   if d == 1
-#
-#   vertices = find_captured_edge_end_points!(sm,cm,sm_face)
-#
-#   if length(vertices) == 0
-#    _d, iface, p = find_intersection_point_on_boundary_face(sm,cm,s_face)
-#    add_vertex!(cm,_d,iface,p,sm_face)
-#     vertices = find_captured_edge_end_points!(sm,cm,sm_face)
-#   end
-#
-#   while length(vertices) > 0
-#     vertex = pop!(vertices)
-#     _d, iface, new_vertex = find_next_vertex(sm,cm,vertex,sm_face)
-#     new_vertex_id = add_vertex!(cm,_d,iface,new_vertex,sm_face)
-#     if new_vertex_id != UNSET
-#       push!(vertices,new_vertex_id)
-#     end
-#   end
-#
-#   end
-#
-# end
-#
-# API for face phase
-#
-# for i in 1:length(cell_to_sm_faces,cell)
-#
-#   sm_face = cell_to_sm_faces[cell,i]
-#   d = get_face_dimension(sm,sm_face)
-#   if d == 2
-#
-#   edges = find_captured_face_edges!(sm,cm,sm_face)
-#
-#   if length(edges) == 0
-#   end
-#
-#   while length(edges) > 0
-#     edge = pop!(edges)
-#     _d, iface, new_vertex = find_next_vertex_3d(sm,cm,edge,sm_face)
-#     new_vertex_id = add_vertex!(cm,_d,iface,new_vertex,sm_face)
-#     new_edge_1, new_edge_2 = find_edges_closing_triangle(cm,new_vertex_id,edge)
-#     if new_vertex_id != UNSET
-#       push!(edges,new_edge_1)
-#       push!(edges,new_edge_2)
-#     end
-#   end
-#
-#   end
-#
-# end
 
 const FACE_UNDEF = 0
 const FACE_IN = 1
@@ -210,25 +136,28 @@ end
 
 function add_surface_mesh_face!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
   if dface_dimension(sm,sm_face) == 0
-    
-    sm_dface = local_dface(sm,sm_face,0)
-    point = get_vertex(sm,sm_dface)
-
+    point = get_vertex(sm,sm_face)
     _d, iface = find_closest_face(mesh,point)
     add_vertex!(mesh,_d,iface,point,sm_face)
-  else#if dface_dimension(sm,sm_face) == 1
-
+  else
     d = dface_dimension(sm,sm_face)
     n = d-1
     df_to_nf = get_faces(mesh,d,d-1)
 
     nfaces = find_dfaces_capturing_surface_mesh_face!(mesh,d-1,sm,sm_face)
 
-    if length(nfaces) == 0 && d == 1
+    if length(nfaces) == 0
       _d, iface, point = find_intersection_point_on_boundary_face(mesh,sm,sm_face)
-      _vertex = add_vertex!(mesh,_d,iface,point,sm_face)
-      if _vertex != UNSET
-        push!(nfaces,_vertex)
+      vertex = add_vertex!(mesh,_d,iface,point,sm_face)
+      kface = vertex
+      for k in 0:n-1
+        kface != UNSET || break
+        _d, iface, point = find_next_boundary_point(mesh,k,kface,sm,sm_face)
+        vertex = add_vertex!(mesh,_d,iface,point,sm_face)
+        kface = find_container_dface(mesh,k+1,k,kface,vertex)
+      end
+      if kface != UNSET
+        push!(nfaces,kface)
       end
     end
 
@@ -290,15 +219,15 @@ end
 
 function find_intersection_point_on_boundary_face(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
   D = num_dims(mesh)
-  cache = get_cache(mesh)
-  for d in 1:D-1
-    for dface in 1:num_dfaces(mesh,d)
-      if isactive(mesh,d,dface)
-        if is_dface_in_cell_mesh_boundary(mesh,d,dface)
-          for n in 1:d
-            df_to_nf = get_faces(mesh,d,n)
-            iface = UNSET
-            min_distance = intersection_tolerance
+  sm_dim = dface_dimension(sm,sm_face)
+  for d in 0:D-sm_dim
+    for n in 0:d
+      df_to_nf = get_faces(mesh,d,n)
+      iface = UNSET
+      min_distance = intersection_tolerance
+      for dface in 1:num_dfaces(mesh,d)
+        if isactive(mesh,d,dface)
+          if is_dface_in_cell_mesh_boundary(mesh,d,dface)
             for lnface in 1:length(df_to_nf,dface)
               nface = df_to_nf[dface,lnface]
               dist = distance(mesh,n,nface,sm,sm_face) 
@@ -307,12 +236,12 @@ function find_intersection_point_on_boundary_face(mesh::CellMesh,sm::SurfaceMesh
                 iface = nface
               end
             end
-            if iface != UNSET
-              point = closest_point(mesh,d,iface,sm,sm_face)
-              return (d,iface,point)
-            end
           end
         end
+      end
+      if iface != UNSET
+        point = closest_point(mesh,d,iface,sm,sm_face)
+        return (d,iface,point)
       end
     end
   end
@@ -350,6 +279,47 @@ function find_next_point(mesh::CellMesh,dface::Integer,sm::SurfaceMesh,sm_face::
   point = zero(get_vertex(mesh,1))
   (UNSET,UNSET,point)
 end
+
+
+function find_next_boundary_point(mesh::CellMesh,d::Integer,dface::Integer,sm::SurfaceMesh,sm_face::Integer)
+  D = num_dims(mesh)
+  sm_d = dface_dimension(sm,sm_face)
+  for k in d+1:D
+    for n in d+1:k
+      dim = n-d-1
+      kf_to_nf = get_faces(mesh,k,n)
+      iface = UNSET
+      min_distance = intersection_tolerance
+      for kface in 1:num_dfaces(mesh,k)
+        if isactive(mesh,k,kface)
+          if is_dface_in_cell_mesh_boundary(mesh,k,kface)
+            for lnface in 1:length(kf_to_nf,kface)
+              nface = kf_to_nf[kface,lnface]
+              if _is_dface_in_nface_boundary(mesh,n,nface,d,dface)
+                opposite_face = _get_opposite_face(mesh,n,nface,d,dface)
+                if !_is_touching_surface_mesh_face(mesh,dim,opposite_face,sm,sm_face)
+                  dist = distance(mesh,dim,opposite_face,sm,sm_face)
+                  if dist < min_distance
+                    min_distance = dist
+                    iface = opposite_face
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+      if iface != UNSET
+        point = closest_point(mesh,dim,iface,sm,sm_face)
+        return (dim,iface,point)
+      end
+    end
+  end
+  point = zero(get_vertex(mesh,1))
+  (UNSET,UNSET,point)
+end
+
+
 
 function find_container_dface(mesh::CellMesh,d::Integer,n::Integer,nface::Integer,vertex::Integer)
   @check d == n+1
@@ -1192,7 +1162,13 @@ end
 
 function compact_cache!(cache::MeshCaches,mesh::CellMesh{D}) where D
   cell_cache = cache.cell
-  resize!(cell_cache.d_to_dface_to_new_dfaces,0)
+  for d in 1:D
+    df_to_new_df = get_dface_to_new_dfaces(cache.cell,d)
+    resize!(df_to_new_df,num_dfaces(mesh,d))
+    for dface in 1:num_dfaces(mesh,d)
+      resize!(df_to_new_df[dface],0)
+    end
+  end
   for d in 0:D-1
     iface = 0
     for i in 1:num_dfaces(mesh,d)

@@ -142,6 +142,7 @@ facet_to_vertices = Table( [
   2 4;
   3 3 ] )
 
+
 sm = SurfaceMesh(points,facet_to_vertices)
 
 p0 = Point(0.,0.,0.)
@@ -154,6 +155,36 @@ cell_mesh = CellMesh(box)
 c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
 cell_id = 1
+
+reset!(cell_mesh,get_cell(bg_mesh,1))
+
+for i in 1:length(c_to_sm_f,cell_id)
+  sm_face = c_to_sm_f[cell_id,i]
+  add_surface_mesh_face!(cell_mesh,sm,sm_face)
+end
+
+compact!(cell_mesh)
+
+compute_in_out!(cell_mesh,sm)
+writevtk(sm,"sm3")
+writevtk(cell_mesh,"cell_mesh3")
+
+## Big 3D facet
+
+points = Point{3,Float64}[
+  (-1.0,-1.0,0.5),
+  (4.0,-1.0,0.0),
+  (-1.0,4.0,0.5), 
+  (-2.0,-1.0,0.5)]
+
+facet_to_vertices = Table( [
+  1 1;
+  2 3;
+  3 4] )
+
+sm = SurfaceMesh(points,facet_to_vertices)
+
+c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
 reset!(cell_mesh,get_cell(bg_mesh,1))
 
