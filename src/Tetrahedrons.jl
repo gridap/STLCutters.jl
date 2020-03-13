@@ -7,6 +7,14 @@ function Tetrahedron(p1::Point,p2::Point,p3::Point,p4::Point)
   Tetrahedron((p1,p2,p3,p4))
 end
 
+function Tetrahedron(p::Point,t::Triangle)
+  Tetrahedron(p,get_vertices(t)...)
+end
+
+function Tetrahedron(t::Triangle,p::Point)
+  Tetrahedron(get_vertices(t)...,p)
+end
+
 num_dims(::Tetrahedron{D}) where D = D
 
 num_facets(::Type{<:Tetrahedron}) = 4
@@ -40,6 +48,18 @@ function measure(t::Tetrahedron{4})
   v2 = t.vertices[3] - t.vertices[1]
   v3 = t.vertices[4] - t.vertices[1]
   norm( orthogonal(v1,v2,v3) )
+end
+
+function signed_measure(t::Tetrahedron{3})
+  factor = 1/6
+  v1 = t.vertices[2] - t.vertices[1]
+  v2 = t.vertices[3] - t.vertices[1]
+  v3 = t.vertices[4] - t.vertices[1]
+  det(v1,v2,v3) * factor 
+end
+
+function measure_sign(t::Tetrahedron{3})
+  sign(signed_measure(t))
 end
 
 function normal(t::Tetrahedron{4})
@@ -79,3 +99,16 @@ function closest_point(t::Tetrahedron{3},p::Point{3})
   p
 end
 
+function relative_orientation(tri::Triangle{3},tet::Tetrahedron{3})
+  max_distance = 0.0
+  _v = get_vertices(tet)[1]
+  for v in get_vertices(tet)
+    dist = distance(v,tri)
+    if dist ≥ max_distance
+      max_distance = dist
+      _v = v
+    end
+  end
+  _tet = Tetrahedron(tri,_v)
+  - measure_sign(_tet)
+end

@@ -3,7 +3,7 @@ module CellMeshesTests
 using STLCutter
 
 # To be public
-using STLCutter: reset!, compact!, compute_in_out!, num_dfaces, get_faces, dface_dimension, local_dface, global_dface, get_vertex, get_face, get_dface
+using STLCutter: reset!, compact!, compute_in_out!, num_dfaces, get_faces, face_dimension, local_dface, global_dface, get_vertex_coordinates, get_face_coordinates
 
 # Private used in test
 using STLCutter: _add_vertex!, UNSET, are_all_faces_defined, add_surface_mesh_face!, find_closest_face, expand
@@ -38,7 +38,7 @@ mesh = CellMesh(box)
 
 stl_points = [ Point(0.3,0.3), Point(0.25,0.5), Point(0.5,0.5), Point(0.75,0.4), Point(0.0,0.5)  ]
 
-for point in stl_points[1:1]
+for point in stl_points
 
   d,face = find_closest_face(mesh,point)
 
@@ -202,6 +202,7 @@ writevtk(cell_mesh,"cell_mesh3")
 # Real STL
 
 stl = STL(joinpath(@__DIR__,"data/cube.stl"))
+#stl = STL(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 
 sm = SurfaceMesh(stl)
 
@@ -215,12 +216,12 @@ c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
 cell_id = 1
 
-reset!(cell_mesh,get_cell(bg_mesh,1))
+reset!(cell_mesh,get_cell(bg_mesh,cell_id))
 
 
 c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
-reset!(cell_mesh,get_cell(bg_mesh,1))
+reset!(cell_mesh,get_cell(bg_mesh,cell_id))
 
 for i in 1:length(c_to_sm_f,cell_id)
   sm_face = c_to_sm_f[cell_id,i]

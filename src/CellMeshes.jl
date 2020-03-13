@@ -3,6 +3,7 @@ const FACE_UNDEF = 0
 const FACE_IN = 1
 const FACE_OUT = 2
 const FACE_BOUNDARY = 3
+const FACE_CUT = -1
 
 const intersection_tolerance = 1e-10
 
@@ -20,7 +21,7 @@ struct CutterCache
   cell_to_lfacet_to_orientation::Table{Int}
 end
 
-struct MeshCaches
+struct MeshCache
   cell::CellMeshCache
   cutter::CutterCache
   vector_cache_1::Vector{Int}
@@ -32,7 +33,7 @@ struct CellMesh{D,T}
   vertex_coordinates::Vector{Point{D,T}}
   m_n_to_mface_to_nfaces::Matrix{Table{Int}}
   d_to_dface_to_in_out_boundary::Table{Int}
-  cache::MeshCaches
+  cache::MeshCache
 end
 
 function CellMesh(box::BoundingBox{D,T}) where {D,T}
@@ -47,7 +48,7 @@ function CellMesh{D,T}() where {D,T}
   for d in 0:D, n in 0:D
     m_n_to_mf_to_nf[d+1,n+1] = Table{Int}()
   end
-  cache = MeshCaches(D)
+  cache = MeshCache(D)
   CellMesh{D,T}( coordinates, m_n_to_mf_to_nf, d_df_to_io, cache )
 end
 
@@ -135,12 +136,12 @@ end
 # Intersections
 
 function add_surface_mesh_face!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
-  if dface_dimension(sm,sm_face) == 0
-    point = get_vertex(sm,sm_face)
+  d = face_dimension(sm,sm_face)
+  if d == 0
+    point = get_vertex_coordinates(sm,sm_face)
     _d, iface = find_closest_face(mesh,point)
     add_vertex!(mesh,_d,iface,point,sm_face)
   else
-    d = dface_dimension(sm,sm_face)
     n = d-1
     df_to_nf = get_faces(mesh,d,d-1)
 
@@ -184,8 +185,9 @@ function find_closest_face(mesh::CellMesh{D},point::Point{D}) where D
   for d in 0:D
     for i in 1:num_dfaces(mesh,d)
       if isactive(mesh,d,i)
-        if distance(mesh,d,i,point) ≤ min_distance
-          min_distance = distance(mesh,d,i,point)
+        dist = distance(mesh,d,i,point)
+        if dist ≤ min_distance
+          min_distance = dist
           iface = i
         end
       end
@@ -219,7 +221,7 @@ end
 
 function find_intersection_point_on_boundary_face(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
   D = num_dims(mesh)
-  sm_dim = dface_dimension(sm,sm_face)
+  sm_dim = face_dimension(sm,sm_face)
   for d in 0:D-sm_dim
     for n in 0:d
       df_to_nf = get_faces(mesh,d,n)
@@ -240,18 +242,18 @@ function find_intersection_point_on_boundary_face(mesh::CellMesh,sm::SurfaceMesh
         end
       end
       if iface != UNSET
-        point = closest_point(mesh,d,iface,sm,sm_face)
-        return (d,iface,point)
+        point = closest_point(mesh,n,iface,sm,sm_face)
+        return (n,iface,point)
       end
     end
   end
-  point = zero(get_vertex(mesh,1))
+  point = zero(get_vertex_coordinates(mesh,1))
   (UNSET,UNSET,point)
 end
 
 function find_next_point(mesh::CellMesh,dface::Integer,sm::SurfaceMesh,sm_face::Integer)
   D = num_dims(mesh)
-  sm_d = dface_dimension(sm,sm_face)
+  sm_d = face_dimension(sm,sm_face)
   d = sm_d-1
   for n in d+1:D
     dim = n-d-1
@@ -276,14 +278,14 @@ function find_next_point(mesh::CellMesh,dface::Integer,sm::SurfaceMesh,sm_face::
       return (dim,iface,point)
     end
   end
-  point = zero(get_vertex(mesh,1))
+  point = zero(get_vertex_coordinates(mesh,1))
   (UNSET,UNSET,point)
 end
 
 
 function find_next_boundary_point(mesh::CellMesh,d::Integer,dface::Integer,sm::SurfaceMesh,sm_face::Integer)
   D = num_dims(mesh)
-  sm_d = dface_dimension(sm,sm_face)
+  sm_d = face_dimension(sm,sm_face)
   for k in d+1:D-1
     for n in d+1:k
       dim = n-d-1
@@ -315,7 +317,7 @@ function find_next_boundary_point(mesh::CellMesh,d::Integer,dface::Integer,sm::S
       end
     end
   end
-  point = zero(get_vertex(mesh,1))
+  point = zero(get_vertex_coordinates(mesh,1))
   (UNSET,UNSET,point)
 end
 
@@ -398,7 +400,7 @@ function _is_touching_surface_mesh_face(
 end
 
 function _is_surface_mesh_face_on_vertex(mesh::CellMesh,vertex::Integer,sm::SurfaceMesh,sm_face::Integer)
-  d = dface_dimension(sm,sm_face)
+  d = face_dimension(sm,sm_face)
   sm_dface = local_dface(sm,sm_face,d)
   for n in 0:d
     df_to_nf = get_faces(sm,d,n)
@@ -434,6 +436,8 @@ function num_dfaces(m::CellMesh,d::Int)
   end
 end
 
+num_edges(m::CellMesh) = num_dfaces(m,1)
+
 num_facets(m::CellMesh{D}) where D = num_dfaces(m,D-1)
 
 num_cells(m::CellMesh{D}) where D = num_dfaces(m,D)
@@ -450,30 +454,30 @@ function get_vertex_coordinates(m::CellMesh)
   m.vertex_coordinates
 end
 
-function get_face(m::CellMesh,::Val{0},i::Integer)
+function get_face_coordinates(m::CellMesh,::Val{0},i::Integer)
   v = get_vertex_coordinates(m)
   v[i]
 end
 
-function get_face(m::CellMesh,::Val{1},i::Integer)
+function get_face_coordinates(m::CellMesh,::Val{1},i::Integer)
   df_to_v = get_dface_to_vertices(m,1)
   v = get_vertex_coordinates(m)
   Segment( v[ df_to_v[i,1] ], v[ df_to_v[i,2] ] )
 end
 
-function get_face(m::CellMesh,::Val{2},i::Integer)
+function get_face_coordinates(m::CellMesh,::Val{2},i::Integer)
   df_to_v = get_dface_to_vertices(m,2)
   v = get_vertex_coordinates(m)
   Triangle( v[ df_to_v[i,1] ], v[ df_to_v[i,2] ], v[ df_to_v[i,3] ] )
 end
 
-function get_face(m::CellMesh,::Val{3},i::Integer)
+function get_face_coordinates(m::CellMesh,::Val{3},i::Integer)
   df_to_v = get_dface_to_vertices(m,3)
   v = get_vertex_coordinates(m)
   Tetrahedron( v[ df_to_v[i,1]], v[ df_to_v[i,2] ], v[ df_to_v[i,3] ], v[ df_to_v[i,4] ] )
 end
 
-function get_face(m::CellMesh,::Val{d},i::Integer) where d
+function get_face_coordinates(m::CellMesh,::Val{d},i::Integer) where d
   throw(ArgumentError("get_face(::CellMesh,::Val($d),::Integer) not implemented"))
 end
 
@@ -482,29 +486,29 @@ function isactive(m::CellMesh,d::Integer,i::Integer)
   isactive(get_dface_to_vertices(m,d),i)
 end
 
-function get_vertex(m::CellMesh,i::Integer)
-  get_face(m,Val{0}(),i)
+function get_vertex_coordinates(m::CellMesh,i::Integer)
+  get_face_coordinates(m,Val{0}(),i)
 end
 
-function get_edge(m::CellMesh,i::Integer)
-  get_face(m,Val{1}(),i)
+function get_edge_coordinates(m::CellMesh,i::Integer)
+  get_face_coordinates(m,Val{1}(),i)
 end
 
-function get_facet(m::CellMesh{D},i::Integer) where D
-  get_face(m,Val{D-1}(),i)
+function get_facet_coordinates(m::CellMesh{D},i::Integer) where D
+  get_face_coordinates(m,Val{D-1}(),i)
 end
 
-function get_cell(m::CellMesh{D},i::Integer) where D
-  get_face(m,Val{D}(),i)
+function get_cell_coordinates(m::CellMesh{D},i::Integer) where D
+  get_face_coordinates(m,Val{D}(),i)
 end
 
 function facet_normal(m::CellMesh{D},i::Integer) where D
-  f = get_facet(m,i)
+  f = get_facet_coordinates(m,i)
   normal(f)
 end
 
 function face_center(m::CellMesh,::Val{d},i::Integer) where d
-  f = get_face(m,Val{d}(),i)
+  f = get_face_coordinates(m,Val{d}(),i)
   center(f)
 end
 
@@ -532,6 +536,10 @@ function is_face_defined(mesh::CellMesh,d::Integer,face::Integer)
   get_face_in_out_boundary(mesh,d,face) != FACE_UNDEF
 end
 
+function is_facet_boundary(mesh::CellMesh{D},facet::Integer) where D
+  is_face_boundary(mesh,D-1,facet)
+end
+
 function is_cell_defined(mesh::CellMesh{D},cell::Integer) where D
   is_face_defined(mesh,D,cell)
 end
@@ -543,6 +551,15 @@ function are_all_faces_defined(mesh::CellMesh{D}) where D
     end
   end
   true
+end
+
+function is_surface_mesh_captured(mesh::CellMesh)
+  for i in 1:num_facets(mesh)
+    if is_facet_boundary(mesh,i)
+      return true
+    end
+  end
+  false
 end
 
 # Setters
@@ -578,7 +595,7 @@ end
   body = ""
   for d in 0:D
     body *= "if d == $d \n"
-    body *= "  f$d = get_face(m,Val{$d}(),i) \n"
+    body *= "  f$d = get_face_coordinates(m,Val{$d}(),i) \n"
     body *= "  distance(p,f$d) \n"
     body *= "else"
   end
@@ -588,7 +605,7 @@ end
 end
 
 function distance(m::CellMesh,d::Integer,face::Integer,sm::SurfaceMesh,sm_face::Integer)
-  sm_d = dface_dimension(sm,sm_face)
+  sm_d = face_dimension(sm,sm_face)
   sm_dface = local_dface(sm,sm_face,sm_d)
   distance(m,d,face,sm,sm_d,sm_dface)
 end
@@ -605,10 +622,10 @@ end
   for d in 0:D
     sm_body = ""
     body *= "if d == $d \n"
-    body *= "  f$d = get_face(m,Val{$d}(),dface) \n"
+    body *= "  f$d = get_face_coordinates(m,Val{$d}(),dface) \n"
     for n in 0:min(D-d,D-1)
       sm_body *= "if n == $n \n"
-      sm_body *= "    sm_f$n = get_dface(sm,Val{$n}(),sm_nface) \n"
+      sm_body *= "    sm_f$n = get_face_coordinates(sm,Val{$n}(),sm_nface) \n"
       sm_body *= "    distance(f$d,sm_f$n)\n  "
       sm_body *= "else"
     end
@@ -629,7 +646,7 @@ end
 
 # closest_point_in_mesh_to_surface_mesh
 function closest_point(m::CellMesh,d::Integer,face::Integer,sm::SurfaceMesh,sm_face::Integer)
-  sm_d = dface_dimension(sm,sm_face)
+  sm_d = face_dimension(sm,sm_face)
   sm_dface = local_dface(sm,sm_face,sm_d)
   closest_point(m,d,face,sm,sm_d,sm_dface)
 end
@@ -646,10 +663,10 @@ end
   for d in 0:D
     sm_body = ""
     body *= "if d == $d \n"
-    body *= "  f$d = get_face(m,Val{$d}(),dface) \n"
+    body *= "  f$d = get_face_coordinates(m,Val{$d}(),dface) \n"
     for n in 0:min(D-d,D-1)
       sm_body *= "if n == $n \n"
-      sm_body *= "    sm_f$n = get_dface(sm,Val{$n}(),sm_nface) \n"
+      sm_body *= "    sm_f$n = get_face_coordinates(sm,Val{$n}(),sm_nface) \n"
       sm_body *= "    closest_point(f$d,sm_f$n)\n  "
       sm_body *= "else"
     end
@@ -731,13 +748,13 @@ function CutterCache(D::Integer)
   CutterCache( d_to_ldf_to_df, m_n_to_mf_to_nf, c_ldf_to_o )
 end
 
-function MeshCaches(D::Integer)
+function MeshCache(D::Integer)
   cell_cache = CellMeshCache(D) 
   cutter_cache = CutterCache(D)
   vector1 = []
   vector2 = []
   vector3 = []
-  MeshCaches( cell_cache, cutter_cache, vector1, vector2, vector3 )
+  MeshCache( cell_cache, cutter_cache, vector1, vector2, vector3 )
 end
 
 function reset_cell_cache!(cache::CellMeshCache,mesh::CellMesh{D}) where D
@@ -780,7 +797,7 @@ function reset_cutter_cache!(cutter::CutterCache)
   cutter
 end
 
-function reset_cache!(cache::MeshCaches,mesh::CellMesh)
+function reset_cache!(cache::MeshCache,mesh::CellMesh)
   reset_cell_cache!(cache.cell,mesh)
   reset_cutter_cache!(cache.cutter)
   cache
@@ -793,9 +810,9 @@ function get_vector_cache!(mesh::CellMesh)
   resize!(cache.vector_cache_1,0)
 end
 
-get_vector!(a::MeshCaches) = resize!(a.vector_cache_2,0)
+get_vector!(a::MeshCache) = resize!(a.vector_cache_2,0)
 
-get_vector_bis!(a::MeshCaches) = resize!(a.vector_cache_3,0)
+get_vector_bis!(a::MeshCache) = resize!(a.vector_cache_3,0)
 
 num_dims(cache::CellMeshCache) = length(cache.d_to_dface_to_new_dfaces)
 
@@ -850,9 +867,10 @@ end
 
 function _add_vertex!(mesh::CellMesh{D},dim::Integer,face::Integer,point::Point) where D
   if dim == 0
-    return face#UNSET
+    return face
   end
   cache = mesh.cache
+  @check isactive(mesh,dim,face)
   for d in dim:D
     df_to_nf = get_faces(mesh,d,dim)
     for iface in 1:length(df_to_nf)
@@ -868,10 +886,10 @@ function _add_vertex!(mesh::CellMesh{D},dim::Integer,face::Integer,point::Point)
       end
     end
   end
-  _add_vertex!(mesh,point)
+ _add_vertex!(mesh,point)
 end
 
-function append_mesh!(mesh::CellMesh,caches::MeshCaches)
+function append_mesh!(mesh::CellMesh,caches::MeshCache)
   dim = num_dims(caches.cutter)
   add_faces!(mesh,caches.cutter)
   mesh
@@ -885,7 +903,7 @@ function add_faces!(mesh::CellMesh,cutter::CutterCache)
   mesh
 end
 
-function refine_dface!(caches::MeshCaches,mesh::CellMesh,dim::Integer,face::Integer,ldim::Integer,lface::Integer)
+function refine_dface!(caches::MeshCache,mesh::CellMesh,dim::Integer,face::Integer,ldim::Integer,lface::Integer)
   cell_cache = caches.cell
   cutter_cache = caches.cutter
 
@@ -1163,7 +1181,7 @@ function add_surface_mesh_face_to_vertex!(cache::CellMeshCache,vertex::Integer,s
   push!( cache.vertex_to_surface_mesh_faces[vertex], sm_face )
 end
 
-function compact_cache!(cache::MeshCaches,mesh::CellMesh{D}) where D
+function compact_cache!(cache::MeshCache,mesh::CellMesh{D}) where D
   cell_cache = cache.cell
   for d in 1:D
     df_to_new_df = get_dface_to_new_dfaces(cache.cell,d)
@@ -1221,7 +1239,7 @@ function compact_mesh!(mesh::CellMesh)
   mesh
 end
 
-function _find_surface_mesh_facet(mesh::CellMesh,cache::MeshCaches,facet::Integer,sm::SurfaceMesh)
+function _find_surface_mesh_facet(mesh::CellMesh,cache::MeshCache,facet::Integer,sm::SurfaceMesh)
   intersection_cache = get_vector!(cache)
   intersection_cache_bis = get_vector_bis!(cache) 
   v_to_smf = cache.cell.vertex_to_surface_mesh_faces
@@ -1232,7 +1250,7 @@ function _find_surface_mesh_facet(mesh::CellMesh,cache::MeshCaches,facet::Intege
     resize!(intersection_cache_bis,0)
     vertex = f_to_v[facet,lvertex]
     for sm_face in v_to_smf[vertex]
-      d = dface_dimension(sm,sm_face)
+      d = face_dimension(sm,sm_face)
       sm_dface = local_dface(sm,sm_face,d)
       smdf_to_smf = get_faces(sm,d,D-1)
       for i in 1:length(smdf_to_smf,sm_dface)
@@ -1261,7 +1279,7 @@ function _find_surface_mesh_facet(mesh::CellMesh,cache::MeshCaches,facet::Intege
   UNSET
 end
 
-function compute_facet_to_surface_mesh_facet!(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh)
+function compute_facet_to_surface_mesh_facet!(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh)
   D = num_dims(mesh)
   facet_to_surface_mesh_facet = cache.cell.facet_to_surface_mesh_facet
   resize!(facet_to_surface_mesh_facet,num_facets(mesh))
@@ -1272,7 +1290,7 @@ function compute_facet_to_surface_mesh_facet!(mesh::CellMesh,cache::MeshCaches,s
   end
 end
 
-function define_cells_touching_boundary!(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh)
+function define_cells_touching_boundary!(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh)
   D = num_dims(mesh)
   c_to_f = get_faces(mesh,D,D-1)
   f_to_smf = cache.cell.facet_to_surface_mesh_facet
@@ -1283,23 +1301,26 @@ function define_cells_touching_boundary!(mesh::CellMesh,cache::MeshCaches,sm::Su
         facet = c_to_f[cell,lfacet]
         if f_to_smf[facet] != UNSET
           set_cell_in_out!(mesh,cell, _define_cell(mesh,cache,sm,cell,lfacet) )
+          break
         end
       end
     end
   end
 end
 
-function _define_cell(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh,cell::Integer,lfacet::Integer)
+function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Integer,lfacet::Integer)
   D = num_dims(mesh)
   cell_cache = cache.cell
   f_to_smf = cell_cache.facet_to_surface_mesh_facet
   c_to_lf_to_o = cell_cache.cell_to_lfacet_to_orientation
   c_to_f = get_faces(mesh,D,D-1)
 
-  ifacet = c_to_f[cell,lfacet]
+  icell = cell
+  ifacet = c_to_f[icell,lfacet]
   @check f_to_smf[ifacet] != UNSET
-  facet = get_facet(mesh,ifacet)
-  sm_facet = get_facet(sm,f_to_smf[ifacet])
+  cell = get_cell_coordinates(mesh,cell)
+  facet = get_facet_coordinates(mesh,ifacet)
+  sm_facet = get_facet_coordinates(sm,f_to_smf[ifacet])
   
   facet_normal = normal(facet)
   facet_normal = facet_normal / norm(facet_normal)
@@ -1307,7 +1328,8 @@ function _define_cell(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh,cell::Int
   sm_facet_normal = normal(sm_facet)
   sm_facet_normal = sm_facet_normal / norm(sm_facet_normal)
 
-  orientation = ( facet_normal ⋅ sm_facet_normal ) * c_to_lf_to_o[cell,lfacet]
+  @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet]
+  orientation = ( facet_normal ⋅ sm_facet_normal ) * c_to_lf_to_o[icell,lfacet]
 
   if orientation > 0
     FACE_IN
@@ -1319,7 +1341,7 @@ function _define_cell(mesh::CellMesh,cache::MeshCaches,sm::SurfaceMesh,cell::Int
   end
 end
 
-function reset_d_to_dface_to_in_out_boundary!(mesh::CellMesh,cache::MeshCaches)
+function reset_d_to_dface_to_in_out_boundary!(mesh::CellMesh,cache::MeshCache)
   D = num_dims(mesh)
   lens = get_vector!(cache)
   resize!(lens,D+1)
@@ -1332,7 +1354,7 @@ function reset_d_to_dface_to_in_out_boundary!(mesh::CellMesh,cache::MeshCaches)
   mesh
 end
 
-function define_boundary_faces!(mesh::CellMesh,cache::MeshCaches)
+function define_boundary_faces!(mesh::CellMesh,cache::MeshCache)
   D = num_dims(mesh)
   d = D-1
   f_to_smf = cache.cell.facet_to_surface_mesh_facet

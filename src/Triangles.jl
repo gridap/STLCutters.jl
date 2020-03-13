@@ -7,6 +7,14 @@ end
   Triangle((p1,p2,p3))
 end
 
+function Triangle(p::Point,s::Segment)
+  Triangle(p,get_vertices(s)...)
+end
+
+function Triangle(s::Segment,p::Point)
+  Triangle(get_vertices(s)...,p)
+end
+
 num_dims(::Triangle{D}) where D = D
 
 num_edges(::Type{<:Triangle}) = 3
@@ -61,9 +69,14 @@ end
 measure(t::Triangle) = area(t)
 
 function measure_sign(t::Triangle{2})
+  sign( signed_measure(t) )
+end
+
+function signed_measure(t::Triangle{2})
+  factor = 1/2
   v1 = t.vertices[2] - t.vertices[1]
   v2 = t.vertices[3] - t.vertices[1]
-  sign( v1[1]*v2[2] - v1[2]*v2[1] )
+  det(v1,v2) * factor
 end
 
 function measure_sign(t::Triangle{D}) where D
@@ -228,5 +241,19 @@ end
 
 function closest_point(t::Triangle{3},s::Segment{3})
   intersection(s,t)
+end
+
+function relative_orientation(s::Segment{2},t::Triangle{2})
+  max_distance = 0.0
+  _v = get_vertices(t)[1]
+  for v in get_vertices(t)
+    dist = distance(v,s)
+    if dist ≥ max_distance
+      max_distance = dist
+      _v = v
+    end
+  end
+  _t = Triangle(s,_v)
+  - measure_sign(_t)
 end
 

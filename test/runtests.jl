@@ -26,4 +26,6 @@ using Test
 
 @testset "CellMeshes" begin include("CellMeshesTests.jl") end
 
+@testset "BulkMeshes" begin include("BulkMeshesTests.jl") end
+
 end # module

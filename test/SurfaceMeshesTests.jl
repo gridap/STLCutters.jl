@@ -2,7 +2,7 @@ module SurfaceMeshesTests
 
 using Test
 using STLCutter
-using STLCutter: global_dface, local_dface, dface_dimension
+using STLCutter: global_dface, local_dface, face_dimension
 
 #vertex_coordinates = Point{2,Float64}[(0, 0), (1, 0), (1, 1), (0, 1)]
 #d_face_to_vertices = [TableOfVectors([[3, 4], [1, 2], [2, 3]])]
@@ -31,9 +31,9 @@ box = BoundingBox(Point(0.1,0.1,0.1),Point(1.0,1.0,1.0))
 @test global_dface(s_mesh,1,2) == 10
 @test global_dface(s_mesh,2,1) == 27
 
-@test dface_dimension(s_mesh,8) == 0
-@test dface_dimension(s_mesh,10) == 1
-@test dface_dimension(s_mesh,27) == 2
+@test face_dimension(s_mesh,8) == 0
+@test face_dimension(s_mesh,10) == 1
+@test face_dimension(s_mesh,27) == 2
 
 
 @test local_dface(s_mesh,8,0) == 8

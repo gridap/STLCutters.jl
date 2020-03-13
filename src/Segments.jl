@@ -184,3 +184,39 @@ end
 function closest_point(s1::Segment{2},s2::Segment{2})
   intersection(s1,s2)
 end
+
+function relative_orientation(p::Point{1},s::Segment{1})
+  max_distance = 0.0
+  _v = get_vertices(s)
+  for v in get_vertices(s)
+    dist = distance(v,p)
+    if dist ≥ max_distance
+      max_distance = dist
+      _v = v
+    end
+  end
+  _s = Segment(p,_v)
+  - measure_sign(_s)
+end
+
+relative_orientation(s::Segment,p::Point) = relative_orientation(p,s)
+
+function signed_measure(s::Segment{1})
+  v = s[2]-s[1]
+  det(v)
+end
+
+function measure_sign(s::Segment{1})
+  sign(signed_measure(s))
+end
+
+
+
+
+
+
+
+
+
+
+

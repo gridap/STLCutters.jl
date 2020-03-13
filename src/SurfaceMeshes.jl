@@ -128,7 +128,7 @@ end
   s.d_to_offset[d+1]+lid
 end
 
-function dface_dimension(s::SurfaceMesh{D},gid::Integer) where D
+function face_dimension(s::SurfaceMesh{D},gid::Integer) where D
   for d in 0:D-1
     if s.d_to_offset[d+2] ≥ gid
       return d
@@ -142,33 +142,33 @@ function local_dface(s::SurfaceMesh,gid::Integer,d::Integer)
   gid - s.d_to_offset[d+1]
 end
 
-function get_vertex(s::SurfaceMesh,i::Integer)
-  get_dface(s,Val{0}(),i)
+function get_vertex_coordinates(s::SurfaceMesh,i::Integer)
+  get_face_coordinates(s,Val{0}(),i)
 end
 
-function get_edge(s::SurfaceMesh,i::Integer)
-  get_dface(s,Val{1}(),i)
+function get_edge_coordinates(s::SurfaceMesh,i::Integer)
+  get_face_coordinates(s,Val{1}(),i)
 end
 
-function get_facet(s::SurfaceMesh{D},i::Integer) where D
-  get_dface(s,Val{D-1}(),i)
+function get_facet_coordinates(s::SurfaceMesh{D},i::Integer) where D
+  get_face_coordinates(s,Val{D-1}(),i)
 end
 
-function get_dface(s::SurfaceMesh,::Val{d}, i::Integer) where d
+function get_face_coordinates(s::SurfaceMesh,::Val{d}, i::Integer) where d
   error("Not implemented for dimension = $d")
 end
 
-function get_dface(s::SurfaceMesh,::Val{0}, i::Integer)
+function get_face_coordinates(s::SurfaceMesh,::Val{0}, i::Integer)
   s.vertex_coordinates[i]
 end
 
-function get_dface(s::SurfaceMesh,::Val{1}, i::Integer)
+function get_face_coordinates(s::SurfaceMesh,::Val{1}, i::Integer)
   df_to_v = get_dface_to_vertices(s,1)
   v = get_vertex_coordinates(s)
   Segment(v[df_to_v[i,1]],v[df_to_v[i,2]])
 end
 
-function get_dface(s::SurfaceMesh,::Val{2}, i::Integer)
+function get_face_coordinates(s::SurfaceMesh,::Val{2}, i::Integer)
   df_to_v = get_dface_to_vertices(s,2)
   v = get_vertex_coordinates(s)
   Triangle( v[df_to_v[i,1]], v[df_to_v[i,2]], v[df_to_v[i,3]] )
@@ -417,7 +417,7 @@ function writevtk(sm::SurfaceMesh{D,T},file_base_name) where {D,T}
     points[d,i] = p[d]
   end
   for i in 1:num_facets(sm)
-    facet = get_facet(sm,i)
+    facet = get_facet_coordinates(sm,i)
     facet_center = center(facet)
     for d in 1:D
       points[d,i+num_points] = facet_center[d]
@@ -445,13 +445,13 @@ function writevtk(sm::SurfaceMesh{D,T},file_base_name) where {D,T}
 end
 
 function have_intersection(bb::BoundingBox,sm::SurfaceMesh,gid::Integer)
-  d = dface_dimension(sm,gid)
+  d = face_dimension(sm,gid)
   lid = local_dface(sm,gid,d)
   have_intersection(bb,sm,d,lid)
 end
 
 function BoundingBox(sm::SurfaceMesh,gid::Integer)
-  d = dface_dimension(sm,gid)
+  d = face_dimension(sm,gid)
   lid = local_dface(sm,gid,d)
   BoundingBox(sm,d,lid)
 end
@@ -462,7 +462,7 @@ BoundingBox(s::SurfaceMesh) = BoundingBox(s.vertex_coordinates)
   body = ""
   for d in 0:D-1
     body *= "if d == $d \n"
-    body *= "  f$d = get_dface(s,Val{$d}(),i) \n"
+    body *= "  f$d = get_face_coordinates(s,Val{$d}(),i) \n"
     body *= "  BoundingBox(f$d) \n"
     body *= "else"
   end
@@ -475,7 +475,7 @@ end
   body = ""
   for d in 0:D-1
     body *= "if d == $d \n"
-    body *= "  f$d = get_dface(s,Val{$d}(),i) \n"
+    body *= "  f$d = get_face_coordinates(s,Val{$d}(),i) \n"
     body *= "  have_intersection(f$d,b) \n"
     body *= "else"
   end
