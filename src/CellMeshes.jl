@@ -1441,4 +1441,36 @@ function _get_in_out_face_data(m::CellMesh,range)
   data
 end
 
-
+function is_any_face_repeated(mesh::CellMesh)
+  D = num_dims(mesh)
+  for d in 0:D
+    df_to_v = get_dface_to_vertices(mesh,d)
+    for dface in 1:length(df_to_v)
+      if isactive(df_to_v,dface)
+        face_found = true
+        for _dface in 1:length(df_to_v)
+          if _dface != dface
+            for lvertex in 1:length(df_to_v,dface)
+              vertex = df_to_v[dface,lvertex]
+              vertex_found = false
+              for _lvertex in 1:length(df_to_v,_dface)
+                _vertex = df_to_v[_dface,_lvertex]
+                if _vertex == vertex
+                  vertex_found = true
+                  break
+                end
+              end
+              if !vertex_found
+                face_found = false
+              end
+            end
+            if face_found
+              return true
+            end
+          end
+        end
+      end
+    end
+  end
+  false
+end

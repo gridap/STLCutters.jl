@@ -8,6 +8,8 @@ using STLCutter: reset!, compact!, compute_in_out!, num_dfaces, get_faces, face_
 # Private used in test
 using STLCutter: _add_vertex!, UNSET, are_all_faces_defined, add_surface_mesh_face!, find_closest_face, expand
 
+using STLCutter: is_any_face_repeated, @check
+
 using Test
 
 p1 = Point(1,2,3)
@@ -210,18 +212,18 @@ box = BoundingBox(sm)
 
 box = expand(box,0.5)
 
-bg_mesh = CartesianMesh(box,1)
+bg_mesh = CartesianMesh(box,5)
 
 c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
-cell_id = 1
+cell_id = 43
 
 reset!(cell_mesh,get_cell(bg_mesh,cell_id))
-
 
 c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
 reset!(cell_mesh,get_cell(bg_mesh,cell_id))
+
 
 for i in 1:length(c_to_sm_f,cell_id)
   sm_face = c_to_sm_f[cell_id,i]
@@ -231,6 +233,10 @@ end
 compact!(cell_mesh)
 
 compute_in_out!(cell_mesh,sm)
+
+@check !is_any_face_repeated(cell_mesh)
+
+display( get_vertex_coordinates(cell_mesh))
 writevtk(sm,"sm3")
 writevtk(cell_mesh,"cell_mesh3")
 
