@@ -516,6 +516,10 @@ function facet_center(m::CellMesh{D},i::Integer) where D
   face_center(m,Val{D-1}(),i)
 end
 
+function get_vertex_in_out_boundary(mesh::CellMesh,cell::Integer)
+  get_face_in_out_boundary(mesh,0,cell)
+end
+
 function get_cell_in_out(mesh::CellMesh{D},cell::Integer) where D
   get_face_in_out_boundary(mesh,D,cell)
 end
@@ -534,6 +538,18 @@ end
 
 function is_face_defined(mesh::CellMesh,d::Integer,face::Integer)
   get_face_in_out_boundary(mesh,d,face) != FACE_UNDEF
+end
+
+function is_vertex_interior(mesh::CellMesh,vertex::Integer)
+  is_face_interior(mesh,0,vertex)
+end
+
+function is_vertex_exterior(mesh::CellMesh,vertex::Integer)
+  is_face_exterior(mesh,0,vertex)
+end
+
+function is_vertex_boundary(mesh::CellMesh,vertex::Integer)
+  is_face_boundary(mesh,0,vertex)
 end
 
 function is_facet_boundary(mesh::CellMesh{D},facet::Integer) where D
