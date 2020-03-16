@@ -144,6 +144,7 @@ function add_surface_mesh_face!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
   else
     n = d-1
     df_to_nf = get_faces(mesh,d,d-1)
+    nf_to_v = get_dface_to_vertices(mesh,d-1)
 
     nfaces = find_dfaces_capturing_surface_mesh_face!(mesh,d-1,sm,sm_face)
 
@@ -167,11 +168,18 @@ function add_surface_mesh_face!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
       _d, iface, point = find_next_point(mesh,nface,sm,sm_face)
       vertex = add_vertex!(mesh,_d,iface,point,sm_face)
       if vertex != UNSET
-        dface = find_container_dface(mesh,d,n,nface,vertex)
-        for lnface in 1:length(df_to_nf,dface)
-          _nface = df_to_nf[dface,lnface]
-          if _nface != nface
-            push!(nfaces,_nface)
+        for _nface in 1:num_dfaces(mesh,n)
+          if isactive(mesh,n,_nface)
+            nface_found = false
+            for lvertex in 1:length(nf_to_v)
+              if vertex == nf_to_v[_nface,lvertex]
+                nface_found = true
+                break
+              end
+            end
+            if nface_found && _nface != nface
+              push!(nfaces,_nface)
+            end
           end
         end
       end
