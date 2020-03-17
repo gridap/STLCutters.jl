@@ -23,15 +23,8 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
   c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
   
   for k in 1:num_cells(bg_mesh)
-    cell_coordinates = get_cell(bg_mesh,k)
-    reset!(cell_mesh,cell_coordinates)
-    for i in 1:length(c_to_sm_f,k)
-      sm_face = c_to_sm_f[k,i]
-      add_surface_mesh_face!(cell_mesh,sm,sm_face)
-    end
-    compact!(cell_mesh)
-    compute_in_out!(cell_mesh,sm)
-
+    reset!(cell_mesh, get_cell(bg_mesh,k) )
+    compute_cell_mesh!(cell_mesh,sm,c_to_sm_f,k)
     if is_surface_mesh_captured(cell_mesh)
      
       c_to_io[k] = FACE_CUT

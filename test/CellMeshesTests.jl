@@ -3,10 +3,10 @@ module CellMeshesTests
 using STLCutter
 
 # To be public
-using STLCutter: reset!, compact!, compute_in_out!, num_dfaces, get_faces, face_dimension, local_dface, global_dface, get_vertex_coordinates, get_face_coordinates
+using STLCutter: reset!, compact!, compute_in_out!, num_dfaces, get_faces, face_dimension, local_dface, global_dface, get_vertex_coordinates, get_face_coordinates, compute_cell_mesh!
 
 # Private used in test
-using STLCutter: _add_vertex!, UNSET, are_all_faces_defined, add_surface_mesh_face!, find_closest_face, expand
+using STLCutter: _add_vertex!, UNSET, are_all_faces_defined, cut_cell_mesh!, find_closest_face, expand
 
 using STLCutter: is_any_face_repeated, @check
 
@@ -119,7 +119,7 @@ reset!(cell_mesh,get_cell(bg_mesh,1))
 
 for i in 1:length(c_to_sm_f,cell_id)
   sm_face = c_to_sm_f[cell_id,i]
-  add_surface_mesh_face!(cell_mesh,sm,sm_face)
+  cut_cell_mesh!(cell_mesh,sm,sm_face)
 end
 
 compact!(cell_mesh)
@@ -162,7 +162,7 @@ reset!(cell_mesh,get_cell(bg_mesh,1))
 
 for i in 1:length(c_to_sm_f,cell_id)
   sm_face = c_to_sm_f[cell_id,i]
-  add_surface_mesh_face!(cell_mesh,sm,sm_face)
+  cut_cell_mesh!(cell_mesh,sm,sm_face)
 end
 
 compact!(cell_mesh)
@@ -192,7 +192,7 @@ reset!(cell_mesh,get_cell(bg_mesh,1))
 
 for i in 1:length(c_to_sm_f,cell_id)
   sm_face = c_to_sm_f[cell_id,i]
-  add_surface_mesh_face!(cell_mesh,sm,sm_face)
+  cut_cell_mesh!(cell_mesh,sm,sm_face)
 end
 
 compact!(cell_mesh)
@@ -224,14 +224,7 @@ c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
 reset!(cell_mesh,get_cell(bg_mesh,cell_id))
 
-for i in 1:length(c_to_sm_f,cell_id)
-  sm_face = c_to_sm_f[cell_id,i]
-  add_surface_mesh_face!(cell_mesh,sm,sm_face)
-end
-
-compact!(cell_mesh)
-
-compute_in_out!(cell_mesh,sm)
+compute_cell_mesh!(cell_mesh,sm,c_to_sm_f,cell_id)
 
 @test !is_any_face_repeated(cell_mesh)
 

@@ -133,9 +133,18 @@ function compute_in_out!(mesh::CellMesh,sm::SurfaceMesh)
   mesh
 end
 
+function compute_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,cell_to_sm_face::Table,cell::Integer)
+  for i in 1:length(cell_to_sm_face,cell)
+    sm_face = cell_to_sm_face[cell,i]
+    cut_cell_mesh!(mesh,sm,sm_face)
+  end
+  compact!(mesh)
+  compute_in_out!(mesh,sm)
+end
+
 # Intersections
 
-function add_surface_mesh_face!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
+function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
   d = face_dimension(sm,sm_face)
   if d == 0
     point = get_vertex_coordinates(sm,sm_face)
@@ -170,14 +179,7 @@ function add_surface_mesh_face!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
       if vertex != UNSET
         for _nface in 1:num_dfaces(mesh,n)
           if isactive(mesh,n,_nface)
-            nface_found = false
-            for lvertex in 1:length(nf_to_v)
-              if vertex == nf_to_v[_nface,lvertex]
-                nface_found = true
-                break
-              end
-            end
-            if nface_found && _nface != nface
+            if _nface != nface && _is_vertex_in_face(mesh,vertex,n,_nface)
               push!(nfaces,_nface)
             end
           end
@@ -185,6 +187,16 @@ function add_surface_mesh_face!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
       end
     end
   end
+end
+
+function _is_vertex_in_face(mesh,vertex,d,dface)
+  df_to_v = get_dface_to_vertices(mesh,d)
+  for lvertex in 1:length(df_to_v,dface)
+    if vertex == df_to_v[dface,lvertex]
+      return true
+    end
+  end
+  false
 end
 
 function find_closest_face(mesh::CellMesh{D},point::Point{D}) where D
