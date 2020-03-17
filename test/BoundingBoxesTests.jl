@@ -37,6 +37,17 @@ bb = BoundingBox(Point(0,0,0),Point(1,1,1))
 
 @test have_intersection(p,bb)
 
+
+t = Triangle(
+  Point(2.1,16.7,32.4),
+  Point(-7.6,1.5,25.0),
+  Point(-8.2,14.5,44.9))
+b = BoundingBox(
+  Point((-13.0775749206543, 10.547343444824222, 26.705834579467776)), 
+  Point((-2.2652954101562557, 19.209839248657232, 37.43181042671203)))
+
+@test have_intersection(t,b)
+
 #bb1 = BoundingBox(Point(0,0,0),Point(1,1,1))
 #bb2 = BoundingBox(Point(0.5,0.5,0.5),Point(2.0,2.0,2.0))
 #

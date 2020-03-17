@@ -162,7 +162,7 @@ function max_dimension(v::VectorValue{D,T}) where {D,T}
 end
 
 @generated function canonical_vector(::VectorValue{D,T},d::Integer) where {D,T}
-  data = join(["convert(Int,1.0) * ( $i == 3 )," for i in 1:D])
+  data = join(["convert(T,1.0) * ( $i == d )," for i in 1:D])
   str = "VectorValue(($data))"
   Meta.parse(str)
 end

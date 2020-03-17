@@ -257,3 +257,18 @@ function relative_orientation(s::Segment{2},t::Triangle{2})
   - measure_sign(_t)
 end
 
+function writevtk(b::Triangle{D,T},file_base_name) where {D,T}
+  vtk_type_id = 5
+
+  points = zeros(T,D,num_vertices(b))
+  for (i,v) in enumerate(get_vertices(b)), d in 1:D
+      points[d,i] = v[d]
+  end
+
+  vtk_type = VTKCellType(vtk_type_id)
+  vertices = [1:num_vertices(b);]
+  cells = [ MeshCell(vtk_type,vertices) ]
+
+  vtkfile = vtk_grid(file_base_name,points,cells)
+  vtk_save(vtkfile)
+end

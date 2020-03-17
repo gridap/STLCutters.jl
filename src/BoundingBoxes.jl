@@ -109,6 +109,7 @@ function have_intersection(t::Triangle{3},bb::BoundingBox{3})
   end
   t_pos = _fix_triangle(bb,t)
   n = abs(normal(t_pos))
+  n = n / norm(n)
   p0 = center(t_pos)
   main_d = max_dimension( n .* ( bb.pmax - bb.pmin ) )
   main_length = bb.pmax[main_d] - bb.pmin[main_d]
@@ -118,7 +119,7 @@ function have_intersection(t::Triangle{3},bb::BoundingBox{3})
   d = mutable(VectorValue{length(sq),Float64})
   for i in 1:length(sq)
     d[i] = ( n ⋅ (p0 -sq[i]) ) / n[main_d]
-    if d[i] ≥ 0 || d[i] ≤ main_length
+    if d[i] ≥ 0 && d[i] ≤ main_length
       i_int = i
     end
   end
@@ -183,3 +184,23 @@ end
 function have_intersection(bb1::BoundingBox{D},bb2::BoundingBox{D}) where {D}
   throw(ArgumentError("have_intersection(::BoundingBox,::BoundingBox) not implemented"))
 end
+
+function writevtk(b::BoundingBox{D,T},file_base_name) where {D,T}
+  d_to_vtk_hex_type_id = Dict(0=>1,1=>3,2=>9,3=>12)
+  vtk_hex_lvertices = [1,2,4,3,5,6,8,7]
+
+  points = zeros(T,D,num_vertices(b))
+  for (i,v) in enumerate(get_vertices(b)), d in 1:D
+      points[d,i] = v[d]
+  end
+
+  vtk_type = VTKCellType(d_to_vtk_hex_type_id[D])
+  vertices = vtk_hex_lvertices[1:num_vertices(b)]
+  cells = [ MeshCell(vtk_type,vertices) ]
+
+  vtkfile = vtk_grid(file_base_name,points,cells)
+  vtk_save(vtkfile)
+end
+  
+    
+

@@ -212,18 +212,17 @@ box = BoundingBox(sm)
 
 box = expand(box,0.5)
 
-bg_mesh = CartesianMesh(box,5)
+bg_mesh = CartesianMesh(box,1)
 
 c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
-cell_id = 43
+cell_id = 1
 
 reset!(cell_mesh,get_cell(bg_mesh,cell_id))
 
 c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
 reset!(cell_mesh,get_cell(bg_mesh,cell_id))
-
 
 for i in 1:length(c_to_sm_f,cell_id)
   sm_face = c_to_sm_f[cell_id,i]
@@ -234,12 +233,10 @@ compact!(cell_mesh)
 
 compute_in_out!(cell_mesh,sm)
 
-@check !is_any_face_repeated(cell_mesh)
+@test !is_any_face_repeated(cell_mesh)
 
-display( get_vertex_coordinates(cell_mesh))
 writevtk(sm,"sm3")
 writevtk(cell_mesh,"cell_mesh3")
-
 
 end # module
 

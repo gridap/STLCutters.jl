@@ -185,3 +185,19 @@ function closest_point(a::Point,b)
   a
 end
 
+function writevtk(p::Point{D,T},file_base_name) where {D,T}
+  vtk_type_id = 1
+
+  points = zeros(T,D,1)
+
+  for d in 1:D
+      points[d,1] = p[d]
+  end
+
+  vtk_type = VTKCellType(vtk_type_id)
+  vertices = [1]
+  cells = [ MeshCell(vtk_type,vertices) ]
+
+  vtkfile = vtk_grid(file_base_name,points,cells)
+  vtk_save(vtkfile)
+end
