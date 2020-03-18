@@ -130,6 +130,7 @@ function compute_in_out!(mesh::CellMesh,sm::SurfaceMesh)
   end
 
   define_faces!(mesh)
+  fix_boundary_facets!(mesh)
   mesh
 end
 
@@ -470,6 +471,18 @@ function get_dface_to_vertices(m::CellMesh,d::Int)
   get_faces(m,d,0)
 end
 
+function get_cell_to_vertices(m::CellMesh{D}) where D
+  get_faces(m,D,0)
+end
+
+function get_cell_to_facets(m::CellMesh{D}) where D
+  get_faces(m,D,D-1)
+end
+
+function get_facet_to_vertices(m::CellMesh{D}) where D
+  get_faces(m,D-1,0)
+end
+
 function get_vertex_coordinates(m::CellMesh) 
   m.vertex_coordinates
 end
@@ -576,6 +589,14 @@ function is_facet_boundary(mesh::CellMesh{D},facet::Integer) where D
   is_face_boundary(mesh,D-1,facet)
 end
 
+function is_cell_interior(mesh::CellMesh{D},cell::Integer) where D
+  is_face_interior(mesh,D,cell)
+end
+
+function is_cell_exterior(mesh::CellMesh{D},cell::Integer) where D
+  is_face_exterior(mesh,D,cell)
+end
+
 function is_cell_defined(mesh::CellMesh{D},cell::Integer) where D
   is_face_defined(mesh,D,cell)
 end
@@ -623,6 +644,30 @@ end
 function set_cell_in_out!(mesh::CellMesh{D},cell::Integer,val) where D
   @check val != FACE_BOUNDARY
   set_face_in_out_boundary!(mesh,D,cell,val)
+end
+
+function set_cell_as_interior!(mesh::CellMesh{D},cell::Integer) where D
+  set_face_as_interior!(mesh,D,cell)
+end
+
+function set_cell_as_exterior!(mesh::CellMesh{D},cell::Integer) where D
+  set_face_as_exterior!(mesh,D,cell)
+end
+
+function set_cell_as_boundary!(mesh::CellMesh{D},cell::Integer) where D
+  set_face_as_boundary!(mesh,D,cell)
+end
+
+function set_facet_as_interior!(mesh::CellMesh{D},facet::Integer) where D
+  set_face_as_interior!(mesh,D-1,facet)
+end
+
+function set_facet_as_exterior!(mesh::CellMesh{D},facet::Integer) where D
+  set_face_as_exterior!(mesh,D-1,facet)
+end
+
+function set_facet_as_boundary!(mesh::CellMesh{D},facet::Integer) where D
+  set_face_as_boundary!(mesh,D-1,facet)
 end
 
 # Geometrical queries
@@ -853,6 +898,10 @@ get_vector_bis!(a::MeshCache) = resize!(a.vector_cache_3,0)
 num_dims(cache::CellMeshCache) = length(cache.d_to_dface_to_new_dfaces)
 
 get_orientation(a::CellMeshCache,cell::Integer,lfacet::Integer) = a.cell_to_lfacet_to_orientation[cell,lfacet]
+
+function  set_orientation!(a::CellMeshCache,cell::Integer,lfacet::Integer,val)
+  a.cell_to_lfacet_to_orientation[cell,lfacet] = val
+end
 
 get_dface_to_new_dfaces(a::CellMeshCache,d::Integer) = a.d_to_dface_to_new_dfaces[d]
 
@@ -1424,6 +1473,47 @@ function define_faces!(mesh::CellMesh)
   end
   mesh
 end
+
+function fix_boundary_facets!(mesh::CellMesh)
+  cache = get_cache(mesh)
+  f_to_smf = cache.cell.facet_to_surface_mesh_facet
+  c_to_f = get_cell_to_facets(mesh)
+  for facet in 1:num_facets(mesh)
+    set_facet_as_exterior!(mesh,facet)
+  end
+  for cell in 1:num_cells(mesh)
+    if is_cell_interior(mesh,cell)
+      for lfacet in 1:length(c_to_f,cell)
+        facet = c_to_f[cell,lfacet]
+        if f_to_smf[facet] != UNSET
+          set_facet_as_boundary!(mesh,facet)
+          _fix_cell_to_facet_orientation!(mesh,cell,lfacet)
+        end
+      end
+    end
+  end
+end
+
+function _fix_cell_to_facet_orientation!(mesh::CellMesh,cell::Integer,lfacet::Integer)
+  cell_cache = get_cache(mesh).cell
+  c_to_f = get_cell_to_facets(mesh)
+  facet = c_to_f[cell,lfacet]
+  if get_orientation(cell_cache,cell,lfacet) < 0
+    set_orientation!(cell_cache,cell,lfacet, 1 )
+    _flip_facet!(mesh,facet)
+  end
+end
+
+function _flip_facet!(mesh::CellMesh,facet::Integer)
+  f_to_v = get_facet_to_vertices(mesh)
+  n_vxf = length(f_to_v,facet)
+  if  n_vxf > 1
+    _v = f_to_v[facet,n_vxf]
+    f_to_v[facet,n_vxf] = f_to_v[facet,n_vxf-1] 
+    f_to_v[facet,n_vxf-1] = _v
+  end
+end
+
 
 function compute_facet_to_cells!(mesh::CellMesh)
   D = num_dims(mesh)
