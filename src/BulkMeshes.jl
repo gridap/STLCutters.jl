@@ -31,12 +31,14 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
   c_to_io = Int8[]
   c_to_bgc = Int32[]
   c_coords = Point{D,T}[]
+  c_rcoords = Point{D,T}[]
 
 
   f_to_v = Table{Int}()
   f_to_n = VectorValue{D,T}[]
   f_to_bgc = Int32[]
   f_coords = Point{D,T}[]
+  f_rcoords = Point{D,T}[]
 
   bgc_to_ioc = fill(Int8(FACE_UNDEF),num_cells(bg_mesh))
   bgv_to_iob = fill(Int8(FACE_UNDEF),num_vertices(bg_mesh))
@@ -57,7 +59,10 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
       end
       
       offset = length(c_coords)
-      append!( c_coords, get_vertex_coordinates(cell_mesh) )
+      vertices = get_vertex_coordinates(cell_mesh) 
+      ref_vertices = transformation( get_reference_cell(bg_mesh), get_cell(bg_mesh,k), vertices )
+      append!( c_coords, vertices )
+      append!( c_rcoords, ref_vertices )
       append!( c_to_v, get_cell_to_vertices(cell_mesh), offset )
       
       for cell in 1:num_cells(cell_mesh)
@@ -76,11 +81,15 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
         if is_facet_boundary(cell_mesh,facet)
           resize!(vertices_cache, 0 )
           facet_coordinates = get_facet_coordinates(cell_mesh,facet)
-          
+          facet_normal = normal(facet_coordinates)
+          facet_normal = facet_normal / norm(facet_normal)
+
           push!( f_to_bgc, k ) 
-          push!( f_to_n, normal(facet_coordinates) )
+
+          push!( f_to_n, facet_normal )
           for v in get_vertices(facet_coordinates)
             push!(f_coords,v)
+            push!(f_rcoords, transformation( get_reference_cell(bg_mesh), get_cell(bg_mesh,k), v ) )
             push!(vertices_cache, length(f_coords))
           end
           push!(f_to_v, vertices_cache )
@@ -91,8 +100,8 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
 
   end
 
-  subtriangulation = SubTriangulation( c_to_v, c_to_io, c_to_bgc, c_coords, c_coords )
-  facet_subtriangulation = FacetSubTriangulation( f_to_v, f_to_n, f_to_bgc, f_coords, f_coords )
+  subtriangulation = SubTriangulation( c_to_v, c_to_io, c_to_bgc, c_coords, c_rcoords )
+  facet_subtriangulation = FacetSubTriangulation( f_to_v, f_to_n, f_to_bgc, f_coords, f_rcoords )
   facet_subtriangulations = [ facet_subtriangulation ]
   
   ## Create ST's

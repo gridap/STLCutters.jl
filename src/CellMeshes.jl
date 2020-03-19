@@ -1152,7 +1152,7 @@ function update_dface_to_new_dfaces!(cache::CellMeshCache,cutter::CutterCache,id
         resize!(df_to_new_df,dface)
       end
       if !isassigned(df_to_new_df,dface)
-        df_to_new_df[dface] = Int[]
+        df_to_new_df[dface] = Int[] # TODO: Avoid constant allocation, do not resize d_to_df_to_new_df
       elseif dface > n_dfaces
         resize!(df_to_new_df[dface],0)
       end

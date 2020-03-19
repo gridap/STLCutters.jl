@@ -54,6 +54,14 @@ end
 
 Base.zero(v::T) where T<:VectorValue = zero(T)
 
+@generated function Base.one(::Type{VectorValue{D,T}}) where {D,T}
+  data = join(["one(T), " for i in 1:D])
+  str = "VectorValue{D,T}($data)"
+  Meta.parse(str)
+end
+
+Base.one(v::T) where T<:VectorValue = zero(T)
+
 function mutable(::Type{VectorValue{D,T}}) where {D,T}
   v = zero(VectorValue{D,T})
   MutableVectorValue(v.data)

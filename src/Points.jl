@@ -95,6 +95,10 @@ function Base.getindex(p::Point,i::Integer)
   p.vector[i]
 end
 
+function Base.:-(a::Point{D}) where D
+  Point(-a.vector)
+end
+
 function Base.:+(a::Point{D},b::Point{D}) where D
   a.vector + b.vector
 end
@@ -169,6 +173,14 @@ end
 
 function Base.zero(::Type{Point{D,T}}) where {D,T}
   Point(zero(VectorValue{D,T}))
+end
+
+function Base.one(p::Point{D,T}) where {D,T}
+  Point(one(p.vector))
+end
+
+function Base.one(::Type{Point{D,T}}) where {D,T}
+  Point(one(VectorValue{D,T}))
 end
 
 """

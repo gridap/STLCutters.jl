@@ -16,6 +16,10 @@ function CartesianMesh(b::BoundingBox{D},n::Integer) where D
   CartesianMesh(b,p)
 end
 
+function get_reference_cell(::CartesianMesh{D,T}) where {D,T}
+  BoundingBox( -one(Point{D,T}), one(Point{D,T}) )
+end
+
 num_dims(::CartesianMesh{D}) where D = D
 
 function num_cells(m::CartesianMesh{D}) where D

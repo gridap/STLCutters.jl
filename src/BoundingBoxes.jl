@@ -185,6 +185,27 @@ function have_intersection(bb1::BoundingBox{D},bb2::BoundingBox{D}) where {D}
   throw(ArgumentError("have_intersection(::BoundingBox,::BoundingBox) not implemented"))
 end
 
+function transformation(dest_box::BoundingBox{D},origin_box::BoundingBox{D},p::Point{D}) where D
+  dest_sizes = dest_box.pmax - dest_box.pmin
+  origin_sizes = origin_box.pmax - origin_box.pmin
+  ( p-origin_box.pmin ) .* ( dest_sizes ./ origin_sizes ) + dest_box.pmin
+end
+
+function transformation(
+  dest_box::BoundingBox{D},
+  origin_box::BoundingBox{D},
+  origin_points::Vector{Point{D,T}}) where {D,T}
+  
+  dest_sizes = dest_box.pmax - dest_box.pmin
+  origin_sizes = origin_box.pmax - origin_box.pmin
+  frac_sizes = dest_sizes ./ origin_sizes
+  dest_points = zeros(Point{D,T},length(origin_points))
+  for (i,p) in enumerate( origin_points )
+    dest_points[i] = ( p - origin_box.pmin ) .* frac_sizes + dest_box.pmin
+  end
+  dest_points
+end
+
 function writevtk(b::BoundingBox{D,T},file_base_name) where {D,T}
   d_to_vtk_hex_type_id = Dict(0=>1,1=>3,2=>9,3=>12)
   vtk_hex_lvertices = [1,2,4,3,5,6,8,7]
@@ -202,5 +223,4 @@ function writevtk(b::BoundingBox{D,T},file_base_name) where {D,T}
   vtk_save(vtkfile)
 end
   
-    
 

@@ -1,13 +1,13 @@
 
 macro check(test)
   quote
-    @assert $(esc(test)) $(string(test))
+    @boundscheck @assert $(esc(test)) $(string(test))
   end
 end
 
 macro check(test,msg)
   quote
-    @assert $(esc(test)) $msg
+    @boundscheck @assert $(esc(test)) $msg
   end
 end
 
