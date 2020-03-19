@@ -2,7 +2,7 @@ module BulkMeshesTests
 
 using STLCutter
 
-using STLCutter: expand, BulkMesh, NewBulkMesh
+using STLCutter: expand, BulkMesh
 
 using Test
 
@@ -20,9 +20,7 @@ box = expand(box,0.1)
 bg_mesh = CartesianMesh(box,20)
 
 
-nbm = NewBulkMesh(bg_mesh,sm)
-bm = BulkMesh(bg_mesh,sm)
-writevtk(bm,"bulk")
+nbm = BulkMesh(bg_mesh,sm)
 writevtk(sm,"sm")
 
 writevtk(nbm,"new_bm")

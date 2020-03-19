@@ -162,19 +162,6 @@ function Base.append!(a::Table,b::Table)
   a
 end
 
-function Base.append!(a::Table,b::Table)
-  for i in 1:length(b)
-    if isactive(b,i)
-      for j in 1:length(b,i)
-        push!(a.data,b[i,j])
-      end
-      push!(a.ptrs,length(a.data)+1)
-      push!(a.masks,true)
-    end
-  end
-  a
-end
-
 function Base.append!(a::Table,b::Table,offset)
   for i in 1:length(b)
     if isactive(b,i)
