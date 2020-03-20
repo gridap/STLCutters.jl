@@ -170,8 +170,10 @@ function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
       end
     end
 
-    while length(nfaces) > 0
-      nface = pop!(nfaces)
+    head = 1
+    while length(nfaces) ≥ head
+      nface = nfaces[head]
+      head += 1
       _d, iface, point = find_next_point(mesh,nface,sm,sm_face)
       vertex = add_vertex!(mesh,_d,iface,point,sm_face)
       if vertex != UNSET
