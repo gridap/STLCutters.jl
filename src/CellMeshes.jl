@@ -8,6 +8,7 @@ const FACE_CUT = -1
 const intersection_tolerance = 1e-10
 
 struct CellMeshCache
+  d_to_num_dfaces::Vector{Int}
   d_to_dface_to_new_dfaces::Vector{Vector{Vector{Int}}}
   d_to_dface_to_cell_dface::Vector{Vector{Int}}
   cell_to_lfacet_to_orientation::Table{Int}
@@ -72,11 +73,7 @@ end
 
 function add_vertex!(mesh::CellMesh,d::Integer,face::Integer,point::Point,sm_face::Integer)
   if face != UNSET
-    if d == 0
-      add_surface_mesh_face_to_vertex!(mesh.cache.cell,face,sm_face)
-    else
-      push_surface_mesh_face!(mesh.cache.cell,sm_face)
-    end
+    add_surface_mesh_face_to_vertex!(mesh.cache,d,face,sm_face)
     _add_vertex!(mesh,d,face,point)
   else
     UNSET
@@ -811,12 +808,13 @@ end
 # Helpers
 
 function CellMeshCache(D::Integer)
+  d_num_df = [ 0 for d in 0:D ]
   d_to_df_to_new_df = [ Vector{Int}[] for d in 1:D ]
   d_to_df_to_cdf = [ Int[] for d in 0:D-1 ]
   c_lf_to_o = Table{Int}()
   v_to_smf = Vector{Int}[]
   f_to_sm_f = Int[]
-  CellMeshCache( d_to_df_to_new_df, d_to_df_to_cdf, c_lf_to_o, v_to_smf, f_to_sm_f )
+  CellMeshCache( d_num_df, d_to_df_to_new_df, d_to_df_to_cdf, c_lf_to_o, v_to_smf, f_to_sm_f )
 end
 
 function CutterCache(D::Integer)
@@ -839,11 +837,16 @@ function MeshCache(D::Integer)
 end
 
 function reset_cell_cache!(cache::CellMeshCache,mesh::CellMesh{D}) where D
+  for d in 0:D
+    set_num_dfaces!(cache,d, num_dfaces(mesh,d) )
+  end
   table_c_lf_to_o = D_to_cell_lfacet_to_orientation_for_hexD_to_tetD[D] 
   table_d_to_df_to_cdf = D_to_d_to_subdface_to_dface_for_hexD_to_tetD[D]
   for d in 1:D
     df_to_new_df = get_dface_to_new_dfaces(cache,d)
-    resize!( df_to_new_df, num_dfaces(mesh,d) )
+    if length(df_to_new_df) < num_dfaces(cache,d)
+      resize!( df_to_new_df, num_dfaces(cache,d) )
+    end
     for i in 1:num_dfaces(mesh,d)
       if !isassigned(df_to_new_df,i)
         df_to_new_df[i] = []
@@ -854,12 +857,12 @@ function reset_cell_cache!(cache::CellMeshCache,mesh::CellMesh{D}) where D
   resize!( cache.cell_to_lfacet_to_orientation, 0 )
   append!( cache.cell_to_lfacet_to_orientation, table_c_lf_to_o )
   v_to_smf = cache.vertex_to_surface_mesh_faces
-  resize!( v_to_smf, num_vertices(mesh) )
   for i in 1:num_vertices(mesh)
-    if !isassigned(v_to_smf,i)
-      v_to_smf[i] = []
+    if length(v_to_smf) < i
+      push!(v_to_smf,[])
+    else
+      resize!(v_to_smf[i],0) 
     end
-    resize!(v_to_smf[i],0) 
   end
   for d in 0:D-1
     df_to_cdf = table_d_to_df_to_cdf[d+1]
@@ -896,6 +899,10 @@ get_vector!(a::MeshCache) = resize!(a.vector_cache_2,0)
 get_vector_bis!(a::MeshCache) = resize!(a.vector_cache_3,0)
 
 num_dims(cache::CellMeshCache) = length(cache.d_to_dface_to_new_dfaces)
+
+num_dfaces(cache::CellMeshCache,d::Integer) = cache.d_to_num_dfaces[d+1]
+
+set_num_dfaces!(cache::CellMeshCache,d::Integer,val) = cache.d_to_num_dfaces[d+1] = val
 
 get_orientation(a::CellMeshCache,cell::Integer,lfacet::Integer) = a.cell_to_lfacet_to_orientation[cell,lfacet]
 
@@ -1145,14 +1152,17 @@ function update_dface_to_new_dfaces!(cache::CellMeshCache,cutter::CutterCache,id
   dim = num_dims(cutter)
   for d in 1:dim
     df_to_new_df = get_dface_to_new_dfaces(cache,d)
-    n_dfaces = length(df_to_new_df)
+    n_dfaces = num_dfaces(cache,d)
     for i in 1:num_dfaces(cutter,d)
       dface = get_dface(cutter,d,i)
-      if dface > length( df_to_new_df )
-        resize!(df_to_new_df,dface)
+      if dface > num_dfaces(cache,d)
+        set_num_dfaces!(cache,d,dface)
+        if length(df_to_new_df) < dface
+          resize!(df_to_new_df,dface)
+        end
       end
       if !isassigned(df_to_new_df,dface)
-        df_to_new_df[dface] = Int[] # TODO: Avoid constant allocation, do not resize d_to_df_to_new_df
+        df_to_new_df[dface] = []
       elseif dface > n_dfaces
         resize!(df_to_new_df[dface],0)
       end
@@ -1252,12 +1262,12 @@ function _are_dface_and_tdface_coincidents(
 end
 
 function push_surface_mesh_face!(cache::CellMeshCache,sm_face::Integer)
-  n = length( cache.vertex_to_surface_mesh_faces )
-  resize!( cache.vertex_to_surface_mesh_faces, n+1 )
-  if isassigned( cache.vertex_to_surface_mesh_faces, n+1 )
-    resize!( cache.vertex_to_surface_mesh_faces[n+1], 0 )
+  n = num_dfaces(cache,0)
+  set_num_dfaces!(cache,0,n+1)
+  if length(cache.vertex_to_surface_mesh_faces) == n
+    push!( cache.vertex_to_surface_mesh_faces, [] )
   else
-    cache.vertex_to_surface_mesh_faces[n+1] = []
+    resize!( cache.vertex_to_surface_mesh_faces[n+1], 0 )
   end
   push!( cache.vertex_to_surface_mesh_faces[n+1], sm_face )
 end
@@ -1266,11 +1276,21 @@ function add_surface_mesh_face_to_vertex!(cache::CellMeshCache,vertex::Integer,s
   push!( cache.vertex_to_surface_mesh_faces[vertex], sm_face )
 end
 
+function add_surface_mesh_face_to_vertex!(cache::MeshCache,d::Integer,face::Integer,sm_face::Integer)
+  if d == 0
+    add_surface_mesh_face_to_vertex!(cache.cell,face,sm_face)
+  else
+    push_surface_mesh_face!(cache.cell,sm_face)
+  end
+end
+
 function compact_cache!(cache::MeshCache,mesh::CellMesh{D}) where D
   cell_cache = cache.cell
+  for d in 0:D
+    set_num_dfaces!( cell_cache, d, num_dfaces(mesh,d) )
+  end
   for d in 1:D
     df_to_new_df = get_dface_to_new_dfaces(cache.cell,d)
-    resize!(df_to_new_df,num_dfaces(mesh,d))
     for dface in 1:num_dfaces(mesh,d)
       resize!(df_to_new_df[dface],0)
     end
