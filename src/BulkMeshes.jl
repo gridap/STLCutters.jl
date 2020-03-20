@@ -158,7 +158,22 @@ num_cells(m::SubTriangulation) = length(m.cell_to_points)
 
 get_vertex_coordinates(m::SubTriangulation) = m.point_to_coords
 
+get_cell_to_vertices(m::SubTriangulation) = m.cell_to_points
+
 get_cell_to_inout(m::SubTriangulation,cell::Integer) = m.cell_to_inoutcut[cell]
+
+function get_cell_coordinates(m::SubTriangulation{D},cell::Integer) where D
+  v =  get_vertex_coordinates(m)
+  c_to_v = get_cell_to_vertices(m)
+  @check length(c_to_v,1) == D+1 "get_cell_coordinates: only implemented for simplex mesh"
+  if D == 2
+    Triangle( v[c_to_v[cell,1]], v[c_to_v[cell,2]], v[c_to_v[cell,3]] )
+  elseif D == 3
+    Tetrahedron( v[c_to_v[cell,1]], v[c_to_v[cell,2]], v[c_to_v[cell,3]], v[c_to_v[cell,4]] )
+  else
+    throw(ErrorException("get_cell_coordinates(::SubTriangulation{$D}) not implemented"))
+  end
+end
 
 num_vertices(facets::FacetSubTriangulation) = length(facets.point_to_coords)
 
@@ -166,11 +181,49 @@ num_facets(facets::FacetSubTriangulation) = length(facets.facet_to_points)
 
 get_vertex_coordinates(facets::FacetSubTriangulation) = facets.point_to_coords
 
+get_facet_to_vertices(facets::FacetSubTriangulation) = facets.facet_to_points
+
 get_normal(facets::FacetSubTriangulation,facet::Integer) = facets.facet_to_normal[facet]
 
 function get_vertex(facets::FacetSubTriangulation,facet::Integer,lvertex::Integer)
   facets.facet_to_points[facet,lvertex]
 end
+
+function get_facet_coordinates(facets::FacetSubTriangulation{D},cell::Integer) where D
+  v =  get_vertex_coordinates(facets)
+  f_to_v = get_facet_to_vertices(facets)
+  @check length(f_to_v,1) == D  "get_facet_coordinates: only implemented for simplex mesh"
+  if D == 2
+    Segment( v[f_to_v[cell,1]], v[f_to_v[cell,2]] )
+  elseif D == 3
+    Triangle( v[f_to_v[cell,1]], v[f_to_v[cell,2]], v[f_to_v[cell,3]] )
+  else
+    throw(ErrorException("get_facet_coordinates(::SubTriangulation{$D}) not implemented"))
+  end
+end
+
+
+function volume(m::SubTriangulation)
+  volume = 0.0
+  for cell in 1:num_cells(m)
+    c_coords = get_cell_coordinates(m,cell)
+    volume += measure(c_coords)
+  end
+  volume
+end
+
+function surface(facets::FacetSubTriangulation)
+  surface = 0.0
+  for facet in 1:num_facets(facets)
+    f_coords = get_facet_coordinates(facets,facet)
+    surface += measure(f_coords)
+  end
+  surface
+end
+
+surface(m::BulkMesh,i::Integer) = surface(m.facet_subtriangulations[i])
+
+volume(m::BulkMesh) = volume(m.subtriangulation)
 
 function writevtk(m::BulkMesh{D,T},file_base_name) where {D,T}
   for (i,facets) in enumerate( m.facet_subtriangulations )

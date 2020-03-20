@@ -176,6 +176,15 @@ end
 
 get_facet_normal(s::SurfaceMesh,i::Integer) = s.facet_normals[i]
 
+function surface(s::SurfaceMesh)
+  surface = 0.0
+  for i in 1:num_facets(s)
+    facet = get_facet_coordinates(s,i)
+    surface += measure(facet)
+  end
+  surface
+end
+
 function compute_nface_to_dfaces_dual(nface_to_dfaces::Table,n_dfaces::Integer)
 
   ptrs = zeros(Int32,n_dfaces+1)
