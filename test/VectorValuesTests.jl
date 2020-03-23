@@ -184,6 +184,6 @@ A = [
 5 6 7 8;
 6 2 9 9;
 5 7 8 5 ]
-@test det(v1,v2,v3,v4) == det(A)
+@test det(v1,v2,v3,v4) ≈ det(A)
 
 end # module
