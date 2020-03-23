@@ -177,7 +177,7 @@ end
 
 Base.:-(v::VectorValue{D,T}) where {D,T} = VectorValue{D,T}(.-v.data)
 
-function Base.broadcasted(op,a::VectorValue{D}...) where D 
+function Base.Broadcast.broadcasted(op,a::VectorValue{D}...) where D 
   datas = get_datas(a...)
   VectorValue(broadcast(op,datas...))
 end

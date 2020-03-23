@@ -154,7 +154,7 @@ function average(ps::AbstractArray{Point{D,T}}) where {D,T}
   r
 end
 
-function Base.broadcasted(op,a::Point{D}...) where D 
+function Base.Broadcast.broadcasted(op,a::Point{D}...) where D 
   datas = get_datas(a...)
   Point(broadcast(op,datas...))
 end
