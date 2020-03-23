@@ -154,6 +154,17 @@ num_cells(m::BulkMesh) = num_cells( get_background_mesh(m) )
 
 num_vertices(m::BulkMesh) = num_vertices( get_background_mesh(m) )
 
+function get_cell(m::BulkMesh,cell::Integer)
+  bg_mesh = get_background_mesh(m)
+  get_cell(bg_mesh,cell)
+end
+
+is_cell_interior(m::BulkMesh,cell::Integer) = m.background_cell_to_inoutcut[cell] == FACE_IN
+
+is_cell_exterior(m::BulkMesh,cell::Integer) = m.background_cell_to_inoutcut[cell]== FACE_OUT
+
+is_cell_cut(m::BulkMesh,cell::Integer) = m.background_cell_to_inoutcut(cell) == FACE_CUT
+
 num_cells(m::SubTriangulation) = length(m.cell_to_points)
 
 get_vertex_coordinates(m::SubTriangulation) = m.point_to_coords
@@ -161,6 +172,10 @@ get_vertex_coordinates(m::SubTriangulation) = m.point_to_coords
 get_cell_to_vertices(m::SubTriangulation) = m.cell_to_points
 
 get_cell_to_inout(m::SubTriangulation,cell::Integer) = m.cell_to_inoutcut[cell]
+
+is_cell_interior(m::SubTriangulation,cell::Integer) = get_cell_to_inout(m,cell) == FACE_IN
+
+is_cell_exterior(m::SubTriangulation,cell::Integer) = get_cell_to_inout(m,cell) == FACE_OUT
 
 function get_cell_coordinates(m::SubTriangulation{D},cell::Integer) where D
   v =  get_vertex_coordinates(m)
@@ -202,12 +217,24 @@ function get_facet_coordinates(facets::FacetSubTriangulation{D},cell::Integer) w
   end
 end
 
-
-function volume(m::SubTriangulation)
+function interior_volume(m::SubTriangulation)
   volume = 0.0
   for cell in 1:num_cells(m)
-    c_coords = get_cell_coordinates(m,cell)
-    volume += measure(c_coords)
+    if is_cell_interior(m,cell)
+      c_coords = get_cell_coordinates(m,cell)
+      volume += measure(c_coords)
+    end
+  end
+  volume
+end
+
+function exterior_volume(m::SubTriangulation)
+  volume = 0.0
+  for cell in 1:num_cells(m)
+    if is_cell_exterior(m,cell)
+      c_coords = get_cell_coordinates(m,cell)
+      volume += measure(c_coords)
+    end
   end
   volume
 end
@@ -223,7 +250,27 @@ end
 
 surface(m::BulkMesh,i::Integer) = surface(m.facet_subtriangulations[i])
 
-volume(m::BulkMesh) = volume(m.subtriangulation)
+function interior_volume(m::BulkMesh)
+  volume = interior_volume(m.subtriangulation)
+  for cell in 1:num_cells(m)
+    if is_cell_interior(m,cell)
+      box = get_cell(m,cell)
+      volume += measure(box)
+    end
+  end
+  volume
+end
+
+function exterior_volume(m::BulkMesh)
+  volume = exterior_volume(m.subtriangulation)
+  for cell in 1:num_cells(m)
+    if is_cell_exterior(m,cell)
+      box = get_cell(m,cell)
+      volume += measure(box)
+    end
+  end
+  volume
+end
 
 function writevtk(m::BulkMesh{D,T},file_base_name) where {D,T}
   for (i,facets) in enumerate( m.facet_subtriangulations )

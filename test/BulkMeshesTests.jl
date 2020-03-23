@@ -2,7 +2,7 @@ module BulkMeshesTests
 
 using STLCutter
 
-using STLCutter: expand, BulkMesh, surface
+using STLCutter: expand, BulkMesh, surface, interior_volume, exterior_volume
 
 using Test
 
@@ -19,7 +19,9 @@ bm = BulkMesh(bg_mesh,sm)
 writevtk(sm,"sm")
 writevtk(bm,"bm")
 
-#BUG(TODO): @test volume(bm) ≈ 1
+@test interior_volume(bm) ≈ 1
+
+@test interior_volume(bm) + exterior_volume(bm) ≈ measure(box)
 
 @test surface(sm) ≈ surface(bm,1)
 
@@ -36,6 +38,8 @@ bm = BulkMesh(bg_mesh,sm)
 
 writevtk(sm,"sm")
 writevtk(bm,"bm")
+
+@test interior_volume(bm) + exterior_volume(bm) ≈ measure(box)
 
 @test surface(sm) == surface(bm,1)
 

@@ -186,4 +186,8 @@ A = [
 5 7 8 5 ]
 @test det(v1,v2,v3,v4) ≈ det(A)
 
+v = VectorValue(1,2,3,4)
+@test sum(v) == 10
+@test prod(v) == 24
+
 end # module

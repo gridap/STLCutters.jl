@@ -42,6 +42,10 @@ num_dims(::Type{<:BoundingBox{D}}) where D = D
 
 num_dims(::T) where T<:BoundingBox = num_dims(T)
 
+function measure(b::BoundingBox)
+  v = b.pmax - b.pmin
+  prod(v)
+end
 
 const BB_tolerance = 1e-5
 function expand(bb::BoundingBox,ε::Number)

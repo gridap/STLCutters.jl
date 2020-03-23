@@ -267,4 +267,11 @@ function orthogonal(a::VectorValue{D}...) where D
   orthogonal(a,)
 end
 
+function Base.sum(a::VectorValue)
+  sum(get_data(a))
+end
+
+function Base.prod(a::VectorValue)
+  prod(get_data(a))
+end
 
