@@ -77,7 +77,6 @@ function _compute_mfaces_to_nfaces(facet_to_vertices::Table,::Val{D}) where D
   for d in 0:D-1
     mf_to_nf[d+1,d+1] = compute_dface_to_dface(n_dfaces[d+1],Val{T}())
   end
-  # TODO: Complete matrix
   mf_to_nf
 end
 
@@ -183,6 +182,14 @@ function surface(s::SurfaceMesh)
     surface += measure(facet)
   end
   surface
+end
+
+function move!(s::SurfaceMesh,offsets::VectorValue)
+  v = get_vertex_coordinates(s)
+  for i in 1:num_vertices(s)
+    v[i] = v[i] + offsets
+  end
+  s
 end
 
 function compute_nface_to_dfaces_dual(nface_to_dfaces::Table,n_dfaces::Integer)

@@ -25,9 +25,9 @@ writevtk(bm,"bm")
 
 @test surface(sm) ≈ surface(bm,1)
 
-stl = STL(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
-stl = STL(joinpath(@__DIR__,"data/wine_glass.stl"))
-#
+stl = STL(joinpath(@__DIR__,"data/Bunny-LowPoly.stl")); vol = 273280.0337419614;
+stl = STL(joinpath(@__DIR__,"data/wine_glass.stl")); vol = 74.12595970063474;
+
 sm = SurfaceMesh(stl)
 box = BoundingBox(sm)
 box = expand(box,0.1)
@@ -41,6 +41,8 @@ writevtk(bm,"bm")
 
 @test interior_volume(bm) + exterior_volume(bm) ≈ measure(box)
 
-@test surface(sm) == surface(bm,1)
+@test surface(sm) ≈ surface(bm,1)
+
+@test interior_volume(bm) ≈ vol
 
 end # module

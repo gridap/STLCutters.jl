@@ -22,20 +22,12 @@ end
 
 num_dims(::CartesianMesh{D}) where D = D
 
-function num_cells(m::CartesianMesh{D}) where D
-  n = 1
-  for d in 1:D
-    n *= m.partition[d]
-  end
-  n
+function num_cells(m::CartesianMesh)
+  prod(m.partition)
 end
 
 function num_vertices(m::CartesianMesh{D}) where D
-  n = 1
-  for d in 1:D
-    n *= m.partition[d]+1
-  end
-  n
+  prod(m.partition.+1)
 end
 
 function get_cell(m::CartesianMesh,i::Integer)

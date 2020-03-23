@@ -5,8 +5,6 @@ const FACE_OUT = 2
 const FACE_BOUNDARY = 3
 const FACE_CUT = -1
 
-const intersection_tolerance = 1e-10
-
 struct CellMeshCache
   d_to_num_dfaces::Vector{Int}
   d_to_dface_to_new_dfaces::Vector{Vector{Vector{Int}}}
@@ -142,6 +140,8 @@ end
 
 # Intersections
 
+tolerance(m::CellMesh) = 1e-8
+
 function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
   d = face_dimension(sm,sm_face)
   if d == 0
@@ -170,14 +170,12 @@ function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
       end
     end
 
-    head = 1
-    while length(nfaces) ≥ head
-      nface = nfaces[head]
-      head += 1
+    while length(nfaces) > 0
+      nface = popfirst!(nfaces)
       _d, iface, point = find_next_point(mesh,nface,sm,sm_face)
       vertex = add_vertex!(mesh,_d,iface,point,sm_face)
       if vertex != UNSET
-        for _nface in 1:num_dfaces(mesh,n)
+        for _nface in reverse(1:num_dfaces(mesh,n))
           if isactive(mesh,n,_nface)
             if _nface != nface && _is_vertex_in_face(mesh,vertex,n,_nface)
               push!(nfaces,_nface)
@@ -200,7 +198,7 @@ function _is_vertex_in_face(mesh,vertex,d,dface)
 end
 
 function find_closest_face(mesh::CellMesh{D},point::Point{D}) where D
-  min_distance = intersection_tolerance 
+  min_distance = tolerance(mesh)
   iface = UNSET
   for d in 0:D
     for i in 1:num_dfaces(mesh,d)
@@ -246,7 +244,7 @@ function find_intersection_point_on_boundary_face(mesh::CellMesh,sm::SurfaceMesh
     for n in 0:d
       df_to_nf = get_faces(mesh,d,n)
       iface = UNSET
-      min_distance = intersection_tolerance
+      min_distance = tolerance(mesh)
       for dface in 1:num_dfaces(mesh,d)
         if isactive(mesh,d,dface)
           if is_dface_in_cell_mesh_boundary(mesh,d,dface)
@@ -278,7 +276,7 @@ function find_next_point(mesh::CellMesh,dface::Integer,sm::SurfaceMesh,sm_face::
   for n in d+1:D
     dim = n-d-1
     iface = UNSET
-    min_distance = intersection_tolerance
+    min_distance = tolerance(mesh)
     for nface in 1:num_dfaces(mesh,n)
       if isactive(mesh,n,nface)
         if _is_dface_in_nface_boundary(mesh,n,nface,d,dface)
@@ -311,7 +309,7 @@ function find_next_boundary_point(mesh::CellMesh,d::Integer,dface::Integer,sm::S
       dim = n-d-1
       kf_to_nf = get_faces(mesh,k,n)
       iface = UNSET
-      min_distance = intersection_tolerance
+      min_distance = tolerance(mesh)
       for kface in 1:num_dfaces(mesh,k)
         if isactive(mesh,k,kface)
           if is_dface_in_cell_mesh_boundary(mesh,k,kface)
