@@ -44,12 +44,12 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
   bgv_to_iob = fill(Int8(FACE_UNDEF),num_vertices(bg_mesh))
 
   c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
-  
+
   for k in 1:num_cells(bg_mesh)
     reset!(cell_mesh, get_cell(bg_mesh,k) )
     compute_cell_mesh!(cell_mesh,sm,c_to_sm_f,k)
     if is_surface_mesh_captured(cell_mesh)
-     
+      
       bgc_to_ioc[k] = FACE_CUT
       for lv in 1:num_vertices_per_cell(bg_mesh)
         v = get_vertex_id(bg_mesh,k,lv)

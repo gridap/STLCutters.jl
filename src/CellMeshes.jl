@@ -147,7 +147,7 @@ function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
   if d == 0
     point = get_vertex_coordinates(sm,sm_face)
     _d, iface = find_closest_face(mesh,point)
-    add_vertex!(mesh,_d,iface,point,sm_face)
+    vertex = add_vertex!(mesh,_d,iface,point,sm_face)
   else
     n = d-1
     df_to_nf = get_faces(mesh,d,d-1)
@@ -177,7 +177,10 @@ function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
       if vertex != UNSET
         for _nface in reverse(1:num_dfaces(mesh,n))
           if isactive(mesh,n,_nface)
-            if _nface != nface && _is_vertex_in_face(mesh,vertex,n,_nface)
+            if _nface != nface && 
+              _is_vertex_in_face(mesh,vertex,n,_nface)  && 
+              _is_dface_capturing_surface_mesh_face(mesh,n,_nface,sm,sm_face)
+
               push!(nfaces,_nface)
             end
           end
@@ -217,21 +220,13 @@ function find_closest_face(mesh::CellMesh{D},point::Point{D}) where D
   (UNSET,UNSET)
 end
 
+
 function find_dfaces_capturing_surface_mesh_face!(mesh::CellMesh,d::Integer,sm::SurfaceMesh,sm_face::Integer)
   dfaces = get_vector_cache!(mesh)
   df_to_v = get_dface_to_vertices(mesh,d)
   for dface in 1:num_dfaces(mesh,d)
-    if isactive(mesh,d,dface)
-      capturing = true
-      for lvertex in 1:length(df_to_v,dface)
-        vertex = df_to_v[dface,lvertex]
-        if !_is_surface_mesh_face_on_vertex(mesh,vertex,sm,sm_face)
-          capturing = false
-        end
-      end
-      if capturing 
-        push!(dfaces,dface)
-      end
+    if isactive(mesh,d,dface) && _is_dface_capturing_surface_mesh_face(mesh,d,dface,sm,sm_face)
+      push!(dfaces,dface)
     end
   end
   dfaces
@@ -404,6 +399,19 @@ function _get_opposite_face(mesh::CellMesh,d::Integer,dface::Integer,n::Integer,
   return UNSET
 end
 
+function _is_dface_capturing_surface_mesh_face(
+  mesh::CellMesh,d::Integer,dface::Integer,
+  sm::SurfaceMesh,sm_face::Integer)
+  df_to_v = get_dface_to_vertices(mesh,d)
+  for lvertex in 1:length(df_to_v,dface)
+    vertex = df_to_v[dface,lvertex]
+    if !_is_surface_mesh_face_on_vertex(mesh,vertex,sm,sm_face)
+      return false
+    end
+  end
+  true
+end
+
 function _is_touching_surface_mesh_face(
   mesh::CellMesh,d::Integer,dface::Integer,
   sm::SurfaceMesh,sm_face::Integer)
@@ -436,6 +444,18 @@ end
 function get_surface_mesh_faces_on_vertex(mesh::CellMesh,vertex::Integer)
   cache = get_cache(mesh)
   cache.cell.vertex_to_surface_mesh_faces[vertex]
+end
+
+function _move_surface_mesh_vertex!(sm::SurfaceMesh,sm_vertex::Integer,mesh::CellMesh,vertex::Integer)
+  if vertex != UNSET
+    point = get_vertex_coordinates(mesh,vertex)
+    _set_surface_mesh_vertex!(sm,sm_vertex,point)
+  end
+end
+
+function _set_surface_mesh_vertex!(sm::SurfaceMesh,sm_vertex::Integer,point::Point)
+  v = get_vertex_coordinates(sm)
+  v[sm_vertex] = point
 end
 
 # Getters

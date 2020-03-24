@@ -11,6 +11,8 @@ end
 
 @inline get_vertices(s::Segment) = s.vertices
 
+@inline num_vertices(s::Segment) = 2
+
 @inline Base.length(s::Segment) = distance(s[1],s[2])
 
 @inline measure(s::Segment) = length(s)
@@ -210,13 +212,19 @@ function measure_sign(s::Segment{1})
   sign(signed_measure(s))
 end
 
+function writevtk(b::Segment{D,T},file_base_name) where {D,T}
+  vtk_type_id = 3
 
+  points = zeros(T,D,num_vertices(b))
+  for (i,v) in enumerate(get_vertices(b)), d in 1:D
+      points[d,i] = v[d]
+  end
 
+  vtk_type = VTKCellType(vtk_type_id)
+  vertices = [1:num_vertices(b);]
+  cells = [ MeshCell(vtk_type,vertices) ]
 
-
-
-
-
-
-
+  vtkfile = vtk_grid(file_base_name,points,cells)
+  vtk_save(vtkfile)
+end
 
