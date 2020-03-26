@@ -122,7 +122,15 @@ function distance(s::Segment{3},t::Triangle{3})
   if have_intersection(s,t)
     0.0
   else
-    typemax(0.0)
+    min_dist = typemax(0.0)
+    for i in 1:num_edges(t)
+      e = get_edge(t,i)
+      dist = distance(s,e)
+      if dist < min_dist
+        min_dist = dist
+      end
+    end
+    min_dist
   end
 end
 

@@ -2,47 +2,45 @@ module BulkMeshesTests
 
 using STLCutter
 
-using STLCutter: expand, BulkMesh, surface, interior_volume, exterior_volume
+using STLCutter: expand, BulkMesh, surface, interior_volume, exterior_volume, move!
 
 using Test
 
+geometries = [ "cube", "Bunny-LowPoly", "wine_glass" ]
+volumes = [ 1, 273280.0337419614, 74.12595970063474 ]
+meshes = [ 5, 40, 20 ]
 
-stl = STL(joinpath(@__DIR__,"data/cube.stl"))
 
-sm = SurfaceMesh(stl)
-box = BoundingBox(sm)
-box = expand(box,0.2)
-bg_mesh = CartesianMesh(box,5)
+offset = VectorValue(1e-7,1e-7,1e-7)
 
-bm = BulkMesh(bg_mesh,sm)
+for (i,geom) in enumerate( geometries )
 
-writevtk(sm,"sm")
-writevtk(bm,"bm")
+  stl = STL(joinpath(@__DIR__,"data/$geom.stl"))
 
-@test interior_volume(bm) ≈ 1
+  sm = SurfaceMesh(stl)
+  
+ for j in 1:10
 
-@test interior_volume(bm) + exterior_volume(bm) ≈ measure(box)
+    box = BoundingBox(sm)
+    box = expand(box,0.1)
 
-@test surface(sm) ≈ surface(bm,1)
+    bg_mesh = CartesianMesh(box, meshes[i] )
 
-stl = STL(joinpath(@__DIR__,"data/Bunny-LowPoly.stl")); vol = 273280.0337419614;
-stl = STL(joinpath(@__DIR__,"data/wine_glass.stl")); vol = 74.12595970063474;
+    bm = BulkMesh(bg_mesh,sm)
 
-sm = SurfaceMesh(stl)
-box = BoundingBox(sm)
-box = expand(box,0.1)
+    writevtk(sm,"$(geom)_sm")
+    writevtk(bm,"$(geom)_bm")
 
-bg_mesh = CartesianMesh(box,20)
+    @test interior_volume(bm) ≈ volumes[i]
 
-bm = BulkMesh(bg_mesh,sm)
+    @test interior_volume(bm) + exterior_volume(bm) ≈ measure(box)
 
-writevtk(sm,"sm")
-writevtk(bm,"bm")
+    @test surface(sm) ≈ surface(bm,1)
 
-@test interior_volume(bm) + exterior_volume(bm) ≈ measure(box)
+   sm = move!(sm,offset)
 
-@test surface(sm) ≈ surface(bm,1)
+ end
 
-@test interior_volume(bm) ≈ vol
+end
 
 end # module
