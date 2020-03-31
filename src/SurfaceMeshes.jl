@@ -173,7 +173,18 @@ function get_face_coordinates(s::SurfaceMesh,::Val{2}, i::Integer)
   Triangle( v[df_to_v[i,1]], v[df_to_v[i,2]], v[df_to_v[i,3]] )
 end
 
+get_facet_to_vertices(s::SurfaceMesh{D}) where D = get_dface_to_vertices(s,D-1)
+
+get_facet_normals(s::SurfaceMesh) = s.facet_normals
+
 get_facet_normal(s::SurfaceMesh,i::Integer) = s.facet_normals[i]
+
+function flip_normals(s::SurfaceMesh)
+  SurfaceMesh(
+    get_vertex_coordinates(s),
+    - get_facet_normals(s),
+    get_facet_to_vertices(s) )
+end
 
 function surface(s::SurfaceMesh)
   surface = 0.0

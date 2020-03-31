@@ -1441,15 +1441,13 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
   icell = cell
   ifacet = c_to_f[icell,lfacet]
   @check f_to_smf[ifacet] != UNSET
-  cell = get_cell_coordinates(mesh,cell)
+  cell = get_cell_coordinates(mesh,icell)
   facet = get_facet_coordinates(mesh,ifacet)
-  sm_facet = get_facet_coordinates(sm,f_to_smf[ifacet])
   
   facet_normal = normal(facet)
   facet_normal = facet_normal / norm(facet_normal)
 
-  sm_facet_normal = normal(sm_facet)
-  sm_facet_normal = sm_facet_normal / norm(sm_facet_normal)
+  sm_facet_normal = get_facet_normal(sm,f_to_smf[ifacet])
 
   @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet]
   orientation = ( facet_normal ⋅ sm_facet_normal ) * c_to_lf_to_o[icell,lfacet]
