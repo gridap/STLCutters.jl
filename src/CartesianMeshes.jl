@@ -152,6 +152,16 @@ function all_to_all_compute_cell_to_surface_mesh_faces(m::CartesianMesh{D},sm::S
 end
 
 function compute_cell_to_surface_mesh_faces(m::CartesianMesh{D},sm::SurfaceMesh{D}) where D
+  faces, cells = _plain_surface_mesh_faces_to_cells(m,sm)
+  Table(faces,cells,num_cells(m))
+end
+
+function compute_surface_mesh_face_to_cells(m::CartesianMesh,sm::SurfaceMesh)
+  faces, cells = _plain_surface_mesh_faces_to_cells(m,sm)
+  Table(cells,faces,num_faces(sm))
+end
+
+function _plain_surface_mesh_faces_to_cells(m::CartesianMesh{D},sm::SurfaceMesh{D}) where D
   cells = Int[]
   faces = Int[]
   cell_cache = Int[]
@@ -165,7 +175,7 @@ function compute_cell_to_surface_mesh_faces(m::CartesianMesh{D},sm::SurfaceMesh{
       end
     end
   end
-  Table(faces,cells,num_cells(m))
+  faces, cells
 end
 
 function writevtk(m::CartesianMesh{D,T},file_base_name) where {D,T}
