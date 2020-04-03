@@ -2,7 +2,14 @@
 struct BoundingBox{D,T}
   pmin::Point{D,T}
   pmax::Point{D,T}
+  function BoundingBox{D,T}(pmin::Point,pmax::Point) where {D,T}
+    @check min.(pmin,pmax) == pmin  
+    @check max.(pmin,pmax) == pmax  
+    new{D,T}(pmin,pmax) 
+  end
 end
+
+BoundingBox(pmin::Point{D,T},pmax::Point{D,T}) where {D,T} = BoundingBox{D,T}(pmin,pmax)
 
 function BoundingBox(p::Point{D,T}) where {D,T}
   BoundingBox{D,T}(p,p)

@@ -200,10 +200,10 @@ function _is_vertex_in_face(mesh,vertex,d,dface)
   false
 end
 
-function find_closest_face(mesh::CellMesh{D},point::Point{D}) where D
+function find_closest_face(mesh::CellMesh,point::Point)
   min_distance = tolerance(mesh)
   iface = UNSET
-  for d in 0:D
+  for d in 0:num_dims(mesh)
     for i in 1:num_dfaces(mesh,d)
       if isactive(mesh,d,i)
         dist = distance(mesh,d,i,point)
@@ -259,7 +259,7 @@ function find_intersection_point_on_boundary_face(mesh::CellMesh,sm::SurfaceMesh
       end
     end
   end
-  point = zero(get_vertex_coordinates(mesh,1))
+  point = zero( eltype(get_vertex_coordinates(mesh)) )
   (UNSET,UNSET,point)
 end
 
@@ -304,7 +304,7 @@ function find_next_point(mesh::CellMesh,dface::Integer,sm::SurfaceMesh,sm_face::
       end
     end
   end
-  point = zero(get_vertex_coordinates(mesh,1))
+  point = zero( eltype(get_vertex_coordinates(mesh)) )
   (UNSET,UNSET,point)
 end
 
@@ -616,8 +616,8 @@ function is_cell_defined(mesh::CellMesh{D},cell::Integer) where D
   is_face_defined(mesh,D,cell)
 end
 
-function are_all_faces_defined(mesh::CellMesh{D}) where D
-  for d in 0:D, dface in 1:num_dfaces(mesh,d)
+function are_all_faces_defined(mesh::CellMesh)
+  for d in 0:num_dims(mesh), dface in 1:num_dfaces(mesh,d)
     if !is_face_defined(mesh,d,dface)
       return false
     end
@@ -790,7 +790,9 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
   for (i ,p ) in enumerate(get_vertex_coordinates(m)), d in 1:D
     points[d,i] = p[d]
   end
-  for i in 1:num_dfaces(m,D-1)
+
+  # TODO: normal to cell, not to point
+  for i in 1:num_facets(m)
     center = facet_center(m,i)
     for d in 1:D
       points[d,i+num_points] = center[d]
@@ -798,7 +800,7 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
   end
 
   cells = MeshCell{Vector{Int64}}[]
-  for d in 0:D
+  for d in 0:num_dims(m)
     dface_to_vertices = get_dface_to_vertices(m,d)
     vtk_type = VTKCellType(d_to_vtk_type_id[d])
     for i in 1:num_dfaces(m,d)
@@ -807,8 +809,8 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
     end
   end
 
-  normals = zeros(3,num_points+num_dfaces(m,D-1))
-  for i in 1:num_dfaces(m,D-1)
+  normals = zeros(3,num_points+num_facets(m))
+  for i in 1:num_facets(m)
     normal = facet_normal(m,i)
     normal = normal / norm(normal)
     for d in 1:D
@@ -818,7 +820,7 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
 
   vtkfile = vtk_grid(file_base_name,points,cells)
   vtkfile["facet_normals",VTKPointData()] = normals
-  vtkfile["IO",VTKCellData()] = _get_in_out_face_data(m,0:D)
+  vtkfile["IO",VTKCellData()] = _get_in_out_face_data(m,0:num_dims(m))
 
   vtk_save(vtkfile)
 end
@@ -854,7 +856,8 @@ function MeshCache(D::Integer)
   MeshCache( cell_cache, cutter_cache, vector1, vector2, vector3 )
 end
 
-function reset_cell_cache!(cache::CellMeshCache,mesh::CellMesh{D}) where D
+function reset_cell_cache!(cache::CellMeshCache,mesh::CellMesh)
+  D = num_dims(mesh)
   for d in 0:D
     set_num_dfaces!(cache,d, num_dfaces(mesh,d) )
   end
@@ -975,13 +978,13 @@ function set_orientation!(cutter::CutterCache,cell::Integer,lfacet::Integer, val
   cutter.cell_to_lfacet_to_orientation[cell,lfacet] = val
 end
 
-function _add_vertex!(mesh::CellMesh{D},dim::Integer,face::Integer,point::Point) where D
+function _add_vertex!(mesh::CellMesh,dim::Integer,face::Integer,point::Point)
   if dim == 0
     return face
   end
   cache = mesh.cache
   @check isactive(mesh,dim,face)
-  for d in dim:D
+  for d in dim:num_dims(mesh)
     df_to_nf = get_faces(mesh,d,dim)
     for iface in 1:length(df_to_nf)
       if isactive(df_to_nf,iface)
@@ -1302,8 +1305,9 @@ function add_surface_mesh_face_to_vertex!(cache::MeshCache,d::Integer,face::Inte
   end
 end
 
-function compact_cache!(cache::MeshCache,mesh::CellMesh{D}) where D
+function compact_cache!(cache::MeshCache,mesh::CellMesh)
   cell_cache = cache.cell
+  D = num_dims(mesh)
   for d in 0:D
     set_num_dfaces!( cell_cache, d, num_dfaces(mesh,d) )
   end
