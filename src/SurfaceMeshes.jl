@@ -75,7 +75,7 @@ function _compute_mfaces_to_nfaces(facet_to_vertices::Table,::Val{D}) where D
   end
 
   for d in 0:D-1
-    mf_to_nf[d+1,d+1] = compute_dface_to_dface(n_dfaces[d+1],Val{T}())
+    mf_to_nf[d+1,d+1] = compute_dface_to_dface(n_dfaces[d+1],T)
   end
   mf_to_nf
 end
@@ -279,13 +279,11 @@ function compute_nface_to_dfaces_primal(
           vertex = nface_to_vertices[nface,lvertex]
           if j == 1
             n_nfaces_around = length(vertex_to_nfaces,vertex)
-            n_nfaces_around
             for i in 1:n_nfaces_around
               nface_around = vertex_to_nfaces[vertex,i]
               nfaces_around[i] = nface_around
             end
           else
-            n_nfaces_around
             n_nfaces_around_bis = length(vertex_to_nfaces,vertex)
             for i in 1:n_nfaces_around_bis
               nface_around = vertex_to_nfaces[vertex,i]
@@ -429,7 +427,7 @@ function compute_dface_to_vertices(
 
 end
 
-function compute_dface_to_dface(n_dfaces,::Val{T}) where T
+function compute_dface_to_dface(n_dfaces,::Type{T}) where T
   ptrs = fill(Int32(1),n_dfaces+1)
   length_to_ptrs!(ptrs)
   data = [ T(i) for i in 1:n_dfaces ]

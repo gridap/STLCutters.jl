@@ -22,6 +22,7 @@ export Hexahedron
 export STL
 export SurfaceMesh
 export CartesianMesh
+export VolumeMesh
 export MeshCutter
 export CellMesh
 
@@ -87,6 +88,8 @@ include("STLs.jl")
 include("SurfaceMeshes.jl")
 
 include("CartesianMeshes.jl")
+
+include("VolumeMeshes.jl")
 
 include("CellMeshes.jl")
 

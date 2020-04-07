@@ -42,6 +42,13 @@ end
 
 Table(::Type{T}) where T = Table{T}() 
 
+function Table{T}(::UndefInitializer,n::Integer,m::Integer) where T
+  ptrs = fill(Int32(m),n+1)
+  length_to_ptrs!(ptrs)
+  data = Vector{T}(undef,ptrs[n+1]-1)
+  Table(data,ptrs)
+end
+
 Base.length(a::Table) = length(a.ptrs)-1
 
 @inline Base.length(a::Table,i::Integer) = a.ptrs[i+1] - a.ptrs[i]
