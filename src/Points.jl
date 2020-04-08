@@ -143,7 +143,14 @@ end
   Meta.parse(str)
 end
 
-@inline average(p::NTuple{N,Point{D}}) where {N,D} = average(p...)
+function average(ps::Point...)
+  r = zero(eltype(ps))
+  s = sum(ps)
+  n = length(ps)
+  r += s / n
+end
+
+average(ps::NTuple{N,<:Point}) where N = average(ps...)
 
 function average(ps::AbstractArray{Point{D,T}}) where {D,T}
   r = zero(Point{D,T})

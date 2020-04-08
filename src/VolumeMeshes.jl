@@ -16,7 +16,7 @@ function get_faces(vm::VolumeMesh,d::Integer,n::Integer)
 end
 
 function get_faces_to_vertices(vm::VolumeMesh,d::Integer)
-  get_faces(d,0)
+  get_faces(vm,d,0)
 end
 
 function num_faces(vm::VolumeMesh,d::Integer)
@@ -29,29 +29,45 @@ function get_vertex_coordinates(vm::VolumeMesh)
 end
 
 function get_vertex_coordinates(vm::VolumeMesh,i::Integer)
-  vm.vertex_coordinates[i]
+  get_face_coordinates(vm,Val{0}(),i)
+end
+
+function get_edge_coordinates(vm::VolumeMesh,i::Integer)
+  get_face_coordinates(vm,Val{1}(),i)
+end
+
+function get_facet_coordinates(vm::VolumeMesh,i::Integer) where D
+  get_face_coordinates(vm,Val{D-1}(),i)
+end
+
+function get_cell_coordinates(vm::VolumeMesh{D},i::Integer) where D
+  get_face_coordinates(vm,Val{D}(),i)
+end
+
+function get_face_coordinates(vm::VolumeMesh,::Val{0},i::Integer)
+  v = get_vertex_coordinates(vm)
+  v[i]
 end
 
 function get_face_coordinates(vm::VolumeMesh,::Val{1},i::Integer)
   v = get_vertex_coordinates(vm)
   f_to_v = get_faces_to_vertices(vm,1)
-  Segment( v[f_to_v[i,1]], v[f_to_v[i,]] )
+  Segment( v[f_to_v[i,1]], v[f_to_v[i,2]] )
 end
 
-#=
-@generated function get_face_coordinates(vm::VolumeMesh,::Val{d},i::Integer) where d
-  geometries = [ "Segment", "Square", "Cube" ]
-  str  = "v = get_vertex_coordinates(vm) \n"
-  str *= "f_to_v = get_faces_to_vertices(vm,$d) \n"
-
-  data = [ "v[f_to_v[i,$j]], " for j in 1:2^d ]
-  str *= "$(geometries[d])( $(join(data)) )"
-
-  print( str ) 
-
-  Meta.parse(str)
+function get_face_coordinates(vm::VolumeMesh,::Val{2},i::Integer)
+  v = get_vertex_coordinates(vm)
+  f_to_v = get_faces_to_vertices(vm,2)
+  Quadrilater( v[f_to_v[i,1]], v[f_to_v[i,2]], v[f_to_v[i,3]], v[f_to_v[i,4]] )
 end
-=#
+
+function get_face_coordinates(vm::VolumeMesh,::Val{3},i::Integer)
+  v = get_vertex_coordinates(vm)
+  f_to_v = get_faces_to_vertices(vm,3)
+  Hexahedron( 
+    v[f_to_v[i,1]], v[f_to_v[i,2]], v[f_to_v[i,3]], v[f_to_v[i,4]],
+    v[f_to_v[i,5]], v[f_to_v[i,6]], v[f_to_v[i,7]], v[f_to_v[i,8]] )
+end
 
 function _compute_mfaces_to_nfaces(m::CartesianMesh{D}) where D
   mf_to_nf = Matrix{Table{Int}}(undef,D+1,D+1)
@@ -68,9 +84,9 @@ function _compute_mfaces_to_nfaces(m::CartesianMesh{D}) where D
     mf_to_nf[d+1,d+1] = compute_dface_to_dface( _num_faces(m,d), Int )
   end
 
-  for d in 2:D
-    ldface_to_lvertex = _get_hexahedral_dface_to_lvertices(d,d-1)
-    mf_to_nf[d+1,d] = compute_nface_to_dfaces(mf_to_nf[d+1,0+1],mf_to_nf[0+1,d],ldface_to_lvertex)
+  for d in 2:D, n in 1:d-1
+    ldface_to_lvertex = _get_hexahedral_dface_to_lvertices(d,n)
+    mf_to_nf[d+1,n+1] = compute_nface_to_dfaces(mf_to_nf[d+1,0+1],mf_to_nf[0+1,n+1],ldface_to_lvertex)
   end
 
   mf_to_nf
@@ -130,3 +146,17 @@ function compute_nface_to_dfaces(nface_to_vertices::Table,vertex_to_dfaces::Tabl
   end
   nf_to_df
 end
+
+@generated function distance(m::VolumeMesh{D},d::Int,i::Int,p::Point{D}) where D
+  body = ""
+  for d in 0:D
+    body *= "if d == $d \n"
+    body *= "  f$d = get_face_coordinates(m,Val{$d}(),i) \n"
+    body *= "  distance(p,f$d) \n"
+    body *= "else"
+  end
+  error = "  throw(ArgumentError(\"\$d-face does not exist\"))\n"
+  str = body * '\n' * error * "end"
+  Meta.parse(str)
+end
+

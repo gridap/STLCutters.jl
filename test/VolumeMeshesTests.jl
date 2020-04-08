@@ -1,6 +1,7 @@
 module VolumeMeshesTests
 
 using STLCutter
+using STLCutter: get_face_coordinates, get_vertex_coordinates, get_faces_to_vertices
 
 
 box = BoundingBox(
@@ -9,36 +10,16 @@ box = BoundingBox(
 
 bg_mesh = CartesianMesh( box, 2 )
 
-VolumeMesh(bg_mesh)
+vm = VolumeMesh(bg_mesh)
 
+@show get_face_coordinates(vm,Val(2),1)
 
+i = 1
+v = get_vertex_coordinates(vm) 
+f_to_v = get_faces_to_vertices(vm,2) 
+@show ( v[f_to_v[i,1]], v[f_to_v[i,2]], v[f_to_v[i,3]], v[f_to_v[i,4]],  )
 # TODO: Complete test
 
-
-
-struct Square{D,T} 
-  vertices::NTuple{4,Point{D,T}}
-end
-
-struct Cube{D,T}
-  vertices::NTuple{8,Point{D,T}}
-end
-
-Square(b::BoundingBox{2}) = Square(get_vertices(b))
-
-Cube(b::BoundingBox{3}) = Cube(get_vertices(b))
-
-function have_intersection(s::Square{3},Point{3})
-end
-
-function contains_projection(s::Square{3},Point{3})
-end
-
-function distance(s::Square{D},Point{D}) where D
-end
-
-function distance(s::Cube{D},Point{D}) where D
-end
 
 
 end # module

@@ -18,6 +18,7 @@ export Segment
 export Triangle
 export Tetrahedron
 export BoundingBox
+export Quadrilater
 export Hexahedron
 export STL
 export SurfaceMesh
@@ -80,6 +81,10 @@ include("Triangles.jl")
 include("Tetrahedrons.jl")
 
 include("BoundingBoxes.jl")
+
+include("Quadrilaters.jl")
+
+include("Hexahedrons.jl")
 
 include("Tables.jl")
 
