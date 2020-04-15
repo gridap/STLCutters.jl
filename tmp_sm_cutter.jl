@@ -1,14 +1,14 @@
 module sm_cutter
 
 using STLCutter
-using STLCutter: compute_surface_mesh_face_to_cells, get_vertex_coordinates, get_cell_coordinates, get_dface_to_vertices, UNSET
+using STLCutter: compute_surface_mesh_face_to_cells, get_vertex_coordinates, get_cell_coordinates, get_dface_to_vertices, get_face_coordinates, UNSET
 import STLCutter: closest_point, distance, get_dface_to_vertices, num_faces
 
 struct IncrementalSurfaceMesh{D,T}
   vertex_coordinates::Vector{Point{D,T}}
   d_to_dface_to_vertices::Vector{Table{Int}}
-  d_to_dface_to_sm_n::Vector{Vector{Int8}}
-  d_to_dface_to_sm_nface::Vector{Vector{Int}}
+  d_to_dface_toism_n::Vector{Vector{Int8}}
+  d_to_dface_toism_nface::Vector{Vector{Int}}
   vertex_to_bg_d::Vector{Int8}
   vertex_to_bg_dface::Vector{Int}
 end
@@ -16,32 +16,38 @@ end
 function IncrementalSurfaceMesh{D,T}() where {D,T}
   vertex_coordinates = Point{D,T}[]
   d_to_dface_to_vertices = [ Table{Int}() for d in 0:D-1 ]
-  d_to_dface_to_sm_n = [ Int8[] for d in 0:D-1 ]
-  d_to_dface_to_sm_nface = [ Int[] for d in 0:D-1 ]
+  d_to_dface_toism_n = [ Int8[] for d in 0:D-1 ]
+  d_to_dface_toism_nface = [ Int[] for d in 0:D-1 ]
   vertex_to_bg_d = Int8[]
   vertex_to_bg_dface = Int[]
   IncrementalSurfaceMesh(
     vertex_coordinates,
     d_to_dface_to_vertices,
-    d_to_dface_to_sm_n,
-    d_to_dface_to_sm_nface,
+    d_to_dface_toism_n,
+    d_to_dface_toism_nface,
     vertex_to_bg_d,
     vertex_to_bg_dface )
 end
 
-function add_vertex!(sm::IncrementalSurfaceMesh,bg_d::Integer,bg_face::Integer,point::Point,sm_d::Integer,sm_face::Integer)
+function add_vertex!(
+  sm::IncrementalSurfaceMesh,
+  bg_d::Integer,bg_face::Integer,point::Point,
+  sm_d::Integer,sm_face::Integer)
+
   push!( sm.vertex_coordinates, point )
   push!( sm.vertex_to_bg_dface, bg_face )
   push!( sm.vertex_to_bg_d, bg_d )
 
   vertex = length( sm.vertex_coordinates )
   add_face!(sm,0,[vertex],sm_d,sm_face)
+  vertex
 end
 
 function add_face!(sm::IncrementalSurfaceMesh,d::Integer,vertices::Vector,sm_d::Integer,sm_dface::Integer)
   push!( sm.d_to_dface_to_vertices[d+1], vertices )
-  push!( sm.d_to_dface_to_sm_n[d+1], sm_d )
-  push!( sm.d_to_dface_to_sm_nface[d+1], sm_dface )
+  push!( sm.d_to_dface_toism_n[d+1], sm_d )
+  push!( sm.d_to_dface_toism_nface[d+1], sm_dface )
+  length( sm.d_to_dface_to_vertices[d+1] )
 end
 
 function get_background_face(sm::IncrementalSurfaceMesh,vertex::Integer)
@@ -94,18 +100,18 @@ function cells_containg_nfaces!(
   sm::SurfaceMesh,
   sm_d::Integer,
   sm_face::Integer,
-  n::Integer,
-  _sm::IncrementalSurfaceMesh)
+  ism::IncrementalSurfaceMesh,
+  n::Integer)
 
   resize!(cells,0)
   D = num_dims(m)
-  sm_df_to_sm_nf = get_faces(sm,sm_d,n)
-  sm_nf_to_sm_v = get_dface_to_vertices(sm,n)
-  for lnface in 1:length( sm_df_to_sm_nf, sm_d )
-    sm_nface = sm_df_to_sm_nf[ sm_face, lnface ]
-    for lvertex in 1:length( sm_nf_to_sm_v, sm_nface )
-      sm_vertex = sm_nf_to_sm_v[ sm_nface, lvertex ]
-      d,dface = get_background_face(_sm,sm_vertex)
+  sm_df_toism_nf = get_faces(sm,sm_d,n)
+  sm_nf_toism_v = get_dface_to_vertices(sm,n)
+  for lnface in 1:length( sm_df_toism_nf, sm_d )
+    sm_nface = sm_df_toism_nf[ sm_face, lnface ]
+    for lvertex in 1:length( sm_nf_toism_v, sm_nface )
+      sm_vertex = sm_nf_toism_v[ sm_nface, lvertex ]
+      d,dface = get_background_face(ism,sm_vertex)
       if dface != UNSET
         df_to_c = get_faces(m,d,D)
         for i in 1:length(df_to_c,dface)
@@ -121,12 +127,12 @@ function cells_containg_nfaces!(
 end
 
 function fetch_boundary_nfaces!(
-  nfaces::Vector,n::Integer,_sm::IncrementalSurfaceMesh,
+  ism::IncrementalSurfaceMesh,n::Integer,nfaces::Vector,
   m::VolumeMesh,bg_cell::Integer)
 
   resize!(nfaces,0)
-  for nface in 1:num_faces(_sm,n)
-    if is_nface_in_bg_cell(nface,n,_sm,m,bg_cell)
+  for nface in 1:num_faces(ism,n)
+    if is_nface_in_bg_cell(nface,n,ism,m,bg_cell)
       push!(nfaces,nface)
     end
   end
@@ -134,14 +140,14 @@ function fetch_boundary_nfaces!(
 end
 
 function is_nface_in_bg_cell(
-  nface::Integer,n::Integer,_sm::IncrementalSurfaceMesh,
+  nface::Integer,n::Integer,ism::IncrementalSurfaceMesh,
   m::VolumeMesh,bg_cell::Integer)
 
   D = num_dims(m)
-  nface_to_vertices = get_dface_to_vertices(_sm,n)
+  nface_to_vertices = get_dface_to_vertices(ism,n)
   for lvertex in 1:length(nface_to_vertices,nface)
     vertex = nface_to_vertices[nface,lvertex]
-    bg_d, bg_dface = get_background_face(_sm,vertex)
+    bg_d, bg_dface = get_background_face(ism,vertex)
     bg_c_to_bg_df = get_faces(m,D,bg_d)
     for ldface in 1:length(bg_c_to_bg_df,bg_cell)
       _bg_dface = bg_c_to_bg_df[bg_cell,ldface]
@@ -153,73 +159,168 @@ function is_nface_in_bg_cell(
   false
 end
 
-#function complete_boundary( )
-#  sm_d
-#  n
-#
-#  vertices = get_vertices(nfaces)
-#
-#  while length(vertices) > 0
-#    vertex = pop!(vertices)
-#    bg_dface = vertex_to_bg_d
-#    bg_d = vertex_to_bg_dface
-#    _find_next_intersection()
-#  end
-#  
-#
-#end
-#
-#
-#function _find_next_intersection(bg_cell...)
-#  min_dist = tol()
-#  closest_bg_face = UNSET
-#
-#  c_to_f = get_faces(m,D,D-1)
-#  for d in 0:D-sm_d
-#    f_to_df = get_faces(m,D,D-1)
-#    for lfacet in 1:length(c_to_f,bg_cell)
-#      bg_facet = c_to_f[bg_cell,lfacet]
-#
-#      if sm_d == 1 || is_around(m,facet,bg_face,bg_d) 
-#        for ldface in 1:lenth(f_to_df,bg_facet)
-#          _bg_dface = f_to_df[bg_facet,ldface]
-#
-#          if contains_any_nface( vertices, d, _bg_dface) 
-#            
-#            dist = distance(m,d,_bg_dface,sm,sm_d,sm_dface)
-#          if dist < min_dist
-#            min_dist = dist
-#            closest_bg_face = _bg_dface
-#          end
-#        end
-#      end
-#    end
-#    if closest_bg_face != UNSET
-#      _d = d
-#      break
-#    end
-#  end
-#
-#  if closest_bg_face != UNSET
-#    point = closest_point(bg_m,_d,closest_bg_face,sm,sm_d,sm_dface)
-#    return closest_bg_face,_d,point
-#  end
-#  
-#  return UNSET,UNSET, zero( eltype(get_vertex_coordinates(m)) )
-#end
-#
-#function get_vertices(nfaces)
-#  vertices = Int[]
-#  for nface in nfaces
-#    for lvertex in 1:length(nface_to_vertices,nface)
-#      vertex = nface_to_vertices[nface,lvertex]
-#      if vertex ∉ vertices
-#        push!(vertices,vertex)
-#      end
-#    end
-#  end
-#  vertices
-#end
+
+##
+function complete_boundary!(
+  ism::IncrementalSurfaceMesh,n::Integer,nfaces::Vector,vertices::Vector,
+  m::VolumeMesh,bg_cell::Integer,
+  sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer)
+
+  vertices = get_vertices!(ism,vertices,n,nfaces)
+
+  while length(vertices) > 0
+    vertex = pop!(vertices)
+    d,dface = get_background_face(ism,vertex)
+    _dface, _d, point = _find_next_intersection(m,bg_cell,dface,d,sm,sm_d,sm_dface,ism,nfaces,n)
+    if _dface != UNSET
+      _vertex = add_vertex!(ism,_d,_dface,point,sm_d,sm_dface)
+      push!( vertices, _vertex )
+
+      if n == 0
+        nface = _vertex
+      else
+        nface = add_face!(ism, 1, [vertex,_vertex], sm_d, sm_dface )
+      end
+      push!( nfaces, nface )
+    end
+  end
+end
+
+
+function _find_next_intersection(
+  m::VolumeMesh,bg_cell::Integer,bg_face::Integer,bg_d::Integer,
+  sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer,
+  ism::IncrementalSurfaceMesh,nfaces::Vector,n::Integer)
+
+  min_dist = tol()
+  closest_bg_face = UNSET
+  c_to_f = get_faces(m,D,D-1)
+  for d in 0:D-sm_d
+    f_to_df = get_faces(m,D-1,d)
+    for lfacet in 1:length(c_to_f,bg_cell)
+      bg_facet = c_to_f[bg_cell,lfacet]
+      if sm_d == 1 || is_facet_around_dface(m,bg_facet,bg_face,d) 
+        for ldface in 1:length(f_to_df,bg_facet)
+          _bg_dface = f_to_df[bg_facet,ldface]
+          if !contains_any_nface(m,d,_bg_dface,ism,n,nfaces)
+            dist = distance(m,d,_bg_dface,sm,sm_d,sm_dface)
+            if dist < min_dist
+              min_dist = dist
+              closest_bg_face = _bg_dface
+            end
+          end
+        end
+      end
+    end
+    if closest_bg_face != UNSET
+      _d = d
+      break
+    end
+  end
+
+  if closest_bg_face != UNSET
+    point = closest_point(bg_m,_d,closest_bg_face,sm,sm_d,sm_dface)
+    return closest_bg_face,_d,point
+  end
+  
+  return UNSET,UNSET, zero( eltype(get_vertex_coordinates(m)) )
+end
+
+function get_vertices!(ism::IncrementalSurfaceMesh,vertices::Vector,n::Integer,nfaces::Vector)
+  resize!(vertices,0)
+  nface_to_vertices = get_dface_to_vertices(ism,n)
+  for nface in nfaces
+    for lvertex in 1:length(nface_to_vertices,nface)
+      vertex = nface_to_vertices[nface,lvertex]
+      if vertex ∉ vertices
+        push!(vertices,vertex)
+      end
+    end
+  end
+  vertices
+end
+
+function is_facet_around_dface(m::VolumeMesh,facet::Integer,dface::Integer,d::Integer)
+  D = num_dims(m)
+  facet_to_vertices = get_faces(m,D-1,0)
+  dface_to_vertices = get_faces(m,d,0)
+  if d == D-1 && dface == facet
+    return false
+  end
+  for lvertex in 1:length(facet_to_vertices,facet)
+    vertex = facet_to_vertices[facet,lvertex]
+    for _lvertex in 1:length(dface_to_vertices,dface)
+      _vertex = dface_to_vertices[dface,_lvertex]
+      if vertex == _vertex
+        return true
+      end
+    end
+  end
+  false
+end
+
+function contains_any_nface(
+  m::VolumeMesh,d::Integer,dface::Integer,
+  ism::IncrementalSurfaceMesh,n::Integer,nfaces::Vector)
+  
+  nface_to_vertices = get_dface_to_vertices(ism,n)
+  for nface in nfaces
+    for lvertex in 1:length(nface_to_vertices,nface)
+      vertex = nface_to_vertices[nface,lvertex]
+      _d, _dface = get_background_face(ism,vertex)
+      if is_nface_in_dface(m,_d,_dface,d,dface)
+        return true
+      end
+    end
+  end
+  false
+end
+
+function is_nface_in_dface(m::VolumeMesh,n::Integer,nface::Integer,d::Integer,dface::Integer)
+  if n ≤ d
+    dface_to_nfaces = get_faces(m,d,n)
+    for lnface in 1:length(dface_to_nfaces,dface)
+      _nface = dface_to_nfaces[dface,lnface]
+      if nface == _nface
+        return true
+      end
+    end
+  end
+  false
+end
+
+
+function add_faces!(ism::IncrementalSurfaceMesh,n::Integer,nfaces::Vector,sm_d::Integer,sm_dface::Integer)
+  nface_to_vertices = get_dface_to_vertices(ism,n)
+  if length(nfaces) == 0
+    return
+  end
+  vertex = nface_to_vertices[ nfaces[1], 1 ]
+  lvertices = Int[]
+  resize!( lvertices, length(nface_to_vertices,1) + 1 )
+  display( nface_to_vertices )
+  for nface in nfaces # for d in 0:n; dfaces; for dface in dfaces
+    if !is_vertex_in_dface(ism,vertex,n,nface)
+      lvertices[1] = vertex
+      for i in 1:length(nface_to_vertices,nface)
+        lvertices[i+1] = nface_to_vertices[nface,i]
+      end
+      add_face!(ism,n+1,lvertices,sm_d,sm_dface)
+    end
+  end
+end
+
+function is_vertex_in_dface(ism::IncrementalSurfaceMesh,vertex::Integer,n::Integer,nface::Integer)
+  nface_to_vertices = get_dface_to_vertices(ism,n)
+  for lvertex in 1:length(nface_to_vertices,nface)
+    _vertex = nface_to_vertices[nface,lvertex]
+    if vertex == _vertex
+      return true
+    end
+  end
+  false
+end
+
 
 @generated function distance(
   m::VolumeMesh{D},d::Integer,dface::Integer,
@@ -290,6 +391,33 @@ end
 end
 
 
+function is_dface_in_background_facet(
+  ism::IncrementalSurfaceMesh,d::Integer,dface::Integer,
+  vm::VolumeMesh,facet::Integer)
+
+  dface_to_vertices = get_dface_to_vertices(ism,d)
+  for lvertex in 1:length(dface_to_vertices,dface)
+    vertex = dface_to_vertices[dface,lvertex]
+    bg_d, bg_face = get_background_face(ism,vertex)
+    if is_dface_in_facet(vm,d,dface,facet)
+      return true
+    end
+  end
+  false
+end
+
+function is_dface_in_facet(vm::VolumeMesh,d::Integer,dface::Integer,facet::Integer) 
+  D = num_dims(vm)
+  facet_to_dfaces = get_faces(vm,D-1,d)
+  for ldface in 1:length(facet_to_dfaces,facet)
+    _dface = facet_to_dfaces[facet,ldface]
+    if _dface == dface
+      return true
+    end
+  end
+  false
+end
+
 tol() = 1e-10
 
 points = [
@@ -320,46 +448,45 @@ point_type = eltype( get_vertex_coordinates(sm) )
 D = num_dims(sm)
 T = Float64
 
-_sm = IncrementalSurfaceMesh{D,T}()
-
-vertex_coordinates = point_type[]
-d_to_dface_to_vertices = [ Table{Int}() for d in 0:D-1 ]
-d_to_dface_to_sm_n = [ Int[] for d in 0:D-1 ]
-d_to_dface_to_sm_nface = [ Int[] for d in 0:D-1 ]
-
-vertex_to_bg_d = Int[]
-vertex_to_bg_dface = Int[]
-
+ism = IncrementalSurfaceMesh{D,T}()
 bg_cells = Int[]
 nfaces = Int[]
+vertices = Int[]
 
+cell_to_facets = get_faces(vm,D,D-1)
+facet_to_cells = get_faces(vm,D-1,D)
 
 for vertex in 1:num_vertices(sm)
   point = get_vertex_coordinates(sm,vertex)
-  _d, bg_face = find_closest_background_face( vm, point, sm_face_to_bg_cells, vertex )
-  
-  add_vertex!(_sm,_d,bg_face,point,0,vertex)
-
-  push!( vertex_coordinates, point )
-  push!( vertex_to_bg_dface, bg_face )
-  push!( vertex_to_bg_d, _d )
-  push!( d_to_dface_to_vertices[0+1], [vertex] )
-  push!( d_to_dface_to_sm_n[0+1], 0 )
-  push!( d_to_dface_to_sm_nface[0+1], vertex )
+  bg_d, bg_face = find_closest_background_face( vm, point, sm_face_to_bg_cells, vertex )
+  add_vertex!(ism,bg_d,bg_face,point,0,vertex)
 end
 
-@show vertex_to_bg_d
-
-
-for d in 1:D-1
-  for sm_dface in 1:num_faces(sm,d)
-    n = d-1
-    cells_containg_nfaces!(bg_cells,vm,sm,d,sm_dface,n,_sm)
-    @show bg_cells
+for sm_d in 1:D-1
+  for sm_dface in 1:num_faces(sm,sm_d)
+    n = sm_d-1
+    cells_containg_nfaces!(bg_cells,vm,sm,sm_d,sm_dface,ism,n)
     while length(bg_cells) > 0
       bg_cell = pop!(bg_cells)
-      fetch_boundary_nfaces!(nfaces,n,_sm,vm,bg_cell)
+      fetch_boundary_nfaces!(ism,n,nfaces,vm,bg_cell)
+      num_nfaces = length(nfaces)
+      complete_boundary!(ism,n,nfaces,vertices,vm,bg_cell,sm,sm_d,sm_dface)
+      add_faces!(ism,n,nfaces,sm_d,sm_dface)
       @show nfaces
+      for i in num_nfaces:length(nfaces)
+        nface = nfaces[i]
+        for lfacet in 1:length(cell_to_facets,bg_cell)
+          bg_facet = cell_to_facets[bg_cell,lfacet]
+          if is_dface_in_background_facet(ism,n,nface,vm,bg_facet)
+            for lcell in 1:length(facet_to_cells,bg_facet)
+              _bg_cell = facet_to_cells[bg_facet,lcell]
+              if _bg_cell != bg_cell && _bg_cell ∉ bg_cells
+                push!(bg_cell,_bg_cell)
+              end
+            end
+          end
+        end
+      end
     end
   end
 end

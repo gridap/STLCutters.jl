@@ -15,7 +15,7 @@ function get_faces(vm::VolumeMesh,d::Integer,n::Integer)
   vm.mfaces_to_nfaces[d+1,n+1]
 end
 
-function get_faces_to_vertices(vm::VolumeMesh,d::Integer)
+function get_dface_to_vertices(vm::VolumeMesh,d::Integer)
   get_faces(vm,d,0)
 end
 
@@ -51,19 +51,19 @@ end
 
 function get_face_coordinates(vm::VolumeMesh,::Val{1},i::Integer)
   v = get_vertex_coordinates(vm)
-  f_to_v = get_faces_to_vertices(vm,1)
+  f_to_v = get_dface_to_vertices(vm,1)
   Segment( v[f_to_v[i,1]], v[f_to_v[i,2]] )
 end
 
 function get_face_coordinates(vm::VolumeMesh,::Val{2},i::Integer)
   v = get_vertex_coordinates(vm)
-  f_to_v = get_faces_to_vertices(vm,2)
+  f_to_v = get_dface_to_vertices(vm,2)
   Quadrilater( v[f_to_v[i,1]], v[f_to_v[i,2]], v[f_to_v[i,3]], v[f_to_v[i,4]] )
 end
 
 function get_face_coordinates(vm::VolumeMesh,::Val{3},i::Integer)
   v = get_vertex_coordinates(vm)
-  f_to_v = get_faces_to_vertices(vm,3)
+  f_to_v = get_dface_to_vertices(vm,3)
   Hexahedron( 
     v[f_to_v[i,1]], v[f_to_v[i,2]], v[f_to_v[i,3]], v[f_to_v[i,4]],
     v[f_to_v[i,5]], v[f_to_v[i,6]], v[f_to_v[i,7]], v[f_to_v[i,8]] )
@@ -87,6 +87,7 @@ function _compute_mfaces_to_nfaces(m::CartesianMesh{D}) where D
   for d in 2:D, n in 1:d-1
     ldface_to_lvertex = _get_hexahedral_dface_to_lvertices(d,n)
     mf_to_nf[d+1,n+1] = compute_nface_to_dfaces(mf_to_nf[d+1,0+1],mf_to_nf[0+1,n+1],ldface_to_lvertex)
+    mf_to_nf[n+1,d+1] = compute_nface_to_dfaces_dual( mf_to_nf[d+1,n+1], length(mf_to_nf[n+1,0+1]) )
   end
 
   mf_to_nf

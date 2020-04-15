@@ -129,6 +129,8 @@ function have_intersection_point(s::Segment{3},q::Quadrilater{3})
   end
 end
 
+have_intersection(s::Segment{3},q::Quadrilater{3}) = have_intersection_point(s,q)
+
 function intersection(s::Segment{3},q::Quadrilater{3})
   @check have_intersection_point(s,q)
   n = normal(q)
@@ -147,4 +149,20 @@ function projection(p::Point{3},q::Quadrilater{3})
   p + ( ( c - p ) ⋅ n ) * n
 end
 
+function distance(s::Segment{3},q::Quadrilater{3})
+  if have_intersection(s,q)
+    0.0
+  else
+    min_dist = typemax(0.0)
+    for i in 1:num_edges(q)
+      e = get_edge(q,i)
+      dist = distance(s,e)
+      if dist < min_dist
+        min_dist = dist
+      end
+    end
+    min_dist
+  end
+end
 
+distance(q::Quadrilater,s::Segment) = distance(s,q)
