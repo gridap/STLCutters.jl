@@ -20,7 +20,7 @@ function get_dface_to_vertices(vm::VolumeMesh,d::Integer)
 end
 
 function num_faces(vm::VolumeMesh,d::Integer)
-  length( get_faces_to_vertices(vm,d) )
+  length( get_dface_to_vertices(vm,d) )
 end
 
 
