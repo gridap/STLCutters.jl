@@ -96,6 +96,8 @@ include("CartesianMeshes.jl")
 
 include("VolumeMeshes.jl")
 
+include("IncrementalSurfaceMeshes.jl")
+
 include("CellMeshes.jl")
 
 include("BulkMeshes.jl")

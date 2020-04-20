@@ -10,12 +10,23 @@ struct SurfaceMesh{D,T,M}
     facet_normals::Vector{VectorValue{D,T}},
     facet_to_vertices::M) where {D,T,M}
 
-
-    mfaces_to_nfaces = _compute_mfaces_to_nfaces(facet_to_vertices,Val{D}()) 
+    mfaces_to_nfaces = _compute_mfaces_to_nfaces(facet_to_vertices,D) 
 
     d_to_offset = _compute_d_to_offset(mfaces_to_nfaces)
     new{D,T,M}(vertex_coordinates, facet_normals, mfaces_to_nfaces, d_to_offset)
   end
+
+  function SurfaceMesh(
+    vertex_coordinates::Vector{Point{D,T}},
+    facet_normals::Vector{VectorValue{D,T}},
+    d_to_dface_to_vertices::Vector{M}) where {D,T,M}
+
+    mfaces_to_nfaces = _compute_mfaces_to_nfaces(d_to_dface_to_vertices,D) 
+
+    d_to_offset = _compute_d_to_offset(mfaces_to_nfaces)
+    new{D,T,M}(vertex_coordinates, facet_normals, mfaces_to_nfaces, d_to_offset)
+  end
+
 end
 
 function SurfaceMesh(stl::STL)
@@ -26,7 +37,18 @@ function SurfaceMesh(stl::STL)
     get_facet_to_vertices(stl) )
 end
 
-function SurfaceMesh(vertex_coordinates::Vector{Point{D,T}},facet_to_vertices::M) where {D,T,M}
+function SurfaceMesh(vertex_coordinates::Vector{<:Point},facet_to_vertices)
+  facet_normals = _compute_facet_normals(vertex_coordinates,facet_to_vertices)
+  SurfaceMesh(vertex_coordinates,facet_normals,facet_to_vertices)
+end
+
+function SurfaceMesh(vertex_coordinates::Vector{<:Point},d_to_dface_to_vertices::Vector)
+  facet_to_vertices = d_to_dface_to_vertices[end]
+  facet_normals = _compute_facet_normals(vertex_coordinates,facet_to_vertices)
+  SurfaceMesh(vertex_coordinates,facet_normals,d_to_dface_to_vertices)
+end
+
+function _compute_facet_normals(vertex_coordinates::Vector{Point{D,T}},facet_to_vertices::M) where {D,T,M}
   facet_normals = Vector{VectorValue{D,T}}(undef,length(facet_to_vertices))
   for i in 1:length(facet_to_vertices)
     facet = _get_facet(vertex_coordinates,facet_to_vertices,i)
@@ -34,8 +56,9 @@ function SurfaceMesh(vertex_coordinates::Vector{Point{D,T}},facet_to_vertices::M
     facet_normal = facet_normal / norm(facet_normal)
     facet_normals[i] = normal(facet)
   end
-  SurfaceMesh(vertex_coordinates,facet_normals,facet_to_vertices)
+  facet_normals
 end
+
 
 function _get_facet(vertex_coordinates::Vector{<:Point{2}},facet_to_vertices,i::Integer) 
   v = vertex_coordinates
@@ -55,7 +78,7 @@ function _get_facet(vertex_coordinates::Vector{<:Point{4}},facet_to_vertices,i::
   Tetrahedron( v[f[i,1]], v[f[i,2]], v[f[i,3]], v[f[i,4]] )
 end
 
-function _compute_mfaces_to_nfaces(facet_to_vertices::Table,::Val{D}) where D
+function _compute_mfaces_to_nfaces(facet_to_vertices::Table,D::Int)
   T = eltype(facet_to_vertices)
   mf_to_nf = Matrix{Table{T}}(undef,D,D)
   n_dfaces = fill(UNSET,D)
@@ -78,6 +101,29 @@ function _compute_mfaces_to_nfaces(facet_to_vertices::Table,::Val{D}) where D
     mf_to_nf[d+1,d+1] = compute_dface_to_dface(n_dfaces[d+1],T)
   end
   mf_to_nf
+end
+
+function _compute_mfaces_to_nfaces(d_to_dface_to_vertices::Vector{<:Table},D) 
+  T = eltype( eltype( d_to_dface_to_vertices ) )
+  mf_to_nf = Matrix{Table{T}}(undef,D,D)
+  n_dfaces = fill(UNSET,D)
+
+  for d in 0:D-1
+    dface_to_vertices = d_to_dface_to_vertices[d+1]
+    n_dfaces[d+1] = length( dface_to_vertices )
+    mf_to_nf[d+1,0+1] = dface_to_vertices 
+    mf_to_nf[0+1,d+1] = compute_nface_to_dfaces_dual( mf_to_nf[d+1,0+1],n_dfaces[0+1])
+    mf_to_nf[d+1,d+1] = compute_dface_to_dface(n_dfaces[d+1],T)
+  end
+
+  for d in 2:D-1, n in 1:d-1
+    ldface_to_lvertex = _get_simplex_dface_to_lvertices(d,n)
+    mf_to_nf[d+1,n+1] = compute_nface_to_dfaces(mf_to_nf[d+1,0+1],mf_to_nf[0+1,n+1],ldface_to_lvertex)
+    mf_to_nf[n+1,d+1] = compute_nface_to_dfaces_dual( mf_to_nf[d+1,n+1], length(mf_to_nf[n+1,0+1]) )
+  end 
+
+  mf_to_nf
+
 end
 
 function _compute_d_to_offset(mfaces_to_nfaces::Matrix)
@@ -507,6 +553,19 @@ end
   error = "throw(ArgumentError(\" \$d-face does not exist\"))"
   str = "$body \n  $error \nend"
   Meta.parse(str)
+end
+
+function is_nface_in_dface(sm::SurfaceMesh,n::Integer,nface::Integer,d::Integer,dface::Integer)
+  @check n ≤ d
+
+  dface_to_nfaces = get_faces(sm,d,n)
+  for lnface in 1:length(dface_to_nfaces,dface)
+    _nface = dface_to_nfaces[dface,lnface]
+    if _nface == nface
+      return true
+    end
+  end
+  false
 end
 
 function is_watter_tight(s::SurfaceMesh{D}) where D
