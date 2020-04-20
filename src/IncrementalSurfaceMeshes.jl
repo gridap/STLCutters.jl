@@ -30,6 +30,8 @@ function num_faces(sm::IncrementalSurfaceMesh,d::Integer)
   length( get_dface_to_vertices(sm,d) )
 end
 
+num_facets(sm::IncrementalSurfaceMesh{D}) where D = num_faces(sm,D-1)
+
 num_vertices(sm::IncrementalSurfaceMesh) = num_faces(sm,0)
 
 function get_background_face(sm::IncrementalSurfaceMesh,vertex::Integer)
@@ -46,6 +48,44 @@ function get_surface_mesh_face(ism::IncrementalSurfaceMesh,d::Integer,dface::Int
   sm_d = ism.d_to_dface_to_sm_n[d+1][dface]
   sm_dface = ism.d_to_dface_to_sm_nface[d+1][dface]
   sm_d, sm_dface
+end
+
+function get_vertex_coordinates(sm::IncrementalSurfaceMesh,i::Integer)
+  get_face_coordinates(sm,Val{0}(),i)
+end
+
+function get_edge_coordinates(sm::IncrementalSurfaceMesh,i::Integer)
+  get_face_coordinates(sm,Val{1}(),i)
+end
+
+function get_facet_coordinates(sm::IncrementalSurfaceMesh{D},i::Integer) where D
+  get_face_coordinates(sm,Val{D-1}(),i)
+end
+
+function get_face_coordinates(sm::IncrementalSurfaceMesh,::Val{d}, i::Integer) where d
+  error("Not implemented for dimension = $d")
+end
+
+function get_face_coordinates(sn::IncrementalSurfaceMesh,::Val{0}, i::Integer)
+  s.vertex_coordinates[i]
+end
+
+function get_face_coordinates(sm::IncrementalSurfaceMesh,::Val{1}, i::Integer)
+  df_to_v = get_dface_to_vertices(s,1)
+  v = get_vertex_coordinates(s)
+  Segment(v[df_to_v[i,1]],v[df_to_v[i,2]])
+end
+
+function get_face_coordinates(sm::IncrementalSurfaceMesh,::Val{2}, i::Integer)
+  df_to_v = get_dface_to_vertices(sm,2)
+  v = get_vertex_coordinates(sm)
+  Triangle( v[df_to_v[i,1]], v[df_to_v[i,2]], v[df_to_v[i,3]] )
+end
+
+function facet_normal(ism::IncrementalSurfaceMesh,i::Integer)
+  facet_coordinates = get_facet_coordinates(ism,i)
+  facet_normal = normal(facet_coordinates)
+  facet_normal / norm(facet_normal)
 end
 
 ## Geometric queries
@@ -143,6 +183,57 @@ function writevtk(sm::IncrementalSurfaceMesh{D,T},file_base_name) where {D,T}
 end
 
 ##
+
+function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh) where {D,T}
+  vm = VolumeMesh( m )
+  sm_face_to_bg_cells = compute_surface_mesh_face_to_cells(m,sm)
+  ism = IncrementalSurfaceMesh{D,T}()
+  bg_cells = Int[]
+  nfaces = Int[]
+  vertices = Int[]
+
+  cell_to_facets = get_faces(vm,D,D-1)
+  facet_to_cells = get_faces(vm,D-1,D)
+
+  for vertex in 1:num_vertices(sm)
+    point = get_vertex_coordinates(sm,vertex)
+    bg_d, bg_face = find_closest_background_face( vm, point, sm_face_to_bg_cells, vertex )
+    add_vertex!(ism,bg_d,bg_face,0,vertex,point)
+  end
+
+  for sm_d in 1:D-1
+    for sm_dface in 1:num_faces(sm,sm_d)
+      n = sm_d-1
+      cells_containg_nfaces!(bg_cells,vm,sm,sm_d,sm_dface,ism,n)
+      while length(bg_cells) > 0
+        bg_cell = pop!(bg_cells)
+        fetch_boundary_nfaces!(ism,n,nfaces,vm,bg_cell,sm,sm_d,sm_dface)
+        num_nfaces = length(nfaces)
+        complete_boundary!(ism,n,nfaces,vertices,vm,bg_cell,sm,sm_d,sm_dface)
+        connect_boundary_faces!(vm,bg_cell,ism,n,nfaces,sm_d,sm_dface)
+        add_faces!(ism,n,nfaces,sm,sm_d,sm_dface,vm,bg_cell)
+        for i in num_nfaces+1:length(nfaces)
+          nface = nfaces[i]
+          for lfacet in 1:length(cell_to_facets,bg_cell)
+            bg_facet = cell_to_facets[bg_cell,lfacet]
+            if is_dface_in_background_facet(ism,n,nface,vm,bg_facet)
+              for lcell in 1:length(facet_to_cells,bg_facet)
+                _bg_cell = facet_to_cells[bg_facet,lcell]
+                if _bg_cell != bg_cell && _bg_cell ∉ bg_cells
+                  push!(bg_cells,_bg_cell)
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+  correct_face_orientation!(ism,sm)
+  sm = SurfaceMesh(ism.vertex_coordinates,ism.d_to_dface_to_vertices)
+  d_to_df_to_sm_f = background_face_to_surface_mesh_faces(ism,vm)
+  sm, d_to_df_to_sm_f
+end
 
 function add_vertex!(
   sm::IncrementalSurfaceMesh,
@@ -339,6 +430,25 @@ function add_faces!(
       end
     end
   end
+end
+
+function correct_face_orientation!(ism::IncrementalSurfaceMesh,sm::SurfaceMesh) 
+  D = num_dims(sm)
+  facet_to_vertices = get_dface_to_vertices(ism,D-1)
+  for facet in 1:num_facets(ism)
+    _facet_normal = facet_normal(ism,facet)
+    sm_d, sm_dface = get_surface_mesh_face(ism::IncrementalSurfaceMesh,D-1,facet)
+    @check sm_d == D-1
+    sm_facet = sm_dface
+    sm_facet_normal = get_facet_normal(sm,sm_facet)
+    if sm_facet_normal ⋅ _facet_normal < 0
+      n = length( facet_to_vertices, facet )
+      vertex = facet_to_vertices[facet,n]
+      facet_to_vertices[facet,n] = facet_to_vertices[facet,n-1]
+      facet_to_vertices[facet,n-1] = vertex
+    end
+  end
+  ism
 end
 
 function surface_mesh_face_to_background_face(ism::IncrementalSurfaceMesh,vm::VolumeMesh)
