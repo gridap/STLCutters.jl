@@ -69,3 +69,9 @@ function distance(p::Point{3},h::Hexahedron{3})
 end
 
 distance(h::Hexahedron,p::Point) = distance(p,h)
+
+projection(p::Point{3},h::Hexahedron{3}) = p
+
+projection(h::Hexahedron,p::Point) = projection(p,h)
+
+closest_point(h::Hexahedron{3},p::Point{3}) = projection(p,h)

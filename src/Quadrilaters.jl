@@ -167,6 +167,8 @@ end
 
 distance(q::Quadrilater,s::Segment) = distance(s,q)
 
+closest_point(q::Quadrilater{3},p::Point{3}) = projection(p,q)
+
 closest_point(s::Segment{3},q::Quadrilater{3}) = intersection(s,q)
 
 closest_point(q::Quadrilater{3},s::Segment{3}) = closest_point(s,q)

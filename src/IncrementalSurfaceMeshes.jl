@@ -4,15 +4,19 @@ struct IncrementalSurfaceMesh{D,T}
   d_to_dface_to_vertices::Vector{Table{Int}}
   d_to_dface_to_sm_n::Vector{Vector{Int8}}
   d_to_dface_to_sm_nface::Vector{Vector{Int}}
+  sm_face_to_ds::Vector{Vector{Int8}}
+  sm_face_to_dfaces::Vector{Vector{Int}}
   vertex_to_bg_d::Vector{Int8}
   vertex_to_bg_dface::Vector{Int}
 end
 
-function IncrementalSurfaceMesh{D,T}() where {D,T}
+function IncrementalSurfaceMesh{D,T}(num_faces) where {D,T}
   vertex_coordinates = Point{D,T}[]
   d_to_dface_to_vertices = [ Table{Int}() for d in 0:D-1 ]
   d_to_dface_to_sm_n = [ Int8[] for d in 0:D-1 ]
   d_to_dface_to_sm_nface = [ Int[] for d in 0:D-1 ]
+  sm_face_to_ds = [ Int8[] for face in 1:num_faces ]
+  sm_face_to_dfaces = [ Int[] for face in 1:num_faces ]
   vertex_to_bg_d = Int8[]
   vertex_to_bg_dface = Int[]
   IncrementalSurfaceMesh(
@@ -20,8 +24,14 @@ function IncrementalSurfaceMesh{D,T}() where {D,T}
     d_to_dface_to_vertices,
     d_to_dface_to_sm_n,
     d_to_dface_to_sm_nface,
+    sm_face_to_ds,
+    sm_face_to_dfaces,
     vertex_to_bg_d,
     vertex_to_bg_dface )
+end
+
+function IncrementalSurfaceMesh(sm::SurfaceMesh{D,T}) where {D,T}
+  IncrementalSurfaceMesh{D,T}(num_faces(sm))
 end
 
 ## Getters
@@ -50,6 +60,16 @@ function get_surface_mesh_face(ism::IncrementalSurfaceMesh,d::Integer,dface::Int
   sm_d, sm_dface
 end
 
+function get_faces_in_surface_mesh_face(
+  ism::IncrementalSurfaceMesh,
+  sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer)
+
+  sm_face = global_dface(sm,sm_d,sm_dface)
+  ds = ism.sm_face_to_ds[sm_face]
+  dfaces = ism.sm_face_to_dfaces[sm_face]
+  ds, dfaces
+end
+
 function get_vertex_coordinates(sm::IncrementalSurfaceMesh,i::Integer)
   get_face_coordinates(sm,Val{0}(),i)
 end
@@ -66,8 +86,8 @@ function get_face_coordinates(sm::IncrementalSurfaceMesh,::Val{d}, i::Integer) w
   error("Not implemented for dimension = $d")
 end
 
-function get_face_coordinates(sn::IncrementalSurfaceMesh,::Val{0}, i::Integer)
-  s.vertex_coordinates[i]
+function get_face_coordinates(sm::IncrementalSurfaceMesh,::Val{0}, i::Integer)
+  sm.vertex_coordinates[i]
 end
 
 function get_face_coordinates(sm::IncrementalSurfaceMesh,::Val{1}, i::Integer)
@@ -187,10 +207,16 @@ end
 function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh) where {D,T}
   vm = VolumeMesh( m )
   sm_face_to_bg_cells = compute_surface_mesh_face_to_cells(m,sm)
-  ism = IncrementalSurfaceMesh{D,T}()
+  ism = IncrementalSurfaceMesh(sm)
+  
   bg_cells = Int[]
   nfaces = Int[]
   vertices = Int[]
+
+  nfaces_cache = Int[]
+  dfaces_cache = Int[]
+  vertices_cache = Int[]
+  lvertices_cache = Int[]
 
   cell_to_facets = get_faces(vm,D,D-1)
   facet_to_cells = get_faces(vm,D-1,D)
@@ -198,7 +224,8 @@ function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh) where {D,T}
   for vertex in 1:num_vertices(sm)
     point = get_vertex_coordinates(sm,vertex)
     bg_d, bg_face = find_closest_background_face( vm, point, sm_face_to_bg_cells, vertex )
-    add_vertex!(ism,bg_d,bg_face,0,vertex,point)
+    point = closest_point( vm,bg_d,bg_face, sm,0,vertex )
+    add_vertex!(ism,bg_d,bg_face,sm,0,vertex,point)
   end
 
   for sm_d in 1:D-1
@@ -206,23 +233,20 @@ function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh) where {D,T}
       n = sm_d-1
       cells_containg_nfaces!(bg_cells,vm,sm,sm_d,sm_dface,ism,n)
       while length(bg_cells) > 0
-        bg_cell = pop!(bg_cells)
+        bg_cell = popfirst!(bg_cells)
         fetch_boundary_nfaces!(ism,n,nfaces,vm,bg_cell,sm,sm_d,sm_dface)
         num_nfaces = length(nfaces)
         complete_boundary!(ism,n,nfaces,vertices,vm,bg_cell,sm,sm_d,sm_dface)
-        connect_boundary_faces!(vm,bg_cell,ism,n,nfaces,sm_d,sm_dface)
-        add_faces!(ism,n,nfaces,sm,sm_d,sm_dface,vm,bg_cell)
+        connect_boundary_faces!(vm,bg_cell,ism,n,nfaces,sm,sm_d,sm_dface, vertices_cache, lvertices_cache)
+        add_faces!( ism, sm, sm_d, sm_dface, vm, bg_cell, nfaces_cache, dfaces_cache, lvertices_cache )
         for i in num_nfaces+1:length(nfaces)
           nface = nfaces[i]
-          for lfacet in 1:length(cell_to_facets,bg_cell)
-            bg_facet = cell_to_facets[bg_cell,lfacet]
-            if is_dface_in_background_facet(ism,n,nface,vm,bg_facet)
-              for lcell in 1:length(facet_to_cells,bg_facet)
-                _bg_cell = facet_to_cells[bg_facet,lcell]
-                if _bg_cell != bg_cell && _bg_cell ∉ bg_cells
-                  push!(bg_cells,_bg_cell)
-                end
-              end
+          bg_d, bg_dface = get_background_face(ism,n,nface,vm)
+          dface_to_cells = get_faces(vm,bg_d,D)
+          for lcell in 1:length(dface_to_cells,bg_dface)
+            _bg_cell = dface_to_cells[bg_dface,lcell]
+            if _bg_cell != bg_cell && _bg_cell ∉ bg_cells
+              push!(bg_cells,_bg_cell)
             end
           end
         end
@@ -236,25 +260,31 @@ function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh) where {D,T}
 end
 
 function add_vertex!(
-  sm::IncrementalSurfaceMesh,
+  ism::IncrementalSurfaceMesh,
   bg_d::Integer,bg_face::Integer,
-  sm_d::Integer,sm_face::Integer,
+  sm::SurfaceMesh,sm_d::Integer,sm_face::Integer,
   point::Point)
 
-  push!( sm.vertex_coordinates, point )
-  push!( sm.vertex_to_bg_dface, bg_face )
-  push!( sm.vertex_to_bg_d, bg_d )
+  push!( ism.vertex_coordinates, point )
+  push!( ism.vertex_to_bg_dface, bg_face )
+  push!( ism.vertex_to_bg_d, bg_d )
 
-  vertex = length( sm.vertex_coordinates )
-  add_face!(sm,0,[vertex],sm_d,sm_face)
+  vertex = length( ism.vertex_coordinates )
+  add_face!(ism,0,[vertex],sm,sm_d,sm_face)
   vertex
 end
 
-function add_face!(sm::IncrementalSurfaceMesh,d::Integer,vertices::Vector,sm_d::Integer,sm_dface::Integer)
-  push!( sm.d_to_dface_to_vertices[d+1], vertices )
-  push!( sm.d_to_dface_to_sm_n[d+1], sm_d )
-  push!( sm.d_to_dface_to_sm_nface[d+1], sm_dface )
-  num_faces(sm,d) 
+function add_face!(
+  ism::IncrementalSurfaceMesh,d::Integer,vertices::Vector,
+  sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer)
+
+  sm_face = global_dface(sm,sm_d,sm_dface)
+  push!( ism.d_to_dface_to_vertices[d+1], vertices )
+  push!( ism.d_to_dface_to_sm_n[d+1], sm_d )
+  push!( ism.d_to_dface_to_sm_nface[d+1], sm_dface )
+  push!( ism.sm_face_to_ds[sm_face],d)
+  push!( ism.sm_face_to_dfaces[sm_face], num_faces(ism,d) )
+  num_faces(ism,d) 
 end
 
 function find_closest_background_face(
@@ -333,10 +363,19 @@ function fetch_boundary_nfaces!(
   sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer)
 
   resize!(nfaces,0)
-  for nface in 1:num_faces(ism,n) #TODO: No global search -> sm_f_to_ism_faces
-    if is_nface_in_surface_mesh_dface(ism,n,nface,sm,sm_d,sm_dface)
-      if is_nface_in_bg_cell(nface,n,ism,m,bg_cell)
-        push!(nfaces,nface)
+
+  for sm_n in 0:sm_d
+    dface_to_nfaces = get_faces(sm,sm_d,sm_n)
+    for lnface in 1:length(dface_to_nfaces,sm_dface)
+      sm_nface = dface_to_nfaces[sm_dface,lnface]
+      ds, dfaces = get_faces_in_surface_mesh_face(ism,sm,sm_n,sm_nface)
+      for i in 1:length(ds)
+        if ds[i] == n && 
+           is_nface_in_bg_cell(ism,n,dfaces[i],m,bg_cell) &&
+           dfaces[i] ∉ nfaces
+
+           push!(nfaces, dfaces[i])
+        end
       end
     end
   end
@@ -355,14 +394,14 @@ function complete_boundary!(
     d,dface = get_background_face(ism,vertex)
     _d, _dface, point = _find_next_intersection(m,bg_cell,d,dface,sm,sm_d,sm_dface,ism,nfaces,n)
     if _dface != UNSET
-      _vertex = add_vertex!(ism,_d,_dface,sm_d,sm_dface,point)
+      _vertex = add_vertex!(ism,_d,_dface,sm,sm_d,sm_dface,point)
       push!( vertices, _vertex )
-
-      ## TODO: Too hardcoded, think in any-dimension
       if n == 0
         nface = _vertex
       else
-        nface = add_face!(ism, 1, [vertex,_vertex], sm_d, sm_dface ) 
+        @check n == 1
+        lvertices = [vertex,_vertex]
+        nface = add_face!( ism, n, lvertices, sm, sm_d, sm_dface ) 
       end
       push!( nfaces, nface )
     end
@@ -372,7 +411,8 @@ end
 function connect_boundary_faces!(
   vm::VolumeMesh,bg_cell::Integer,
   ism::IncrementalSurfaceMesh,n::Integer,nfaces::Vector,
-  sm_d::Integer,sm_dface::Integer)
+  sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer,
+  vertices::Vector,lvertices::Vector)
 
   D = num_dims(vm)
   cell_to_facets = get_faces(vm,D,D-1)
@@ -382,19 +422,19 @@ function connect_boundary_faces!(
 
   
   n == D-2 || return
-  
-  vertices = Int[] ## <- Save load caches
-  _vertices = Int[] ## <- Save load caches
+ 
+  resize!(vertices,0)
+  resize!(lvertices,0)
   
   vertices = get_vertices!(ism,vertices,n,nfaces)
   for lfacet in 1:length(cell_to_facets,bg_cell) 
     bg_facet = cell_to_facets[bg_cell,lfacet]
-    _vertices = get_vertices_in_background_facet(ism,vertices,vm,bg_facet,_vertices)
-  
-    @check length(_vertices) ≤ n+1
-    if length(_vertices) == n+1
-      if !are_vertices_in_any_dface(ism,_vertices,n,nfaces)
-        nface = add_face!(ism,n,_vertices,sm_d,sm_dface)
+    lvertices = get_vertices_in_background_facet(ism,vertices,vm,bg_facet,lvertices)
+ 
+    @check length(lvertices) ≤ n+1
+    if length(lvertices) == n+1
+      if !are_vertices_in_any_dface(ism,lvertices,n,nfaces)
+        nface = add_face!(ism,n,lvertices,sm,sm_d,sm_dface)
         push!(nfaces,nface)
       end
     end
@@ -402,21 +442,20 @@ function connect_boundary_faces!(
 end
 
 function add_faces!(
-  ism::IncrementalSurfaceMesh,n::Integer,nfaces::Vector,
+  ism::IncrementalSurfaceMesh,
   sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer,
-  vm::VolumeMesh,bg_cell::Integer)
-  
-  _nfaces = Int[]
-  fetch_boundary_nfaces!(ism,n,_nfaces,vm,bg_cell,sm,sm_d,sm_dface)
+  vm::VolumeMesh,bg_cell::Integer,
+  nfaces::Vector,dfaces::Vector,lvertices::Vector)
+
+  n = sm_d - 1
+  fetch_boundary_nfaces!(ism,n,nfaces,vm,bg_cell,sm,sm_d,sm_dface)
   if length(nfaces) == 0
     return
   end
   nface_to_vertices = get_dface_to_vertices(ism,n)
-  vertex = nface_to_vertices[ _nfaces[1], 1 ]
-  lvertices = Int[]
-  dfaces = Int[]
-  for d in reverse(0:sm_d-1)
-   # dfaces = get_dfaces!(ism,n,nfaces,d,dfaces)
+  vertex = nface_to_vertices[ nfaces[1], 1 ]
+  
+  for d in reverse(0:n)
     dfaces = fetch_boundary_nfaces!(ism,d,dfaces,vm,bg_cell,sm,sm_d,sm_dface)
     dface_to_vertices = get_dface_to_vertices(ism,d)
     resize!( lvertices, d+2 )
@@ -426,7 +465,7 @@ function add_faces!(
         for i in 1:length(dface_to_vertices,dface)
           lvertices[i+1] = dface_to_vertices[dface,i]
         end
-        add_face!(ism,d+1,lvertices,sm_d,sm_dface)
+        add_face!(ism,d+1,lvertices,sm,sm_d,sm_dface)
       end
     end
   end
@@ -555,17 +594,6 @@ function get_vertices_in_background_facet(
   _vertices
 end
 
-function get_dfaces!(ism::IncrementalSurfaceMesh,n::Integer,nfaces::Vector,d::Integer,dfaces::Vector)
-  ## TODO: Avoid global search, storing information
-  resize!(dfaces,0)
-  for dface in 1:num_faces(ism,d)
-    if is_dface_in_any_nface(ism,d,dface,n,nfaces)
-      push!(dfaces,dface)
-    end
-  end
-  dfaces
-end
-
 function get_background_face(ism::IncrementalSurfaceMesh,d::Integer,dface::Integer,vm::VolumeMesh)
   D = num_dims(vm)
   dface_to_vertices = get_dface_to_vertices(ism,d)
@@ -610,7 +638,7 @@ end
 ## Queries
 
 function is_nface_in_bg_cell(
-  nface::Integer,n::Integer,ism::IncrementalSurfaceMesh,
+  ism::IncrementalSurfaceMesh,n::Integer,nface::Integer,
   m::VolumeMesh,bg_cell::Integer)
 
   D = num_dims(m)
