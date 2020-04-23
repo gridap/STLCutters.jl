@@ -25,6 +25,10 @@ get_facet_to_vertices(::T) where T<:Hexahedron = get_facet_to_vertices(T)
 
 @inline get_vertices(t::Hexahedron) = t.vertices
 
+num_vertices(::Type{<:Hexahedron}) = 8
+
+num_vertices(::T) where T<:Hexahedron = num_vertices(T)
+
 function get_facet(h::Hexahedron,i::Integer)
   facet_to_vertices = get_facet_to_vertices(h)
   v = get_vertices(h)
@@ -75,3 +79,22 @@ projection(p::Point{3},h::Hexahedron{3}) = p
 projection(h::Hexahedron,p::Point) = projection(p,h)
 
 closest_point(h::Hexahedron{3},p::Point{3}) = projection(p,h)
+
+
+function writevtk(h::Hexahedron{3,T},file_base_name) where T
+  vtk_type_id = 12
+  vtk_hex_lvertices = [1,2,4,3,5,6,8,7]
+
+  points = zeros(T,3,num_vertices(h))
+  for (i,v) in enumerate(get_vertices(h)), d in 1:3
+      points[d,i] = v[d]
+  end
+
+  vtk_type = VTKCellType(vtk_type_id)
+  vertices = vtk_hex_lvertices[1:num_vertices(h)]
+  cells = [ MeshCell(vtk_type,vertices) ]
+
+  vtkfile = vtk_grid(file_base_name,points,cells)
+  vtk_save(vtkfile)
+end
+  

@@ -234,7 +234,6 @@ function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh) where {D,T}
       cells_containg_nfaces!(bg_cells,vm,sm,sm_d,sm_dface,ism,n)
       while length(bg_cells) > 0
         bg_cell = popfirst!(bg_cells)
-
         fetch_boundary_nfaces!(ism,n,nfaces,vm,bg_cell,sm,sm_d,sm_dface)
         num_nfaces = length(nfaces)
         complete_boundary!(ism,n,nfaces,vertices,vm,bg_cell,sm,sm_d,sm_dface, vertices_cache)
@@ -390,7 +389,6 @@ function complete_boundary!(
   sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer,
   _vertices::Vector)
 
-  #vertices = get_vertices!(ism,vertices,n,nfaces)
   vertices = fetch_boundary_nfaces!(ism,0,vertices,m,bg_cell,sm,sm_d,sm_dface)
   _vertices = fetch_boundary_nfaces!(ism,0,_vertices,m,bg_cell,sm,sm_d,sm_dface)
 
@@ -537,8 +535,6 @@ function get_face_to_surface_mesh_face(ism::IncrementalSurfaceMesh,sm::SurfaceMe
   for d in 0:D-1, dface in 1:num_faces(ism,d)
     face += 1
     sm_d, sm_dface = get_surface_mesh_face(ism,d,dface)
-    # sm_d = ism.d_to_dface_to_sm_n[d][dface]
-    # sm_dface = ism.d_to_dface_to_sm_nface[d][dface]
     sm_face = global_dface(sm,sm_d,sm_dface)
     face_to_sm_face[face] = sm_face
   end
@@ -721,23 +717,8 @@ end
 
 function is_facet_around_dface(m::VolumeMesh,facet::Integer,d::Integer,dface::Integer)
   D = num_dims(m)
-  facet_to_vertices = get_faces(m,D-1,0)
-  dface_to_vertices = get_faces(m,d,0)
-  if d == D-1
-    if dface == facet
-      return true
-    else
-      return false
-    end
-  end
-  for lvertex in 1:length(facet_to_vertices,facet)
-    vertex = facet_to_vertices[facet,lvertex]
-    for _lvertex in 1:length(dface_to_vertices,dface)
-      _vertex = dface_to_vertices[dface,_lvertex]
-      if vertex == _vertex
-        return true
-      end
-    end
+  if is_nface_in_dface(m,d,dface,D-1,facet)
+    return true
   end
   false
 end
