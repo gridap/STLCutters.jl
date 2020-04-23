@@ -27,6 +27,14 @@ function BoundingBox(t::Tetrahedron{D,T}) where {D,T}
   BoundingBox{D,T}(min.(get_vertices(t)...),max.(get_vertices(t)...))
 end
 
+function BoundingBox(q::Quadrilater{D,T}) where {D,T}
+  BoundingBox{D,T}(min.(get_vertices(q)...),max.(get_vertices(q)...))
+end
+
+function BoundingBox(h::Hexahedron{D,T}) where {D,T}
+  BoundingBox{D,T}(min.(get_vertices(h)...),max.(get_vertices(h)...))
+end
+
 @generated function get_vertices(b::BoundingBox{D,T}) where {D,T}
   N = 2^D
   d = Dict( 0 => "pmin", 1 => "pmax" )

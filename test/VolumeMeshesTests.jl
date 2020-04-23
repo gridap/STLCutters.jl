@@ -1,25 +1,25 @@
 module VolumeMeshesTests
 
 using STLCutter
-using STLCutter: get_face_coordinates, get_vertex_coordinates, get_dface_to_vertices
+using Test
+using STLCutter: get_face_coordinates, get_vertex_coordinates, get_dface_to_vertices, get_cell_coordinates
 
 
 box = BoundingBox(
   Point( 0.2, 0.2, 0.2 ),
   Point( 0.7, 0.7, 0.7 ) )
 
-bg_mesh = CartesianMesh( box, 2 )
+cm = CartesianMesh( box, 10 )
 
-vm = VolumeMesh(bg_mesh)
+vm = VolumeMesh(cm)
 
-@show get_face_coordinates(vm,Val(2),1)
-
-i = 1
-v = get_vertex_coordinates(vm) 
-f_to_v = get_dface_to_vertices(vm,2) 
-@show ( v[f_to_v[i,1]], v[f_to_v[i,2]], v[f_to_v[i,3]], v[f_to_v[i,4]],  )
-# TODO: Complete test
+@test num_vertices(vm) == num_vertices(cm)
+@test num_cells(vm) == num_cells(cm)
 
 
+for cell in 1:num_cells(vm)
+  cell_coordinates = get_cell_coordinates(vm,cell)
+  @test get_cell(cm,cell) == BoundingBox( cell_coordinates )
+end
 
 end # module

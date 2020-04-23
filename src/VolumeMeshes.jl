@@ -23,6 +23,13 @@ function num_faces(vm::VolumeMesh,d::Integer)
   length( get_dface_to_vertices(vm,d) )
 end
 
+num_vertices(vm::VolumeMesh) = num_faces(vm,0)
+
+num_edges(vm::VolumeMesh) = num_faces(vm,1)
+
+num_facets(vm::VolumeMesh{D}) where D = num_faces(vm,D-1)
+
+num_cells(vm::VolumeMesh{D}) where D = num_faces(vm,D)
 
 function get_vertex_coordinates(vm::VolumeMesh)
   vm.vertex_coordinates
