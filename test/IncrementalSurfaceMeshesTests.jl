@@ -28,7 +28,7 @@ box = BoundingBox(
 
 stl = STL(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 #stl = STL(joinpath(@__DIR__,"data/cube.stl"))
-#stl = STL(joinpath(@__DIR__,"data/wine_glass.stl"))
+stl = STL(joinpath(@__DIR__,"data/wine_glass.stl"))
 
 sm = SurfaceMesh(stl)
 
@@ -36,7 +36,7 @@ box = BoundingBox(sm)
 
 box = expand(box,0.1)
 
-bg_mesh = CartesianMesh( box, 20 )
+bg_mesh = CartesianMesh( box, 30 )
 
 new_sm, d_to_bg_df_to_smf, new_sm_face_to_sm_face = cut_surface_mesh(sm,bg_mesh)
 
@@ -79,16 +79,16 @@ new_sm, d_to_bg_df_to_smf, new_sm_face_to_sm_face = cut_surface_mesh(sm,bg_mesh)
 #end
 #
 #bg_cell_to_sm_face = d_to_bg_df_to_smf[D+1]
-#@show global_dface(new_sm,D-1,78)
-#@show global_dface(new_sm,D-1,79)
-#@show global_dface(new_sm,D-1,81)
+#@show global_dface(new_sm,D-1,28)
+#@show global_dface(new_sm,D-1,29)
+##@show global_dface(new_sm,D-1,81)
 #for bg_cell in 1:num_cells(bg_mesh)
 #  for lface in 1:length(bg_cell_to_sm_face,bg_cell)
 #    sm_face = bg_cell_to_sm_face[bg_cell,lface]
 #    if sm_face ∈ 
-#      [ global_dface(new_sm,D-1,78),
-#        global_dface(new_sm,D-1,79),
-#        global_dface(new_sm,D-1,81) ]
+#      [ global_dface(new_sm,D-1,28),
+##        global_dface(new_sm,D-1,79),
+#        global_dface(new_sm,D-1,29) ]
 #      @show bg_cell
 #    end
 #  end
@@ -101,7 +101,7 @@ writevtk(new_sm,"new_sm")
 
 @test surface(sm) ≈ surface(new_sm)
 
-
+@test is_watter_tight(sm)
 end # module
 
 

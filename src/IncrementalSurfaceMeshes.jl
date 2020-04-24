@@ -215,6 +215,7 @@ function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh) where {D,T}
 
   nfaces_cache = Int[]
   dfaces_cache = Int[]
+  kfaces_cache = Int[]
   vertices_cache = Int[]
   lvertices_cache = Int[]
 
@@ -235,7 +236,7 @@ function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh) where {D,T}
         num_nfaces = length(nfaces)
         complete_boundary!(ism,n,nfaces,vertices,vm,bg_cell,sm,sm_d,sm_dface, vertices_cache, lvertices_cache )
         connect_boundary_faces!(vm,bg_cell,ism,n,nfaces,sm,sm_d,sm_dface, vertices_cache, lvertices_cache)
-        add_faces!( ism, sm, sm_d, sm_dface, vm, bg_cell, nfaces_cache, dfaces_cache, lvertices_cache )
+        add_faces!( ism, sm, sm_d, sm_dface, vm, bg_cell, nfaces_cache,dfaces_cache,kfaces_cache,vertices_cache )
         for i in num_nfaces+1:length(nfaces)
           nface = nfaces[i]
           bg_d, bg_dface = get_background_face(ism,n,nface,vm)
@@ -368,11 +369,13 @@ function fetch_boundary_nfaces!(
       sm_nface = dface_to_nfaces[sm_dface,lnface]
       ds, dfaces = get_faces_in_surface_mesh_face(ism,sm,sm_n,sm_nface)
       for i in 1:length(ds)
-        if ds[i] == n && 
-           is_nface_in_bg_cell(ism,n,dfaces[i],m,bg_cell) &&
-           dfaces[i] ∉ nfaces
-
-           push!(nfaces, dfaces[i])
+        if ds[i] == n &&
+          is_nface_in_bg_cell(ism,n,dfaces[i],m,bg_cell) &&
+          dfaces[i] ∉ nfaces
+          
+          if sm_n < sm_d || is_nface_in_bg_cell_boundary(ism,n,dfaces[i],m,bg_cell)
+            push!(nfaces, dfaces[i])
+          end
         end
       end
     end
@@ -429,11 +432,9 @@ function connect_boundary_faces!(
   resize!(lvertices,0)
   
   vertices = fetch_boundary_nfaces!(ism,0,vertices,vm,bg_cell,sm,sm_d,sm_dface)
-  #vertices = get_vertices!(ism,vertices,n,nfaces)
   for lfacet in 1:length(cell_to_facets,bg_cell) 
     bg_facet = cell_to_facets[bg_cell,lfacet]
     lvertices = get_vertices_in_background_facet(ism,vertices,vm,bg_facet,lvertices)
- 
     @check length(lvertices) ≤ n+1
     if length(lvertices) == n+1
       if !are_vertices_in_any_dface(ism,lvertices,n,nfaces)
@@ -448,8 +449,9 @@ function add_faces!(
   ism::IncrementalSurfaceMesh,
   sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer,
   vm::VolumeMesh,bg_cell::Integer,
-  nfaces::Vector,dfaces::Vector,lvertices::Vector)
+  nfaces::Vector,dfaces::Vector,kfaces::Vector,lvertices::Vector)
 
+  #nfaces not needed any more
   n = sm_d - 1
   fetch_boundary_nfaces!(ism,n,nfaces,vm,bg_cell,sm,sm_d,sm_dface)
   if length(nfaces) == 0
@@ -460,15 +462,18 @@ function add_faces!(
   
   for d in reverse(0:n)
     dfaces = fetch_boundary_nfaces!(ism,d,dfaces,vm,bg_cell,sm,sm_d,sm_dface)
+    kfaces = fetch_boundary_nfaces!(ism,d+1,kfaces,vm,bg_cell,sm,sm_d,sm_dface)
     dface_to_vertices = get_dface_to_vertices(ism,d)
     resize!( lvertices, d+2 )
     for dface in dfaces
-      if !is_dface_connected_to_vertex(ism,n,nfaces,d,dface,vertex)
+      if !is_vertex_in_dface(ism,vertex,d,dface)
         lvertices[1] = vertex
         for i in 1:length(dface_to_vertices,dface)
           lvertices[i+1] = dface_to_vertices[dface,i]
         end
-        add_face!(ism,d+1,lvertices,sm,sm_d,sm_dface)
+        if !are_vertices_in_any_dface(ism,lvertices,d+1,kfaces)
+          add_face!(ism,d+1,lvertices,sm,sm_d,sm_dface)
+        end
       end
     end
   end
@@ -677,6 +682,22 @@ function is_nface_in_bg_cell(
     vertex = nface_to_vertices[nface,lvertex]
     bg_d, bg_dface = get_background_face(ism,vertex)
     if !is_dface_in_cell(m,bg_d,bg_dface,bg_cell)
+      return false
+    end
+  end
+  true
+end
+
+function is_nface_in_bg_cell_boundary(
+  ism::IncrementalSurfaceMesh,n::Integer,nface::Integer,
+  m::VolumeMesh,bg_cell::Integer)
+
+  D = num_dims(m)
+  nface_to_vertices = get_dface_to_vertices(ism,n)
+  for lvertex in 1:length(nface_to_vertices,nface)
+    vertex = nface_to_vertices[nface,lvertex]
+    bg_d, bg_dface = get_background_face(ism,vertex)
+    if bg_d == D && !is_dface_in_cell(m,bg_d,bg_dface,bg_cell)
       return false
     end
   end
