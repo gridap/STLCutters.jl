@@ -97,4 +97,8 @@ function writevtk(h::Hexahedron{3,T},file_base_name) where T
   vtkfile = vtk_grid(file_base_name,points,cells)
   vtk_save(vtkfile)
 end
-  
+
+function BoundingBox(h::Hexahedron{D,T}) where {D,T}
+  BoundingBox{D,T}(min.(get_vertices(h)...),max.(get_vertices(h)...))
+end
+

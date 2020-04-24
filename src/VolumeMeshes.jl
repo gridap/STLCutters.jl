@@ -168,11 +168,6 @@ end
   Meta.parse(str)
 end
 
-function is_dface_in_cell(vm::VolumeMesh,d,dface,cell)
-  D = num_dims(vm)
-  is_nface_in_dface(vm,d,dface,D,cell)
-end
-
 function is_nface_in_dface(vm::VolumeMesh,n::Integer,nface::Integer,d::Integer,dface::Integer)
   if n ≤ d
     dface_to_nfaces = get_faces(vm,d,n)
@@ -186,29 +181,14 @@ function is_nface_in_dface(vm::VolumeMesh,n::Integer,nface::Integer,d::Integer,d
   false
 end
 
-function is_nface_around_dface(vm::VolumeMesh,n::Integer,nface::Integer,d::Integer,dface::Integer)
-  @check n ≥ d
-  dface_to_nfaces = get_faces(vm,d,n)
-  for lnface in 1:length(dface_to_nfaces,dface)
-    _nface = dface_to_nfaces[dface,lnface]
-    if nface == _nface
-      return true
-    end
-  end
-  false
+function is_dface_in_cell(vm::VolumeMesh,d,dface,cell)
+  D = num_dims(vm)
+  is_nface_in_dface(vm,d,dface,D,cell)
 end
 
 function is_dface_in_facet(vm::VolumeMesh,d::Integer,dface::Integer,facet::Integer) 
   D = num_dims(vm)
-  @check d ≤ D-1 
-  facet_to_dfaces = get_faces(vm,D-1,d)
-  for ldface in 1:length(facet_to_dfaces,facet)
-    _dface = facet_to_dfaces[facet,ldface]
-    if _dface == dface
-      return true
-    end
-  end
-  false
+  is_nface_in_dface(vm,d,dface,D-1,facet)
 end
 
 

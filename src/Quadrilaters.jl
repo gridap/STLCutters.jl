@@ -173,3 +173,6 @@ closest_point(s::Segment{3},q::Quadrilater{3}) = intersection(s,q)
 
 closest_point(q::Quadrilater{3},s::Segment{3}) = closest_point(s,q)
 
+function BoundingBox(q::Quadrilater{D,T}) where {D,T}
+  BoundingBox{D,T}(min.(get_vertices(q)...),max.(get_vertices(q)...))
+end

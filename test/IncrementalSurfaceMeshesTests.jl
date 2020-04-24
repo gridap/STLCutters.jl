@@ -28,7 +28,7 @@ box = BoundingBox(
 
 stl = STL(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 #stl = STL(joinpath(@__DIR__,"data/cube.stl"))
-#stl = STL(joinpath(@__DIR__,"data/wine_cup.stl"))
+#stl = STL(joinpath(@__DIR__,"data/wine_glass.stl"))
 
 sm = SurfaceMesh(stl)
 
