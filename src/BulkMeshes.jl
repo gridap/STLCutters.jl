@@ -25,6 +25,8 @@ end
 function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
   @check num_dims(bg_mesh) == D
 
+  vm = VolumeMesh(bg_mesh)
+
   cell_mesh = CellMesh{D,T}()
 
   c_to_v = Table{Int}()
@@ -45,9 +47,11 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
 
   c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
+  sm, d_to_bg_dface_to_sm_faces = cut_surface_mesh(sm,bg_mesh)
+
   for k in 1:num_cells(bg_mesh)
     reset!(cell_mesh, get_cell(bg_mesh,k) )
-    compute_cell_mesh!(cell_mesh,sm,c_to_sm_f,k)
+    compute_cell_mesh!(cell_mesh,sm,vm,k,d_to_bg_dface_to_sm_faces)
     if is_surface_mesh_captured(cell_mesh)
       
       bgc_to_ioc[k] = FACE_CUT
