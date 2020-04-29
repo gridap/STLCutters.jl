@@ -26,9 +26,9 @@ box = BoundingBox(
   - Point( 0.2, 0.2, 0.2 ),
     Point( 1.7, 1.7, 1.7 ) )
 
-stl = STL(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
-#stl = STL(joinpath(@__DIR__,"data/cube.stl"))
-stl = STL(joinpath(@__DIR__,"data/wine_glass.stl"))
+#stl = STL(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
+stl = STL(joinpath(@__DIR__,"data/cube.stl"))
+#stl = STL(joinpath(@__DIR__,"data/wine_glass.stl"))
 
 sm = SurfaceMesh(stl)
 
@@ -36,10 +36,10 @@ box = BoundingBox(sm)
 
 box = expand(box,0.1)
 
-bg_mesh = CartesianMesh( box, 30 )
+bg_mesh = CartesianMesh( box, 2 )
 
 new_sm, d_to_bg_df_to_smf, new_sm_face_to_sm_face = cut_surface_mesh(sm,bg_mesh)
-
+@show d_to_bg_df_to_smf
 #summed_surface = zeros( num_facets(sm) )
 #D = num_dims(sm)
 #for facet in 1:num_facets(new_sm)
@@ -102,6 +102,7 @@ writevtk(new_sm,"new_sm")
 @test surface(sm) ≈ surface(new_sm)
 
 @test is_watter_tight(sm)
+
 end # module
 
 
@@ -116,7 +117,7 @@ end # module
 #   * [x] sm_faces ↦ bg_faces (or inverse, if needed)
 # [ ] Use the information in cell_mesh cutter
 # [-] Test and debug with different surface mesh and bg mesh combinations
-# [-] Add tests to the /test file
+# [x] Add tests to the /test file
 #
 # DEBUG:
 #

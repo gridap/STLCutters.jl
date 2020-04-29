@@ -635,7 +635,7 @@ function get_background_face(ism::IncrementalSurfaceMesh,d::Integer,dface::Integ
     bg_d, bg_dface = get_background_face(ism,vertex)
     max_bg_d = max( max_bg_d, bg_d )
   end
-  for bg_n in reverse(max_bg_d:D)
+  for bg_n in max_bg_d:D
     _bg_nface = UNSET
     vertex = dface_to_vertices[dface,1]
     bg_d, bg_dface = get_background_face(ism,vertex)

@@ -350,8 +350,57 @@ function find_next_point(
         nface = df_to_nf[opposite_face,lnface]
         dist = distance(mesh,n,nface,sm,sm_face)
         if dist < min_distance
-          min_distance = dist
-          iface = nface
+          if D-sm_d-n > 0 || dist == 0.0 # have intersection()
+            min_distance = dist
+            iface = nface
+          end
+        end
+      end
+      if iface != UNSET
+        point = closest_point(mesh,n,iface,sm,sm_face)
+        return (n,iface,point)
+      end
+    end
+  end
+  point = zero( eltype(get_vertex_coordinates(mesh)) )
+  (UNSET,UNSET,point)
+end
+
+function find_next_point(mesh::CellMesh,dface::Integer,sm::SurfaceMesh,sm_face::Integer)
+  D = num_dims(mesh)
+  sm_d = face_dimension(sm,sm_face)
+  d = sm_d-1
+  dim = D-d-1
+  iface = UNSET
+  min_distance = tolerance(mesh)
+  for cell in 1:num_cells(mesh)
+    if isactive(mesh,D,cell)
+      if _is_dface_in_nface_boundary(mesh,D,cell,d,dface)
+        opposite_face = _get_opposite_face(mesh,D,cell,d,dface)
+        if !_is_touching_surface_mesh_face(mesh,dim,opposite_face,sm,sm_face)
+          dist = distance(mesh,dim,opposite_face,sm,sm_face) 
+          if dist < min_distance
+            min_distance = dist
+            iface = opposite_face
+          end
+        end
+      end
+    end
+  end
+  if iface != UNSET
+    opposite_face = iface
+    iface = UNSET
+    min_distance = tolerance(mesh)
+    for n in 0:dim
+      df_to_nf = get_faces(mesh,dim,n)
+      for lnface in 1:length(df_to_nf,opposite_face)
+        nface = df_to_nf[opposite_face,lnface]
+        dist = distance(mesh,n,nface,sm,sm_face)
+        if dist < min_distance
+          if D-sm_d-n > 0 || dist == 0.0 # have intersection()
+            min_distance = dist
+            iface = nface
+          end
         end
       end
       if iface != UNSET
