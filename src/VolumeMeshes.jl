@@ -43,7 +43,7 @@ function get_edge_coordinates(vm::VolumeMesh,i::Integer)
   get_face_coordinates(vm,Val{1}(),i)
 end
 
-function get_facet_coordinates(vm::VolumeMesh,i::Integer) where D
+function get_facet_coordinates(vm::VolumeMesh{D},i::Integer) where D
   get_face_coordinates(vm,Val{D-1}(),i)
 end
 

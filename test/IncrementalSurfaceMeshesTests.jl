@@ -28,7 +28,7 @@ box = BoundingBox(
 
 #stl = STL(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 stl = STL(joinpath(@__DIR__,"data/cube.stl"))
-#stl = STL(joinpath(@__DIR__,"data/wine_glass.stl"))
+stl = STL(joinpath(@__DIR__,"data/wine_glass.stl"))
 
 sm = SurfaceMesh(stl)
 
@@ -36,7 +36,7 @@ box = BoundingBox(sm)
 
 box = expand(box,0.1)
 
-bg_mesh = CartesianMesh( box, 2 )
+bg_mesh = CartesianMesh( box, 20 )
 
 new_sm, d_to_bg_df_to_smf, new_sm_face_to_sm_face = cut_surface_mesh(sm,bg_mesh)
 @show d_to_bg_df_to_smf

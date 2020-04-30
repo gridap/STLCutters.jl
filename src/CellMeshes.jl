@@ -160,6 +160,7 @@ end
 
 tolerance(m::CellMesh) = 1e-7
 
+
 function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer,d::Integer,ldface::Integer)
   sm_d = face_dimension(sm,sm_face)
   if sm_d == 0
@@ -1558,7 +1559,8 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
 
   sm_facet_normal = get_facet_normal(sm,f_to_smf[ifacet])
 
-  @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet]
+  @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
+
   orientation = ( facet_normal ⋅ sm_facet_normal ) * c_to_lf_to_o[icell,lfacet]
 
   if orientation > 0

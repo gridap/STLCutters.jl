@@ -110,7 +110,7 @@ end
 
 ## Geometric queries
 
-tolerance() = 1e-10 ## TODO: Add argument
+tolerance() = 1e-6 ## TODO: Add argument
 
 @generated function distance(
   m::VolumeMesh{D},d::Integer,dface::Integer,
@@ -397,7 +397,7 @@ function complete_boundary!(
 
   vertices = fetch_boundary_vertices!(ism,vertices,m,bg_cell,sm,sm_d,sm_dface)
   _vertices = fetch_boundary_vertices!(ism,_vertices,m,bg_cell,sm,sm_d,sm_dface)
-
+  
   while length(vertices) > 0
     vertex = pop!(vertices)
     d,dface = get_background_face(ism,vertex)
@@ -405,6 +405,7 @@ function complete_boundary!(
     if _dface != UNSET
       _vertex = add_vertex!(ism,_d,_dface,sm,sm_d,sm_dface,point)
       push!( vertices, _vertex )
+      push!( _vertices, _vertex )
       if n == 0
         nface = _vertex
       else
@@ -436,7 +437,6 @@ function connect_boundary_faces!(
   for lfacet in 1:length(cell_to_facets,bg_cell) 
     bg_facet = cell_to_facets[bg_cell,lfacet]
     lvertices = get_vertices_in_background_facet(ism,vertices,vm,bg_facet,lvertices)
-    @check length(lvertices) ≤ n+1
     if length(lvertices) == n+1
       if !are_vertices_in_any_dface(ism,lvertices,n,nfaces)
         nface = add_face!(ism,n,lvertices,sm,sm_d,sm_dface)
@@ -563,7 +563,7 @@ function _find_next_intersection(
   ism::IncrementalSurfaceMesh,nfaces::Vector,n::Integer,vertices::Vector)
 
   min_dist = tolerance()
-  
+
   closest_bg_face = UNSET
   _d = UNSET
   D = num_dims(m)
@@ -576,12 +576,12 @@ function _find_next_intersection(
         for ldface in 1:length(facet_to_dfaces,bg_facet)
           _bg_dface = facet_to_dfaces[bg_facet,ldface]
           if !contains_any_nface(m,d,_bg_dface,ism,n,nfaces)
-            if !is_any_vertex_on_background_face(ism,vertices,d,_bg_dface)
-            dist = distance(m,d,_bg_dface,sm,sm_d,sm_dface)
-            if dist < min_dist
-              min_dist = dist
-              closest_bg_face = _bg_dface
-            end
+            if !is_any_vertex_on_background_face(ism,vertices,m ,d,_bg_dface)
+              dist = distance(m,d,_bg_dface,sm,sm_d,sm_dface)
+              if dist < min_dist
+                min_dist = dist
+                closest_bg_face = _bg_dface
+              end
             end
           end
         end
@@ -597,15 +597,19 @@ function _find_next_intersection(
     point = closest_point(m,_d,closest_bg_face,sm,sm_d,sm_dface)
     return _d, closest_bg_face, point
   end
-  
+
   return UNSET,UNSET, zero( eltype(get_vertex_coordinates(m)) )
 end
 
 
-function is_any_vertex_on_background_face(ism::IncrementalSurfaceMesh,vertices::Vector,bg_d::Integer,bg_dface::Integer)
+function is_any_vertex_on_background_face(
+  ism::IncrementalSurfaceMesh,
+  vertices::Vector,
+  vm::VolumeMesh,bg_d::Integer,bg_dface::Integer)
+
   for vertex in vertices
     d,dface = get_background_face(ism,vertex)
-    if d == bg_d && dface == bg_dface
+    if is_nface_in_dface(vm,d,dface,bg_d,bg_dface)
       return true
     end
   end

@@ -9,6 +9,10 @@ Quadrilater(b::BoundingBox{2}) = Quadrilater(get_vertices(b))
 
 num_dims(::Quadrilater{D}) where D = D
 
+num_vertices(::Type{<:Quadrilater}) = 4
+
+num_vertices(::T) where T<:Quadrilater = num_vertices(T)
+
 num_edges(::Type{<:Quadrilater}) = 4
 
 num_edges(::T) where T<:Quadrilater = num_edges(T)
@@ -176,3 +180,21 @@ closest_point(q::Quadrilater{3},s::Segment{3}) = closest_point(s,q)
 function BoundingBox(q::Quadrilater{D,T}) where {D,T}
   BoundingBox{D,T}(min.(get_vertices(q)...),max.(get_vertices(q)...))
 end
+
+function writevtk(q::Quadrilater{D,T},file_base_name) where {D,T}
+  vtk_type_id = 9
+  vtk_hex_lvertices = [1,2,4,3]
+
+  points = zeros(T,3,num_vertices(q))
+  for (i,v) in enumerate(get_vertices(q)), d in 1:D
+      points[d,i] = v[d]
+  end
+
+  vtk_type = VTKCellType(vtk_type_id)
+  vertices = vtk_hex_lvertices[1:num_vertices(q)]
+  cells = [ MeshCell(vtk_type,vertices) ]
+
+  vtkfile = vtk_grid(file_base_name,points,cells)
+  vtk_save(vtkfile)
+end
+
