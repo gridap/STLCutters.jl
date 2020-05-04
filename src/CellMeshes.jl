@@ -1639,6 +1639,32 @@ function fix_boundary_facets!(mesh::CellMesh)
       end
     end
   end
+  fix_overlapping!(mesh)
+end
+
+function fix_overlapping!(mesh::CellMesh)
+  for facet in 1:num_facets(mesh)
+    if is_facet_boundary(mesh,facet)
+      if is_facet_surrounded_by_interior_cells(mesh,facet)
+        set_facet_as_interior!(mesh,facet)
+      end
+    end
+  end
+end
+
+function is_facet_surrounded_by_interior_cells(mesh::CellMesh,facet::Integer)
+  D = num_dims(mesh)
+  f_to_c = get_faces(mesh,D-1,D)
+  if length(f_to_c,facet) ≤ 1
+    return false
+  end
+  for lcell in 1:length(f_to_c,facet)
+    cell = f_to_c[facet,lcell]
+    if !is_cell_interior(mesh,cell)
+      return false
+    end
+  end
+  true
 end
 
 function _fix_cell_to_facet_orientation!(mesh::CellMesh,cell::Integer,lfacet::Integer)
