@@ -110,7 +110,7 @@ end
 
 ## Geometric queries
 
-tolerance() = 1e-6 ## TODO: Add argument
+tolerance() = 1e-8 ## TODO: Add argument
 
 @generated function distance(
   m::VolumeMesh{D},d::Integer,dface::Integer,

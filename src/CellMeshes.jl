@@ -109,14 +109,16 @@ function compute_in_out!(mesh::CellMesh,sm::SurfaceMesh)
         head += 1
         for lfacet in 1:length(c_to_f,head_cell)
           facet = c_to_f[head_cell,lfacet]
-          if !is_face_boundary(mesh,D-1,facet)
-            for i in 1:length(f_to_c,facet)
-              cell_around = f_to_c[facet,i]
-              if !is_cell_defined(mesh,cell_around)
-                set_cell_in_out!(mesh,cell_around,cell_io)
-                tail += 1
-                queue[tail] = cell_around
+          for i in 1:length(f_to_c,facet)
+            cell_around = f_to_c[facet,i]
+            if !is_cell_defined(mesh,cell_around)
+              if !is_facet_boundary(mesh,facet) == is_cell_interior(mesh,head_cell)
+                set_cell_as_interior!(mesh,cell_around)
+              else
+                set_cell_as_exterior!(mesh,cell_around)
               end
+              tail += 1
+              queue[tail] = cell_around
             end
           end
         end
@@ -158,8 +160,7 @@ end
 
 # Intersections
 
-tolerance(m::CellMesh) = 1e-7
-
+tolerance(m::CellMesh) = 1e-10
 
 function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer,d::Integer,ldface::Integer)
   sm_d = face_dimension(sm,sm_face)
@@ -1533,7 +1534,22 @@ function define_cells_touching_boundary!(mesh::CellMesh,cache::MeshCache,sm::Sur
       for lfacet in 1:length(c_to_f,cell)
         facet = c_to_f[cell,lfacet]
         if f_to_smf[facet] != UNSET
-          set_cell_in_out!(mesh,cell, _define_cell(mesh,cache,sm,cell,lfacet) )
+          if _define_cell(mesh,cache,sm,cell,lfacet) == FACE_IN
+            set_cell_as_interior!(mesh,cell)
+          end
+          break
+        end
+      end
+    end
+  end
+  for cell in 1:num_cells(mesh)
+    if isactive(mesh,D,cell) && !is_cell_defined(mesh,cell)
+      for lfacet in 1:length(c_to_f,cell)
+        facet = c_to_f[cell,lfacet]
+        if f_to_smf[facet] != UNSET
+          if _define_cell(mesh,cache,sm,cell,lfacet) == FACE_OUT
+            set_cell_as_exterior!(mesh,cell)
+          end
           break
         end
       end
@@ -1559,7 +1575,7 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
 
   sm_facet_normal = get_facet_normal(sm,f_to_smf[ifacet])
 
-  @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
+  #@check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
 
   orientation = ( facet_normal ⋅ sm_facet_normal ) * c_to_lf_to_o[icell,lfacet]
 
@@ -1568,7 +1584,7 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
   elseif orientation < 0
     FACE_OUT
   else
-    @check false "orientation == 0, face not defined"
+    # @check false "orientation == 0, face not defined"
     FACE_UNDEF
   end
 end
@@ -1635,11 +1651,14 @@ function fix_boundary_facets!(mesh::CellMesh)
         if f_to_smf[facet] != UNSET
           set_facet_as_boundary!(mesh,facet)
           _fix_cell_to_facet_orientation!(mesh,cell,lfacet)
+        else
+          set_facet_as_interior!(mesh,facet)
         end
       end
     end
   end
   fix_overlapping!(mesh)
+  delete_bouble!(mesh)
 end
 
 function fix_overlapping!(mesh::CellMesh)
@@ -1647,9 +1666,46 @@ function fix_overlapping!(mesh::CellMesh)
     if is_facet_boundary(mesh,facet)
       if is_facet_surrounded_by_interior_cells(mesh,facet)
         set_facet_as_interior!(mesh,facet)
+      elseif is_facet_surrounded_by_exterior_cells(mesh,facet)
+        set_facet_as_exterior!(mesh,facet)
       end
     end
   end
+end
+
+function delete_bouble!(mesh::CellMesh)
+  D = num_dims(mesh)
+  c_to_f = get_faces(mesh,D,D-1)
+  for cell in 1:num_cells(mesh)
+    if are_all_facets_boundary(mesh,cell)
+      if is_cell_interior(mesh,cell)
+        set_cell_as_exterior!(mesh,cell)
+        for lfacet in 1:length(c_to_f,cell)
+          facet = c_to_f[cell,lfacet]
+          set_facet_as_exterior!(mesh,facet)
+        end
+      elseif is_cell_exterior(mesh,cell)
+        set_cell_as_interior!(mesh,cell)
+        for lfacet in 1:length(c_to_f,cell)
+          facet = c_to_f[cell,lfacet]
+          set_facet_as_interior!(mesh,facet)
+        end
+      end
+    end
+  end
+  fix_overlapping!(mesh)
+end
+
+function are_all_facets_boundary(mesh::CellMesh,cell::Integer)
+  D = num_dims(mesh)
+  c_to_f = get_faces(mesh,D,D-1)
+  for lfacet in 1:length(c_to_f,cell)
+    facet = c_to_f[cell,lfacet]
+    if !is_facet_boundary(mesh,facet)
+      return false
+    end
+  end
+  true
 end
 
 function is_facet_surrounded_by_interior_cells(mesh::CellMesh,facet::Integer)
@@ -1661,6 +1717,21 @@ function is_facet_surrounded_by_interior_cells(mesh::CellMesh,facet::Integer)
   for lcell in 1:length(f_to_c,facet)
     cell = f_to_c[facet,lcell]
     if !is_cell_interior(mesh,cell)
+      return false
+    end
+  end
+  true
+end
+
+function is_facet_surrounded_by_exterior_cells(mesh::CellMesh,facet::Integer)
+  D = num_dims(mesh)
+  f_to_c = get_faces(mesh,D-1,D)
+  if length(f_to_c,facet) ≤ 1
+    return false
+  end
+  for lcell in 1:length(f_to_c,facet)
+    cell = f_to_c[facet,lcell]
+    if !is_cell_exterior(mesh,cell)
       return false
     end
   end

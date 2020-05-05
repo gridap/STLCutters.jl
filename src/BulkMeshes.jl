@@ -76,7 +76,8 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
         elseif is_cell_exterior(cell_mesh,cell)
           push!(c_to_io, FACE_OUT )
         else
-          throw(ErrorException(""))
+          cell_coordinates = get_cell_coordinates(cell_mesh,cell)
+          throw(ErrorException("Undefined subcell with volume = $(measure(cell_coordinates))"))
         end
       end
 
