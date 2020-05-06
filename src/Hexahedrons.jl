@@ -5,7 +5,7 @@ end
 
 Hexahedron(v::Vararg{Point,8}) = Hexahedron(v,)
 
-Hexahedron(b::BoundingBox{3}) = Cube(get_vertices(b))
+Hexahedron(b::BoundingBox{3}) = Hexahedron(get_vertices(b))
 
 num_dims(::Hexahedron{D}) where D = D
 
@@ -80,6 +80,19 @@ projection(h::Hexahedron,p::Point) = projection(p,h)
 
 closest_point(h::Hexahedron{3},p::Point{3}) = projection(p,h)
 
+function relative_orientation(tri::Triangle{3},hex::Hexahedron{3})
+  max_distance = 0.0
+  _v = get_vertices(hex)[1]
+  for v in get_vertices(hex)
+    dist = distance(v,tri)
+    if dist ≥ max_distance
+      max_distance = dist
+      _v = v
+    end
+  end
+  tet = Tetrahedron(tri,_v)
+  - measure_sign(tet)
+end
 
 function writevtk(h::Hexahedron{3,T},file_base_name) where T
   vtk_type_id = 12

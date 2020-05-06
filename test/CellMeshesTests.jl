@@ -224,7 +224,13 @@ c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
 reset!(cell_mesh,get_cell(bg_mesh,cell_id))
 
-compute_cell_mesh!(cell_mesh,sm,c_to_sm_f,cell_id)
+for i in 1:length(c_to_sm_f)
+  sm_face = c_to_sm_f[cell_id,i]
+  cut_cell_mesh!(cell_mesh,sm,sm_face)
+end
+compact!(cell_mesh)
+compute_in_out!(cell_mesh,sm)
+
 
 @test !is_any_face_repeated(cell_mesh)
 

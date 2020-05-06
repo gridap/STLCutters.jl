@@ -31,6 +31,12 @@ num_facets(vm::VolumeMesh{D}) where D = num_faces(vm,D-1)
 
 num_cells(vm::VolumeMesh{D}) where D = num_faces(vm,D)
 
+function get_reference_cell(::Type{VolumeMesh{D,T}}) where {D,T}
+  get_reference_cell(CartesianMesh{D,T}) 
+end
+
+get_reference_cell(::T) where T<:VolumeMesh = get_reference_cell(T)
+
 function get_vertex_coordinates(vm::VolumeMesh)
   vm.vertex_coordinates
 end

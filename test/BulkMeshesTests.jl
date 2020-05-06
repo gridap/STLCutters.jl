@@ -29,7 +29,7 @@ for (i,geom) in enumerate( geometries )
     @test interior_volume(bm) ≈ volumes[i]
     @test interior_volume(bm) + exterior_volume(bm) ≈ measure(box)
     @test surface(sm) ≈ surface(bm,1)
-
+ 
     sm = move!(sm,offset)
   end
 end

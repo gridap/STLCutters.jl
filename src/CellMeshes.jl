@@ -220,6 +220,11 @@ function _is_vertex_in_face(mesh,vertex,d,dface)
   false
 end
 
+function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
+  D = num_dims(mesh)
+  cut_cell_mesh!(mesh,sm,sm_face,D,1)
+end
+
 function find_closest_face(mesh::CellMesh,point::Point,d::Integer,ldface::Integer)
   cell_cache = mesh.cache.cell
   min_distance = tolerance(mesh)
