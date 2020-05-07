@@ -83,6 +83,15 @@ function measure_sign(t::Triangle{D}) where D
   throw(ArgumentError("measure_sign(::Triangle{$D}) not defined, only in 2D"))
 end
 
+function distance_to_plane(p::Point{3},t::Triangle{3})
+  o = center(t)
+  n = normal(t)
+  n = n / norm(n)
+  o_p = p - o
+  p_projection = o_p ⋅ n
+  abs( p_projection )
+end
+
 function distance(p::Point{3},t::Triangle{3})
   if !contains_projection(p,t)
     d = typemax(Float64)

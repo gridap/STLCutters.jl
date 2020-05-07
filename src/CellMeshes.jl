@@ -160,7 +160,7 @@ end
 
 # Intersections
 
-tolerance(m::CellMesh) = 1e-10
+tolerance(m::CellMesh) = 1e-8
 
 function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer,d::Integer,ldface::Integer)
   sm_d = face_dimension(sm,sm_face)
@@ -1111,7 +1111,7 @@ function _add_vertex!(mesh::CellMesh,dim::Integer,face::Integer,point::Point)
       end
     end
   end
- _add_vertex!(mesh,point)
+  _add_vertex!(mesh,point)
 end
 
 function append_mesh!(mesh::CellMesh,caches::MeshCache)
@@ -1140,10 +1140,9 @@ function refine_dface!(caches::MeshCache,mesh::CellMesh,dim::Integer,face::Integ
   remove_repeated_faces!(cutter_cache,mesh)
 
   ## Update cell cache
-  update_dface_to_new_dfaces!(cell_cache,cutter_cache,face)
+  update_dface_to_new_dfaces!(cell_cache,cutter_cache,face) # allocations
   update_cell_to_lface_to_orientation!(cell_cache,cutter_cache)
-  update_dface_to_cell_dface!(cell_cache,cutter_cache,face)
-
+  update_dface_to_cell_dface!(cell_cache,cutter_cache,face) # casual allocations
   caches
 end
 
@@ -1295,7 +1294,7 @@ function update_dface_to_new_dfaces!(cache::CellMeshCache,cutter::CutterCache,id
         end
       end
       if !isassigned(df_to_new_df,dface)
-        df_to_new_df[dface] = []
+        df_to_new_df[dface] = Int[]
       elseif dface > n_dfaces
         resize!(df_to_new_df[dface],0)
       end

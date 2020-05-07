@@ -26,28 +26,31 @@ box = BoundingBox(
   - Point( 0.2, 0.2, 0.2 ),
     Point( 1.7, 1.7, 1.7 ) )
 
-#stl = STL(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
-stl = STL(joinpath(@__DIR__,"data/cube.stl"))
-stl = STL(joinpath(@__DIR__,"data/wine_glass.stl"))
+geometries = [ "cube", "Bunny-LowPoly", "wine_glass" ]
+volumes = [ 1, 273280.0337419614, 74.12595970063474 ]
+meshes = [ 5, 20, 20 ]
 
-sm = SurfaceMesh(stl)
+for i in 1:length(geometries)
+  stl = STL(joinpath(@__DIR__, "data/$(geometries[i]).stl" ))
 
-box = BoundingBox(sm)
+  sm = SurfaceMesh(stl)
 
-box = expand(box,0.1)
+  box = BoundingBox(sm)
 
-bg_mesh = CartesianMesh( box, 20 )
+  box = expand(box,0.1)
 
-new_sm, d_to_bg_df_to_smf, new_sm_face_to_sm_face = cut_surface_mesh(sm,bg_mesh)
+  bg_mesh = CartesianMesh( box, meshes[i] )
 
-writevtk(sm,"sm")
-writevtk(bg_mesh,"bg_mesh")
+  new_sm, d_to_bg_df_to_smf, new_sm_face_to_sm_face = cut_surface_mesh(sm,bg_mesh)
 
-writevtk(new_sm,"new_sm")
+#  writevtk(sm,"sm")
+#  writevtk(bg_mesh,"bg_mesh")
+#  writevtk(new_sm,"new_sm")
 
-@test surface(sm) ≈ surface(new_sm)
+  @test surface(sm) ≈ surface(new_sm)
 
-@test is_watter_tight(sm)
+  @test is_watter_tight(new_sm)
+end
 
 end # module
 

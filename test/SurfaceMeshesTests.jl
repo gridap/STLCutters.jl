@@ -2,20 +2,7 @@ module SurfaceMeshesTests
 
 using Test
 using STLCutter
-using STLCutter: global_dface, local_dface, face_dimension
-
-#vertex_coordinates = Point{2,Float64}[(0, 0), (1, 0), (1, 1), (0, 1)]
-#d_face_to_vertices = [TableOfVectors([[3, 4], [1, 2], [2, 3]])]
-#facet_normals = Point{2,Float64}[(0, 1), (0, -1), (1, 0)]
-#d_face_to_facets = [TableOfVectors([[1, 2, 5], [2, 6, 7]])]
-#
-#s_mesh = SurfaceMesh(vertex_coordinates, d_face_to_vertices, facet_normals, d_face_to_facets)
-#
-#@test s_mesh.vertex_coordinates == vertex_coordinates
-#@test s_mesh.d_face_to_vertices == d_face_to_vertices
-#@test s_mesh.facet_normals == facet_normals
-#@test s_mesh.d_face_to_facets == d_face_to_facets
-#
+using STLCutter: global_dface, local_dface, face_dimension, is_face_dimension, is_vertex, is_edge, is_facet
 
 stl = STL(joinpath(@__DIR__,"data/cube.stl"))
 
@@ -35,11 +22,17 @@ box = BoundingBox(Point(0.1,0.1,0.1),Point(1.0,1.0,1.0))
 @test face_dimension(s_mesh,10) == 1
 @test face_dimension(s_mesh,27) == 2
 
+@test is_face_dimension(s_mesh,8,0)
+@test is_face_dimension(s_mesh,10,1)
+@test is_face_dimension(s_mesh,27,2)
+
+@test is_vertex(s_mesh,8)
+@test is_edge(s_mesh,10) 
+@test is_facet(s_mesh,27)
 
 @test local_dface(s_mesh,8,0) == 8
 @test local_dface(s_mesh,10,1) == 2
 @test local_dface(s_mesh,27,2) == 1
-
 
 @test num_faces(s_mesh,0) == 8
 @test num_faces(s_mesh,1) == 18

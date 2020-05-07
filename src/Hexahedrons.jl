@@ -60,9 +60,15 @@ function have_intersection(p::Point{3},h::Hexahedron{3})
   true
 end
 
+have_intersection(h::Hexahedron,p::Point) = have_intersection(p,h)
+
 have_intersection_point(p::Point{3},h::Hexahedron{3}) = have_intersection(p,h)
 
+have_intersection_point(h::Hexahedron,p::Point) = have_intersection_point(p,h)
+
 contains_projection(p::Point{3},h::Hexahedron{3}) = have_intersection(p,h)
+
+contains_projection(h::Hexahedron,p::Point) = contains_projection(p,h)
 
 function distance(p::Point{3},h::Hexahedron{3})
   if have_intersection(p,h)
@@ -84,7 +90,7 @@ function relative_orientation(tri::Triangle{3},hex::Hexahedron{3})
   max_distance = 0.0
   _v = get_vertices(hex)[1]
   for v in get_vertices(hex)
-    dist = distance(v,tri)
+    dist = distance_to_plane(v,tri)
     if dist ≥ max_distance
       max_distance = dist
       _v = v

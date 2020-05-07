@@ -183,6 +183,17 @@ function face_dimension(s::SurfaceMesh{D},gid::Integer) where D
   return UNSET
 end
 
+
+function is_face_dimension(s::SurfaceMesh,gid::Integer,d::Integer)
+  s.d_to_offset[d+1] < gid ≤ s.d_to_offset[d+2]
+end
+
+is_vertex(s::SurfaceMesh,gid) = is_face_dimension(s,gid,0)
+
+is_edge(s::SurfaceMesh,gid) = is_face_dimension(s,gid,1)
+
+is_facet(s::SurfaceMesh{D},gid) where D = is_face_dimension(s,gid,D-1)
+
 function local_dface(s::SurfaceMesh,gid::Integer,d::Integer)
   gid - s.d_to_offset[d+1]
 end
