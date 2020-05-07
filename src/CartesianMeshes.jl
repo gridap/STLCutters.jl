@@ -16,9 +16,11 @@ function CartesianMesh(b::BoundingBox{D},n::Integer) where D
   CartesianMesh(b,p)
 end
 
-function get_reference_cell(::CartesianMesh{D,T}) where {D,T}
+function get_reference_cell(::Type{CartesianMesh{D,T}}) where {D,T}
   BoundingBox( -one(Point{D,T}), one(Point{D,T}) )
 end
+
+get_reference_cell(::T) where T<:CartesianMesh = get_reference_cell(T)
 
 num_dims(::CartesianMesh{D}) where D = D
 
@@ -152,6 +154,16 @@ function all_to_all_compute_cell_to_surface_mesh_faces(m::CartesianMesh{D},sm::S
 end
 
 function compute_cell_to_surface_mesh_faces(m::CartesianMesh{D},sm::SurfaceMesh{D}) where D
+  faces, cells = _plain_surface_mesh_faces_to_cells(m,sm)
+  Table(faces,cells,num_cells(m))
+end
+
+function compute_surface_mesh_face_to_cells(m::CartesianMesh,sm::SurfaceMesh)
+  faces, cells = _plain_surface_mesh_faces_to_cells(m,sm)
+  Table(cells,faces,num_faces(sm))
+end
+
+function _plain_surface_mesh_faces_to_cells(m::CartesianMesh{D},sm::SurfaceMesh{D}) where D
   cells = Int[]
   faces = Int[]
   cell_cache = Int[]
@@ -165,7 +177,7 @@ function compute_cell_to_surface_mesh_faces(m::CartesianMesh{D},sm::SurfaceMesh{
       end
     end
   end
-  Table(faces,cells,num_cells(m))
+  faces, cells
 end
 
 function writevtk(m::CartesianMesh{D,T},file_base_name) where {D,T}
@@ -195,3 +207,91 @@ function writevtk(m::CartesianMesh{D,T},file_base_name) where {D,T}
 
   vtk_save(vtkfile)
 end
+
+function get_vertex_coordinates(m::CartesianMesh)
+  T = typeof(get_vertex_coordinates(m,1))
+  v = zeros(T,num_vertices(m))
+  for i in 1:num_vertices(m)
+    v[i] = get_vertex_coordinates(m,i)
+  end
+  v
+end
+
+function get_cell_to_vertices(m::CartesianMesh)
+  c_to_v = Table{Int}(undef,num_cells(m),num_vertices_per_cell(m)) 
+  for cell in 1:num_cells(m), lvertex in 1:num_vertices_per_cell(m)
+    c_to_v[cell,lvertex] = get_vertex_id(m,cell,lvertex)
+  end
+  c_to_v
+end
+
+function face_to_vertices(m::CartesianMesh,d::Integer)
+  face = 0
+  f_to_v = Table{Int}(undef, _num_faces(m,d), _num_vertices_per_face(m,d) )
+  for _D in 1:_num_faces_from_vertex(m,d)
+    dir = direction( m, d, _D )
+    c_ids = CartesianIndices( m.partition .+ 1 .- dir )
+    for c_id in c_ids
+      face += 1
+      for lvertex in 1:_num_vertices(m,dir)
+        f_to_v[face,lvertex] = get_vertex_id_from_face( m, c_id.I, dir, lvertex)
+      end
+    end
+  end
+  f_to_v
+end
+
+function get_vertex_id_from_face(m::CartesianMesh{D},n::NTuple{D,Int},d::NTuple{D,Int},i::Integer) where D
+  coords = n .+ CartesianIndices( d.+1 )[i].I .- 1 
+  get_vertex_id(m,coords)
+end
+
+function _num_faces(m::CartesianMesh{D},d::Integer) where D
+  if d == 0
+    num_vertices(m)
+  elseif d == D
+    num_cells(m)
+  else
+    num_faces = 0
+    for _D in 1:_num_faces_from_vertex(m,d)
+      dir = direction( m, d, _D )
+      c_ids = CartesianIndices( m.partition .+ 1 .- dir )
+      num_faces += length(c_ids)
+    end
+    num_faces
+  end
+end
+
+function _num_faces_from_vertex(::CartesianMesh{D},d::Integer) where D
+  factorial(D) ÷ ( factorial(d) * factorial(D-d) )
+end
+
+function _num_vertices_per_face(m::CartesianMesh{D},d::Integer) where D
+  dir = direction(m,d,1)
+  _num_vertices(m,dir)
+end
+
+function _num_vertices(::CartesianMesh{D},d::NTuple{D,<:Integer}) where D
+  length(CartesianIndices(d.+1))
+end
+
+function direction(::CartesianMesh{D},d::Integer,i::Integer) where D
+  u = unit_range(Val{D}())
+  if d == 1
+    return Int.( u .== i )
+  elseif d == 2
+    @check D == 3 "Not Implemented"
+    return Int.( u .!= (D-i+1) )
+  else
+    @check false "Not Implemented"
+  end
+end
+
+@generated function unit_range(::Val{D}) where D
+  data = [ "$d, " for d in 1:D ]
+  str = "( $(join(data)) )"
+  Meta.parse(str)
+end
+
+
+

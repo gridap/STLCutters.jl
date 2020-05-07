@@ -25,6 +25,8 @@ end
 function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
   @check num_dims(bg_mesh) == D
 
+  vm = VolumeMesh(bg_mesh)
+
   cell_mesh = CellMesh{D,T}()
 
   c_to_v = Table{Int}()
@@ -33,21 +35,16 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
   c_coords = Point{D,T}[]
   c_rcoords = Point{D,T}[]
 
-
-  f_to_v = Table{Int}()
-  f_to_n = VectorValue{D,T}[]
-  f_to_bgc = Int32[]
-  f_coords = Point{D,T}[]
-  f_rcoords = Point{D,T}[]
-
   bgc_to_ioc = fill(Int8(FACE_UNDEF),num_cells(bg_mesh))
   bgv_to_iob = fill(Int8(FACE_UNDEF),num_vertices(bg_mesh))
 
   c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
+  sm, d_to_bg_dface_to_sm_faces = cut_surface_mesh(sm,bg_mesh)
+
   for k in 1:num_cells(bg_mesh)
     reset!(cell_mesh, get_cell(bg_mesh,k) )
-    compute_cell_mesh!(cell_mesh,sm,c_to_sm_f,k)
+    compute_cell_mesh!(cell_mesh,sm,vm,k,d_to_bg_dface_to_sm_faces)
     if is_surface_mesh_captured(cell_mesh)
       
       bgc_to_ioc[k] = FACE_CUT
@@ -72,36 +69,16 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
         elseif is_cell_exterior(cell_mesh,cell)
           push!(c_to_io, FACE_OUT )
         else
-          throw(ErrorException(""))
+          cell_coordinates = get_cell_coordinates(cell_mesh,cell)
+          throw(ErrorException("Undefined subcell with volume = $(measure(cell_coordinates))"))
         end
       end
-
-      vertices_cache = Int[]
-      for facet in 1:num_facets(cell_mesh)
-        if is_facet_boundary(cell_mesh,facet)
-          resize!(vertices_cache, 0 )
-          facet_coordinates = get_facet_coordinates(cell_mesh,facet)
-          facet_normal = normal(facet_coordinates)
-          facet_normal = facet_normal / norm(facet_normal)
-
-          push!( f_to_bgc, k ) 
-
-          push!( f_to_n, facet_normal )
-          for v in get_vertices(facet_coordinates)
-            push!(f_coords,v)
-            push!(f_rcoords, transformation( get_reference_cell(bg_mesh), get_cell(bg_mesh,k), v ) )
-            push!(vertices_cache, length(f_coords))
-          end
-          push!(f_to_v, vertices_cache )
-        end
-      end
-
     end
 
   end
 
   subtriangulation = SubTriangulation( c_to_v, c_to_io, c_to_bgc, c_coords, c_rcoords )
-  facet_subtriangulation = FacetSubTriangulation( f_to_v, f_to_n, f_to_bgc, f_coords, f_rcoords )
+  facet_subtriangulation = FacetSubTriangulation(sm,vm,d_to_bg_dface_to_sm_faces) 
   facet_subtriangulations = [ facet_subtriangulation ]
   
   ## Create ST's
@@ -146,6 +123,66 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
 
   BulkMesh{D,T,M}( bg_mesh, subtriangulation, facet_subtriangulations, bgc_to_ioc )
 
+end
+
+
+function FacetSubTriangulation(sm::SurfaceMesh{D,T},vm::VolumeMesh,d_to_dface_to_sm_faces::Vector) where {D,T}
+  sm_facet_to_vertices = get_faces(sm,D-1,0)
+  st_facet_to_cell = fill(Int32(UNSET),num_facets(sm))
+  st_facet_to_vertices = Table{Int64}(undef,num_facets(sm),length(sm_facet_to_vertices,1))
+  # num_vertices_x_dface()
+  st_facet_normals = get_facet_normals(sm) 
+  st_vertex_coordinates = Point{D,T}[]
+  st_vertex_ref_coordinates = Point{D,T}[]
+  cell_vertices = Int[]
+  for cell in 1:num_cells(vm)
+    resize!(cell_vertices,0)
+    n_vertices = length(st_vertex_coordinates)
+    for d in D-1:D
+      cell_to_dface = get_faces(vm,D,d)
+      dface_to_sm_faces = d_to_dface_to_sm_faces[d+1]
+      for ldface in 1:length(cell_to_dface,cell)
+        dface = cell_to_dface[cell,ldface]
+        for i in 1:length(dface_to_sm_faces,dface)
+          sm_face = dface_to_sm_faces[dface,i]
+          if face_dimension(sm,sm_face) == D-1
+            sm_facet = local_dface(sm,sm_face,D-1)
+            sm_facet_coordinates = get_facet_coordinates(sm,sm_facet)
+            cell_coortinates = get_cell_coordinates(vm,cell)
+            if d == D || relative_orientation(sm_facet_coordinates,cell_coordinates) > 0
+              @check st_facet_to_cell[sm_facet] == UNSET
+              st_facet_to_cell[sm_facet] = cell
+              for lvertex in 1:length(sm_facet_to_vertices,sm_facet)
+                vertex = sm_facet_to_vertices[sm_facet,lvertex]
+                if vertex ∉ cell_vertices
+                  push!(cell_vertices,vertex)
+                end
+                _vertex = n_vertices + findfirst( isequal(vertex), cell_vertices )
+                st_facet_to_vertices[sm_facet,lvertex] = _vertex
+              end
+            end
+          end
+        end
+      end
+    end
+    for vertex in cell_vertices
+      point_coords = get_vertex_coordinates(sm,vertex)
+      point_ref_coords = transformation( 
+        get_reference_cell(vm), 
+        BoundingBox(get_cell_coordinates(vm,cell)), 
+        point_coords )
+
+      push!(st_vertex_coordinates, point_coords )
+      push!(st_vertex_ref_coordinates, point_ref_coords ) 
+    end
+  end
+
+  FacetSubTriangulation( 
+    st_facet_to_vertices, 
+    st_facet_normals, 
+    st_facet_to_cell, 
+    st_vertex_coordinates, 
+    st_vertex_ref_coordinates )
 end
 
 get_background_mesh(m::BulkMesh) = m.background_mesh

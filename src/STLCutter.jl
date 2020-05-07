@@ -18,10 +18,12 @@ export Segment
 export Triangle
 export Tetrahedron
 export BoundingBox
+export Quadrilater
 export Hexahedron
 export STL
 export SurfaceMesh
 export CartesianMesh
+export VolumeMesh
 export MeshCutter
 export CellMesh
 
@@ -80,6 +82,10 @@ include("Tetrahedrons.jl")
 
 include("BoundingBoxes.jl")
 
+include("Quadrilaters.jl")
+
+include("Hexahedrons.jl")
+
 include("Tables.jl")
 
 include("STLs.jl")
@@ -87,6 +93,10 @@ include("STLs.jl")
 include("SurfaceMeshes.jl")
 
 include("CartesianMeshes.jl")
+
+include("VolumeMeshes.jl")
+
+include("IncrementalSurfaceMeshes.jl")
 
 include("CellMeshes.jl")
 

@@ -17,6 +17,10 @@ end
 
 num_dims(::Tetrahedron{D}) where D = D
 
+num_vertices(::Type{<:Tetrahedron}) = 4
+
+num_vertices(::T) where T<:Tetrahedron = num_vertices(T)
+
 num_facets(::Type{<:Tetrahedron}) = 4
 
 num_facets(::T) where T<:Tetrahedron = num_facets(T)
@@ -111,4 +115,20 @@ function relative_orientation(tri::Triangle{3},tet::Tetrahedron{3})
   end
   _tet = Tetrahedron(tri,_v)
   - measure_sign(_tet)
+end
+
+function writevtk(t::Tetrahedron{D,T},file_base_name) where {D,T}
+  vtk_type_id = 10
+
+  points = zeros(T,D,num_vertices(t))
+  for (i,v) in enumerate(get_vertices(t)), d in 1:D
+      points[d,i] = v[d]
+  end
+
+  vtk_type = VTKCellType(vtk_type_id)
+  vertices = [1:num_vertices(t);]
+  cells = [ MeshCell(vtk_type,vertices) ]
+
+  vtkfile = vtk_grid(file_base_name,points,cells)
+  vtk_save(vtkfile)
 end

@@ -8,15 +8,19 @@ using Test
 
 @testset "Points" begin include("PointsTests.jl") end
 
-@testset "SegmentsTests" begin include("SegmentsTests.jl") end
+@testset "Segments" begin include("SegmentsTests.jl") end
 
-@testset "TrianglesTests" begin include("TrianglesTests.jl") end
+@testset "Triangles" begin include("TrianglesTests.jl") end
 
-@testset "TetrahedronsTests" begin include("TetrahedronsTests.jl") end
+@testset "Quadrilaters" begin include("QuadrilatersTests.jl") end
 
-@testset "BoundingBoxesTests" begin include("BoundingBoxesTests.jl") end
+@testset "Hexahedrons" begin include("HexahedronsTests.jl") end
 
-@testset "TablesTests" begin include("TablesTests.jl") end
+@testset "Tetrahedrons" begin include("TetrahedronsTests.jl") end
+
+@testset "BoundingBoxes" begin include("BoundingBoxesTests.jl") end
+
+@testset "Tables" begin include("TablesTests.jl") end
 
 @testset "STLs" begin include("STLsTests.jl") end
 
@@ -24,7 +28,11 @@ using Test
 
 @testset "CartesianMeshes" begin include("CartesianMeshesTests.jl") end
 
+@testset "VolumeMeshes" begin include("VolumeMeshesTests.jl") end
+
 @testset "CellMeshes" begin include("CellMeshesTests.jl") end
+
+@testset "IncrementalSurfaceMeshes" begin include("IncrementalSurfaceMeshesTests.jl") end
 
 @testset "BulkMeshes" begin include("BulkMeshesTests.jl") end
 
