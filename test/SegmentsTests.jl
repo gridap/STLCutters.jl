@@ -1,7 +1,7 @@
 module SegmentsTests
 
 using Test
-using STLCutter
+using STLCutter.Cutter
 
 p1 = Point(1,1,1)
 p2 = Point(2,2,2)

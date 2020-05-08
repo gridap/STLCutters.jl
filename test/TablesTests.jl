@@ -1,6 +1,6 @@
 module TablesTests
 
-using STLCutter
+using STLCutter.Cutter
 using Test
 
 data = [ 1, 2, 3, 4, 7 ]

@@ -1,8 +1,8 @@
 module BulkMeshesTests
 
-using STLCutter
+using STLCutter.Cutter
 
-using STLCutter: expand, BulkMesh, surface, interior_volume, exterior_volume, move!
+using STLCutter.Cutter: expand, BulkMesh, surface, interior_volume, exterior_volume, move!
 
 using Test
 

@@ -1,6 +1,6 @@
 module QuadrilaterTests
 
-using STLCutter
+using STLCutter.Cutter
 using Test
 
 b = BoundingBox( Point(0,0), Point(1,1) )

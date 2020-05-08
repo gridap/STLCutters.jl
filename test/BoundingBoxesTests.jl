@@ -1,8 +1,8 @@
-module HexaCellsTests
+module BoundingBoxesTests
 
 using Test
-using STLCutter
-import STLCutter: _fix_triangle
+using STLCutter.Cutter
+import STLCutter.Cutter: _fix_triangle
 
 p1 = Point(1,1,1)
 p2 = Point(3,3,3)

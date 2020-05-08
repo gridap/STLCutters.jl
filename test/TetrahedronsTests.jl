@@ -1,6 +1,7 @@
+module TetrahedronsTest
 
 using Test
-using STLCutter
+using STLCutter.Cutter
 
 t1 = Point(0,0,0)
 t2 = Point(1,0,0)
@@ -31,3 +32,5 @@ p = Point(0.0,0.0,0.9)
 @test have_intersection(p,tet)
 
 @test closest_point(p,tet) == closest_point(tet,p) == p
+
+end # module

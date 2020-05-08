@@ -1,9 +1,9 @@
 module VolumeMeshesTests
 
-using STLCutter
+using STLCutter.Cutter
 using Test
-using STLCutter: get_face_coordinates, get_vertex_coordinates, get_dface_to_vertices, get_cell_coordinates
-using STLCutter: get_reference_cell
+using STLCutter.Cutter: get_face_coordinates, get_vertex_coordinates, get_dface_to_vertices, get_cell_coordinates
+using STLCutter.Cutter: get_reference_cell
 
 box = BoundingBox(
   Point( 0.2, 0.2, 0.2 ),

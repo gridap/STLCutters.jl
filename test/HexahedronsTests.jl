@@ -1,9 +1,9 @@
 module HexahedronsTests
 
-using STLCutter
+using STLCutter.Cutter
 using Test
 
-using STLCutter: relative_orientation
+using STLCutter.Cutter: relative_orientation
 
 b = BoundingBox( Point(0,0,0), Point(1,1,1) )
 

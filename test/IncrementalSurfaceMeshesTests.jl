@@ -1,12 +1,10 @@
 module IncrementalSurfaceMeshesTests 
 
-using STLCutter
+using STLCutter.Cutter
 
 using Test
 
-using STLCutter: cut_surface_mesh, surface, expand
-
-using STLCutter: get_facet_coordinates, global_dface, face_dimension, local_dface, @check
+using STLCutter.Cutter: cut_surface_mesh, surface, expand
 
 points = [
   Point( 0.0, 0.0, 0.5 ), 

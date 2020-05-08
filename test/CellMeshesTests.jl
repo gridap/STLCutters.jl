@@ -1,14 +1,14 @@
 module CellMeshesTests
 
-using STLCutter
+using STLCutter.Cutter
 
 # To be public
-using STLCutter: reset!, compact!, compute_in_out!, num_dfaces, get_faces, face_dimension, local_dface, global_dface, get_vertex_coordinates, get_face_coordinates, compute_cell_mesh!
+using STLCutter.Cutter: reset!, compact!, compute_in_out!, num_dfaces, get_faces, face_dimension, local_dface, global_dface, get_vertex_coordinates, get_face_coordinates, compute_cell_mesh!
 
 # Private used in test
-using STLCutter: _add_vertex!, UNSET, are_all_faces_defined, cut_cell_mesh!, find_closest_face, expand
+using STLCutter.Cutter: _add_vertex!, UNSET, are_all_faces_defined, cut_cell_mesh!, find_closest_face, expand
 
-using STLCutter: is_any_face_repeated, @check
+using STLCutter.Cutter: is_any_face_repeated
 
 using Test
 
