@@ -148,7 +148,7 @@ function FacetSubTriangulation(sm::SurfaceMesh{D,T},vm::VolumeMesh,d_to_dface_to
           if face_dimension(sm,sm_face) == D-1
             sm_facet = local_dface(sm,sm_face,D-1)
             sm_facet_coordinates = get_facet_coordinates(sm,sm_facet)
-            cell_coortinates = get_cell_coordinates(vm,cell)
+            cell_coordinates = get_cell_coordinates(vm,cell)
             if d == D || relative_orientation(sm_facet_coordinates,cell_coordinates) > 0
               @check st_facet_to_cell[sm_facet] == UNSET
               st_facet_to_cell[sm_facet] = cell

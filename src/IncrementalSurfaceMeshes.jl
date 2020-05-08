@@ -110,7 +110,7 @@ end
 
 ## Geometric queries
 
-tolerance() = 1e-8 ## TODO: Add argument
+tolerance(::IncrementalSurfaceMesh) = 1e-9 ## TODO: Add argument
 
 @generated function distance(
   m::VolumeMesh{D},d::Integer,dface::Integer,
@@ -220,7 +220,7 @@ function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh) where {D,T}
 
   for vertex in 1:num_vertices(sm)
     point = get_vertex_coordinates(sm,vertex)
-    bg_d, bg_face = find_closest_background_face( vm, point, sm_face_to_bg_cells, vertex )
+    bg_d, bg_face = find_closest_background_face( vm, point, sm_face_to_bg_cells, vertex, tolerance(ism) )
     point = closest_point( vm,bg_d,bg_face, sm,0,vertex )
     add_vertex!(ism,bg_d,bg_face,sm,0,vertex,point)
   end
@@ -289,10 +289,11 @@ function find_closest_background_face(
   bg_mesh::VolumeMesh,
   point::Point,
   sm_face_to_bg_cells::Table,
-  vertex::Integer)
+  vertex::Integer,
+  tol::Float64)
 
   D = num_dims(bg_mesh)
-  min_dist = tolerance()
+  min_dist = tol
   closest_cell = UNSET
   for i in 1:length(sm_face_to_bg_cells,vertex)
     cell = sm_face_to_bg_cells[vertex,i]
@@ -304,7 +305,7 @@ function find_closest_background_face(
     end
   end
   closest_cell != UNSET || return (UNSET,UNSET)
-  min_dist = tolerance()
+  min_dist = tol
   closest_face = UNSET
   for d in 0:D
     c_to_df = get_faces(bg_mesh,D,d)
@@ -407,15 +408,8 @@ function complete_boundary!(
       push!( vertices, _vertex )
       push!( _vertices, _vertex )
       if n == 0
-        nface = _vertex
-      else
-        @check n == 1
-        resize!(lvertices,n+1)
-        lvertices[1] = vertex
-        lvertices[2] = _vertex
-        nface = add_face!( ism, n, lvertices, sm, sm_d, sm_dface ) 
+        push!( nfaces, _vertex )
       end
-      push!( nfaces, nface )
     end
   end
 end
@@ -562,7 +556,7 @@ function _find_next_intersection(
   sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer,
   ism::IncrementalSurfaceMesh,nfaces::Vector,n::Integer,vertices::Vector)
 
-  min_dist = tolerance()
+  min_dist = tolerance(ism)
 
   closest_bg_face = UNSET
   _d = UNSET

@@ -52,7 +52,9 @@ end
 
 compact!(mesh)
 
-writevtk(mesh,"sub_mesh")
+files = writevtk(mesh,"sub_mesh")
+rm(files...)
+
 
 ## 3D Point Intersection
 
@@ -92,7 +94,8 @@ end
 
 compact!(mesh)
 
-writevtk(mesh,"sub_mesh3")
+files = writevtk(mesh,"sub_mesh3")
+rm(files...)
 
 ## 2D Surface Mesh
 
@@ -126,8 +129,10 @@ compact!(cell_mesh)
 
 compute_in_out!(cell_mesh,sm)
 
-writevtk(sm,"sm2")
-writevtk(cell_mesh,"cell_mesh")
+files = writevtk(sm,"sm2")
+rm(files...)
+files = writevtk(cell_mesh,"cell_mesh")
+rm(files...)
 
 @test are_all_faces_defined(cell_mesh)
 
@@ -168,8 +173,10 @@ end
 compact!(cell_mesh)
 
 compute_in_out!(cell_mesh,sm)
-writevtk(sm,"sm3")
-writevtk(cell_mesh,"cell_mesh3")
+files = writevtk(sm,"sm3")
+rm(files...)
+files = writevtk(cell_mesh,"cell_mesh3")
+rm(files...)
 
 ## Big 3D facet
 
@@ -198,8 +205,10 @@ end
 compact!(cell_mesh)
 
 compute_in_out!(cell_mesh,sm)
-writevtk(sm,"sm3")
-writevtk(cell_mesh,"cell_mesh3")
+files = writevtk(sm,"sm3")
+rm(files...)
+files = writevtk(cell_mesh,"cell_mesh3")
+rm(files...)
 
 # Real STL
 
@@ -234,8 +243,10 @@ compute_in_out!(cell_mesh,sm)
 
 @test !is_any_face_repeated(cell_mesh)
 
-writevtk(sm,"sm3")
-writevtk(cell_mesh,"cell_mesh3")
+files = writevtk(sm,"sm3")
+rm(files...)
+files = writevtk(cell_mesh,"cell_mesh3")
+rm(files...)
 
 end # module
 

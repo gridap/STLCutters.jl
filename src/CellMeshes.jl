@@ -160,7 +160,7 @@ end
 
 # Intersections
 
-tolerance(m::CellMesh) = 1e-8
+tolerance(::CellMesh) = 1e-9
 
 function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer,d::Integer,ldface::Integer)
   sm_d = face_dimension(sm,sm_face)
