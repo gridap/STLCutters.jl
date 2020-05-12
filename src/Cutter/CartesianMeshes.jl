@@ -34,14 +34,16 @@ end
 
 function get_cell(m::CartesianMesh,i::Integer)
   c_coords = cartesian_cell_coordinates(m,i)
-  x_min = get_data(m.origin) .+ get_data(m.sizes) .* (c_coords.-1) ./ m.partition
-  x_max = get_data(m.origin) .+ get_data(m.sizes) .* c_coords ./ m.partition
+  dx = get_data(m.sizes) ./ m.partition
+  x_min = get_data(m.origin) .+ (c_coords.-1) .* dx
+  x_max = get_data(m.origin) .+ c_coords .* dx
   BoundingBox(Point(x_min),Point(x_max))
 end
 
 function get_vertex_coordinates(m::CartesianMesh,i::Integer)
   v_coords = cartesian_vertex_coordinates(m,i)
-  data = get_data(m.origin) .+ get_data(m.sizes) .* (v_coords.-1) ./ m.partition
+  dx = get_data(m.sizes) ./ m.partition
+  data = get_data(m.origin) .+ (v_coords.-1) .* dx
   Point(data)
 end
 
@@ -78,7 +80,8 @@ end
 num_vertices_per_cell(::CartesianMesh{D}) where D = 2^D
 
 function find_container(m::CartesianMesh{D},p::Point{D}) where D
-  c_coords = Int.(floor.( (get_data(p) .- get_data(m.origin)) .* m.partition ./ get_data(m.sizes) ))
+  dx = get_data(m.sizes) ./ m.partition
+  c_coords = Int.(floor.( (get_data(p) .- get_data(m.origin)) ./ dx) )
   c_coords = c_coords .+ 1
   c_coords = max.(c_coords,1)
   c_coords = min.(c_coords,m.partition)

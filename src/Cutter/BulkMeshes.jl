@@ -200,7 +200,7 @@ is_cell_interior(m::BulkMesh,cell::Integer) = m.background_cell_to_inoutcut[cell
 
 is_cell_exterior(m::BulkMesh,cell::Integer) = m.background_cell_to_inoutcut[cell]== FACE_OUT
 
-is_cell_cut(m::BulkMesh,cell::Integer) = m.background_cell_to_inoutcut(cell) == FACE_CUT
+is_cell_cut(m::BulkMesh,cell::Integer) = m.background_cell_to_inoutcut[cell] == FACE_CUT
 
 num_cells(m::SubTriangulation) = length(m.cell_to_points)
 
