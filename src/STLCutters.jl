@@ -1,4 +1,4 @@
-module Cutter
+module STLCutters
 
 using FileIO
 using MeshIO
@@ -101,5 +101,8 @@ include("IncrementalSurfaceMeshes.jl")
 include("CellMeshes.jl")
 
 include("BulkMeshes.jl")
+
+
+include("GridapIntegration/GridapIntegration.jl")
 
 end # module

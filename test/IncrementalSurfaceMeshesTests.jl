@@ -1,10 +1,10 @@
 module IncrementalSurfaceMeshesTests 
 
-using STLCutter.Cutter
+using STLCutters
 
 using Test
 
-using STLCutter.Cutter: cut_surface_mesh, surface, expand
+using STLCutters: cut_surface_mesh, surface, expand
 
 points = [
   Point( 0.0, 0.0, 0.5 ), 

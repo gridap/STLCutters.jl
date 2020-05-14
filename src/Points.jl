@@ -190,6 +190,10 @@ function Base.one(::Type{Point{D,T}}) where {D,T}
   Point(one(VectorValue{D,T}))
 end
 
+function Base.isapprox(a::Point,b::Point,atol=1e-9)
+  norm(a-b) < atol
+end
+
 """
   closest point in the first argument to the segond argument
   

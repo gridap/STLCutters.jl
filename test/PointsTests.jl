@@ -1,7 +1,7 @@
 module PointsTests
 
 using Test
-using STLCutter.Cutter
+using STLCutters
 
 a = Point(1,1,1)
 b = Point(2,3,3)

@@ -1,9 +1,9 @@
 module VectorValuesTests
 
-using STLCutter.Cutter
+using STLCutters
 using Test
 using LinearAlgebra
-using STLCutter.Cutter: max_dimension, canonical_vector
+using STLCutters: max_dimension, canonical_vector
 
 data = (1,2,3)
 v = VectorValue(data)

@@ -1,8 +1,8 @@
 module BulkMeshesTests
 
-using STLCutter.Cutter
+using STLCutters
 
-using STLCutter.Cutter: expand, BulkMesh, surface, interior_volume, exterior_volume, move!
+using STLCutters: expand, BulkMesh, surface, interior_volume, exterior_volume, move!
 
 using Test
 
@@ -17,14 +17,14 @@ for (i,geom) in enumerate( geometries )
   println( "testing $geom.stl..." )
   stl = STL(joinpath(@__DIR__,"data/$geom.stl"))
   sm = SurfaceMesh(stl)
-  for j in 1:10
+  for j in 1:1
     box = BoundingBox(sm)
     box = expand(box,0.1)
     bg_mesh = CartesianMesh(box, meshes[i] )
     bm = BulkMesh(bg_mesh,sm)
 
-  #  writevtk(sm,"$(geom)_sm")
-  #  writevtk(bm,"$(geom)_bm")
+    writevtk(sm,"$(geom)_sm")
+    writevtk(bm,"$(geom)_bm")
 
 
     @test interior_volume(bm) ≈ volumes[i]

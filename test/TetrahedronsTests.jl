@@ -1,7 +1,7 @@
 module TetrahedronsTest
 
 using Test
-using STLCutter.Cutter
+using STLCutters
 
 t1 = Point(0,0,0)
 t2 = Point(1,0,0)

@@ -1,9 +1,9 @@
 module CartesianMeshTests
 
 using Test
-using STLCutter.Cutter
+using STLCutters
 
-using STLCutter.Cutter: BoundingBox,find_container, get_cell_id, all_to_all_compute_cell_to_surface_mesh_faces,compute_cell_to_surface_mesh_faces
+using STLCutters: BoundingBox,find_container, get_cell_id, all_to_all_compute_cell_to_surface_mesh_faces,compute_cell_to_surface_mesh_faces
 
 o = Point(0.0,0.0,0.0)
 s = VectorValue(1.0,1.0,1.0)

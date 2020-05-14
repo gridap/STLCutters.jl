@@ -1,8 +1,8 @@
 module SurfaceMeshesTests
 
 using Test
-using STLCutter.Cutter
-using STLCutter.Cutter: global_dface, local_dface, face_dimension, is_face_dimension, is_vertex, is_edge, is_facet
+using STLCutters
+using STLCutters: global_dface, local_dface, face_dimension, is_face_dimension, is_vertex, is_edge, is_facet
 
 stl = STL(joinpath(@__DIR__,"data/cube.stl"))
 

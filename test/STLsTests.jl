@@ -1,8 +1,8 @@
 module STLsTests
 
 using Test
-using STLCutter.Cutter
-import STLCutter.Cutter: delete_repeated_vertices!, delete_repeated_vertices
+using STLCutters
+import STLCutters: delete_repeated_vertices!, delete_repeated_vertices
 
 stl = STL(joinpath(@__DIR__,"data/cube.stl"))
 @test num_dims(stl) == 3

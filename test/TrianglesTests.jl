@@ -1,8 +1,8 @@
 module TrianglesTests
 
 using Test
-using STLCutter.Cutter
-using STLCutter.Cutter: num_dims, get_edge, get_vertices
+using STLCutters
+using STLCutters: num_dims, get_edge, get_vertices
 
 p1 = Point(0,0,0)
 p2 = Point(1,0,0)

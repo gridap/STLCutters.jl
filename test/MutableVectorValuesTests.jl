@@ -1,8 +1,8 @@
 module MutableVectorValuesTests
 
 using Test
-using STLCutter.Cutter
-using STLCutter.Cutter: MutableVectorValue
+using STLCutters
+using STLCutters: MutableVectorValue
 
 data = (1,2,3)
 m = MutableVectorValue(data)

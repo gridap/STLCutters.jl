@@ -17,7 +17,7 @@ function CartesianMesh(b::BoundingBox{D},n::Integer) where D
 end
 
 function get_reference_cell(::Type{CartesianMesh{D,T}}) where {D,T}
-  BoundingBox( -one(Point{D,T}), one(Point{D,T}) )
+  BoundingBox( zero(Point{D,T}), one(Point{D,T}) )
 end
 
 get_reference_cell(::T) where T<:CartesianMesh = get_reference_cell(T)
