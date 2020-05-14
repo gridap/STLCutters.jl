@@ -17,6 +17,31 @@ function STL(filename::String)
   STL{ndims,Float64}( vertex_coordinates, facet_to_vertices, facet_normals )
 end
 
+function STL(vertex_coordinates::Vector{<:Point},facet_to_vertices::Table)
+  facet_normals = _compute_facet_normals(vertex_coordinates,facet_to_vertices)
+  STL(vertex_coordinates,facet_to_vertices,facet_normals)
+end
+
+function circular_points(vertex_coordinates::Vector{<:Point{2}})
+  n = length(vertex_coordinates)
+  data = zeros(Int,n*2)
+  ptrs = fill(Int32(2),n+1)
+  length_to_ptrs!(ptrs)
+  f_to_v = Table(data,ptrs)
+  display(f_to_v)
+  for f in 1:length(f_to_v)
+    for lv in 1:length(f_to_v,f)
+      v = f+lv-1
+      if v > n
+        v = 1
+      end
+      f_to_v[f,lv] = v
+    end
+  end
+  display(f_to_v)
+  STL(vertex_coordinates,f_to_v)
+end
+
 num_dims(::Array{MeshIO.Point{D,T}}) where {D,T} = D
 
 num_dims(::Array{MeshIO.Normal{D,T}}) where {D,T} = D

@@ -91,8 +91,8 @@ function get_face_coordinates(sm::IncrementalSurfaceMesh,::Val{0}, i::Integer)
 end
 
 function get_face_coordinates(sm::IncrementalSurfaceMesh,::Val{1}, i::Integer)
-  df_to_v = get_dface_to_vertices(s,1)
-  v = get_vertex_coordinates(s)
+  df_to_v = get_dface_to_vertices(sm,1)
+  v = get_vertex_coordinates(sm)
   Segment(v[df_to_v[i,1]],v[df_to_v[i,2]])
 end
 

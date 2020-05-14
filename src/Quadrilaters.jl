@@ -145,6 +145,8 @@ function intersection(s::Segment{3},q::Quadrilater{3})
   s[1] + s1_s2 * α
 end
 
+projection(p::Point{2},q::Quadrilater{2}) = p
+
 function projection(p::Point{3},q::Quadrilater{3})
   @check contains_projection(p,q)
   c = center(q)
@@ -176,6 +178,9 @@ closest_point(q::Quadrilater{3},p::Point{3}) = projection(p,q)
 closest_point(s::Segment{3},q::Quadrilater{3}) = intersection(s,q)
 
 closest_point(q::Quadrilater{3},s::Segment{3}) = closest_point(s,q)
+
+closest_point(q::Quadrilater{2},p::Point{2}) = projection(p,q)
+
 
 function BoundingBox(q::Quadrilater{D,T}) where {D,T}
   BoundingBox{D,T}(min.(get_vertices(q)...),max.(get_vertices(q)...))
