@@ -173,7 +173,7 @@ u_in_Γ = restrict(u_in,trian_Γ)
 u_in_in = restrict(u_in,trian_in)
 
 @show sum( integrate(u_in_in,trian_in,quad_in) ) 
-@show sum( integrate(u_in_Γ,trian_Γ,quad_Γ) ), surface(geo) 
+@show sum( integrate(u_in_Γ,trian_Γ,quad_Γ) ) #, surface(geo) 
 
 
 end # module

@@ -6,13 +6,10 @@ function cut(cutter::STLCutter,background::Gridap.DiscreteModel,geom::STLGeometr
   EmbeddedDiscretization(background, data..., geom)
 end
 
-cut(background::Gridap.DiscreteModel,geom::STLGeometry) = cut(background,STLGeometry(geom))
-
 function cut(background::Gridap.DiscreteModel,geom::STLGeometry)
   cutter = STLCutter()
   cut(cutter,background,geom)
 end
-
 
 function _cut_sm(model::Gridap.DiscreteModel,geom::STLGeometry)
   mesh = CartesianMesh(model)
