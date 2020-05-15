@@ -7,7 +7,7 @@ using STLCutters: expand, BulkMesh, surface, interior_volume, exterior_volume, m
 using Test
 
 
-stl = STL("test/data/cube.stl")
+stl = STL(joinpath(@__DIR__,"data/cube.stl"))
 sm = SurfaceMesh(stl)
 
 bb = BoundingBox(stl)
