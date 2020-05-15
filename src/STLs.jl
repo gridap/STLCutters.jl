@@ -7,7 +7,7 @@ end
 
 function STL(filename::String)
   stl = load(filename)
-  ndims = num_dims(stl)
+  ndims = num_dims( MeshIO.coordinates(stl) )
   nvxf = ndims
   @check ndims == 3
   vertex_coordinates = Vector{Point{ndims,Float64}}( MeshIO.coordinates(stl) )
@@ -40,7 +40,9 @@ function closed_polyline(vertex_coordinates::Vector{<:Point{2}})
   STL(vertex_coordinates,f_to_v)
 end
 
-num_dims(::MeshIO.Mesh{D}) where D = D
+#num_dims(::MeshIO.Mesh{D}) where D = D
+
+num_dims(::Vector{MeshIO.PointMeta{D}}) where D = D
 
 function num_vertices( stl::STL )
   length(stl.vertex_coordinates)
