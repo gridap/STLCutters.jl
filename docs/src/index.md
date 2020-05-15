@@ -4,5 +4,5 @@
 ```
 
 ```@autodocs
-Modules = [STLCutter]
+Modules = [STLCutters]
 ```

@@ -1,4 +1,4 @@
-using Documenter, STLCutter
+using Documenter, STLCutters
 
 makedocs(;
     modules=[STLCutter],
@@ -7,7 +7,7 @@ makedocs(;
         "Home" => "index.md",
     ],
     repo="https://github.com/pmartorell/STLCutter.jl/blob/{commit}{path}#L{line}",
-    sitename="STLCutter.jl",
+    sitename="STLCutters.jl",
     authors="Pere Antoni Martorell, Large Scale Scientific Computing",
     assets=String[],
 )
