@@ -5,17 +5,59 @@ struct STL{D,T}
   facet_normals::Vector{VectorValue{D,T}}
 end
 
+# replace by comment if upgrade MeshIO to 0.4+
 function STL(filename::String)
   stl = load(filename)
-  ndims = num_dims( MeshIO.coordinates(stl) )
-  nvxf = ndims
-  @check ndims == 3
-  vertex_coordinates = Vector{Point{ndims,Float64}}( MeshIO.coordinates(stl) )
-  facet_to_vertices  = Table( Vector{Vector{Int}}( MeshIO.faces(stl) ) )
-  vertex_normals     = Vector{VectorValue{ndims,Float64}}( MeshIO.normals(stl) ) 
+  ndims = num_dims(stl.vertices)
+  nvxf  = num_vertices_per_facet(stl.faces)
+  @assert num_dims(stl.vertices) == num_dims(stl.normals) "Corrupted STL file"
+  vertex_coordinates = Vector{Point{ndims,Float64}}( MeshIO.decompose(MeshIO.Point{ndims,Float64}, stl ) )
+  facet_to_vertices  = Table( Vector{Vector{Int}}(MeshIO.decompose(MeshIO.Face{nvxf,Int},stl.faces)))
+  vertex_normals     = Vector{VectorValue{ndims,Float64}}( MeshIO.decompose(MeshIO.Normal{ndims, Float64}, stl) )
   facet_normals      = vertex_normals[1:nvxf:length(vertex_coordinates)]
   STL{ndims,Float64}( vertex_coordinates, facet_to_vertices, facet_normals )
 end
+
+num_dims(::Array{MeshIO.Point{D,T}}) where {D,T} = D
+
+num_dims(::Array{MeshIO.Normal{D,T}}) where {D,T} = D
+
+num_vertices_per_facet(::Array{MeshIO.Face{D,T}}) where{D,T} = D
+
+Base.convert( ::Type{Point{D,T}}, x::MeshIO.Point{D} )  where {D,T} = Point{D,T}(x.data)
+Base.convert( ::Type{VectorValue{D,T}}, x::MeshIO.Normal{D} )  where {D,T} = VectorValue{D,T}(x.data)
+Base.convert( ::Type{Vector}, x::MeshIO.Face ) = collect(x.data)
+
+
+
+# uncomment if upgrade MeshIO to 0.4+
+#
+#function STL(filename::String)
+#  stl = load(filename)
+#  ndims = num_dims( stl )
+#  nvxf = ndims
+#  @check ndims == 3
+#  vertex_coordinates = Vector{Point{ndims,Float64}}( MeshIO.decompose(MeshIO.Point{ndims,Float64},MeshIO.coordinates(stl)) )
+#  facet_to_vertices  = Table( Vector{Vector{Int}}( MeshIO.faces(stl) ) )
+#  vertex_normals     = Vector{VectorValue{ndims,Float64}}( MeshIO.normals(stl) ) 
+#  facet_normals      = vertex_normals[1:nvxf:length(vertex_coordinates)]
+#  STL{ndims,Float64}( vertex_coordinates, facet_to_vertices, facet_normals )
+#end
+#
+#num_dims(::MeshIO.Mesh{D}) where D = D
+#
+#function Base.convert(::Type{Point{D,T}},a::MeshIO.PointMeta) where {D,T}
+#  _a = convert(MeshIO.Point{D,T},a)
+#  convert(Point{D,T},_a)
+#end
+#
+#function Base.convert(::Type{Vector{T}},a::MeshIO.TriangleFace ) where T
+#  _a = convert(MeshIO.TriangleFace{T},a)
+#  collect(_a.data)::Vector{T}
+#end
+#
+#Base.convert( ::Type{Point{D,T}}, a::MeshIO.Point{D} )  where {D,T} = Point{D,T}(a.data)
+#Base.convert( ::Type{VectorValue{D,T}}, a::MeshIO.Vec{D} )  where {D,T} = VectorValue{D,T}(a.data)
 
 function STL(vertex_coordinates::Vector{<:Point},facet_to_vertices::Table)
   facet_normals = _compute_facet_normals(vertex_coordinates,facet_to_vertices)
@@ -40,10 +82,6 @@ function closed_polyline(vertex_coordinates::Vector{<:Point{2}})
   STL(vertex_coordinates,f_to_v)
 end
 
-#num_dims(::MeshIO.Mesh{D}) where D = D
-
-num_dims(::Vector{MeshIO.PointMeta{D}}) where D = D
-
 function num_vertices( stl::STL )
   length(stl.vertex_coordinates)
 end
@@ -59,21 +97,6 @@ function Base.:(==)(a::STL,b::STL)
  equal = equal && (a.facet_to_vertices == b.facet_to_vertices) 
  equal && (a.facet_normals == b.facet_normals)
 end
-
-function Base.convert(::Type{Point{D,T}},a::MeshIO.PointMeta) where {D,T}
-  _a = convert(MeshIO.Point{D,T},a)
-  convert(Point{D,T},_a)
-end
-
-function Base.convert(::Type{Vector{T}},a::MeshIO.TriangleFace ) where T
-  _a = convert(MeshIO.TriangleFace{T},a)
-  collect(_a.data)::Vector{T}
-end
-
-Base.convert( ::Type{Point{D,T}}, a::MeshIO.Point{D} )  where {D,T} = Point{D,T}(a.data)
-Base.convert( ::Type{VectorValue{D,T}}, a::MeshIO.Vec{D} )  where {D,T} = VectorValue{D,T}(a.data)
-
-
 
 function delete_repeated_vertices!(stl::STL)
   old_to_new = identify_repeated_vertices(stl.vertex_coordinates)
