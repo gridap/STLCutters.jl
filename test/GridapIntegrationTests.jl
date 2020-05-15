@@ -12,7 +12,7 @@ using Gridap.Geometry
 import Gridap: ∇
 
 # Manufactured solution
-u(x) = x[1] + x[2] - x[3]
+u(x) = x[1] + x[2]# - x[3]
 ∇u(x) = VectorValue( 1, 1, -1)
 Δu(x) = 0
 f(x) = - Δu(x)
@@ -21,13 +21,18 @@ ud(x) = u(x)
 
 
 
-n = 10
+n = 2
 outputfile = "out"
 
-partition = (n,n,n)
-geo = STLGeometry("test/data/cube.stl",name="cube")
+partition = (n,n)
+geo = square(name="square")
+#partition = (n,n,n)
+#geo = STLGeometry("test/data/cube.stl",name="cube")
 box = 1.5*get_metadata(geo)
 bgmodel = CartesianDiscreteModel(box.pmin,box.pmax,partition)
+
+
+
 
 # Forcing data
 #ud = 1
@@ -39,7 +44,7 @@ cutgeo = cut(bgmodel,geo)
 # Setup integration meshes
 trian_Ω = Triangulation(cutgeo)
 trian_Γd = EmbeddedBoundary(cutgeo)
-trian_Γg = GhostSkeleton(cutgeo,"cube")
+trian_Γg = GhostSkeleton(cutgeo,"square")
 
 # Setup normal vectors
 n_Γd = get_normal_vector(trian_Γd)
@@ -135,7 +140,7 @@ v_in_in = restrict(v_in,trian_in)
 v_in_Γg_in = restrict(v_in,trian_Γg_in)
 
 # Check divergence theorem
-u(x) = x[1] + x[2] + x[3]
+u(x) = x[1] + x[2] #+ x[3]
 u_in = interpolate(V_in,u)
 u_in_Γ = restrict(u_in,trian_Γ)
 u_in_in = restrict(u_in,trian_in)
@@ -173,7 +178,7 @@ u_in_Γ = restrict(u_in,trian_Γ)
 u_in_in = restrict(u_in,trian_in)
 
 @show sum( integrate(u_in_in,trian_in,quad_in) ) 
-@show sum( integrate(u_in_Γ,trian_Γ,quad_Γ) ) #, surface(geo) 
+@show sum( integrate(u_in_Γ,trian_Γ,quad_Γ) ) , surface(geo) 
 
 
 end # module

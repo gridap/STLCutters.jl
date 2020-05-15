@@ -15,6 +15,8 @@ using STLCutters: is_cell_interior
 using STLCutters: is_cell_exterior
 using STLCutters: is_cell_cut
 
+import STLCutters: surface 
+
 using Gridap.Geometry: get_cartesian_descriptor
 
 import GridapEmbedded.Interfaces: cut
@@ -26,6 +28,7 @@ export STLGeometry
 
 export cut
 export surface
+export square
 
 include("STLGeometries.jl")
 include("STLCutters.jl")

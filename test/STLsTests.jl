@@ -2,7 +2,7 @@ module STLsTests
 
 using Test
 using STLCutters
-import STLCutters: delete_repeated_vertices!, delete_repeated_vertices, circular_points, get_facet_to_vertices
+import STLCutters: delete_repeated_vertices!, delete_repeated_vertices, closed_polyline, get_facet_to_vertices
 
 stl = STL(joinpath(@__DIR__,"data/cube.stl"))
 @test num_dims(stl) == 3
@@ -38,6 +38,6 @@ stl = STL(vertices,f_to_v)
 @test num_vertices(stl) == 4
 
 
-circ = circular_points(vertices)
+circ = closed_polyline(vertices)
 
 end # module

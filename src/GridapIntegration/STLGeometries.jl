@@ -47,3 +47,15 @@ function Base.:*(α::Real,box::GridapBoundingBox)
   GridapBoundingBox(box.pmin-Δ,box.pmax+Δ)
 end
 
+function square(;origin=Point(0.0,0.0),len=1,name="square")
+  origin = convert(Point,origin)
+  len = Float64(len)
+  points = [
+    origin,
+    origin + VectorValue(0.0,len),
+    origin + VectorValue(len,len),
+    origin + VectorValue(len,0.0) ]
+  stl = closed_polyline(points)
+  STLGeometry(stl,name=name)
+end
+
