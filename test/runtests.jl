@@ -36,4 +36,6 @@ using Test
 
 @testset "BulkMeshes" begin include("BulkMeshesTests.jl") end
 
+@testset "GridapIntegration" begin include("GridapIntegrationTests/runtests.jl") end
+
 end # module

@@ -54,7 +54,7 @@ function _compute_facet_normals(vertex_coordinates::Vector{Point{D,T}},facet_to_
     facet = _get_facet(vertex_coordinates,facet_to_vertices,i)
     facet_normal = normal(facet)
     facet_normal = facet_normal / norm(facet_normal)
-    facet_normals[i] = normal(facet)
+    facet_normals[i] = facet_normal
   end
   facet_normals
 end
