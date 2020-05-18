@@ -6,7 +6,7 @@ import Gridap
 
 using GridapEmbedded.CSG
 using GridapEmbedded.Interfaces
-
+import GridapEmbedded.LevelSetCutters
 
 using STLCutters: BulkMesh
 import STLCutters: CartesianMesh

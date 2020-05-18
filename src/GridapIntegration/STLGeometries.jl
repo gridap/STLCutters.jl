@@ -1,7 +1,5 @@
-struct GridapBoundingBox{D,T}
-  pmin::Gridap.Point{D,T}
-  pmax::Gridap.Point{D,T}
-end
+
+const GridapBoundingBox = LevelSetCutters.BoundingBox
 
 struct STLGeometry <: Geometry
   tree::Leaf{Tuple{T,String,B}} where {T<:STL,B<:GridapBoundingBox} 
