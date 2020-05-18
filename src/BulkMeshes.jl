@@ -34,6 +34,7 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
   c_to_bgc = Int32[]
   c_coords = Point{D,T}[]
   c_rcoords = Point{D,T}[]
+  _vertices = Int[]
 
   bgc_to_ioc = fill(Int8(FACE_UNDEF),num_cells(bg_mesh))
   bgv_to_iob = fill(Int8(FACE_UNDEF),num_vertices(bg_mesh))
@@ -60,9 +61,18 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
       ref_vertices = transformation( get_reference_cell(bg_mesh), get_cell(bg_mesh,k), vertices )
       append!( c_coords, vertices )
       append!( c_rcoords, ref_vertices )
-      append!( c_to_v, get_cell_to_vertices(cell_mesh), offset )
+      #append!( c_to_v, get_cell_to_vertices(cell_mesh), offset )
       
+      _c_to_v = get_cell_to_vertices(cell_mesh)
       for cell in 1:num_cells(cell_mesh)
+        cell_coordinates = get_cell_coordinates(cell_mesh,cell)
+        if measure(cell_coordinates) > 1e-10
+        resize!(_vertices,0) 
+        for lv in 1:length(_c_to_v,cell)
+          v = _c_to_v[cell,lv]
+          push!(_vertices,v+offset)
+        end
+        push!(c_to_v,_vertices) 
         push!( c_to_bgc, k )
         if is_cell_interior(cell_mesh,cell)
           push!(c_to_io, FACE_IN )
@@ -71,6 +81,7 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
         else
           cell_coordinates = get_cell_coordinates(cell_mesh,cell)
           throw(ErrorException("Undefined subcell with volume = $(measure(cell_coordinates))"))
+        end
         end
       end
     end

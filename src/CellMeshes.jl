@@ -147,7 +147,7 @@ function compute_cell_mesh!(
         dface = cell_to_dfaces[cell,ldface]
         for i in 1:length(dface_to_sm_faces,dface)
           sm_face = dface_to_sm_faces[dface,i]
-          if face_dimension(sm,sm_face) == sm_d 
+          if is_face_dimension(sm,sm_face,sm_d) 
             cut_cell_mesh!(mesh,sm,sm_face,d,ldface)
           end
         end
@@ -160,7 +160,7 @@ end
 
 # Intersections
 
-tolerance(::CellMesh) = 1e-9
+tolerance(::CellMesh) = 1e-10
 
 function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer,d::Integer,ldface::Integer)
   sm_d = face_dimension(sm,sm_face)

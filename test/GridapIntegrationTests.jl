@@ -1,7 +1,6 @@
 module testing
 
 using Test
-import STLCutters
 
 using STLCutters.GridapIntegration
 
@@ -13,7 +12,7 @@ import Gridap: ∇
 
 # Manufactured solution
 u(x) = x[1] + x[2]# - x[3]
-∇u(x) = VectorValue( 1, 1, -1)
+∇u(x) = VectorValue( 1, 1) #, -1)
 Δu(x) = 0
 f(x) = - Δu(x)
 ud(x) = u(x)
@@ -92,6 +91,10 @@ uh_Ω = restrict(uh,trian_Ω)
 if outputfile !== nothing
   writevtk(trian_Ω,outputfile,cellfields=["uh"=>uh_Ω])
 end
+
+uh_Γd = restrict(uh,trian_Γd)
+writevtk(trian_Γd,"u_trian_Gd",cellfields=["uh"=>uh_Γd])
+
 
 tol = 1.0e-9
 e = u - uh_Ω

@@ -1,7 +1,7 @@
 module STLCutters
 
 using FileIO
-using MeshIO
+import MeshIO
 using LinearAlgebra
 using WriteVTK
 import LinearAlgebra: dot, norm, det, cross

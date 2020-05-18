@@ -110,7 +110,7 @@ end
 
 ## Geometric queries
 
-tolerance(::IncrementalSurfaceMesh) = 1e-9 ## TODO: Add argument
+tolerance(::IncrementalSurfaceMesh) = 1e-10
 
 @generated function distance(
   m::VolumeMesh{D},d::Integer,dface::Integer,
