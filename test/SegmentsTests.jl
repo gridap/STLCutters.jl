@@ -3,12 +3,16 @@ module SegmentsTests
 using Test
 using STLCutters
 
+using STLCutters: signed_measure
+using STLCutters: relative_orientation
+
 p1 = Point(1,1,1)
 p2 = Point(2,2,2)
 
 s = Segment(p1,p2)
 @test isa(s,Segment{3})
 @test num_dims(s) == 3
+@test num_vertices(s) == 2
 
 s = Segment((p1,p2))
 @test isa(s,Segment{3})
@@ -20,6 +24,7 @@ c = center(s)
 @test get_data(c) == (1.5,1.5,1.5)
 
 @test distance(p1,s) == 0
+
 
 p = Point(0,0,0)
 @test distance(s,p) == distance(s,p)
@@ -41,6 +46,14 @@ p1 = Point(0.0,0.0,0.0)
 p2 = Point(1.0,1.0,1.0)
 p3 = Point(0.5,0.5,0.5)
 p4 = Point(2.0,2.0,2.0)
+
+a = Point(3)
+b = Point(1)
+s = Segment(a,b)
+
+@test signed_measure(s) == -2
+@test relative_orientation(a,s) > 0
+@test relative_orientation(b,s) < 0
 
 s1 = Segment(p1,p2)
 s2 = Segment(p3,p4)

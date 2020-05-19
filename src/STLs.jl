@@ -2,7 +2,7 @@
 struct STL{D,T}
   vertex_coordinates::Vector{Point{D,T}}
   facet_to_vertices::Table{<:Integer}
-  facet_normals::Vector{VectorValue{D,T}}
+  facet_normals::Vector{VectorValue{D,Float64}}
 end
 
 # replace by comment if upgrade MeshIO to 0.4+
@@ -27,8 +27,6 @@ num_vertices_per_facet(::Array{MeshIO.Face{D,T}}) where{D,T} = D
 Base.convert( ::Type{Point{D,T}}, x::MeshIO.Point{D} )  where {D,T} = Point{D,T}(x.data)
 Base.convert( ::Type{VectorValue{D,T}}, x::MeshIO.Normal{D} )  where {D,T} = VectorValue{D,T}(x.data)
 Base.convert( ::Type{Vector}, x::MeshIO.Face ) = collect(x.data)
-
-
 
 # uncomment if upgrade MeshIO to 0.4+
 #

@@ -48,10 +48,11 @@ end
 measure(t::Tetrahedron) = volume(t)
 
 function measure(t::Tetrahedron{4})
+  factor = 1/6
   v1 = t.vertices[2] - t.vertices[1]
   v2 = t.vertices[3] - t.vertices[1]
   v3 = t.vertices[4] - t.vertices[1]
-  norm( orthogonal(v1,v2,v3) )
+  norm( orthogonal(v1,v2,v3) ) * factor
 end
 
 function signed_measure(t::Tetrahedron{3})

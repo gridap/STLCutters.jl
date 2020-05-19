@@ -19,6 +19,8 @@ t1 = Table(data,rows,n)
 
 @test maximum(t1) == 7
 
+@test eltype(t1) == eltype(Table{Int}) == Int
+
 data = [ 3, 1, 7, 4, 2 ]
 ptrs = [ 1, 2, 4, 5, 6, 6 ]
 

@@ -4,6 +4,7 @@ authors = ["Pere Antoni Martorell", "Large Scale Scientific Computing"]
 version = "0.1.0"
 
 [deps]
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 Gridap = "56d4f2e9-7ea1-5844-9cf6-b9c51ca7ce8e"
 GridapEmbedded = "8838a6a3-0006-4405-b874-385995508d5d"

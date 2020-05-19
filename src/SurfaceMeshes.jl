@@ -1,5 +1,5 @@
 
-struct SurfaceMesh{D,T,M}
+struct SurfaceMesh{D,T<:AbstractFloat,M}
   vertex_coordinates::Vector{Point{D,T}}
   facet_normals::Vector{VectorValue{D,T}}
   mfaces_to_nfaces::Matrix{M}
@@ -49,7 +49,7 @@ function SurfaceMesh(vertex_coordinates::Vector{<:Point},d_to_dface_to_vertices:
 end
 
 function _compute_facet_normals(vertex_coordinates::Vector{Point{D,T}},facet_to_vertices::M) where {D,T,M}
-  facet_normals = Vector{VectorValue{D,T}}(undef,length(facet_to_vertices))
+  facet_normals = Vector{VectorValue{D,Float64}}(undef,length(facet_to_vertices))
   for i in 1:length(facet_to_vertices)
     facet = _get_facet(vertex_coordinates,facet_to_vertices,i)
     facet_normal = normal(facet)

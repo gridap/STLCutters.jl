@@ -13,34 +13,55 @@
 
 struct Point{D,T}
   vector::VectorValue{D,T}
+
+  function Point(v::VectorValue{D,T}) where {D,T} 
+    new{D,T}(v)
+  end
+  
+  function Point{D,T}(v::VectorValue) where {D,T} 
+    w = convert(VectorValue{D,T},v)
+    new{D,T}(v)
+  end
+
+  function Point(data::NTuple{D,T}) where {D,T}
+    new{D,T}(VectorValue(data))
+  end
+  
+  function Point{D,T}(data::NTuple{D}) where {D,T}
+    _data = convert(NTuple{D,T},data)
+    new{D,T}(VectorValue{D,T}(_data))
+  end
+  
+  function Point(v::NTuple{1,T}) where T
+    data = v
+    new{1,T}(VectorValue{1,T}(data))
+  end
+
+  function Point{1,T}(v::NTuple{1}) where T
+    data = v
+    new{1,T}(VectorValue{1,T}(data))
+  end
+
+  function Point(v::T...) where T
+    data = v
+    D = length(data)
+    new{D,T}(VectorValue(data))
+  end
+  
 end
 
 function get_data(p::Point)
   get_data(p.vector)
 end
 
-@inline function Point(data::NTuple{D,T}) where {D,T}
-  Point{D,T}(VectorValue(data))
-end
-
-@inline function Point(v::T...) where T
-  data = v
-  Point(VectorValue(data))
-end
-
-@inline function Point{D,T}(v::Vararg{S,D} where S) where {D,T}
-  data = convert(NTuple{D,T},v)
-  Point(VectorValue(data))
-end
-
-@inline function Point{D}(v::Vararg{T,D}) where {D,T}
-  data = v
-  Point(VectorValue(data))
-end
-
 function Point{0,T}() where T
   data = ()
   Point(VectorValue{0,T}(data))
+end
+
+function Point{D,T}(v::Vararg{S,D} where S) where {D,T}
+  data = convert(NTuple{D,T},v)
+  Point(VectorValue(data))
 end
 
 function Point{D}(v::VectorValue{D,T}) where {D,T}

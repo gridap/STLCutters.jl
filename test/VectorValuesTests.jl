@@ -15,6 +15,26 @@ v = VectorValue{0,Int}(data)
 @test isa(v,VectorValue{0,Int})
 @test v.data == data
 
+data = (1,)
+v = VectorValue{1,Int}(data)
+@test isa(v,VectorValue{1,Int})
+@test v.data == data
+
+data = (1,)
+v = VectorValue{1,Int}(data...)
+@test isa(v,VectorValue{1,Int})
+@test v.data == data
+
+data = (1,)
+v = VectorValue(data)
+@test isa(v,VectorValue{1,Int})
+@test v.data == data
+
+data = (1,)
+v = VectorValue(data...)
+@test isa(v,VectorValue{1,Int})
+@test v.data == data
+
 data = (1,2,3)
 v = VectorValue(data...)
 @test isa(v,VectorValue{3,Int})

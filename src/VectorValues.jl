@@ -1,20 +1,25 @@
 
 struct VectorValue{D,T} <: Number
   data::NTuple{D,T}
+
+  function VectorValue(v::NTuple{D,T}) where {D,T}
+    new{D,T}(v)
+  end
+
+  function VectorValue{D,T}(v::NTuple{D}) where {D,T}
+    data = convert(NTuple{D,T},v)
+    new{D,T}(data)
+  end
+
+  function VectorValue{1,T}(v::NTuple{1}) where T
+    data = convert(Tuple{T},v)
+    new{1,T}(data)
+  end
+
 end
 
 function get_data(v::VectorValue)
   v.data
-end
-
-@inline function VectorValue(v::T...) where T
-  data = v
-  VectorValue(data)
-end
-
-@inline function VectorValue{D,T}(v::Vararg{S,D} where S) where {D,T}
-  data = convert(NTuple{D,T},v)
-  VectorValue(data)
 end
 
 function VectorValue{0,T}() where T
@@ -22,9 +27,15 @@ function VectorValue{0,T}() where T
   VectorValue{0,T}(data)
 end
 
-@inline function VectorValue{D}(v::Vararg{T,D}) where {D,T}
+function VectorValue(v::T...) where T
   data = v
-  VectorValue(data)
+  D = length(data)
+  VectorValue{D,T}(data)
+end
+
+function VectorValue{D,T}(v::Vararg{S,D} where S) where {D,T}
+  data = convert(NTuple{D,T},v)
+  VectorValue{D,T}(data)
 end
 
 function VectorValue(m::MutableVectorValue)
@@ -60,7 +71,7 @@ Base.zero(v::T) where T<:VectorValue = zero(T)
   Meta.parse(str)
 end
 
-Base.one(v::T) where T<:VectorValue = zero(T)
+Base.one(v::T) where T<:VectorValue = one(T)
 
 function mutable(::Type{VectorValue{D,T}}) where {D,T}
   v = zero(VectorValue{D,T})
