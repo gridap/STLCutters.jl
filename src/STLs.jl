@@ -82,6 +82,30 @@ function closed_polyline(vertex_coordinates::Vector{<:Point{2}})
   STL(vertex_coordinates,f_to_v)
 end
 
+function closed_polyline(filename::String)
+  vertices = read_vertices(filename)
+  closed_polyline(vertices)
+end
+
+function read_vertices(filename::String)
+  D = 2
+  T = Float64
+  data = readdlm(filename,T,skipstart=1)
+  @assert size(data,2) == D "read_vertices() only supports 2D coordinates to define a polyline"
+  vertices = zeros(Point{D,T},size(data,1))
+  for i in 1:size(data,1)
+    vertices[i] = Point(data[i,1],data[i,2])
+  end
+  vertices
+end
+
+function flip_normals(s::STL)
+  STL(
+    get_vertex_coordinates(s),
+    get_facet_to_vertices(s), #TODO: Flip facets as well
+   -get_facet_normals(s) )
+end
+
 function num_vertices( stl::STL )
   length(stl.vertex_coordinates)
 end

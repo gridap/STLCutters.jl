@@ -19,7 +19,7 @@ struct Table{T}
 
   function Table{T}(data::Vector{Vector{T}}) where T
     _data, _ptrs = compress_data(data)
-    _masks = fill(true,length(data))
+    _masks = fill(true,length(_ptrs)-1)
     new{T}(_data,_ptrs,_masks)
   end
 
@@ -28,7 +28,7 @@ struct Table{T}
   function Table(data::Matrix)
     T = eltype(data)
     _data, _ptrs = compress_data(data)
-    _masks = fill(true,length(data))
+    _masks = fill(true,length(_ptrs)-1)
     new{T}(_data,_ptrs,_masks)
   end
 

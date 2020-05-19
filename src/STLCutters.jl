@@ -2,6 +2,7 @@ module STLCutters
 
 using FileIO
 import MeshIO
+using DelimitedFiles
 using LinearAlgebra
 using WriteVTK
 import LinearAlgebra: dot, norm, det, cross
@@ -59,6 +60,7 @@ export num_cells
 export get_cell
 export get_dface_to_vertices
 export get_faces
+export get_vertex_coordinates
 export refine!
 export add_vertex!
 export is_watter_tight

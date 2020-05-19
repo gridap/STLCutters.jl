@@ -2,7 +2,8 @@ module STLsTests
 
 using Test
 using STLCutters
-import STLCutters: delete_repeated_vertices!, delete_repeated_vertices, closed_polyline, get_facet_to_vertices
+import STLCutters: delete_repeated_vertices!, delete_repeated_vertices, flip_normals
+import STLCutters: get_facet_to_vertices, get_facet_normals
 
 stl = STL(joinpath(@__DIR__,"data/cube.stl"))
 @test num_dims(stl) == 3
@@ -39,5 +40,23 @@ stl = STL(vertices,f_to_v)
 
 
 circ = closed_polyline(vertices)
+
+@test get_vertex_coordinates(stl) == get_vertex_coordinates(circ)
+
+@test get_facet_to_vertices(stl) == get_facet_to_vertices(circ)
+
+@test get_facet_normals(stl) == get_facet_normals(circ)
+
+
+naca = closed_polyline(joinpath(@__DIR__,"data/naca.dat"))
+
+@test num_dims(naca) == 2
+
+@test num_vertices(naca) == num_facets(naca)
+
+@test get_facet_normals(naca) == -get_facet_normals( flip_normals(naca) )
+
+
+
 
 end # module
