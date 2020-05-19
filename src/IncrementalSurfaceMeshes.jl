@@ -536,21 +536,6 @@ function get_face_to_surface_mesh_face(ism::IncrementalSurfaceMesh,sm::SurfaceMe
   face_to_sm_face 
 end
 
-
-function get_vertices!(ism::IncrementalSurfaceMesh,vertices::Vector,n::Integer,nfaces::Vector)
-  resize!(vertices,0)
-  nface_to_vertices = get_dface_to_vertices(ism,n)
-  for nface in nfaces
-    for lvertex in 1:length(nface_to_vertices,nface)
-      vertex = nface_to_vertices[nface,lvertex]
-      if vertex ∉ vertices
-        push!(vertices,vertex)
-      end
-    end
-  end
-  vertices
-end
-
 function _find_next_intersection(
   m::VolumeMesh,bg_cell::Integer,bg_d::Integer,bg_face::Integer,
   sm::SurfaceMesh,sm_d::Integer,sm_dface::Integer,
@@ -790,19 +775,3 @@ function are_vertices_in_dface(ism::IncrementalSurfaceMesh,vertices::Vector,d::I
   true
 end
 
-function is_dface_connected_to_vertex(
-  ism::IncrementalSurfaceMesh,
-  n::Integer,nfaces::Vector,
-  d::Integer,dface::Integer,
-  vertex::Integer)
-
-  dface_to_vertices = get_dface_to_vertices(ism,d)
-  for nface in nfaces
-    if is_vertex_in_dface(ism,vertex,n,nface)
-      if is_nface_in_dface(ism,d,dface,n,nface)
-        return true
-      end
-    end
-  end
-  false
-end

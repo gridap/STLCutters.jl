@@ -175,21 +175,6 @@ function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer,d::Integ
 
     nfaces = find_dfaces_capturing_surface_mesh_face!(mesh,sm_d-1,sm,sm_face)
 
-#    if length(nfaces) == 0
-#      _d, iface, point = find_intersection_point_on_boundary_face(mesh,sm,sm_face)
-#      vertex = add_vertex!(mesh,_d,iface,point,sm_face)
-#      kface = vertex
-#      for k in 0:n-1
-#        kface != UNSET || break
-#        _d, iface, point = find_next_boundary_point(mesh,k,kface,sm,sm_face)
-#        vertex = add_vertex!(mesh,_d,iface,point,sm_face)
-#        kface = find_container_dface(mesh,k+1,k,kface,vertex)
-#      end
-#      if kface != UNSET
-#        push!(nfaces,kface)
-#      end
-#    end
-
     while length(nfaces) > 0
       nface = popfirst!(nfaces)
       _d, iface, point = find_next_point(mesh,nface,sm,sm_face,d,ldface) 
@@ -285,39 +270,6 @@ function find_dfaces_capturing_surface_mesh_face!(mesh::CellMesh,d::Integer,sm::
   dfaces
 end
 
-function find_intersection_point_on_boundary_face(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer)
-  D = num_dims(mesh)
-  sm_dim = face_dimension(sm,sm_face)
-  for d in 0:D-sm_dim
-    for n in 0:d
-      df_to_nf = get_faces(mesh,d,n)
-      iface = UNSET
-      min_distance = tolerance(mesh)
-      for dface in 1:num_dfaces(mesh,d)
-        if isactive(mesh,d,dface)
-          if is_dface_in_cell_mesh_boundary(mesh,d,dface)
-            for lnface in 1:length(df_to_nf,dface)
-              nface = df_to_nf[dface,lnface]
-              dist = distance(mesh,n,nface,sm,sm_face) 
-              if dist < min_distance
-                min_distance = dist
-                iface = nface
-              end
-            end
-          end
-        end
-      end
-      if iface != UNSET
-        point = closest_point(mesh,n,iface,sm,sm_face)
-        return (n,iface,point)
-      end
-    end
-  end
-  point = zero( eltype(get_vertex_coordinates(mesh)) )
-  (UNSET,UNSET,point)
-end
-
-
 function find_next_point(
   mesh::CellMesh,dface::Integer,
   sm::SurfaceMesh,sm_face::Integer,
@@ -371,120 +323,6 @@ function find_next_point(
   end
   point = zero( eltype(get_vertex_coordinates(mesh)) )
   (UNSET,UNSET,point)
-end
-
-function find_next_point(mesh::CellMesh,dface::Integer,sm::SurfaceMesh,sm_face::Integer)
-  D = num_dims(mesh)
-  sm_d = face_dimension(sm,sm_face)
-  d = sm_d-1
-  dim = D-d-1
-  iface = UNSET
-  min_distance = tolerance(mesh)
-  for cell in 1:num_cells(mesh)
-    if isactive(mesh,D,cell)
-      if _is_dface_in_nface_boundary(mesh,D,cell,d,dface)
-        opposite_face = _get_opposite_face(mesh,D,cell,d,dface)
-        if !_is_touching_surface_mesh_face(mesh,dim,opposite_face,sm,sm_face)
-          dist = distance(mesh,dim,opposite_face,sm,sm_face) 
-          if dist < min_distance
-            min_distance = dist
-            iface = opposite_face
-          end
-        end
-      end
-    end
-  end
-  if iface != UNSET
-    opposite_face = iface
-    iface = UNSET
-    min_distance = tolerance(mesh)
-    for n in 0:dim
-      df_to_nf = get_faces(mesh,dim,n)
-      for lnface in 1:length(df_to_nf,opposite_face)
-        nface = df_to_nf[opposite_face,lnface]
-        dist = distance(mesh,n,nface,sm,sm_face)
-        if dist < min_distance
-          if D-sm_d-n > 0 || dist == 0.0 # have intersection()
-            min_distance = dist
-            iface = nface
-          end
-        end
-      end
-      if iface != UNSET
-        point = closest_point(mesh,n,iface,sm,sm_face)
-        return (n,iface,point)
-      end
-    end
-  end
-  point = zero( eltype(get_vertex_coordinates(mesh)) )
-  (UNSET,UNSET,point)
-end
-
-function find_next_boundary_point(mesh::CellMesh,d::Integer,dface::Integer,sm::SurfaceMesh,sm_face::Integer)
-  D = num_dims(mesh)
-  sm_d = face_dimension(sm,sm_face)
-  for k in d+1:D-1
-    for n in d+1:k
-      dim = n-d-1
-      kf_to_nf = get_faces(mesh,k,n)
-      iface = UNSET
-      min_distance = tolerance(mesh)
-      for kface in 1:num_dfaces(mesh,k)
-        if isactive(mesh,k,kface)
-          if is_dface_in_cell_mesh_boundary(mesh,k,kface)
-            for lnface in 1:length(kf_to_nf,kface)
-              nface = kf_to_nf[kface,lnface]
-              if _is_dface_in_nface_boundary(mesh,n,nface,d,dface)
-                opposite_face = _get_opposite_face(mesh,n,nface,d,dface)
-                if !_is_touching_surface_mesh_face(mesh,dim,opposite_face,sm,sm_face)
-                  dist = distance(mesh,dim,opposite_face,sm,sm_face)
-                  if dist < min_distance
-                    min_distance = dist
-                    iface = opposite_face
-                  end
-                end
-              end
-            end
-          end
-        end
-      end
-      if iface != UNSET
-        point = closest_point(mesh,dim,iface,sm,sm_face)
-        return (dim,iface,point)
-      end
-    end
-  end
-  point = zero(get_vertex_coordinates(mesh,1))
-  (UNSET,UNSET,point)
-end
-
-function find_container_dface(mesh::CellMesh,d::Integer,n::Integer,nface::Integer,vertex::Integer)
-  if vertex == UNSET
-    return UNSET
-  end
-  @check d == n+1
-  df_to_nf = get_faces(mesh,d,n)
-  df_to_v = get_dface_to_vertices(mesh,d)
-  for dface in reverse(1:num_dfaces(mesh,d))
-    if isactive(mesh,d,dface)
-      found = false
-      for lnface in 1:length(df_to_nf,dface)
-        if nface == df_to_nf[dface,lnface]
-          found = true
-          break
-        end
-      end
-      if found
-        for lvertex in 1:length(df_to_v,dface)
-          if vertex == df_to_v[dface,lvertex]
-            return dface
-          end
-        end
-      end
-    end
-  end
-  @check false
-  UNSET
 end
 
 function _is_dface_in_nface_boundary(mesh::CellMesh,n::Integer,nface::Integer,d::Integer,dface::Integer)
@@ -1352,24 +1190,6 @@ function _get_lface_containing_ntface(cutter::CutterCache,n::Integer,nface::Inte
     end
   end
   (UNSET,UNSET)
-end
-
-
-function _find_coincident_dface(
-  mesh::CellMesh,
-  cache::CellMeshCache,
-  cutter::CutterCache,
-  d::Integer,
-  dface::Integer,
-  tdface::Integer)
-
-  for new_dface in get_new_faces(cache,d,dface)
-    if _are_dface_and_tdface_coincidents(mesh,cutter,d,new_dface,tdface)
-      return new_dface
-    end
-  end
-  @check false
-  return UNSET
 end
 
 function _are_dface_and_tdface_coincidents(
