@@ -494,16 +494,9 @@ end
 function writevtk(sm::SurfaceMesh{D,T},file_base_name) where {D,T}
   d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5,3=>10)
   num_points = num_vertices(sm)
-  points = zeros(T,D,num_points+num_facets(sm))
+  points = zeros(T,D,num_points)
   for (i ,p ) in enumerate( get_vertex_coordinates(sm) ), d in 1:D
     points[d,i] = p[d]
-  end
-  for i in 1:num_facets(sm)
-    facet = get_facet_coordinates(sm,i)
-    facet_center = center(facet)
-    for d in 1:D
-      points[d,i+num_points] = facet_center[d]
-    end
   end
   cells = MeshCell{Vector{Int64}}[]
   for d in 0:D-1
@@ -514,15 +507,16 @@ function writevtk(sm::SurfaceMesh{D,T},file_base_name) where {D,T}
       push!( cells, MeshCell(vtk_type,vertices) )
     end
   end
-  normals = zeros(3,num_points+num_facets(sm))
+  normals = zeros(3,num_faces(sm))
+  offset = num_faces(sm) - num_facets(sm)
   for i in 1:num_facets(sm)
     facet_normal = get_facet_normal(sm,i)
     for d in 1:D
-       normals[d,i+num_points] = facet_normal[d]
+       normals[d,i+offset] = facet_normal[d]
     end
   end
   vtkfile = vtk_grid(file_base_name,points,cells)
-  vtkfile["facet_normals",VTKPointData()] = normals
+  vtkfile["facet_normals",VTKCellData()] = normals
   vtk_save(vtkfile)
 end
 

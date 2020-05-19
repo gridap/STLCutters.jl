@@ -141,6 +141,8 @@ get_vertex_coordinates(stl::STL) = stl.vertex_coordinates
 
 get_facet_normals(stl::STL) = stl.facet_normals
 
+get_facet_normal(stl::STL,i::Integer) = stl.facet_normals[i]
+
 get_facet_to_vertices(stl::STL) = stl.facet_to_vertices
 
 const STL_tolerance = 1e-8
@@ -235,4 +237,30 @@ function BoundingBox(vertex_coordinates::Vector)
     pmax = max.(pmax,v)
   end
   BoundingBox(pmin,pmax)
+end
+
+function writevtk(stl::STL{D,T},file_base_name) where {D,T}
+  d_to_vtk_type_id = Dict(0=>1,1=>3,2=>5,3=>10)
+  num_points = num_vertices(stl)
+  points = zeros(T,3,num_points)
+  for (i,p) in enumerate(get_vertex_coordinates(stl)), d in 1:D
+    points[d,i] = p[d]
+  end
+  cells = MeshCell{Vector{Int64}}[]
+  facet_to_vertices = get_facet_to_vertices(stl)
+  vtk_type = VTKCellType(d_to_vtk_type_id[D-1])
+  for i in 1:num_facets(stl)
+    vertices = [ facet_to_vertices[i,j] for j in 1:vtk_type.nodes ]
+    push!( cells, MeshCell(vtk_type,vertices) )
+  end
+  normals = zeros(3,num_facets(stl))
+  for i in 1:num_facets(stl)
+    facet_normal = get_facet_normal(stl,i)
+    for d in 1:D
+       normals[d,i] = facet_normal[d]
+    end
+  end
+  vtkfile = vtk_grid(file_base_name,points,cells)
+  vtkfile["facet_normals",VTKCellData()] = normals
+  vtk_save(vtkfile)
 end

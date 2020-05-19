@@ -584,6 +584,16 @@ function num_dfaces(m::CellMesh,d::Int)
   end
 end
 
+num_faces(m::CellMesh,d::Integer) = num_dfaces(m,d)
+
+function num_faces(m::CellMesh{D}) where D
+  n = 0
+  for d in 0:D
+    n += num_faces(m,d)
+  end
+  n
+end
+
 num_edges(m::CellMesh) = num_dfaces(m,1)
 
 num_facets(m::CellMesh{D}) where D = num_dfaces(m,D-1)
@@ -903,14 +913,6 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
     points[d,i] = p[d]
   end
 
-  # TODO: normal to cell, not to point
-  for i in 1:num_facets(m)
-    center = facet_center(m,i)
-    for d in 1:D
-      points[d,i+num_points] = center[d]
-    end
-  end
-
   cells = MeshCell{Vector{Int64}}[]
   for d in 0:num_dims(m)
     dface_to_vertices = get_dface_to_vertices(m,d)
@@ -921,17 +923,18 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
     end
   end
 
-  normals = zeros(3,num_points+num_facets(m))
+  normals = zeros(3,num_faces(m))
+  offset = num_faces(m) - num_facets(m) - num_cells(m)
   for i in 1:num_facets(m)
     normal = facet_normal(m,i)
     normal = normal / norm(normal)
     for d in 1:D
-      normals[d,i+num_points] = normal[d]
+      normals[d,i+offset] = normal[d]
     end
   end
 
   vtkfile = vtk_grid(file_base_name,points,cells)
-  vtkfile["facet_normals",VTKPointData()] = normals
+  vtkfile["facet_normals",VTKCellData()] = normals
   vtkfile["IO",VTKCellData()] = _get_in_out_face_data(m,0:num_dims(m))
 
   vtk_save(vtkfile)

@@ -146,15 +146,14 @@ sm = SurfaceMesh(v,f2v)
 
 @test num_faces(sm) == 23
 
+naca = closed_polyline(joinpath(@__DIR__,"data/naca.dat"))
+sm = SurfaceMesh(naca)
+out = writevtk(sm,"naca")
+rm(out...)
 
-#stl = STL("sbunny.stl")
-#sm = SurfaceMesh(stl)
-#bb = BoundingBox(s_mesh)
-#n = 100
-#m = CartesianMesh(bb,n)
-#x=compute_cell_to_surface_mesh_faces(m,sm);
-#@time x=compute_cell_to_surface_mesh_faces(m,sm);
-#@show @allocated compute_cell_to_surface_mesh_faces(m,sm)
-
+cube = STL(joinpath(@__DIR__,"data/cube.stl"))
+sm = SurfaceMesh(cube)
+out = writevtk(sm,"cube")
+rm(out...)
 
 end # module

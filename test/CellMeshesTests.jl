@@ -233,7 +233,7 @@ c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
 reset!(cell_mesh,get_cell(bg_mesh,cell_id))
 
-for i in 1:length(c_to_sm_f)
+for i in 1:length(c_to_sm_f,cell_id)
   sm_face = c_to_sm_f[cell_id,i]
   cut_cell_mesh!(cell_mesh,sm,sm_face)
 end

@@ -56,6 +56,14 @@ naca = closed_polyline(joinpath(@__DIR__,"data/naca.dat"))
 
 @test get_facet_normals(naca) == -get_facet_normals( flip_normals(naca) )
 
+naca = closed_polyline(joinpath(@__DIR__,"data/naca.dat"))
+out = writevtk(naca,"naca")
+rm(out...)
+
+cube = STL(joinpath(@__DIR__,"data/cube.stl"))
+out = writevtk(cube,"cube")
+rm(out...)
+
 
 
 
