@@ -195,8 +195,15 @@ is_edge(s::SurfaceMesh,gid) = is_face_dimension(s,gid,1)
 is_facet(s::SurfaceMesh{D},gid) where D = is_face_dimension(s,gid,D-1)
 
 function local_dface(s::SurfaceMesh,gid::Integer,d::Integer)
+  @check is_face_dimension(s,gid,d)
   gid - s.d_to_offset[d+1]
 end
+
+local_vertex(s::SurfaceMesh,gid::Integer) = local_dface(s,gid,0) 
+
+local_edge(s::SurfaceMesh,gid::Integer) = local_dface(s,gid,1) 
+
+local_facet(s::SurfaceMesh{D},gid::Integer) where D = local_dface(s,gid,D-1) 
 
 function get_vertex_coordinates(s::SurfaceMesh,i::Integer)
   get_face_coordinates(s,Val{0}(),i)

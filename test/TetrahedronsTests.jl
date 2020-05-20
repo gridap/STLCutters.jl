@@ -38,7 +38,6 @@ p = Point(0.0,0.0,0.9)
 
 @test closest_point(p,tet) == closest_point(tet,p) == p
 
-
 tri = Triangle(t1,t2,t3)
 @test relative_orientation(tri,tet) < 0
 
