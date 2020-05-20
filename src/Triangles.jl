@@ -151,6 +151,7 @@ function contains_projection(p::Point{2},t::Triangle{2})
   for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
     n = normal(e) * s
+    n = n / norm(n)
     c = center(e)
     if ( p - c ) ⋅ n < 0
       return false
@@ -199,6 +200,7 @@ have_intersection_point(t::Triangle,p::Point) = have_intersection_point(p,t)
 
 function have_intersection_point(s::Segment{3},t::Triangle{3})
   n = normal(t)
+  n = n / norm(n)
   c = center(t)
   s1_s2 = s[2] - s[1]
   s1_c = c - s[1]
@@ -228,6 +230,7 @@ end
 function intersection(s::Segment{3},t::Triangle{3})
   @check have_intersection_point(s,t)
   n = normal(t)
+  n = n / norm(n)
   c = center(t)
   s1_s2 = s[2] - s[1]
   s1_c = c - s[1]
@@ -253,11 +256,13 @@ function closest_point(t::Triangle,p::Point)
 end
 
 function closest_point(s::Segment{3},t::Triangle{3})
-  intersection(s,t)
+  p = intersection(s,t)
+  projection(p,s)
 end
 
 function closest_point(t::Triangle{3},s::Segment{3})
-  intersection(s,t)
+  p = intersection(s,t)
+  projection(p,t)
 end
 
 function relative_orientation(s::Segment{2},t::Triangle{2})

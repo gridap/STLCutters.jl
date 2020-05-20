@@ -49,7 +49,7 @@ function Table{T}(::UndefInitializer,n::Integer,m::Integer) where T
   Table(data,ptrs)
 end
 
-Base.length(a::Table) = length(a.ptrs)-1
+@inline Base.length(a::Table) = length(a.ptrs)-1
 
 @inline Base.length(a::Table,i::Integer) = a.ptrs[i+1] - a.ptrs[i]
 

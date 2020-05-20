@@ -138,6 +138,7 @@ have_intersection(s::Segment{3},q::Quadrilater{3}) = have_intersection_point(s,q
 function intersection(s::Segment{3},q::Quadrilater{3})
   @check have_intersection_point(s,q)
   n = normal(q)
+  n = n / norm(n)
   c = center(q)
   s1_s2 = s[2] - s[1]
   s1_c = c - s[1]
@@ -175,12 +176,17 @@ distance(q::Quadrilater,s::Segment) = distance(s,q)
 
 closest_point(q::Quadrilater{3},p::Point{3}) = projection(p,q)
 
-closest_point(s::Segment{3},q::Quadrilater{3}) = intersection(s,q)
+function closest_point(s::Segment{3},q::Quadrilater{3}) 
+  p = intersection(s,q)
+  projection(p,s)
+end
 
-closest_point(q::Quadrilater{3},s::Segment{3}) = closest_point(s,q)
+function closest_point(q::Quadrilater{3},s::Segment{3}) 
+  p = intersection(s,q)
+  projection(p,q)
+end
 
 closest_point(q::Quadrilater{2},p::Point{2}) = projection(p,q)
-
 
 function BoundingBox(q::Quadrilater{D,T}) where {D,T}
   BoundingBox{D,T}(min.(get_vertices(q)...),max.(get_vertices(q)...))

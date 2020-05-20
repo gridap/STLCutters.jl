@@ -160,7 +160,9 @@ end
 
 # Intersections
 
-tolerance(::CellMesh) = 1e-10
+tolerance(::Type{<:CellMesh}) = 1e-10
+
+tolerance(::T) where T<:CellMesh = tolerance(T)
 
 function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer,d::Integer,ldface::Integer)
   sm_d = face_dimension(sm,sm_face)
@@ -325,7 +327,7 @@ function find_next_point(
   (UNSET,UNSET,point)
 end
 
-function _is_dface_in_nface_boundary(mesh::CellMesh,n::Integer,nface::Integer,d::Integer,dface::Integer)
+@inline function _is_dface_in_nface_boundary(mesh::CellMesh,n::Integer,nface::Integer,d::Integer,dface::Integer)
   @check n > d
   nf_to_df = get_faces(mesh,n,d)
   for ldface in 1:length(nf_to_df,nface)
@@ -410,11 +412,11 @@ end
 
 num_dims(mesh::CellMesh{D}) where D = D
 
-function num_vertices(m::CellMesh) 
+@inline function num_vertices(m::CellMesh) 
   length(m.vertex_coordinates)
 end
 
-function num_dfaces(m::CellMesh,d::Int)
+@inline function num_dfaces(m::CellMesh,d::Integer)
   if d == 0
     num_vertices(m)
   else
@@ -422,7 +424,7 @@ function num_dfaces(m::CellMesh,d::Int)
   end
 end
 
-num_faces(m::CellMesh,d::Integer) = num_dfaces(m,d)
+@inline num_faces(m::CellMesh,d::Integer) = num_dfaces(m,d)
 
 function num_faces(m::CellMesh{D}) where D
   n = 0
@@ -438,27 +440,27 @@ num_facets(m::CellMesh{D}) where D = num_dfaces(m,D-1)
 
 num_cells(m::CellMesh{D}) where D = num_dfaces(m,D)
 
-function get_faces(m::CellMesh,d::Int,n::Int)
+@inline function get_faces(m::CellMesh,d::Integer,n::Integer)
   m.m_n_to_mface_to_nfaces[d+1,n+1]
 end
 
-function get_dface_to_vertices(m::CellMesh,d::Int)
+@inline function get_dface_to_vertices(m::CellMesh,d::Integer)
   get_faces(m,d,0)
 end
 
-function get_cell_to_vertices(m::CellMesh{D}) where D
+@inline function get_cell_to_vertices(m::CellMesh{D}) where D
   get_faces(m,D,0)
 end
 
-function get_cell_to_facets(m::CellMesh{D}) where D
+@inline function get_cell_to_facets(m::CellMesh{D}) where D
   get_faces(m,D,D-1)
 end
 
-function get_facet_to_vertices(m::CellMesh{D}) where D
+@inline function get_facet_to_vertices(m::CellMesh{D}) where D
   get_faces(m,D-1,0)
 end
 
-function get_vertex_coordinates(m::CellMesh) 
+@inline function get_vertex_coordinates(m::CellMesh) 
   m.vertex_coordinates
 end
 
@@ -489,7 +491,7 @@ function get_face_coordinates(m::CellMesh,::Val{d},i::Integer) where d
   throw(ArgumentError("get_face(::CellMesh,::Val($d),::Integer) not implemented"))
 end
 
-function isactive(m::CellMesh,d::Integer,i::Integer)
+@inline function isactive(m::CellMesh,d::Integer,i::Integer)
   d != 0 || return true
   isactive(get_dface_to_vertices(m,d),i)
 end

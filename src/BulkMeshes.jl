@@ -61,12 +61,10 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
       ref_vertices = transformation( get_reference_cell(bg_mesh), get_cell(bg_mesh,k), vertices )
       append!( c_coords, vertices )
       append!( c_rcoords, ref_vertices )
-      #append!( c_to_v, get_cell_to_vertices(cell_mesh), offset )
       
       _c_to_v = get_cell_to_vertices(cell_mesh)
       for cell in 1:num_cells(cell_mesh)
         cell_coordinates = get_cell_coordinates(cell_mesh,cell)
-        if measure(cell_coordinates) > 1e-10
         resize!(_vertices,0) 
         for lv in 1:length(_c_to_v,cell)
           v = _c_to_v[cell,lv]
@@ -81,7 +79,6 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
         else
           cell_coordinates = get_cell_coordinates(cell_mesh,cell)
           throw(ErrorException("Undefined subcell with volume = $(measure(cell_coordinates))"))
-        end
         end
       end
     end

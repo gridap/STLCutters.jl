@@ -112,7 +112,7 @@ end
 
 ## Geometric queries
 
-tolerance(::IncrementalSurfaceMesh) = 1e-10
+tolerance(::IncrementalSurfaceMesh) = tolerance(CellMesh)
 
 @generated function distance(
   m::VolumeMesh{D},d::Integer,dface::Integer,
