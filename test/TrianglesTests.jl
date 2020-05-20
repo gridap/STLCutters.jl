@@ -2,7 +2,7 @@ module TrianglesTests
 
 using Test
 using STLCutters
-using STLCutters: num_dims, get_edge, get_vertices
+using STLCutters: num_dims, get_edge, get_vertices, relative_orientation
 
 p1 = Point(0,0,0)
 p2 = Point(1,0,0)
@@ -12,6 +12,9 @@ t = Triangle(p1,p2,p3)
 @test isa(t,Triangle{3})
 
 t = Triangle((p1,p2,p3))
+@test num_dims(t) == 3
+@test num_edges(t) == 3
+@test num_vertices(t) == 3
 @test isa(t,Triangle{3})
 @test get_vertices(t)[1] == p1
 @test num_dims(t) == 3
@@ -93,5 +96,20 @@ t = Triangle(p1,p2,p3)
 
 @test closest_point(p,t) == p
 @test closest_point(t,p) == projection(p,t)
+
+
+p1 = Point(0,0)
+p2 = Point(1,0)
+p3 = Point(0,1)
+
+t = Triangle(p1,p2,p3)
+e = Segment(p1,p2)
+
+@test relative_orientation(e,t) < 0
+
+e = Segment(p2,p1)
+
+@test relative_orientation(e,t) > 0
+
 
 end # module
