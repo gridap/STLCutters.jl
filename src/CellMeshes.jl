@@ -160,7 +160,7 @@ end
 
 # Intersections
 
-tolerance(::Type{<:CellMesh}) = 1e-10
+tolerance(::Type{<:CellMesh}) = 1e-13
 
 tolerance(::T) where T<:CellMesh = tolerance(T)
 
@@ -311,7 +311,7 @@ function find_next_point(
         nface = df_to_nf[opposite_face,lnface]
         dist = distance(mesh,n,nface,sm,sm_face)
         if dist < min_distance
-          if D-sm_d-n > 0 || dist == 0.0 # have intersection()
+          if D-sm_d-n > 0 || have_intersection(mesh,n,nface,sm,sm_face)
             min_distance = dist
             iface = nface
           end
@@ -685,6 +685,46 @@ end
       sm_body *= "if n == $n \n"
       sm_body *= "    sm_f$n = get_face_coordinates(sm,Val{$n}(),sm_nface) \n"
       sm_body *= "    distance(f$d,sm_f$n)\n  "
+      sm_body *= "else"
+    end
+    error = "if n > $(D-1) \n"
+    error *= "    throw(ArgumentError(\"$msg2\"))\n  "
+    error *= "else \n"
+    error *= "    throw(ArgumentError(\"$msg3\")) \n  "
+    error *= "end"
+    condition = sm_body * error
+    body *= "  $condition \n"
+    body *= "else"
+  end
+  error = "  throw(ArgumentError(\"$msg1\"))\n"
+  str = body * '\n' * error * "end"
+
+  Meta.parse(str)
+end
+
+function have_intersection(m::CellMesh,d::Integer,face::Integer,sm::SurfaceMesh,sm_face::Integer)
+  sm_d = face_dimension(sm,sm_face)
+  sm_dface = local_dface(sm,sm_face,sm_d)
+  have_intersection(m,d,face,sm,sm_d,sm_dface)
+end
+
+@generated function have_intersection(
+  m::CellMesh{D},d::Integer,dface::Integer,
+  sm::SurfaceMesh{D},n::Integer,sm_nface::Integer) where D
+
+  msg1 = "\$d-face does not exist at \$(typeof(m))"
+  msg2 = "\$n-face does not exist at \$(typeof(sm))"
+  msg3 = "distance() from \$d-face in \$(typeof(m)) against \$n-face in \$(typeof(sm)) not implemented"
+  
+  body = ""
+  for d in 0:D
+    sm_body = ""
+    body *= "if d == $d \n"
+    body *= "  f$d = get_face_coordinates(m,Val{$d}(),dface) \n"
+    for n in 0:min(D-d,D-1)
+      sm_body *= "if n == $n \n"
+      sm_body *= "    sm_f$n = get_face_coordinates(sm,Val{$n}(),sm_nface) \n"
+      sm_body *= "    have_intersection(f$d,sm_f$n)\n  "
       sm_body *= "else"
     end
     error = "if n > $(D-1) \n"
