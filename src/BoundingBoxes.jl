@@ -61,6 +61,13 @@ function expand(bb::BoundingBox,ε::Number)
   BoundingBox( bb.pmin - δ, bb.pmax + δ )
 end
 
+function Base.:*(α::Real,b::BoundingBox)
+  sizes = b.pmax-b.pmin
+  δ = ((α-1)/2) * sizes
+  BoundingBox( b.pmin - δ, b.pmax + δ )
+end
+  
+
 function have_intersection(p::Point{D},bb::BoundingBox{D}) where D
   bb = expand(bb,BB_tolerance)
   all( get_data( p .>= bb.pmin ) ) || return false

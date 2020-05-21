@@ -2,11 +2,13 @@ module BoundingBoxesTests
 
 using Test
 using STLCutters
-import STLCutters: _fix_triangle
+import STLCutters: _fix_triangle, expand
 
 p1 = Point(1,1,1)
 p2 = Point(3,3,3)
 bb = BoundingBox(Point(1,1,1),Point(3,3,3))
+
+@test expand(bb,0.5) == 2*bb == BoundingBox(Point(0.,0.,0.),Point(4.,4.,4.))
 
 @test have_intersection(Point(1,2,3),BoundingBox(Point(1,1,1),Point(3,3,3)))
 @test !have_intersection(Point(1,2,3),BoundingBox(Point(2,2,2),Point(3,3,3)))
@@ -47,6 +49,7 @@ b = BoundingBox(
   Point((-2.2652954101562557, 19.209839248657232, 37.43181042671203)))
 
 @test have_intersection(t,b)
+
 
 #bb1 = BoundingBox(Point(0,0,0),Point(1,1,1))
 #bb2 = BoundingBox(Point(0.5,0.5,0.5),Point(2.0,2.0,2.0))
