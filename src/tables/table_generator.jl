@@ -16,6 +16,15 @@ function printvector(io::IO,varname::String,range::UnitRange)
   println(io,"const D_to_$(vector_name) = [ $data ]");println(io)
 end
 
+function printvector(io::IO,varname::String,range::UnitRange,t::Type)
+  @assert range[1] > 0
+  empty_t = "$(string(t))(undef$(join([",0" for n in 1:ndims(t)])))"
+  data  = join([ "$empty_t, " for i in 1:range[1]-1 ])
+  data *= join([ "$(replace( varname, '#' => "$i" )), " for i in range ] )
+  vector_name = replace(varname, '#' => "D" )
+  println(io,"const D_to_$(vector_name) = $(string(t))[ $data ]");println(io)
+end
+
 dir = @__DIR__
 
 ## Print table includer
@@ -115,9 +124,13 @@ header =
 "
 println(f, header )
 
+T_nf_to_mf = Type 
+T_nf_to_nF = Type
+T_c2f_orientation = Type
 
 dim_range = 2:4
 for num_dims in dim_range 
+  global T_nf_to_mf, T_nf_to_nF, T_c2f_orientation
   prefix = "hex$(num_dims)_to_tet$(num_dims)"
   cell = RefCell(HexCell,num_dims)
   println(f,"## Connectivities for $prefix"); println(f)
@@ -132,13 +145,17 @@ for num_dims in dim_range
   print(f, "const m_n_to_mface_to_nfaces_for_$prefix = " ); println(f, nf_to_mf ); println(f);
   print(f, "const d_to_subdface_to_dface_for_$prefix = " ); println(f, nf_to_nF ); println(f);
   print(f, "const cell_lfacet_to_orientation_for_$prefix  = " ); println(f, c2f_orientation ); println(f);
+  
+  T_nf_to_mf = typeof( get_m_of_v_of_v(nf_to_mf) ) 
+  T_nf_to_nF = typeof( nf_to_nF )
+  T_c2f_orientation = typeof(c2f_orientation)
 end
 
 
 println(f, "## Summary:" ); println(f)
-printvector(f, "m_n_to_mface_to_nfaces_for_hex#_to_tet#", dim_range )
-printvector(f, "d_to_subdface_to_dface_for_hex#_to_tet#", dim_range )
-printvector(f, "cell_lfacet_to_orientation_for_hex#_to_tet#", dim_range )
+printvector(f, "m_n_to_mface_to_nfaces_for_hex#_to_tet#", dim_range, T_nf_to_mf )
+printvector(f, "d_to_subdface_to_dface_for_hex#_to_tet#", dim_range, T_nf_to_nF )
+printvector(f, "cell_lfacet_to_orientation_for_hex#_to_tet#", dim_range, T_c2f_orientation ) 
 close(f)
 
 

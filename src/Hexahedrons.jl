@@ -118,6 +118,10 @@ function writevtk(h::Hexahedron{3,T},file_base_name) where T
 end
 
 function BoundingBox(h::Hexahedron{D,T}) where {D,T}
-  BoundingBox{D,T}(min.(get_vertices(h)...),max.(get_vertices(h)...))
+  pmin = get_vertices(h)[1]  
+  pmax = get_vertices(h)[ num_vertices(h) ]  
+  @check pmin == min.(get_vertices(h)...)
+  @check pmax == max.(get_vertices(h)...)
+  BoundingBox{D,T}(pmin,pmax)
 end
 

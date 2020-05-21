@@ -173,11 +173,14 @@ function FacetSubTriangulation(sm::SurfaceMesh{D,T},vm::VolumeMesh,d_to_dface_to
         end
       end
     end
+
+    ref_cell = get_reference_cell(vm) 
+    cell_box = BoundingBox(get_cell_coordinates(vm,cell)) 
     for vertex in cell_vertices
       point_coords = get_vertex_coordinates(sm,vertex)
       point_ref_coords = transformation( 
-        get_reference_cell(vm), 
-        BoundingBox(get_cell_coordinates(vm,cell)), 
+        ref_cell, 
+        cell_box, 
         point_coords )
 
       push!(st_vertex_coordinates, point_coords )

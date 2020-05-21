@@ -104,9 +104,9 @@ const cell_lfacet_to_orientation_for_hex4_to_tet4  = [-1 -1 -1 -1 -1 -1 -1 -1 -1
 
 ## Summary:
 
-const D_to_m_n_to_mface_to_nfaces_for_hexD_to_tetD = [ [], m_n_to_mface_to_nfaces_for_hex2_to_tet2, m_n_to_mface_to_nfaces_for_hex3_to_tet3, m_n_to_mface_to_nfaces_for_hex4_to_tet4,  ]
+const D_to_m_n_to_mface_to_nfaces_for_hexD_to_tetD = Matrix{Vector{Vector{Int64}}}[ Matrix{Vector{Vector{Int64}}}(undef,0,0), m_n_to_mface_to_nfaces_for_hex2_to_tet2, m_n_to_mface_to_nfaces_for_hex3_to_tet3, m_n_to_mface_to_nfaces_for_hex4_to_tet4,  ]
 
-const D_to_d_to_subdface_to_dface_for_hexD_to_tetD = [ [], d_to_subdface_to_dface_for_hex2_to_tet2, d_to_subdface_to_dface_for_hex3_to_tet3, d_to_subdface_to_dface_for_hex4_to_tet4,  ]
+const D_to_d_to_subdface_to_dface_for_hexD_to_tetD = Vector{Vector{Int64}}[ Vector{Vector{Int64}}(undef,0), d_to_subdface_to_dface_for_hex2_to_tet2, d_to_subdface_to_dface_for_hex3_to_tet3, d_to_subdface_to_dface_for_hex4_to_tet4,  ]
 
-const D_to_cell_lfacet_to_orientation_for_hexD_to_tetD = [ [], cell_lfacet_to_orientation_for_hex2_to_tet2, cell_lfacet_to_orientation_for_hex3_to_tet3, cell_lfacet_to_orientation_for_hex4_to_tet4,  ]
+const D_to_cell_lfacet_to_orientation_for_hexD_to_tetD = Matrix{Int64}[ Matrix{Int64}(undef,0,0), cell_lfacet_to_orientation_for_hex2_to_tet2, cell_lfacet_to_orientation_for_hex3_to_tet3, cell_lfacet_to_orientation_for_hex4_to_tet4,  ]
 
