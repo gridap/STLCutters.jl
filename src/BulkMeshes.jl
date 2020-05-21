@@ -41,7 +41,7 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
 
   c_to_sm_f = compute_cell_to_surface_mesh_faces(bg_mesh,sm)
 
-  sm, d_to_bg_dface_to_sm_faces = cut_surface_mesh(sm,bg_mesh)
+  sm, d_to_bg_dface_to_sm_faces = cut_surface_mesh(sm,bg_mesh,vm)
 
   for k in 1:num_cells(bg_mesh)
     reset!(cell_mesh, get_cell(bg_mesh,k) )

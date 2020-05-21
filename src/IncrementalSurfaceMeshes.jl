@@ -206,8 +206,8 @@ end
 
 ##
 
-function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh) where {D,T}
-  vm = VolumeMesh( m )
+function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh,vm::VolumeMesh) where {D,T}
+
   sm_face_to_bg_cells = compute_surface_mesh_face_to_cells(m,sm)
   ism = IncrementalSurfaceMesh(sm)
   
