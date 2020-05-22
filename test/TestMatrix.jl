@@ -15,9 +15,9 @@ size_factors = [1, 2, 4, 8 ]
 base_sizes = [ 5, 10, 20 ]
 ref_volumes = [ 1, 273280.0337419614, 74.12595970063474 ]
 
-
-#M = CartesianIndices( (length(geometries), length(tols), length(size_factors) ) ) 
-M = CartesianIndices( (1, 3, 3) ) # simplified test
+max_tol = 1e-5
+M = CartesianIndices( (length(geometries), length(tols), length(size_factors) ) ) 
+#M = CartesianIndices( (3:3, 1:3, 2:4) ) 
 
 for I in M
   geometry = geometries[ I[1] ]
@@ -29,7 +29,7 @@ for I in M
 
   n = size_factor * base_size
 
-  println("Computing `$geometry` with `tolerance = $tol` and `mesh = ($n×$n×$n)` :") 
+  println("Computing `$geometry.stl` with `tolerance = $tol` and `mesh = ($n×$n×$n)` :") 
     
   stl = STL(joinpath(@__DIR__,"data/$geometry.stl"))
   sm = SurfaceMesh(stl)
@@ -48,13 +48,24 @@ for I in M
     i_vol = interior_volume(bulk)
     e_vol = exterior_volume(bulk)
     b_vol = measure(box)
-    
+
     b_surf = surface(bulk,1)
     s_surf = surface(sm)
 
-    println("    Interior Volume  error = $(i_vol-ref_volume)")
-    println("    Domain Volume    error = $(i_vol+e_vol-b_vol)")
-    println("    Boundary Surface error = $(b_surf-s_surf)")
+    ε_Ω_in = i_vol - ref_volume
+    ε_Ω = i_vol + e_vol - b_vol
+    ε_Γ = b_surf - s_surf
+
+    println("    Interior Volume  error = $ε_Ω_in ")
+    println("    Domain Volume    error = $ε_Ω")
+    println("    Boundary Surface error = $ε_Γ")
+
+    if abs(ε_Ω_in) > max_tol || abs(ε_Ω) > max_tol || abs(ε_Γ) > max_tol
+      printstyled("WARNING: Error above the permisive tolerance: ", bold=true,color=:red); println();
+      printstyled("  ε_Ω_in = $ε_Ω_in", bold=true,color=:red); println();
+      printstyled("  ε_Ω    = $ε_Ω", bold=true,color=:red); println();
+      printstyled("  ε_Γ    = $ε_Γ", bold=true,color=:red); println();
+    end
 
     sm = move!(sm,offset)
   end

@@ -36,7 +36,7 @@ p = Point(0.5,0.5,0.5)
 p = Point(0.5,0.5,1.5)
 
 @test !have_intersection(h1,p)
-@test distance(p,h1) == Inf
+@test distance(p,h1) > 0
 
 
 t = Triangle( Point(0,0,0), Point(0,1,0), Point(1,1,0) )
