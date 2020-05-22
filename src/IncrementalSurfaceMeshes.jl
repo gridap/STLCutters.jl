@@ -259,6 +259,11 @@ function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh,vm::VolumeMesh) 
   sm, d_to_bg_df_to_face, face_to_sm_face
 end
 
+function cut_surface_mesh(sm::SurfaceMesh,m::CartesianMesh)
+  vm = VolumeMesh(m)
+  cut_surface_mesh(sm,m,vm)
+end
+
 function add_vertex!(
   ism::IncrementalSurfaceMesh,
   bg_d::Integer,bg_face::Integer,

@@ -25,8 +25,7 @@ box = BoundingBox(
     Point( 1.7, 1.7, 1.7 ) )
 
 geometries = [ "cube", "Bunny-LowPoly", "wine_glass" ]
-volumes = [ 1, 273280.0337419614, 74.12595970063474 ]
-meshes = [ 5, 20, 20 ]
+meshes = [ 5, 20, 40 ]
 
 for i in 1:length(geometries)
   stl = STL(joinpath(@__DIR__, "data/$(geometries[i]).stl" ))

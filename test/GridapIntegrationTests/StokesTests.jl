@@ -1,4 +1,4 @@
-module StokesCutFEMTests
+module StokesTests
 
 using STLCutters.GridapIntegration
 

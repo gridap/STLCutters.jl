@@ -82,14 +82,14 @@ bulk = BulkMesh(cm,sm)
 
 
 
-geometries = [ "cube", "Bunny-LowPoly", "wine_glass" ]
-volumes = [ 1, 273280.0337419614, 74.12595970063474 ]
-meshes = [ 5, 40, 20 ]
+geometries = [ "cube", "Bunny-LowPoly" ]
+volumes = [ 1, 273280.0337419614 ]
+meshes = [ 5, 20 ]
 
 offset = VectorValue(1e-7,1e-7,1e-7)
 
 for (i,geom) in enumerate( geometries )
-  println( "testing $geom.stl..." )
+#  println( "testing $geom.stl..." )
   stl = STL(joinpath(@__DIR__,"data/$geom.stl"))
   sm = SurfaceMesh(stl)
   for j in 1:1
