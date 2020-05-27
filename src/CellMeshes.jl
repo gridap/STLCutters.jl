@@ -112,13 +112,18 @@ function compute_in_out!(mesh::CellMesh,sm::SurfaceMesh)
           for i in 1:length(f_to_c,facet)
             cell_around = f_to_c[facet,i]
             if !is_cell_defined(mesh,cell_around)
-              if !is_facet_boundary(mesh,facet) == is_cell_interior(mesh,head_cell)
-                set_cell_as_interior!(mesh,cell_around)
-              else
-                set_cell_as_exterior!(mesh,cell_around)
+              if !is_facet_boundary(mesh,facet) 
+                if is_cell_interior(mesh,head_cell)
+                  set_cell_as_interior!(mesh,cell_around)
+                else
+                  set_cell_as_exterior!(mesh,cell_around)
+                end
+                tail += 1
+                queue[tail] = cell_around
               end
-              tail += 1
-              queue[tail] = cell_around
+            else
+              @check  is_facet_boundary(mesh,facet) || 
+                ( get_cell_in_out(mesh,head_cell) == get_cell_in_out(mesh,cell_around) ) 
             end
           end
         end
@@ -169,7 +174,10 @@ function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer,d::Integ
   if sm_d == 0
     point = get_vertex_coordinates(sm,sm_face)
     _d, iface = find_closest_face(mesh,point,d,ldface)
+    point = closest_point(mesh,_d,iface,sm,sm_face)
     vertex = add_vertex!(mesh,_d,iface,point,sm_face)
+    v = get_vertex_coordinates(sm)
+    v[sm_face] = point
   else
     n = sm_d-1
     df_to_nf = get_faces(mesh,sm_d,sm_d-1)
@@ -1374,10 +1382,9 @@ function _find_surface_mesh_facet(mesh::CellMesh,cache::MeshCache,facet::Integer
       end
     end
   end
-  for sm_facet in intersection_cache
-    if sm_facet != UNSET
-      return sm_facet
-    end
+  if count(!isequal(UNSET),intersection_cache) == 1
+    i = findfirst(!isequal(UNSET),intersection_cache)
+    return intersection_cache[i]
   end
   UNSET
 end
@@ -1438,19 +1445,20 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
   @check f_to_smf[ifacet] != UNSET
   cell = get_cell_coordinates(mesh,icell)
   facet = get_facet_coordinates(mesh,ifacet)
-  
+
   facet_normal = normal(facet)
   facet_normal = facet_normal / norm(facet_normal)
 
   sm_facet_normal = get_facet_normal(sm,f_to_smf[ifacet])
 
-  #@check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
+#  @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
 
   orientation = ( facet_normal ⋅ sm_facet_normal ) * c_to_lf_to_o[icell,lfacet]
 
-  if orientation > 0
+  # TODO: the orientation should be bounded by ±√D
+  if orientation > 0.5
     FACE_IN
-  elseif orientation < 0
+  elseif orientation < -0.5
     FACE_OUT
   else
     # @check false "orientation == 0, face not defined"

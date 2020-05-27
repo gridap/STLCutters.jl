@@ -147,7 +147,7 @@ distance(t::Triangle,s::Segment) = distance(s,t)
 
 function contains_projection(p::Point{2},t::Triangle{2})
   s = measure_sign(t)
-  s != 0 || throw(ErrorException("Triangle area is 0"))
+  s != 0 || return false #throw(ErrorException("Triangle area is 0"))
   for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
     n = normal(e) * s

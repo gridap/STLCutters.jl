@@ -53,6 +53,8 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
         v = get_vertex_id(bg_mesh,k,lv)
         if bgv_to_iob[v] == FACE_UNDEF
           bgv_to_iob[v] = get_vertex_in_out_boundary(cell_mesh,lv)
+        elseif get_vertex_in_out_boundary(cell_mesh,lv) == FACE_BOUNDARY
+          bgv_to_iob[v] = FACE_BOUNDARY
         end
       end
       
@@ -215,6 +217,8 @@ is_cell_cut(m::BulkMesh,cell::Integer) = m.background_cell_to_inoutcut[cell] == 
 
 num_cells(m::SubTriangulation) = length(m.cell_to_points)
 
+num_vertices(m::SubTriangulation) = length(m.point_to_coords)
+
 get_vertex_coordinates(m::SubTriangulation) = m.point_to_coords
 
 get_cell_to_vertices(m::SubTriangulation) = m.cell_to_points
@@ -338,7 +342,7 @@ end
 
 function get_vtk_cells(m::SubTriangulation{D,T},offset::Integer) where {D,T}
   d_to_vtk_tet_type_id = Dict(0=>1,1=>3,2=>5,3=>10)
-  points = zeros(Float32,D,num_cells(m))
+  points = zeros(Float64,D,num_vertices(m))
   for (i,p) in enumerate( get_vertex_coordinates(m) )
     for d in 1:D
       points[d,i] = p[d]
@@ -359,7 +363,7 @@ end
 function get_vtk_cells(m::CartesianMesh{D,T},cell_to_ioc::Vector) where {D,T}
   d_to_vtk_hex_type_id = Dict(0=>1,1=>3,2=>9,3=>12)
   vtk_hex_lvertices = [1,2,4,3,5,6,8,7]
-  points = zeros(Float32,D,num_vertices(m))
+  points = zeros(Float64,D,num_vertices(m))
   for i in 1:num_vertices(m)
     p = get_vertex_coordinates(m,i)
     for d in 1:D

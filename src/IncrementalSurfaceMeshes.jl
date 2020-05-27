@@ -204,6 +204,53 @@ function writevtk(sm::IncrementalSurfaceMesh{D,T},file_base_name) where {D,T}
   vtk_save(vtkfile)
 end
 
+## Helpers
+
+function restrict_surface_mesh(sm::SurfaceMesh,mesh::CartesianMesh,cell::Int)
+  D = num_dims(sm)
+  vm = VolumeMesh(mesh)
+  _sm, d_to_bg_df_to_face, face_to_sm_face = cut_surface_mesh(sm,mesh,vm)
+  sm_faces = [ Int[] for d in 0:D-1 ]
+  sm_vertices = sm_faces[0+1]
+  sm_facets = sm_faces[D]
+  d_to_sm_dface_to_vertices = [ Table{Int}() for d in 0:D-1 ]
+  vertices_cache = Int[]
+  for d in 0:D
+    bg_df_to_f = d_to_bg_df_to_face[d+1]
+    cell_to_dfaces = get_faces(vm,D,d)
+    for ldface in 1:length(cell_to_dfaces,cell)
+      dface = cell_to_dfaces[cell,ldface]
+      for i in 1:length(bg_df_to_f,dface)
+        sm_face = bg_df_to_f[dface,i]
+        sm_d = face_dimension(_sm,sm_face)
+        sm_dface = local_dface(_sm,sm_face,sm_d)
+        push!( sm_faces[sm_d+1], sm_dface )
+      end
+    end
+  end
+  sm_vertex_coordinates = zeros(eltype(get_vertex_coordinates(_sm)),length(sm_vertices))
+  for (i,v) in enumerate(sm_vertices)
+    sm_vertex_coordinates[i] = get_vertex_coordinates(_sm,v)
+  end
+  facet_normals = zeros(eltype(get_facet_normals(_sm)),length(sm_facets))
+  for (i,sm_facet) in enumerate(sm_facets)
+    facet_normals[i] = get_facet_normal(_sm,sm_facet)
+  end
+  for d in 0:D-1
+    dface_to_vertices = get_dface_to_vertices(_sm,d)
+    for sm_dface in sm_faces[d+1]
+      resize!(vertices_cache,length(dface_to_vertices,sm_dface))
+      for lv in 1:length(dface_to_vertices,sm_dface)
+        v = dface_to_vertices[sm_dface,lv]
+        @assert v ∈ sm_vertices
+        vertices_cache[lv] = findfirst( isequal(v), sm_vertices )
+      end
+      push!(d_to_sm_dface_to_vertices[d+1], vertices_cache )
+    end
+  end
+  SurfaceMesh(sm_vertex_coordinates,facet_normals,d_to_sm_dface_to_vertices)
+end
+
 ##
 
 function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh,vm::VolumeMesh) where {D,T}

@@ -88,8 +88,12 @@ end
 function read_vertices(filename::String)
   D = 2
   T = Float64
-  data = readdlm(filename,T,skipstart=1)
-  @assert size(data,2) == D "read_vertices() only supports 2D coordinates to define a polyline"
+  if endswith(filename,".csv") || endswith(filename,".CSV") 
+    data = readdlm(filename,',',T,skipstart=1)
+  else
+    data = readdlm(filename,T,skipstart=1)
+    @assert size(data,2) == D "read_vertices() only supports 2D coordinates to define a polyline"
+  end
   vertices = zeros(Point{D,T},size(data,1))
   for i in 1:size(data,1)
     vertices[i] = Point(data[i,1],data[i,2])
