@@ -122,8 +122,8 @@ function compute_in_out!(mesh::CellMesh,sm::SurfaceMesh)
                 queue[tail] = cell_around
               end
             else
-              @check  is_facet_boundary(mesh,facet) || 
-                ( get_cell_in_out(mesh,head_cell) == get_cell_in_out(mesh,cell_around) ) 
+            # @check  is_facet_boundary(mesh,facet) || 
+                ( get_cell_in_out(mesh,head_cell) == get_cell_in_out(mesh,cell_around) )
             end
           end
         end
@@ -319,10 +319,10 @@ function find_next_point(
         nface = df_to_nf[opposite_face,lnface]
         dist = distance(mesh,n,nface,sm,sm_face)
         if dist < min_distance
-          if D-sm_d-n > 0 || have_intersection(mesh,n,nface,sm,sm_face)
+        #  if D-sm_d-n > 0 || have_intersection(mesh,n,nface,sm,sm_face)
             min_distance = dist
             iface = nface
-          end
+         # end
         end
       end
       if iface != UNSET
@@ -1382,11 +1382,16 @@ function _find_surface_mesh_facet(mesh::CellMesh,cache::MeshCache,facet::Integer
       end
     end
   end
-  if count(!isequal(UNSET),intersection_cache) == 1
+  num_sm_facets = count(!isequal(UNSET),intersection_cache) 
+  if num_sm_facets == 1
     i = findfirst(!isequal(UNSET),intersection_cache)
-    return intersection_cache[i]
+    sm_facet = intersection_cache[i]
+  elseif num_sm_facets > 1
+    sm_facet = UNKNOWN
+  else
+    sm_facet = UNSET
   end
-  UNSET
+  sm_facet
 end
 
 function compute_facet_to_surface_mesh_facet!(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh)
@@ -1409,7 +1414,7 @@ function define_cells_touching_boundary!(mesh::CellMesh,cache::MeshCache,sm::Sur
     if isactive(mesh,D,cell)
       for lfacet in 1:length(c_to_f,cell)
         facet = c_to_f[cell,lfacet]
-        if f_to_smf[facet] != UNSET
+        if f_to_smf[facet] ∉ (UNSET,UNKNOWN)
           if _define_cell(mesh,cache,sm,cell,lfacet) == FACE_IN
             set_cell_as_interior!(mesh,cell)
           end
@@ -1422,7 +1427,7 @@ function define_cells_touching_boundary!(mesh::CellMesh,cache::MeshCache,sm::Sur
     if isactive(mesh,D,cell) && !is_cell_defined(mesh,cell)
       for lfacet in 1:length(c_to_f,cell)
         facet = c_to_f[cell,lfacet]
-        if f_to_smf[facet] != UNSET
+        if f_to_smf[facet] ∉ (UNSET,UNKNOWN)
           if _define_cell(mesh,cache,sm,cell,lfacet) == FACE_OUT
             set_cell_as_exterior!(mesh,cell)
           end
@@ -1446,6 +1451,10 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
   cell = get_cell_coordinates(mesh,icell)
   facet = get_facet_coordinates(mesh,ifacet)
 
+  if signed_measure(cell) < 0
+    return FACE_UNDEF
+  end
+
   facet_normal = normal(facet)
   facet_normal = facet_normal / norm(facet_normal)
 
@@ -1456,9 +1465,9 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
   orientation = ( facet_normal ⋅ sm_facet_normal ) * c_to_lf_to_o[icell,lfacet]
 
   # TODO: the orientation should be bounded by ±√D
-  if orientation > 0.5
+  if orientation > 0.6
     FACE_IN
-  elseif orientation < -0.5
+  elseif orientation < -0.6
     FACE_OUT
   else
     # @check false "orientation == 0, face not defined"
@@ -1534,8 +1543,8 @@ function fix_boundary_facets!(mesh::CellMesh)
       end
     end
   end
-  fix_overlapping!(mesh)
-  delete_bouble!(mesh)
+ # fix_overlapping!(mesh)
+ # delete_bouble!(mesh)
 end
 
 function fix_overlapping!(mesh::CellMesh)

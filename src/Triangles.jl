@@ -167,6 +167,7 @@ have_intersection_point(p::Point{2},t::Triangle{2}) = contains_projection(p,t)
 function contains_projection(p::Point{3},t::Triangle{3})
   n = normal(t)
   n = n / norm(n)
+  norm(n) ≈ 1 || return false
   for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
     v_e = e[2] - e[1]
@@ -256,8 +257,25 @@ function closest_point(t::Triangle,p::Point)
 end
 
 function closest_point(s::Segment{3},t::Triangle{3})
-  p = intersection(s,t)
-  projection(p,s)
+  if have_intersection(s,t)
+    p = intersection(s,t)
+    p = projection(p,s)
+  else
+    closest_edge = 0
+    min_dist = Inf
+    for i in 1:num_edges(t)
+      e = get_edge(t,i)
+      dist = distance(e,s)
+      if dist < min_dist
+        min_dist = dist
+        closest_edge = i
+      end
+    end
+    e = get_edge(t,closest_edge)
+    p = closest_point(e,s)
+    p = closest_point(s,p)
+  end
+  p
 end
 
 function closest_point(t::Triangle{3},s::Segment{3})

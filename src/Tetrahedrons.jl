@@ -37,12 +37,12 @@ function get_facet(t::Tetrahedron,i::Integer)
   Triangle( t.vertices[lpoints[1]],  t.vertices[lpoints[2]],  t.vertices[lpoints[3]] )
 end
 
-function volume(t::Tetrahedron{3})
+function volume(t::Tetrahedron{3}) #TODO: abs()
   factor = 1/6
   v1 = t.vertices[2] - t.vertices[1]
   v2 = t.vertices[3] - t.vertices[1]
   v3 = t.vertices[4] - t.vertices[1]
-  ( v1 × v2 ) ⋅ v3 * factor 
+  ( v1 × v2 ) ⋅ v3 * factor
 end
 
 measure(t::Tetrahedron) = volume(t)

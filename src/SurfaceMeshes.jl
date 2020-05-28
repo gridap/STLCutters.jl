@@ -298,8 +298,6 @@ function compute_nface_to_dfaces_dual(nface_to_dfaces::Table,n_dfaces::Integer)
 
 end
 
-const UNSET = 0
-
 function compute_nface_to_dfaces_primal(
   nface_to_vertices::Table,
   vertex_to_nfaces::Table,

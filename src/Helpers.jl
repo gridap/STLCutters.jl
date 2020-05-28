@@ -1,4 +1,8 @@
 
+const UNSET = 0
+
+const UNKNOWN = -1
+
 macro check(test)
   quote
     @boundscheck @assert $(esc(test)) $(string(test))
@@ -31,4 +35,3 @@ tfill(v,::Val{0}) = ()
 tfill(v,::Val{1}) = (v,)
 tfill(v,::Val{2}) = (v,v)
 tfill(v,::Val{3}) = (v,v,v)
-

@@ -172,7 +172,13 @@ function closest_point(s1::Segment{3},s2::Segment{3})
   s1_s2 = s1[2] - s1[1]
   s1_c = c2 - s1[1]
   α = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
-  s1[1] + α * s1_s2
+  if α ≤ 0
+    s1[1]
+  elseif α ≥ 1
+    s1[2]
+  else
+    s1[1] + α * s1_s2
+  end
 end
 
 function closest_point(s1::Segment{D},s2::Segment{D}) where D
@@ -180,7 +186,21 @@ function closest_point(s1::Segment{D},s2::Segment{D}) where D
 end
 
 function closest_point(s::Segment,p::Point)
-  projection(p,s)
+  if contains_projection(p,s)
+    p = projection(p,s)
+  end
+  if !contains_projection(p,s)
+    min_dist = Inf
+    closest_vertex = 0
+    for (i,v) in enumerate(get_vertices(s))
+      dist = distance(v,p)
+      if dist < min_dist
+        closest_vertex = i
+      end
+    end
+    p = get_vertices(s)[closest_vertex]
+  end
+  p
 end
 
 function closest_point(s1::Segment{2},s2::Segment{2})

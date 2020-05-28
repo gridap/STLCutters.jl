@@ -80,7 +80,8 @@ function BulkMesh(bg_mesh::M,sm::SurfaceMesh{D,T}) where {D,T,M}
           push!(c_to_io, FACE_OUT )
         else
           cell_coordinates = get_cell_coordinates(cell_mesh,cell)
-          throw(ErrorException("Undefined subcell with volume = $(measure(cell_coordinates))"))
+          push!(c_to_io, FACE_OUT )
+          #throw(ErrorException("Undefined subcell with volume = $(measure(cell_coordinates))"))
         end
       end
     end

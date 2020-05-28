@@ -121,7 +121,7 @@ s2 = Segment(p3,p4)
 
 @test closest_point(s1,s2) == intersection(s1,s2)
 @test closest_point(p,s1) == p
-@test closest_point(s1,p) == projection(p,s1)
+@test closest_point(s1,p) == s1[2]
 @test have_intersection(s1,s2)
 
 end # module
