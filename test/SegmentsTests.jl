@@ -1,10 +1,21 @@
 module SegmentsTests
 
 using Test
+using LinearAlgebra
 using STLCutters
 
 using STLCutters: signed_measure
 using STLCutters: relative_orientation
+
+p1 = Point(1,1)
+p2 = Point(2,3)
+
+s = Segment(p1,p2)
+v = p2-p1
+n = normal(s)
+
+@test norm(n) ≈ 1
+@test n⋅v ≈ 0
 
 p1 = Point(1,1,1)
 p2 = Point(2,2,2)
@@ -24,7 +35,6 @@ c = center(s)
 @test get_data(c) == (1.5,1.5,1.5)
 
 @test distance(p1,s) == 0
-
 
 p = Point(0,0,0)
 @test distance(s,p) == distance(s,p)

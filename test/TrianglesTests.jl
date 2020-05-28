@@ -1,8 +1,23 @@
 module TrianglesTests
 
 using Test
+using LinearAlgebra
 using STLCutters
 using STLCutters: num_dims, get_edge, get_vertices, relative_orientation
+
+
+p1 = Point(0,0,0)
+p2 = Point(3,0,0)
+p3 = Point(0,4,5)
+
+t = Triangle(p1,p2,p3)
+n = normal(t)
+v1 = p3-p1
+v2 = p2-p1
+
+@test norm(n) ≈ 1
+@test v1⋅n ≈ 0
+@test v2⋅n ≈ 0
 
 p1 = Point(0,0,0)
 p2 = Point(1,0,0)

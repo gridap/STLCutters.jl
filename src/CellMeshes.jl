@@ -815,7 +815,6 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
   offset = num_faces(m) - num_facets(m) - num_cells(m)
   for i in 1:num_facets(m)
     normal = facet_normal(m,i)
-    normal = normal / norm(normal)
     for d in 1:D
       normals[d,i+offset] = normal[d]
     end
@@ -1456,7 +1455,6 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
   end
 
   facet_normal = normal(facet)
-  facet_normal = facet_normal / norm(facet_normal)
 
   sm_facet_normal = get_facet_normal(sm,f_to_smf[ifacet])
 

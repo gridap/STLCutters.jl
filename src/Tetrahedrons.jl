@@ -71,7 +71,11 @@ function normal(t::Tetrahedron{4})
   v1 = t.vertices[2] - t.vertices[1]
   v2 = t.vertices[3] - t.vertices[1]
   v3 = t.vertices[4] - t.vertices[1]
-  orthogonal(v1,v2,v3)
+  v1 = v1 / norm(v1)
+  v2 = v2 / norm(v2)
+  v3 = v3 / norm(v3)
+  n = orthogonal(v1,v2,v3)
+  n / norm(n)
 end
 
 function have_intersection(p::Point{3},t::Tetrahedron{3})
@@ -79,7 +83,6 @@ function have_intersection(p::Point{3},t::Tetrahedron{3})
     facet = get_facet(t,i)
     n = normal(facet)
     c = center(facet)
-    n = n / norm(n)
     c_p = p - c
     if c_p ⋅ n < 0
       return false

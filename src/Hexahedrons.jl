@@ -51,7 +51,6 @@ function have_intersection(p::Point{3},h::Hexahedron{3})
     facet = get_facet(h,i)
     n = normal(facet)
     c = center(facet)
-    n = n / norm(n)
     c_p = p - c
     if c_p ⋅ n < 0
       return false

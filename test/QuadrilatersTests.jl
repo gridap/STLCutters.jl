@@ -1,7 +1,25 @@
 module QuadrilaterTests
 
-using STLCutters
 using Test
+using LinearAlgebra
+using STLCutters
+
+p1 = Point(0,0,0)
+p2 = Point(3,0,0)
+p3 = Point(0,4,0)
+p4 = Point(3,4,0)
+
+q = Quadrilater(p1,p2,p3,p4)
+n = normal(q)
+v1 = p4-p1
+v2 = p3-p1
+v3 = p2-p1
+
+@test norm(n) ≈ 1
+@test v1⋅n ≈ 0
+@test v2⋅n ≈ 0
+@test v3⋅n ≈ 0
+
 
 b = BoundingBox( Point(0,0), Point(1,1) )
 q1 = Quadrilater( b )

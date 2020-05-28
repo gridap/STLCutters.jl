@@ -127,7 +127,6 @@ function have_intersection(t::Triangle{3},bb::BoundingBox{3})
   end
   t_pos = _fix_triangle(bb,t)
   n = abs(normal(t_pos))
-  n = n / norm(n)
   p0 = center(t_pos)
   main_d = max_dimension( n .* ( bb.pmax - bb.pmin ) )
   main_length = bb.pmax[main_d] - bb.pmin[main_d]

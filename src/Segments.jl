@@ -108,7 +108,8 @@ end
 
 function normal(s::Segment{2}) 
   v = s[2] - s[1]
-  VectorValue( -v[2], v[1])
+  n = VectorValue( -v[2], v[1])
+  n / norm(n)
 end
 
 function normal(s::Segment{D}) where D
@@ -117,13 +118,11 @@ end
 
 function have_intersection_point(s1::Segment{2},s2::Segment{2})
   n1 = normal(s1)
-  n1 = n1 / norm(n1)
   c1 = center(s1)
   if sign( ( s2[1] - c1 ) ⋅ n1 ) == sign( ( s2[2] - c1 ) ⋅ n1 )
     return false
   end
   n2 = normal(s2)
-  n2 = n2 / norm(n2)
   c2 = center(s2)
   if sign( ( s1[1] - c2 ) ⋅ n2 ) == sign( ( s1[2] - c2 ) ⋅ n2 )
     return false
@@ -141,7 +140,6 @@ function intersection(s1::Segment{2},s2::Segment{2})
   @check have_intersection_point(s1,s2) "The provided segments have no intersection"
   v1 = s1[2] - s1[1]
   n2 = normal(s2)
-  n2 = n2 / norm(n2)
   c2 = center(s2)
   α = abs( ( ( c2 - s1[1] ) ⋅ n2 ) / ( v1 ⋅ n2 ) )
   s1[1] + α * v1

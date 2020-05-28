@@ -1,6 +1,7 @@
 module TetrahedronsTest
 
 using Test
+using LinearAlgebra
 using STLCutters
 using STLCutters: relative_orientation
 
@@ -51,5 +52,21 @@ t4 = Point(0,0,1,0)
 tet = Tetrahedron(t1,t2,t3,t4)
 
 @test measure(tet) == 1/6
+
+t1 = Point(0,0,0,0)
+t2 = Point(2,0,0,0)
+t3 = Point(1,4,0,0)
+t4 = Point(0,0,5,6)
+tet = Tetrahedron(t1,t2,t3,t4)
+
+n = normal(tet)
+v1 = t2-t1
+v2 = t3-t1
+v3 = t4-t1
+
+@test norm(n) ≈ 1
+@test abs(v1⋅n) < 1e-14  
+@test abs(v2⋅n) < 1e-14 
+@test abs(v3⋅n) < 1e-14 
 
 end # module

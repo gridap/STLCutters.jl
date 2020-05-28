@@ -45,7 +45,10 @@ end
 function normal(t::Triangle{3})
   v1 = t.vertices[2] - t.vertices[1]
   v2 = t.vertices[3] - t.vertices[1]
-  v1 × v2
+  v1 = v1 / norm(v1)
+  v2 = v2 / norm(v2)
+  n = v1 × v2
+  n / norm(n)
 end
 
 function center(t::Triangle)
@@ -86,7 +89,6 @@ end
 function distance_to_plane(p::Point{3},t::Triangle{3})
   o = center(t)
   n = normal(t)
-  n = n / norm(n)
   o_p = p - o
   p_projection = o_p ⋅ n
   abs( p_projection )
@@ -105,7 +107,6 @@ function distance(p::Point{3},t::Triangle{3})
   else
     o = center(t)
     n = normal(t)
-    n = n / norm(n)
     o_p = p - o
     p_projection = o_p ⋅ n
     d = abs( p_projection )
@@ -151,7 +152,6 @@ function contains_projection(p::Point{2},t::Triangle{2})
   for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
     n = normal(e) * s
-    n = n / norm(n)
     c = center(e)
     if ( p - c ) ⋅ n < 0
       return false
@@ -166,7 +166,6 @@ have_intersection_point(p::Point{2},t::Triangle{2}) = contains_projection(p,t)
 
 function contains_projection(p::Point{3},t::Triangle{3})
   n = normal(t)
-  n = n / norm(n)
   norm(n) ≈ 1 || return false
   for i ∈ 1:num_edges(t)
     e = get_edge(t,i)
@@ -201,7 +200,6 @@ have_intersection_point(t::Triangle,p::Point) = have_intersection_point(p,t)
 
 function have_intersection_point(s::Segment{3},t::Triangle{3})
   n = normal(t)
-  n = n / norm(n)
   c = center(t)
   s1_s2 = s[2] - s[1]
   s1_c = c - s[1]
@@ -231,7 +229,6 @@ end
 function intersection(s::Segment{3},t::Triangle{3})
   @check have_intersection_point(s,t)
   n = normal(t)
-  n = n / norm(n)
   c = center(t)
   s1_s2 = s[2] - s[1]
   s1_c = c - s[1]
@@ -243,7 +240,6 @@ function projection(p::Point{3},t::Triangle{3})
   @check contains_projection(p,t)
   c = center(t)
   n = normal(t)
-  n = n / norm(n)
   p + ( ( c - p ) ⋅ n ) * n
 end
 
