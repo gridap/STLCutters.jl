@@ -6,7 +6,7 @@ using STLCutters: BulkMesh
 using STLCutters: surface
 using STLCutters: interior_volume
 using STLCutters: exterior_volume
-using STLCutters: move!
+using STLCutters: move
 
 geometries = [ "cube", "Bunny-LowPoly", "wine_glass" ]
 tols = [ 1e-6, 1e-9, 1e-12 ]
@@ -32,17 +32,21 @@ for I in M
   println("Computing `$geometry.stl` with `tolerance = $tol` and `mesh = ($n×$n×$n)` :") 
     
   stl = STL(joinpath(@__DIR__,"data/$geometry.stl"))
-  sm = SurfaceMesh(stl)
+  sm_0 = SurfaceMesh(stl)
   box = 1.2*BoundingBox(stl)
   mesh = CartesianMesh(box,n)
   
   STLCutters.tolerance(::CellMesh) = tol
+  STLCutters.tolerance(::STLCutters.IncrementalSurfaceMesh) = tol*10
+
   offset = tol*one(VectorValue{3,Float64})
 
   for d in 1:10
 
     println("  Displacement $d:" )
     
+    sm = move(sm_0,(d-1)*offset)
+
     bulk = BulkMesh(mesh,sm)
 
     i_vol = interior_volume(bulk)
@@ -67,7 +71,6 @@ for I in M
       printstyled("  ε_Γ    = $ε_Γ", bold=true,color=:red); println();
     end
 
-    sm = move!(sm,offset)
   end
 end
  

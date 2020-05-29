@@ -111,7 +111,7 @@ function relative_orientation(tri::Triangle{3},tet::Tetrahedron{3})
   max_distance = 0.0
   _v = get_vertices(tet)[1]
   for v in get_vertices(tet)
-    dist = distance(v,tri)
+    dist = distance_to_plane(v,tri)
     if dist ≥ max_distance
       max_distance = dist
       _v = v

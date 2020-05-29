@@ -265,6 +265,11 @@ function move!(s::SurfaceMesh,offsets::VectorValue)
   s
 end
 
+function move(s::SurfaceMesh,offsets::VectorValue)
+  _s = deepcopy(s)
+  move!(_s,offsets)
+end
+
 function compute_nface_to_dfaces_dual(nface_to_dfaces::Table,n_dfaces::Integer)
 
   ptrs = zeros(Int32,n_dfaces+1)

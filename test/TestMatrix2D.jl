@@ -6,7 +6,7 @@ using STLCutters: BulkMesh
 using STLCutters: surface
 using STLCutters: interior_volume
 using STLCutters: exterior_volume
-using STLCutters: move!
+using STLCutters: move
 
 function star(;center=Point(0,0),r_in=0.5,r_out=1.0,n=5)
   points = zeros(Point{2,Float64},n*2)
@@ -68,7 +68,7 @@ max_tol = 1e-5
 
 
 M = CartesianIndices( (length(stls), length(tols), length(size_factors) ) ) 
-#M = CartesianIndices( (1:3, 1:3, 2:2) ) 
+M = CartesianIndices( (4:4, 1:3, 3:3) ) 
 
 for I in M
   stl = stls[ I[1] ]
@@ -83,17 +83,20 @@ for I in M
   geometry_name = geo_names[ I[1] ]
   println("Computing `$geometry_name` with `tolerance = $tol` and `mesh = ($n×$n)` :") 
     
-  sm = SurfaceMesh(stl)
+  sm_0 = SurfaceMesh(stl)
   box = 1.2*BoundingBox(stl)
   mesh = CartesianMesh(box,n)
   
   STLCutters.tolerance(::CellMesh) = tol
+  STLCutters.tolerance(::STLCutters.IncrementalSurfaceMesh) = tol*10
   offset = tol*one(VectorValue{2,Float64})
 
   for d in 1:5
 
     println("  Displacement $d:" )
     
+    sm = move(sm_0,(d-1)*offset)
+
     bulk = BulkMesh(mesh,sm)
 
     i_vol = interior_volume(bulk)
@@ -103,9 +106,9 @@ for I in M
     b_surf = surface(bulk,1)
     s_surf = surface(sm)
 
-    ε_Ω_in = i_vol - ref_volume
-    ε_Ω = i_vol + e_vol - b_vol
-    ε_Γ = b_surf - s_surf
+    ε_Ω_in = (i_vol - ref_volume) / ref_volume
+    ε_Ω = ( i_vol + e_vol - b_vol ) / b_vol
+    ε_Γ = ( b_surf - s_surf ) / s_surf
 
     println("    Interior Volume  error = $ε_Ω_in ")
     println("    Domain Volume    error = $ε_Ω")
@@ -118,7 +121,6 @@ for I in M
       printstyled("  ε_Γ    = $ε_Γ", bold=true,color=:red); println();
     end
 
-    sm = move!(sm,offset)
   end
 end
  

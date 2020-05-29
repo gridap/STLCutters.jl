@@ -186,6 +186,20 @@ end
 
 closest_point(q::Quadrilater{2},p::Point{2}) = projection(p,q)
 
+function relative_orientation(s::Segment{2},q::Quadrilater{2})
+  max_distance = 0.0
+  _v = get_vertices(q)[1]
+  for v in get_vertices(q)
+    dist = distance_to_line(v,s)
+    if dist ≥ max_distance
+      max_distance = dist
+      _v = v
+    end
+  end
+  t = Triangle(s,_v)
+  - measure_sign(t)
+end
+
 function BoundingBox(q::Quadrilater{D,T}) where {D,T}
   BoundingBox{D,T}(min.(get_vertices(q)...),max.(get_vertices(q)...))
 end

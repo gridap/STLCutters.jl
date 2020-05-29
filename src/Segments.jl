@@ -23,6 +23,15 @@ function center(s::Segment)
   average( get_vertices(s) )
 end
 
+function distance_to_line(p::Point{2},s::Segment{2})
+  o = center(s)
+  n = normal(s)
+  o_p = p - o
+  p_projection = o_p ⋅ n
+  abs( p_projection )
+
+end
+
 function distance(p::Point{D},s::Segment{D}) where D
   s1_s2 = s[2] - s[1]
   l = norm(s1_s2)

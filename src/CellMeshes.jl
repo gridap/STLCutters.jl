@@ -122,7 +122,7 @@ function compute_in_out!(mesh::CellMesh,sm::SurfaceMesh)
                 queue[tail] = cell_around
               end
             else
-            # @check  is_facet_boundary(mesh,facet) || 
+             @check  is_facet_boundary(mesh,facet) || 
                 ( get_cell_in_out(mesh,head_cell) == get_cell_in_out(mesh,cell_around) )
             end
           end
@@ -1454,11 +1454,15 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
     return FACE_UNDEF
   end
 
+  if measure(facet) < tolerance(mesh) #TODO Scale by cell size
+    return FACE_UNDEF
+  end
+
   facet_normal = normal(facet)
 
   sm_facet_normal = get_facet_normal(sm,f_to_smf[ifacet])
 
-#  @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
+ # @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
 
   orientation = ( facet_normal ⋅ sm_facet_normal ) * c_to_lf_to_o[icell,lfacet]
 

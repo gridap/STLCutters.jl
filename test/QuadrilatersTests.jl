@@ -4,6 +4,8 @@ using Test
 using LinearAlgebra
 using STLCutters
 
+using STLCutters: relative_orientation
+
 p1 = Point(0,0,0)
 p2 = Point(3,0,0)
 p3 = Point(0,4,0)
@@ -58,5 +60,9 @@ q = Quadrilater( Point(0,0,0), Point(1,0,0), Point(0,1,0), Point(1,1,0) )
 p = Point(1.5,0.5,0.5)
 @test !contains_projection(p,q) 
 @test distance(p,q) ≈ 1/√2 
+
+s = Segment( Point(0,0), Point(0,1) )
+q = Quadrilater( Point(0,0), Point(1,0), Point(0,1), Point(1,1) )
+@test relative_orientation(s,q) == 1
 
 end # module

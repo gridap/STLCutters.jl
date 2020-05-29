@@ -112,7 +112,9 @@ end
 
 ## Geometric queries
 
-tolerance(::IncrementalSurfaceMesh) = tolerance(CellMesh)
+tolerance(::T) where T<:IncrementalSurfaceMesh = tolerance(T)
+
+tolerance(::Type{<:IncrementalSurfaceMesh}) = 10*tolerance(CellMesh)
 
 @generated function distance(
   m::VolumeMesh{D},d::Integer,dface::Integer,
@@ -271,6 +273,7 @@ function cut_surface_mesh(sm::SurfaceMesh{D,T},m::CartesianMesh,vm::VolumeMesh) 
     point = get_vertex_coordinates(sm,vertex)
     bg_d, bg_face = find_closest_background_face( vm, point, sm_face_to_bg_cells, vertex, tolerance(ism) )
     point = closest_point( vm,bg_d,bg_face, sm,0,vertex )
+    get_vertex_coordinates(sm)[vertex] = point
     add_vertex!(ism,bg_d,bg_face,sm,0,vertex,point)
   end
 
@@ -347,7 +350,7 @@ function find_closest_background_face(
   tol::Float64)
 
   D = num_dims(bg_mesh)
-  min_dist = tol
+  min_dist = tol*D
   closest_cell = UNSET
   for i in 1:length(sm_face_to_bg_cells,vertex)
     cell = sm_face_to_bg_cells[vertex,i]
@@ -359,7 +362,7 @@ function find_closest_background_face(
     end
   end
   closest_cell != UNSET || return (UNSET,UNSET)
-  min_dist = tol
+  min_dist = tol*D
   closest_face = UNSET
   for d in 0:D
     c_to_df = get_faces(bg_mesh,D,d)
@@ -607,8 +610,24 @@ function _find_next_intersection(
   end
 
   if closest_bg_face != UNSET
-    point = closest_point(m,_d,closest_bg_face,sm,sm_d,sm_dface)
-    return _d, closest_bg_face, point
+    min_distance = tolerance(ism)
+    closest_face = UNSET
+
+    for d in 0:_d
+      face_to_dfaces = get_faces(m,_d,d)
+      for ldface in 1:length(face_to_dfaces,closest_bg_face)
+        dface = face_to_dfaces[closest_bg_face,ldface]
+        dist = distance(m,d,dface,sm,sm_d,sm_dface)
+        if dist < min_distance
+          min_distance = dist
+          closest_face = dface
+        end
+      end
+      if closest_face != UNSET
+        point = closest_point(m,d,closest_face,sm,sm_d,sm_dface)
+        return d, closest_face, point
+      end
+    end
   end
 
   return UNSET,UNSET, zero( eltype(get_vertex_coordinates(m)) )
