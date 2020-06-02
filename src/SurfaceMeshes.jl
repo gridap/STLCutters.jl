@@ -568,6 +568,25 @@ end
   Meta.parse(str)
 end
 
+@generated function distance(sm::SurfaceMesh{D},d::Int,i::Int,p::Point{D}) where D
+  body = ""
+  for d in 0:D-1
+    body *= "if d == $d \n"
+    body *= "  f$d = get_face_coordinates(sm,Val{$d}(),i) \n"
+    body *= "  distance(p,f$d) \n"
+    body *= "else"
+  end
+  error = "  throw(ArgumentError(\"\$d-face does not exist\"))\n"
+  str = body * '\n' * error * "end"
+  Meta.parse(str)
+end
+
+function distance(sm::SurfaceMesh,gid::Integer,p::Point)
+  d = face_dimension(sm,gid)
+  lid = local_dface(sm,gid,d)
+  distance(sm,d,lid,p)
+end
+
 function is_nface_in_dface(sm::SurfaceMesh,n::Integer,nface::Integer,d::Integer,dface::Integer)
   @check n ≤ d
 

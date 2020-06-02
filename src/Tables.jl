@@ -59,12 +59,14 @@ Base.eltype(::Table{T}) where T = T
 
 @inline function Base.getindex(a::Table,i::Integer,j::Integer)
   @check isactive(a,i)
+  @boundscheck 0 < j ≤ length(a,i) || throw(BoundsError(a,(i,j)))
   p = a.ptrs[i]-1
   a.data[p+j]
 end
 
 @inline function Base.setindex!(a::Table,v,i::Integer,j::Integer)
   @check isactive(a,i)
+  @boundscheck 0 < j ≤ length(a,i) || throw(BoundsError(a,(i,j)))
   p = a.ptrs[i]-1
   a.data[p+j] = v
 end

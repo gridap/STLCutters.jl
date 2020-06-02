@@ -32,6 +32,8 @@ function distance_to_line(p::Point{2},s::Segment{2})
 
 end
 
+distance_to_plane(p::Point{2},s::Segment{2}) = distance_to_line(p,s)
+
 function distance(p::Point{D},s::Segment{D}) where D
   s1_s2 = s[2] - s[1]
   l = norm(s1_s2)
@@ -97,21 +99,19 @@ function distance(s1::Segment{3},s2::Segment{3})
   c1 = center(s1)
   s1_s2 = s2[2] - s2[1]
   s1_c = c1 - s2[1]
-  α = ( n1 ⋅ s1_c ) / ( n1 ⋅ s1_s2 )
-  if α < 0 || α > 1
-    return min( distance(s2[1],s1), distance(s2[2],s1) )
-  end
+  α1 = ( n1 ⋅ s1_c ) / ( n1 ⋅ s1_s2 )
 
   n2 = n × v2
   n2 = n2 / norm(n2)
   c2 = center(s2)
   s1_s2 = s1[2] - s1[1]
   s1_c = c2 - s1[1]
-  α = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
-  if α < 0 || α > 1
-    return min( distance(s1[1],s2), distance(s1[2],s2) )
-  end
+  α2 = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
 
+  if α1 < 0 || α2 < 0 || α1 > 1 || α2 > 1
+    return min( distance(s1[1],s2), distance(s1[2],s2), distance(s2[1],s1), distance(s2[2],s1) )
+  end
+  
   abs( ( c2 - c1 ) ⋅ n )
 end
 
@@ -170,22 +170,51 @@ function closest_point(s1::Segment{3},s2::Segment{3})
   v2 = s2[2] - s2[1]
   v1 = v1 / norm(v1)
   v2 = v2 / norm(v2)
-
   n = v1 × v2
   n = n / norm(n)
+
+  n1 = n × v1
+  n1 = n1 / norm(n1)
+  c1 = center(s1)
+  s1_s2 = s2[2] - s2[1]
+  s1_c = c1 - s2[1]
+  α1 = ( n1 ⋅ s1_c ) / ( n1 ⋅ s1_s2 )
+
   n2 = n × v2
   n2 = n2 / norm(n2)
   c2 = center(s2)
   s1_s2 = s1[2] - s1[1]
   s1_c = c2 - s1[1]
-  α = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
-  if α ≤ 0
-    s1[1]
-  elseif α ≥ 1
-    s1[2]
-  else
-    s1[1] + α * s1_s2
+  α2 = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
+
+  if α1 ≤ 0 || α2 ≤ 0 || α1 ≥ 1 || α2 ≥ 1
+    min_dist = Inf
+    dist = distance(s1[1],s2)
+    if dist < min_dist
+      min_dist = dist
+      p = s1[1]
+    end
+    dist = distance(s1[2],s2)
+    if dist < min_dist
+      min_dist = dist
+      p = s1[2]
+    end
+    dist = distance(s2[1],s1) 
+    if dist < min_dist
+      min_dist = dist
+      p = s2[1]
+    end
+    dist = distance(s2[2],s1)
+    if dist < min_dist
+      min_dist = dist
+      p = s2[2]
+    end
+
+    return closest_point(s1,p)
   end
+
+  s1[1] + α2 * s1_s2
+
 end
 
 function closest_point(s1::Segment{D},s2::Segment{D}) where D

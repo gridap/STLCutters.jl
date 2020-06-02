@@ -122,7 +122,7 @@ function compute_in_out!(mesh::CellMesh,sm::SurfaceMesh)
                 queue[tail] = cell_around
               end
             else
-             @check  is_facet_boundary(mesh,facet) || 
+            @check  is_facet_boundary(mesh,facet) || 
                 ( get_cell_in_out(mesh,head_cell) == get_cell_in_out(mesh,cell_around) )
             end
           end
@@ -175,6 +175,7 @@ function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer,d::Integ
     point = get_vertex_coordinates(sm,sm_face)
     _d, iface = find_closest_face(mesh,point,d,ldface)
     point = closest_point(mesh,_d,iface,sm,sm_face)
+    @check distance(sm,sm_face,point) < tolerance(mesh)
     vertex = add_vertex!(mesh,_d,iface,point,sm_face)
     v = get_vertex_coordinates(sm)
     v[sm_face] = point
@@ -327,6 +328,7 @@ function find_next_point(
       end
       if iface != UNSET
         point = closest_point(mesh,n,iface,sm,sm_face)
+        @check distance(sm,sm_face,point) < tolerance(mesh)
         return (n,iface,point)
       end
     end
@@ -1454,6 +1456,18 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
     return FACE_UNDEF
   end
 
+  is_flat = true
+  sm_facet = get_facet_coordinates(sm,f_to_smf[ifacet])
+  for v in get_vertices(cell)
+    if distance_to_plane(v,sm_facet) > D*tolerance(mesh)
+      is_flat = false
+      break
+    end
+  end
+  if is_flat
+    return FACE_UNDEF
+  end
+
   if measure(facet) < tolerance(mesh) #TODO Scale by cell size
     return FACE_UNDEF
   end
@@ -1462,7 +1476,7 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
 
   sm_facet_normal = get_facet_normal(sm,f_to_smf[ifacet])
 
- # @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
+  @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
 
   orientation = ( facet_normal ⋅ sm_facet_normal ) * c_to_lf_to_o[icell,lfacet]
 
