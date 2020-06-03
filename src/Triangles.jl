@@ -86,6 +86,19 @@ function measure_sign(t::Triangle{D}) where D
   throw(ArgumentError("measure_sign(::Triangle{$D}) not defined, only in 2D"))
 end
 
+function min_height(t::Triangle)
+  factor = 2
+  max_surf = 0.0
+  for i in 1:num_edges(t)
+    e = get_edge(t,i)
+    surf = measure(e)
+    if surf > max_surf
+      max_surf = surf
+    end
+  end
+  abs(measure(t))/max_surf*factor
+end
+
 function distance_to_plane(p::Point{3},t::Triangle{3})
   o = center(t)
   n = normal(t)
@@ -249,7 +262,22 @@ function projection(p::Point{2},t::Triangle{2})
 end
 
 function closest_point(t::Triangle,p::Point)
-  projection(p,t)
+  if contains_projection(p,t)
+    projection(p,t)
+  else
+    min_dist = Inf
+    closest_edge = 0
+    for i in 1:num_edges(t)
+      e = get_edge(t,i)
+      dist = distance(e,p)
+      if dist < min_dist
+        min_dist = dist
+        closest_edge = i
+      end
+    end
+    e = get_edge(t,closest_edge)
+    closest_point(e,p)
+  end
 end
 
 function closest_point(s::Segment{3},t::Triangle{3})
@@ -275,8 +303,36 @@ function closest_point(s::Segment{3},t::Triangle{3})
 end
 
 function closest_point(t::Triangle{3},s::Segment{3})
-  p = intersection(s,t)
-  projection(p,t)
+  if have_intersection(t,s)
+    p = intersection(s,t)
+    closest_point(t,p)
+  else    
+    min_dist = Inf
+    closest_vertex = 0
+    closest_edge = 0
+    for i in 1:num_vertices(s)
+      dist = distance(t,s[i])
+      if dist < min_dist
+        min_dist = dist
+        closest_vertex = i
+      end
+    end
+    p = closest_point(t,s[closest_vertex])
+
+    for i in 1:num_edges(t)
+      e = get_edge(t,i)
+      dist = distance(e,s)
+      if dist < min_dist
+        min_dist = dist
+        closest_edge = i
+      end
+    end
+    if closest_edge != 0
+      e = get_edge(t,closest_edge)
+      p = closest_point(e,s)
+    end
+    p
+  end
 end
 
 function relative_orientation(s::Segment{2},t::Triangle{2})

@@ -177,8 +177,7 @@ function cut_cell_mesh!(mesh::CellMesh,sm::SurfaceMesh,sm_face::Integer,d::Integ
     point = closest_point(mesh,_d,iface,sm,sm_face)
     @check distance(sm,sm_face,point) < tolerance(mesh)
     vertex = add_vertex!(mesh,_d,iface,point,sm_face)
-    v = get_vertex_coordinates(sm)
-    v[sm_face] = point
+    get_vertex_coordinates(sm)[sm_face] = point
   else
     n = sm_d-1
     df_to_nf = get_faces(mesh,sm_d,sm_d-1)
@@ -323,12 +322,13 @@ function find_next_point(
         #  if D-sm_d-n > 0 || have_intersection(mesh,n,nface,sm,sm_face)
             min_distance = dist
             iface = nface
-         # end
+        #  end
         end
       end
       if iface != UNSET
-        point = closest_point(mesh,n,iface,sm,sm_face)
+        point = closest_point(sm,sm_face,mesh,n,iface)
         @check distance(sm,sm_face,point) < tolerance(mesh)
+        @check distance(mesh,n,iface,point) < tolerance(mesh)
         return (n,iface,point)
       end
     end
@@ -776,6 +776,46 @@ end
       sm_body *= "if n == $n \n"
       sm_body *= "    sm_f$n = get_face_coordinates(sm,Val{$n}(),sm_nface) \n"
       sm_body *= "    closest_point(f$d,sm_f$n)\n  "
+      sm_body *= "else"
+    end
+    error = "if n > $(D-1) \n"
+    error *= "    throw(ArgumentError(\"$msg2\"))\n  "
+    error *= "else \n"
+    error *= "    throw(ArgumentError(\"$msg3\")) \n  "
+    error *= "end"
+    condition = sm_body * error
+    body *= "  $condition \n"
+    body *= "else"
+  end
+  error = "  throw(ArgumentError(\"$msg1\"))\n"
+  str = body * '\n' * error * "end"
+
+  Meta.parse(str)
+end
+
+function closest_point(sm::SurfaceMesh,sm_face::Integer,m::CellMesh,d::Integer,face::Integer)
+  sm_d = face_dimension(sm,sm_face)
+  sm_dface = local_dface(sm,sm_face,sm_d)
+  closest_point(sm,sm_d,sm_dface,m,d,face)
+end
+
+@generated function closest_point(
+  sm::SurfaceMesh{D},n::Integer,sm_nface::Integer,
+  m::CellMesh{D},d::Integer,dface::Integer) where D
+
+  msg1 = "\$d-face does not exist at \$(typeof(m))"
+  msg2 = "\$n-face does not exist at \$(typeof(sm))"
+  msg3 = "closest_point() from \$d-face in \$(typeof(m)) against \$n-face in \$(typeof(sm)) not implemented"
+  
+  body = ""
+  for d in 0:D
+    sm_body = ""
+    body *= "if d == $d \n"
+    body *= "  f$d = get_face_coordinates(m,Val{$d}(),dface) \n"
+    for n in 0:min(D-d,D-1)
+      sm_body *= "if n == $n \n"
+      sm_body *= "    sm_f$n = get_face_coordinates(sm,Val{$n}(),sm_nface) \n"
+      sm_body *= "    closest_point(sm_f$n,f$d)\n  "
       sm_body *= "else"
     end
     error = "if n > $(D-1) \n"
@@ -1456,27 +1496,20 @@ function _define_cell(mesh::CellMesh,cache::MeshCache,sm::SurfaceMesh,cell::Inte
     return FACE_UNDEF
   end
 
-  is_flat = true
-  sm_facet = get_facet_coordinates(sm,f_to_smf[ifacet])
-  for v in get_vertices(cell)
-    if distance_to_plane(v,sm_facet) > D*tolerance(mesh)
-      is_flat = false
-      break
-    end
-  end
-  if is_flat
+  if min_height(cell) < tolerance(mesh)
     return FACE_UNDEF
   end
 
-  if measure(facet) < tolerance(mesh) #TODO Scale by cell size
+  if min_height(facet) < tolerance(mesh) 
     return FACE_UNDEF
   end
 
   facet_normal = normal(facet)
 
+
   sm_facet_normal = get_facet_normal(sm,f_to_smf[ifacet])
 
-  @check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
+  #@check relative_orientation(facet,cell) == c_to_lf_to_o[icell,lfacet] 
 
   orientation = ( facet_normal ⋅ sm_facet_normal ) * c_to_lf_to_o[icell,lfacet]
 

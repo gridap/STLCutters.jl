@@ -68,7 +68,7 @@ max_tol = 1e-5
 
 
 M = CartesianIndices( (length(stls), length(tols), length(size_factors) ) ) 
-M = CartesianIndices( (4:4, 1:3, 3:3) ) 
+#M = CartesianIndices( (4:4, 1:3, 3:3) ) 
 
 for I in M
   stl = stls[ I[1] ]

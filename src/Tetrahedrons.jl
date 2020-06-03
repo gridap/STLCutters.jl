@@ -67,6 +67,19 @@ function measure_sign(t::Tetrahedron{3})
   sign(signed_measure(t))
 end
 
+function min_height(t::Tetrahedron)
+  factor = 3
+  max_surf = 0.0
+  for i in 1:num_facets(t)
+    f = get_facet(t,i)
+    surf = measure(f)
+    if surf > max_surf
+      max_surf = surf
+    end
+  end
+  abs(measure(t))/max_surf*factor
+end
+
 function normal(t::Tetrahedron{4})
   v1 = t.vertices[2] - t.vertices[1]
   v2 = t.vertices[3] - t.vertices[1]

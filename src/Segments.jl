@@ -231,6 +231,7 @@ function closest_point(s::Segment,p::Point)
     for (i,v) in enumerate(get_vertices(s))
       dist = distance(v,p)
       if dist < min_dist
+        min_dist = dist
         closest_vertex = i
       end
     end
@@ -267,6 +268,8 @@ end
 function measure_sign(s::Segment{1})
   sign(signed_measure(s))
 end
+
+min_height(s::Segment) = abs(measure(s))
 
 function writevtk(b::Segment{D,T},file_base_name) where {D,T}
   vtk_type_id = 3

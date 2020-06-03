@@ -17,7 +17,7 @@ ref_volumes = [ 1, 273280.0337419614, 74.12595970063474 ]
 
 max_tol = 1e-5
 M = CartesianIndices( (length(geometries), length(tols), length(size_factors) ) ) 
-#M = CartesianIndices( (3:3, 1:3, 2:4) ) 
+#M = CartesianIndices( (3:3, 3:3, 1:3) ) 
 
 for I in M
   geometry = geometries[ I[1] ]
@@ -56,9 +56,9 @@ for I in M
     b_surf = surface(bulk,1)
     s_surf = surface(sm)
 
-    ε_Ω_in = i_vol - ref_volume
-    ε_Ω = i_vol + e_vol - b_vol
-    ε_Γ = b_surf - s_surf
+    ε_Ω_in = (i_vol - ref_volume) / ref_volume
+    ε_Ω = ( i_vol + e_vol - b_vol ) / b_vol
+    ε_Γ = ( b_surf - s_surf ) / s_surf
 
     println("    Interior Volume  error = $ε_Ω_in ")
     println("    Domain Volume    error = $ε_Ω")

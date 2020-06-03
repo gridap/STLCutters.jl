@@ -110,4 +110,18 @@ for (i,geom) in enumerate( geometries )
   end
 end
 
+
+
+
+## Selective tests
+#
+# geo = "wine_glass"
+# n = 20
+# tol = 1e-6 / sm tol -> tol*10
+# step = 2
+# box = 1.2*BoundingBox(stl)
+# cell = 599
+
+# 
+
 end # module
