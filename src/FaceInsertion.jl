@@ -57,11 +57,8 @@ Aggregate nodes at <= TOL distance and move them to lowest dim face (e.g., never
 #
 #Merge intersection vertices within <= TOL distance (to the cube vertex)
 #* Since a plane can cut all edges in a cube, there is no ill-posed case here
-# If it passes through (at least) 3 vertices in same face -> Do nothing, plane is contained in a face
-# If it passes through 2 vertices -> Lookup table 1 (hex mesh)
-# If it passes through 1 vertex -> Lookup table 2 (hex mesh)
-# Here we must create the LOOKUP tables for plane-cube intersections
-# with the extra complexity that we can have limit cases st edges go through vertices, edges, faces...
+# This is the case of a cell being cut by a plane -> Francesc already has this implemented
+# We could think about lookup tables with hex (not important now, just tets)
 
 # The case in which the plane
 #
