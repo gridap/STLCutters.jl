@@ -44,7 +44,7 @@ end
 
 # Else if they share a D-2 face, 
 
-# do the same but gluing together the vertices in the shared edge (e.g., taking the average of the two coordinates)
+# do the same but gluing together the vertices in the shared edge (e.g., taking the coordinate of face 1)
 
 # Define the other half of the cell as a degenerated cell (e.g., as the extrusion of the other D-2 face with the same direction, _opposite_) and the _opposite_ D-1 face
 
