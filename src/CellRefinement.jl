@@ -12,15 +12,12 @@ T = {K0}    # background mesh
 VK[K0] = V0 # cell vertices 
 V = V0      # STL vertices to be inserted
 
-Pick K in T
-
-octree_refinement(K,VK)
-
-
 # Local refinement algorithm
 
 T = [K]
 Tnew = []
+
+insert_vertices!(T,V,Tnew)
 
 # Insert vertices
 V = [[V0]]
