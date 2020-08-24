@@ -52,3 +52,13 @@ function insert_edges!(T,E,Tnew)
 end
 T = Tnew
 Tnew = []
+    
+# @santiagobadia: I don't think you need a Morton index (tree struct) for IN-OUT. 
+# I would just keep the cell-wise vertices IDs consistent among cells 
+# (i.e., two cells that share a vertex have the same background cell-wise Id). With this, 
+# keeping the vef to STL ownership (i.e., when inserting a vertex-edge, explictly keep the 
+# info that this vertex-edge is vertex-edge X of the STL), and doing the face-cell intersection
+# with care (i.e., the case the face is almost aligned with a face, which could be solved using 
+# standard level set and probably extending the cell edges with some epsilon, in order to handle 
+# these cases) will be enough. For the moment, I would not care about Morton indices and trees, 
+# if I am wrong, we could consider this in the future. I think I can prove it works.
