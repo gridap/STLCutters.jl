@@ -25,6 +25,7 @@ Base.prod(p::Point) = prod(p.data)
 
 ## Constants
 
+
 # Get the info from the Polytope
 const d_to_node_to_vef = [
 # 1D
@@ -88,6 +89,13 @@ function have_intersection(cell,p::Point)
   true
 end
 
+function distance_to_boundary(cell,p::Point)
+  @assert have_intersection(cell,p)
+  pmin = first(cell)
+  pmax = last(cell)
+  min( minimum(p-pmin), minimum(pmax-p) )
+end
+
 function compute_vertex_coordinates(cell,p::Polytope{D},iface::Integer,point::Point{D}) where D
   nface = p.dface.nfaces[iface]
   dim = p.dface.dims[iface]
@@ -131,35 +139,19 @@ function compute_new_vertices(cell,point::Point{D}) where D
   cells
 end
 
-function move_vertex_to_cell_boundary(cell,p::Polytope,point::Point)
-  tol = 1e-6
-  for iface in 1:num_faces(p)
-    vertex = compute_vertex_coordinates(cell,p,iface,point)
-    dist = distance(point,vertex)
-    if dist < tol
-      point = vertex
-    end
+function move_vertex_to_cell_boundary(cell,point::Point{D}) where D
+  pmin = first(cell)
+  pmax = last(cell)
+  for d in 1:D
+    val = point[d] - pmin[d] < TOL ? pmin[d] : point[d]
+    val = pmax[d] - point[d] < TOL ? pmax[d] : val
+    point = Base.setindex(point,val,d)
   end
   point
 end
 
-
-function delete_zero_cells(cells)
-  _cells = eltype(cells)[]
-  for cell in cells
-    if measure(cell) > 0
-      push!(_cells,cell)
-    end
-  end
-  _cells
-end
-
 function vertex_refinement(cell,point::Point{D}) where D
-  p = Polytope(tfill(HEX_AXIS,Val{D}()))
-  point = move_vertex_to_cell_boundary(cell,p,point)
-  cells = compute_new_vertices(cell,point)
-  cells = delete_zero_cells(cells)
-  cells
+  compute_new_vertices(cell,point)
 end
 
 function distribute_vertices(cells,vertices,STL_vertices)
@@ -176,13 +168,26 @@ function distribute_vertices(cells,vertices,STL_vertices)
   cell_to_vertices
 end
 
+const TOL = 1e6*eps()
+
 function insert_vertices!(T,V,Tnew,STL_vertices,Tnew_to_v,v_in)
   for (k,Vk) in zip(T,V)
-    if length(Vk) > 0
+
+    while length(Vk) > 0
       v = first(Vk)
+      if distance_to_boundary(k,STL_vertices[v]) < TOL
+        STL_vertices[v] = move_vertex_to_cell_boundary(k,STL_vertices[v])
+        popfirst!(Vk)
+      else
+        break
+      end
+    end
+
+    if length(Vk) > 0
+      v = popfirst!(Vk)
       v_in_k = [ v_in ; [v] ]
       Tk = vertex_refinement(k,STL_vertices[v])
-      VTk = distribute_vertices(Tk,Vk[2:end],STL_vertices)
+      VTk = distribute_vertices(Tk,Vk,STL_vertices)
       insert_vertices!(Tk,VTk,Tnew,STL_vertices,Tnew_to_v,v_in_k)
     else
       push!(Tnew,k)
@@ -262,7 +267,6 @@ T = Tnew
 T_to_v = Tnew_to_v
 
 display(T_to_v)
-
 
 writevtk(T,"Tree")
 
