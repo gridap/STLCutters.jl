@@ -349,7 +349,7 @@ function get_vtk_cells(m::SubTriangulation{D,T},offset::Integer) where {D,T}
       points[d,i] = p[d]
     end
   end
-  cells = MeshCell{Vector{Int64}}[]
+  cells = MeshCell{VTKCellType,Vector{Int64}}[]
   cell_to_io = Int8[]
   cell_to_vertices = m.cell_to_points
   vtk_type = VTKCellType(d_to_vtk_tet_type_id[D])
@@ -371,7 +371,7 @@ function get_vtk_cells(m::CartesianMesh{D,T},cell_to_ioc::Vector) where {D,T}
       points[d,i] = p[d]
     end
   end
-  cells = MeshCell{Vector{Int64}}[]
+  cells = MeshCell{VTKCellType,Vector{Int64}}[]
   cell_to_io = Int8[]
   vtk_type = VTKCellType(d_to_vtk_hex_type_id[D])
   for cell in 1:num_cells(m)
@@ -395,7 +395,7 @@ function writevtk(facets::FacetSubTriangulation{D,T},file_base_name) where {D,T}
   for (i,p) in enumerate( get_vertex_coordinates(facets) ), d in 1:D
     points[d,i] = p[d]
   end
-  cells = MeshCell{Vector{Int64}}[]
+  cells = MeshCell{VTKCellType,Vector{Int64}}[]
   vtk_type = VTKCellType(d_to_vtk_tet_type_id[D-1])
   for facet in 1:num_facets(facets)
     vertices = [ get_vertex(facets,facet,lvertex) for lvertex in 1:vtk_type.nodes ]

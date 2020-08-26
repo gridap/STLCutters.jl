@@ -64,8 +64,8 @@ for i in 1:length(geos)
   u_in = interpolate(V_in,u)
   u_in_Γ = restrict(u_in,trian_Γ)
   u_in_in = restrict(u_in,trian_in)
-  a = sum( integrate(∇(v_in_in)*∇(u_in_in),trian_in,quad_in) )
-  b = sum( integrate(v_in_Γ*n_Γ*∇(u_in_Γ),trian_Γ,quad_Γ) )
+  a = sum( integrate(∇(v_in_in)⋅∇(u_in_in),trian_in,quad_in) )
+  b = sum( integrate(v_in_Γ⋅n_Γ⋅∇(u_in_Γ),trian_Γ,quad_Γ) )
   @test abs(a-b) < 1e-9
 
 end

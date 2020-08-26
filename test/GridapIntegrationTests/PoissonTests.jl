@@ -54,11 +54,11 @@ U = TrialFESpace(V)
 γd = 10.0
 γg = 0.1
 h = (box.pmax - box.pmin)[1] / partition[1]
-a_Ω(u,v) = ∇(v)*∇(u)
-l_Ω(v) = v*f
-a_Γd(u,v) = (γd/h)*v*u  - v*(n_Γd*∇(u)) - (n_Γd*∇(v))*u
-l_Γd(v) = (γd/h)*v*ud - (n_Γd*∇(v))*ud
-a_Γg(v,u) = (γg*h)*jump(n_Γg*∇(v))*jump(n_Γg*∇(u))
+a_Ω(u,v) = ∇(v)⋅∇(u)
+l_Ω(v) = v⋅f
+a_Γd(u,v) = (γd/h)⋅v⋅u  - v⋅(n_Γd⋅∇(u)) - (n_Γd⋅∇(v))⋅u
+l_Γd(v) = (γd/h)⋅v⋅ud - (n_Γd⋅∇(v))⋅ud
+a_Γg(v,u) = (γg⋅h)⋅jump(n_Γg⋅∇(v))⋅jump(n_Γg⋅∇(u))
 
 # FE problem
 t_Ω = AffineFETerm(a_Ω,l_Ω,trian_Ω,quad_Ω)
@@ -73,9 +73,9 @@ writevtk(trian_Ω,"results",cellfields=["uh"=>uh_Ω])
 
 tol = 1e-9
 e = u - uh_Ω
-el2 = sqrt(sum(integrate(e*e,trian_Ω,quad_Ω)))
+el2 = sqrt(sum(integrate(e⋅e,trian_Ω,quad_Ω)))
 @test el2 < tol
-eh1 = sqrt(sum(integrate(e*e+a_Ω(e,e),trian_Ω,quad_Ω)))
+eh1 = sqrt(sum(integrate(e⋅e+a_Ω(e,e),trian_Ω,quad_Ω)))
 @test eh1 < tol
 
 end # module

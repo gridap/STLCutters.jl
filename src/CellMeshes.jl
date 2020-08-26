@@ -843,7 +843,7 @@ function writevtk(m::CellMesh{D,T},file_base_name) where {D,T}
     points[d,i] = p[d]
   end
 
-  cells = MeshCell{Vector{Int64}}[]
+  cells = MeshCell{VTKCellType,Vector{Int64}}[]
   for d in 0:num_dims(m)
     dface_to_vertices = get_dface_to_vertices(m,d)
     vtk_type = VTKCellType(d_to_vtk_type_id[d])

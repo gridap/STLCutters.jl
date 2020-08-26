@@ -193,7 +193,7 @@ function writevtk(sm::IncrementalSurfaceMesh{D,T},file_base_name) where {D,T}
   for (i ,p ) in enumerate( get_vertex_coordinates(sm) ), d in 1:D
     points[d,i] = p[d]
   end
-  cells = MeshCell{Vector{Int64}}[]
+  cells = MeshCell{VTKCellType,Vector{Int64}}[]
   for d in 0:D-1
     dface_to_vertices = get_dface_to_vertices(sm,d)
     vtk_type = VTKCellType(d_to_vtk_type_id[d])

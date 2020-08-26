@@ -248,7 +248,7 @@ function writevtk(stl::STL{D,T},file_base_name) where {D,T}
   for (i,p) in enumerate(get_vertex_coordinates(stl)), d in 1:D
     points[d,i] = p[d]
   end
-  cells = MeshCell{Vector{Int64}}[]
+  cells = MeshCell{VTKCellType,Vector{Int64}}[]
   facet_to_vertices = get_facet_to_vertices(stl)
   vtk_type = VTKCellType(d_to_vtk_type_id[D-1])
   for i in 1:num_facets(stl)

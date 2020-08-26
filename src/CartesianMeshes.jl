@@ -195,7 +195,7 @@ function writevtk(m::CartesianMesh{D,T},file_base_name) where {D,T}
     end
   end
   
-  cells = MeshCell{Vector{Int64}}[]
+  cells = MeshCell{VTKCellType,Vector{Int64}}[]
   vtk_type = VTKCellType(d_to_vtk_type_id[D])
   for k in 1:num_cells(m)
     vertices = zeros(Int,num_vertices_per_cell(m))
