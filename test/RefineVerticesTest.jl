@@ -25,11 +25,14 @@ Base.prod(p::Point) = prod(p.data)
 
 ## Constants
 
+# Get the info from the Polytope
 const d_to_node_to_vef = [
 # 1D
   [ 1 3 2],
 # 2D
-  [ 1 5 2 7 9 8 3 6 4 ] ]
+  [ 1 5 2 7 9 8 3 6 4 ],
+# 3D
+  [ 1 9 2 13 21 14 3 10 4 17 23 18 25 27 26 19 24 20 5 11 6 15 22 16 7 12 8 ] ]
 
 # Reuse writeVTK from Gridap
 
@@ -191,6 +194,8 @@ end
 
 # Driver
 
+## 2D
+
 STL_vertices = [ 
   Point(0.1,0.2),
   Point(0.5,0.5),
@@ -226,7 +231,79 @@ display(T_to_v)
 
 writevtk(T,"Tree")
 
+## 2D: Flat cells
 
+STL_vertices = [ 
+  Point(0.1,0.2),
+  Point(0.5,0.5),
+  Point(0.4,0.1),
+  Point(0.5-1e-10,0.3) ]
+
+
+K = [ 
+  Point(0.0,0.0),
+  Point(1.0,0.0),
+  Point(0.0,1.0),
+  Point(1.0,1.0) ]
+
+T = [K]
+
+V = distribute_vertices(T,1:length(STL_vertices),STL_vertices)
+
+Tnew = eltype(T)[]
+
+Tnew_to_v = Vector{Int}[]
+
+v_in = Int[]
+
+insert_vertices!(T,V,Tnew,STL_vertices,Tnew_to_v,v_in)
+
+T = Tnew
+T_to_v = Tnew_to_v
+
+display(T_to_v)
+
+
+writevtk(T,"Tree")
+
+## 3D
+
+STL_vertices = [ 
+  Point(0.1,0.2,0.3),
+  Point(0.5,0.5,0.5),
+  Point(0.4,0.1,0.2),
+  Point(0.3,0.7,0.4) ]
+
+
+K = [ 
+  Point(0.0,0.0,0.0),
+  Point(1.0,0.0,0.0),
+  Point(0.0,1.0,0.0),
+  Point(1.0,1.0,0.0),
+  Point(0.0,0.0,1.0),
+  Point(1.0,0.0,1.0),
+  Point(0.0,1.0,1.0),
+  Point(1.0,1.0,1.0) ]
+
+T = [K]
+
+V = distribute_vertices(T,1:length(STL_vertices),STL_vertices)
+
+Tnew = eltype(T)[]
+
+Tnew_to_v = Vector{Int}[]
+
+v_in = Int[]
+
+insert_vertices!(T,V,Tnew,STL_vertices,Tnew_to_v,v_in)
+
+T = Tnew
+T_to_v = Tnew_to_v
+
+display(T_to_v)
+
+
+writevtk(T,"3DTree")
 
 
 
