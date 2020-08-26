@@ -1,5 +1,6 @@
 module RefineVerticesTest
 
+using Test
 using WriteVTK
 using LinearAlgebra
 using Gridap
@@ -10,7 +11,7 @@ using Gridap.Arrays
 
 using Gridap.Helpers: tfill
 
-## Include in Gridap
+## Missing from Gridap
 function Base.setindex(p::Point,v,idx::Integer)
   data = Base.setindex(p.data,v,idx)
   Point(data)
@@ -22,13 +23,50 @@ Gridap.num_dims(::T) where T<:Point = num_dims(T)
 
 Base.prod(p::Point) = prod(p.data)
 
-## Other functions
+## Constants
 
 const d_to_node_to_vef = [
 # 1D
   [ 1 3 2],
 # 2D
   [ 1 5 2 7 9 8 3 6 4 ] ]
+
+# Reuse writeVTK from Gridap
+
+function _vtkpoints(cells)
+  D = num_dims(eltype(eltype(cells)))
+  vertices = eltype(eltype(cells))[]
+  for cell in cells, vertex in cell
+    push!(vertices,vertex)
+  end
+  reshape(reinterpret(Float64,vertices),(D,length(vertices)))
+end
+
+function _vtkcells(cells)
+  d_to_vtk_type_id = Dict(0=>1,1=>3,2=>9,3=>12)
+  vtk_ncube_lvertices = [1,2,4,3,5,6,8,7]
+  D = num_dims(eltype(eltype(cells)))
+
+  vtk_cells = MeshCell{VTKCellType,Vector{Int}}[]
+  vtk_type = VTKCellType(d_to_vtk_type_id[D])
+  offset = 0
+  for cell in cells
+    vertices = zeros(Int,length(cell))
+    vertices = [ vtk_ncube_lvertices[i]+offset for i in 1:length(cell) ]
+    offset = maximum(vertices)
+    push!( vtk_cells, MeshCell(vtk_type,vertices) )
+  end
+  vtk_cells
+end
+
+function writevtk(cells,base_name)
+  vtkpoints = _vtkpoints(cells)
+  vtkcells = _vtkcells(cells)
+  vtkfile = vtk_grid(base_name,vtkpoints,vtkcells)
+  vtk_save(vtkfile)
+end
+
+# Helpers
 
 distance(a::Point,b::Point) =  norm( a - b )
 
@@ -70,6 +108,8 @@ function compute_vertex_coordinates(cell,grid::Grid{D},subcell::Integer,lvertex:
   compute_vertex_coordinates(cell,p,vef,point)
 end
 
+# Main algorithm's functions
+
 function compute_new_vertices(cell,point::Point{D}) where D
   pmin = first(cell)
   pmax = last(cell)
@@ -100,40 +140,6 @@ function move_vertex_to_cell_boundary(cell,p::Polytope,point::Point)
   point
 end
 
-# Reuse writeVTK from Gridap
-
-function _vtkpoints(cells)
-  D = num_dims(eltype(eltype(cells)))
-  vertices = eltype(eltype(cells))[]
-  for cell in cells, vertex in cell
-    push!(vertices,vertex)
-  end
-  reshape(reinterpret(Float64,vertices),(D,length(vertices)))
-end
-
-function _vtkcells(cells)
-  d_to_vtk_type_id = Dict(0=>1,1=>3,2=>9,3=>12)
-  vtk_ncube_lvertices = [1,2,4,3,5,6,8,7]
-  D = num_dims(eltype(eltype(cells)))
-
-  vtk_cells = MeshCell{VTKCellType,Vector{Int}}[]
-  vtk_type = VTKCellType(d_to_vtk_type_id[D])
-  offset = 0
-  for cell in cells
-    vertices = zeros(Int,length(cell))
-    vertices = [ vtk_ncube_lvertices[i]+offset for i in 1:length(cell) ]
-    offset = maximum(vertices)
-    push!( vtk_cells, MeshCell(vtk_type,vertices) )
-  end
-  vtk_cells
-end
-
-function writevtk(cells,base_name)
-  vtkpoints = _vtkpoints(cells)
-  vtkcells = _vtkcells(cells)
-  vtkfile = vtk_grid(base_name,vtkpoints,vtkcells)
-  vtk_save(vtkfile)
-end
 
 function delete_zero_cells(cells)
   _cells = eltype(cells)[]
@@ -153,7 +159,6 @@ function vertex_refinement(cell,point::Point{D}) where D
   cells
 end
 
-
 function distribute_vertices(cells,vertices,STL_vertices)
   cell_to_vertices = Vector{Int}[]
   for (i,cell) in enumerate(cells)
@@ -168,15 +173,17 @@ function distribute_vertices(cells,vertices,STL_vertices)
   cell_to_vertices
 end
 
-function insert_vertices!(T,V,Tnew,STL_vertices)
+function insert_vertices!(T,V,Tnew,STL_vertices,Tnew_to_v,v_in)
   for (k,Vk) in zip(T,V)
     if length(Vk) > 0
       v = first(Vk)
+      v_in_k = [ v_in ; [v] ]
       Tk = vertex_refinement(k,STL_vertices[v])
       VTk = distribute_vertices(Tk,Vk[2:end],STL_vertices)
-      insert_vertices!(Tk,VTk,Tnew,STL_vertices)
+      insert_vertices!(Tk,VTk,Tnew,STL_vertices,Tnew_to_v,v_in_k)
     else
       push!(Tnew,k)
+      push!(Tnew_to_v,v_in)
     end
   end
 end
@@ -202,10 +209,20 @@ V = distribute_vertices(T,1:length(STL_vertices),STL_vertices)
 
 Tnew = eltype(T)[]
 
-insert_vertices!(T,V,Tnew,STL_vertices)
+Tnew_to_v = Vector{Int}[]
+
+v_in = Int[]
+
+insert_vertices!(T,V,Tnew,STL_vertices,Tnew_to_v,v_in)
 
 T = Tnew
+T_to_v = Tnew_to_v
 
+display(T_to_v)
+
+@test length(T) == length(T_to_v) == 13
+@test T_to_v[2] == T_to_v[5] == [1,3]
+@test T_to_v[7] == T_to_v[10] == [1,2,4]
 
 writevtk(T,"Tree")
 
