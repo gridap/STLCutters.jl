@@ -21,6 +21,10 @@ Gridap.num_dims(::Type{<:Point{D}}) where D = D
 
 Gridap.num_dims(::T) where T<:Point = num_dims(T)
 
+Base.one(::Type{Point{D,T}}) where {D,T} = Point( tfill(one(T),Val{D}()) )
+
+Base.one(::T) where T<:Point = one(T)
+
 Base.prod(p::Point) = prod(p.data)
 
 ## Constants
@@ -115,18 +119,53 @@ function compute_vertex_coordinates(cell,grid::Grid{D},subcell::Integer,lvertex:
   reffe = get_reffes( grid )[1]
   p = get_polytope(reffe)
   node = grid.cell_nodes[subcell][lvertex]
+  # compute_vertex_coordinates(cell,grid,node,point)
   vef = d_to_node_to_vef[D][node]
   compute_vertex_coordinates(cell,p,vef,point)
 end
 
 # Main algorithm's functions
 
-function compute_new_vertices(cell,point::Point{D}) where D
-  pmin = first(cell)
-  pmax = last(cell)
+# Function not used
+function compute_vertex_coordinates(cell,grid::Grid,v::Integer,point::Point{D}) where D
+  function anchor(a)
+    Int.(floor.(a.data))
+  end
+  function extrusion(a)
+    Int.( a.data .== 0.5 )
+  end
+  function vertex_id(a)
+    id = 0
+    for d in 1:D
+      id |= a[d] << (d-1)
+    end
+    id+1
+  end
+
+  rvertex = grid.node_coords[v]
+  anc = anchor(rvertex)
+  vertex = cell[ vertex_id(anc) ]
+  ext = extrusion(rvertex)
+  for d in 1:D
+    if ext[d] == HEX_AXIS
+      v = point[d]
+      vertex = Base.setindex(vertex,v,d)
+    end
+  end
+  vertex
+end
+## 
+
+function split_cartesian_grid(::Val{D}) where D
+  pmin = zero( Point{D,Int} )
+  pmax = one( Point{D,Int} )
   partition = tfill(2,Val{D}())
   desc = CartesianDescriptor( pmin, pmax, partition )
-  grid = CartesianGrid( desc ) 
+  CartesianGrid( desc ) 
+end
+
+function compute_new_vertices(cell,point::Point{D}) where D
+  grid = split_cartesian_grid(Val{D}())
   cells = Vector{typeof(point)}[]
   for subcell in 1:num_cells(grid)
     vertices = typeof(point)[]
@@ -143,11 +182,27 @@ function move_vertex_to_cell_boundary(cell,point::Point{D}) where D
   pmin = first(cell)
   pmax = last(cell)
   for d in 1:D
-    val = point[d] - pmin[d] < TOL ? pmin[d] : point[d]
-    val = pmax[d] - point[d] < TOL ? pmax[d] : val
-    point = Base.setindex(point,val,d)
+    if point[d] - pmin[d] < TOL 
+      point = Base.setindex(point,pmin[d],d)
+    elseif pmax[d] - point[d] < TOL pmax[d]
+      point = Base.setindex(point,pmax[d],d)
+    end
   end
   point
+end
+
+function farthest_vertex_from_boundary(cell,vertices,STL_vertices)
+  iv = UNSET
+  max_dist = TOL
+  for (i,v) in enumerate(vertices)
+    p = STL_vertices[v]
+    dist = distance_to_boundary(cell,p)
+    if dist > max_dist
+      max_dist = dist
+      iv = i
+    end
+  end
+  iv
 end
 
 function vertex_refinement(cell,point::Point{D}) where D
@@ -173,18 +228,11 @@ const TOL = 1e6*eps()
 function insert_vertices!(T,V,Tnew,STL_vertices,Tnew_to_v,v_in)
   for (k,Vk) in zip(T,V)
 
-    while length(Vk) > 0
-      v = first(Vk)
-      if distance_to_boundary(k,STL_vertices[v]) < TOL
-        STL_vertices[v] = move_vertex_to_cell_boundary(k,STL_vertices[v])
-        popfirst!(Vk)
-      else
-        break
-      end
-    end
+    iv = farthest_vertex_from_boundary(k,Vk,STL_vertices)
 
-    if length(Vk) > 0
-      v = popfirst!(Vk)
+    if iv != UNSET
+      v = Vk[iv]
+      deleteat!(Vk,iv)
       v_in_k = [ v_in ; [v] ]
       Tk = vertex_refinement(k,STL_vertices[v])
       VTk = distribute_vertices(Tk,Vk,STL_vertices)
@@ -195,7 +243,6 @@ function insert_vertices!(T,V,Tnew,STL_vertices,Tnew_to_v,v_in)
     end
   end
 end
-
 
 # Driver
 
@@ -231,8 +278,8 @@ T_to_v = Tnew_to_v
 display(T_to_v)
 
 @test length(T) == length(T_to_v) == 13
-@test T_to_v[2] == T_to_v[5] == [1,3]
-@test T_to_v[7] == T_to_v[10] == [1,2,4]
+@test T_to_v[1] == T_to_v[4] == [2,4,1]
+@test T_to_v[5] == T_to_v[8] == [2,4,3]
 
 writevtk(T,"Tree")
 
@@ -268,7 +315,7 @@ T_to_v = Tnew_to_v
 
 display(T_to_v)
 
-writevtk(T,"Tree")
+#writevtk(T,"Tree")
 
 ## 3D
 
@@ -308,7 +355,5 @@ display(T_to_v)
 
 
 writevtk(T,"3DTree")
-
-
 
 end # module
