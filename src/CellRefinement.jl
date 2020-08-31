@@ -1,64 +1,90 @@
 
-# Global face distribution algorithm
+const TOL = 1e6*eps()
 
-# For each _root_ cell K0 in the background mesh:
+function insert_vertices!(T,X,V,Tnew,STL_vertices,Tnew_to_v,v_in)
+  for (k,Vk) in zip(T,V)
 
-# F0 the STL faces with non-zero intersection with K0
-# E0 the STL edges with non-zero intersection with K0
-# V0 the STL edges that belong to K0
-#* This is a global algorithm
+    iv = UNSET
+    while length(Vk) > 0
+      iv = farthest_vertex_from_boundary(k,X,Vk,STL_vertices)
+      p = STL_vertices[Vk[iv]]
+      dist = distance_to_boundary(k,X,p)
+      if dist < TOL
+        p = move_vertex_to_cell_boundary(k,X,p)
+        STL_vertices[Vk[iv]] = p
+        deleteat!(Vk,iv)
+      else
+        break
+      end
+    end
 
-T = {K0}    # background mesh
-VK[K0] = V0 # cell vertices 
-V = V0      # STL vertices to be inserted
-
-# Local refinement algorithm
-
-T = [K]
-Tnew = []
-
-insert_vertices!(T,V,Tnew)
-
-# Insert vertices
-V = [[V0]]
-# After calling this function, we have new mesh Tnew in which there are no STL vertices
-function insert_vertices!(T,V,Tnew)
-  for k,Vk in (T,V)
-    if length(Vk) != 0
-      v = Vk[1]
-      Tk = vertex_refinement(k,v)
-      VTk = distribute_vertices(Tk,Vk[2:end])
-      insert_vertices(Tk,VTk,Tnew)
-    else 
-      push(Tnew,k) # a cell is defined by its parent, the Morton index, and v
+    if length(Vk) > 0
+      v = Vk[iv]
+      deleteat!(Vk,iv)
+      v_in_k = [ v_in ; [v] ]
+      Tk,Xnew = vertex_refinement(k,X,STL_vertices[v])
+      append!(X,Xnew)
+      VTk = distribute_vertices(Tk,X,Vk,STL_vertices)
+      insert_vertices!(Tk,X,VTk,Tnew,STL_vertices,Tnew_to_v,v_in_k)
+    else
+      push!(Tnew,k)
+      push!(Tnew_to_v,v_in)
+    end
   end
 end
-T = Tnew
-Tnew = []
 
-# It is the same as the one for vertices. We can just parameterise wrt d !
-# E1[k] the STL edges in E0 with non-zero intersection with k in T
-E1 = edges_distribution(T,E0)
-function insert_edges!(T,E,Tnew)
-  for k,Ek in (T,E)
-    if length(Ek) != 0
-      e = Ek[1]
-      Tk = edge_refinement(k,e)
-      ETk = distribute_edges(Tk,Ek[2:end])
-      insert_edges!(Tk,ETk,Tnew)
-    else 
-      push(Tnew,k) # a cell is defined by its parent, the Morton index, and v
-  end
+## Helpers
+
+function initial_mesh(p::Polytope)
+  X = collect(get_vertex_coordinates(p))
+  K = collect(1:length(X))
+  T = [K]
+  T,X
 end
-T = Tnew
-Tnew = []
-    
-# @santiagobadia: I don't think you need a Morton index (tree struct) for IN-OUT. 
-# I would just keep the cell-wise vertices IDs consistent among cells 
-# (i.e., two cells that share a vertex have the same background cell-wise Id). With this, 
-# keeping the vef to STL ownership (i.e., when inserting a vertex-edge, explictly keep the 
-# info that this vertex-edge is vertex-edge X of the STL), and doing the face-cell intersection
-# with care (i.e., the case the face is almost aligned with a face, which could be solved using 
-# standard level set and probably extending the cell edges with some epsilon, in order to handle 
-# these cases) will be enough. For the moment, I would not care about Morton indices and trees, 
-# if I am wrong, we could consider this in the future. I think I can prove it works.
+
+function move_vertex_to_cell_boundary(
+  cell_nodes::Vector{<:Integer},
+  node_to_coordinates::Vector{<:Point},
+  point::Point{D}) where D
+
+  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates)
+  for d in 1:D
+    if point[d] - pmin[d] < TOL 
+      point = Base.setindex(point,pmin[d],d)
+    elseif pmax[d] - point[d] < TOL
+      point = Base.setindex(point,pmax[d],d)
+    end
+  end
+  point
+end
+
+function farthest_vertex_from_boundary(
+  cell_nodes::Vector{<:Integer},
+  node_to_coordinates::Vector{<:Point},
+  vertices::Vector,
+  STL_vertices)
+
+  iv = UNSET
+  max_dist = 0.0
+  for (i,v) in enumerate(vertices)
+    p = STL_vertices[v]
+    dist = distance_to_boundary(cell_nodes,node_to_coordinates,p)
+    if dist > max_dist
+      max_dist = dist
+      iv = i
+    end
+  end
+  iv
+end
+
+function compute_grid(
+  cell_to_nodes::AbstractArray,
+  node_to_coordinates::Vector{<:Point},
+  p::Polytope)
+
+  T = Table(cell_to_nodes)
+  X = node_to_coordinates
+  reffes = [LagrangianRefFE(p)]
+  cell_types = fill(1,length(T))
+  UnstructuredGrid(X,T,reffes,cell_types)
+end
