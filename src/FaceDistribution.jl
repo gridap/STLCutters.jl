@@ -50,3 +50,19 @@ function distance_to_boundary(cell_nodes,node_to_coordinates,p::Point)
   min( minimum(p-pmin), minimum(pmax-p) )
 end
 
+function farthest_axis_from_boundary(cell_nodes,node_to_coordinates,p::Point)
+  @assert have_intersection(cell_nodes,node_to_coordinates,p)
+  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates)
+  max_dists = max( p-pmin, pmax-p )
+  _,d = findmax(max_dists.data)
+  d
+end
+
+
+
+
+
+
+
+
+
