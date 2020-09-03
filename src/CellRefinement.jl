@@ -24,11 +24,28 @@ function insert_vertices!(T,X,V,Tnew,STL_vertices,Tnew_to_v,v_in)
       v_in_k = [ v_in ; [v] ]
       Tk,Xnew = vertex_refinement(k,X,STL_vertices[v])
       append!(X,Xnew)
-      VTk = distribute_vertices(Tk,X,Vk,STL_vertices)
+      VTk = distribute_faces(Tk,X,Vk,STL_vertices)
       insert_vertices!(Tk,X,VTk,Tnew,STL_vertices,Tnew_to_v,v_in_k)
     else
       push!(Tnew,k)
       push!(Tnew_to_v,v_in)
+    end
+  end
+end
+
+function insert_edges!(T,X,E,Tnew,STL_edges,Tnew_to_e,e_in)
+  for (k,Ek) in zip(T,E)
+
+    if length(Ek) > 0
+      e = popfirst!(Ek)
+      e_in_k = [ e_in ; [e] ]
+      Tk,Xnew = edge_refinement(k,X,STL_edges[e])
+      append!(X,Xnew)
+      VTk = distribute_faces(Tk,X,Ek,STL_edges)
+      insert_edges!(Tk,X,VTk,Tnew,STL_edges,Tnew_to_e,e_in_k)
+    else
+      push!(Tnew,k)
+      push!(Tnew_to_e,e_in)
     end
   end
 end
