@@ -55,7 +55,7 @@ function projection(p::Point{D},s::Segment{D}) where D
   c + ( ( p - c ) ⋅ v ) * v
 end
 
-function distance(cell_nodes,node_to_coordinates,p::Polytope,d,dface,point::Point)
+function distance(cell_nodes,node_to_coordinates,p::Polytope{D},d,dface,point::Point) where D
   if d == 0
     vertex = node_to_coordinates[ cell_nodes[ dface ] ]
     distance(vertex,point)
@@ -65,12 +65,17 @@ function distance(cell_nodes,node_to_coordinates,p::Polytope,d,dface,point::Poin
     p2 = node_to_coordinates[ cell_nodes[ dface_nodes[2] ] ] 
     face = Segment(p1,p2)
     distance(face,point)
+  elseif d == D-1
+    facet = dface
+    c = center(cell_nodes,node_to_coordinates,p,facet)
+    n = normal(cell_nodes,node_to_coordinates,p,facet)
+    abs( (point-c) ⋅ n )
   else
     @assert false
   end
 end
 
-function projection(cell_nodes,node_to_coordinates,p::Polytope,d,dface,point::Point)
+function projection(cell_nodes,node_to_coordinates,p::Polytope{D},d,dface,point::Point) where D
   if d == 0
     vertex = node_to_coordinates[ cell_nodes[ dface ] ]
     projection(point,vertex)
@@ -80,6 +85,11 @@ function projection(cell_nodes,node_to_coordinates,p::Polytope,d,dface,point::Po
     p2 = node_to_coordinates[ cell_nodes[ dface_nodes[2] ] ] 
     face = Segment(p1,p2)
     projection(point,face)
+  elseif d == D-1
+    facet = dface
+    c = center(cell_nodes,node_to_coordinates,p,facet)
+    n = normal(cell_nodes,node_to_coordinates,p,facet)
+    point + ( ( c - point ) ⋅ n ) * n
   else
     @assert false
   end
@@ -152,7 +162,6 @@ function contains_projection(cell_nodes,node_to_coordinates,p::Polytope,facet::I
   end
   true
 end
-
 
 function center(cell_nodes,node_to_coordinates,p::Polytope,facet::Integer)
   D = num_dims(p)

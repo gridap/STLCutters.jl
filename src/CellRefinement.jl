@@ -33,16 +33,16 @@ function insert_vertices!(T,X,V,Tnew,STL_vertices,Tnew_to_v,v_in)
   end
 end
 
-function insert_edges!(T,X,E,Tnew,STL_edges,Tnew_to_e,e_in)
+function insert_edges!(T,X,E,Tnew,STL_edges,Tnew_to_e,e_in,vs)
   for (k,Ek) in zip(T,E)
 
     if length(Ek) > 0
       e = popfirst!(Ek)
       e_in_k = [ e_in ; [e] ]
-      Tk,Xnew = edge_refinement(k,X,STL_edges[e])
+      Tk,Xnew = edge_refinement(k,X,STL_edges[e],vs)
       append!(X,Xnew)
       VTk = distribute_faces(Tk,X,Ek,STL_edges)
-      insert_edges!(Tk,X,VTk,Tnew,STL_edges,Tnew_to_e,e_in_k)
+      insert_edges!(Tk,X,VTk,Tnew,STL_edges,Tnew_to_e,e_in_k,vs)
     else
       push!(Tnew,k)
       push!(Tnew_to_e,e_in)

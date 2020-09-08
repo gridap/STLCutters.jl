@@ -15,31 +15,24 @@ function vertex_refinement(
 end
 
 function edge_refinement(
-  cell_nodes,
-  node_to_coordinates::Vector{<:Point{D}},
-  edge::Segment) where D
+  K,
+  X::Vector{<:Point{D}},
+  e::Segment,
+  directions) where D
 
-  new_cells = typeof(cell_nodes)[]
   p = Polytope(tfill(HEX_AXIS,Val{D}()))
-  face1,face2,point1,point2 = compute_intersections(cell_nodes,node_to_coordinates,p,edge)
-  if are_sharing_a_facet(face1,face2,p)
-    return new_cells
+  plane = compute_plane_from_edge(K,X,p,e,directions)
+  face0 = get_dface_perpendicular_to_vectors(K,X,p,2,directions)
+  faces = compute_intersected_faces(K,X,p,face0,plane)
+  if are_sharing_a_facet(face0,faces,p)
+    return Vector{Int}[], eltype(X)[]
   end
-  facet1,facet2 = get_farthest_facets(face1,face2,p)
-  if !are_facets_opposite(facet1,facet2,p)
-    wedge1,wedge2 = get_wedges(cell_nodes,facet1,facet2,p)
-    facet1,facet2 = (1,opposite_facet(1,p))
-    cell_nodes = wedge1
-    push!(new_cells,wedge2)
-  end
-  offset = first(get_dimrange(p,num_dims(p)-1))
-  d = findfirst(isequal(1),p.dface.nfaces[offset+facet1].extrusion.data)
-  n = tfill(1,Val{D}())
-  n = Base.setindex(n,2,d)
-  reffe = LagrangianRefFE(Float64,p,n)
-  new_cells = [ new_cells; compute_new_cells(cell_nodes,node_to_coordinates,reffe) ]
-  new_vertices = [point1,point2]
-  new_cells, new_vertices
+  facets = get_farthest_facets(face0,faces,p)
+  Tnew = get_connectivities(K,X,p,facets,directions)
+
+  Xnew = compute_new_vertices(K,X,p,plane) 
+
+  Tnew,Xnew
 end
 
 ## Helpers
@@ -79,7 +72,7 @@ function compute_new_vertices(
 
   p = get_polytope(reffe)
   new_node_to_coordinates = Vector{typeof(point)}(undef,num_nodes(reffe)-num_vertices(p))
-  for face in num_vertices(p)+1:num_faces(reffe)
+  for face in num_vertices(p)+1:num_faces(p)
     if length(get_face_own_nodes(reffe)[face]) > 0
       node = get_face_own_nodes(reffe)[face][1]
       vertex = compute_vertex_coordinates(cell_nodes,node_to_coordinates,p,face,point)
@@ -88,6 +81,7 @@ function compute_new_vertices(
   end
   new_node_to_coordinates
 end
+
 
 function compute_vertex_coordinates(
   cell_nodes,
@@ -128,41 +122,6 @@ function compute_facemap(grid::CartesianGrid)
   grid_face_to_reffe_face
 end
 
-function are_sharing_a_facet(face1::Integer,face2::Integer,p::Polytope)
-  D = num_dims(p)
-  dim1 = get_facedims(p)[face1]
-  dim2 = get_facedims(p)[face2]
-  nface1 = face1 - first(get_dimrange(p,dim1)) + 1
-  nface2 = face2 - first(get_dimrange(p,dim2)) + 1
-  for facet1 in get_faces(p,dim1,D-1)[nface1]
-    for facet2 in get_faces(p,dim2,D-1)[nface2]
-      if facet1 == facet2
-        return true
-      end
-    end
-  end
-  false
-end
-
-function get_farthest_facets(face1::Integer,face2::Integer,p::Polytope)
-  D = num_dims(p)
-  dim1 = get_facedims(p)[face1]
-  dim2 = get_facedims(p)[face2]
-  nface1 = face1 - first(get_dimrange(p,dim1)) + 1
-  nface2 = face2 - first(get_dimrange(p,dim2)) + 1
-  for facet1 in get_faces(p,dim1,D-1)[nface1]
-    for facet2 in get_faces(p,dim2,D-1)[nface2]
-      @assert facet1 ≠ facet2
-      if are_facets_opposite(facet1,facet2,p)
-        return (facet1,facet2)
-      end
-    end
-  end
-  facet1 = first(get_faces(p,dim1,D-1)[nface1])
-  facet2 = first(get_faces(p,dim2,D-1)[nface2])
-  facet1,facet2
-end
-
 function are_facets_opposite(facet1::Integer,facet2::Integer,p::Polytope)
   D = num_dims(p)
   offset = first(get_dimrange(p,D-1))-1
@@ -170,16 +129,6 @@ function are_facets_opposite(facet1::Integer,facet2::Integer,p::Polytope)
   ext2 = p.dface.nfaces[offset+facet2].extrusion
   ext1 == ext2
 end
-
-function get_partition(facet1::Integer,facet2::Integer,p::Polytope)
-  D = num_dims(p)
-  offset = first(get_dimrange(p,D-1))-1
-  ext1 = p.dface.nfaces[offset+facet1].extrusion
-  ext2 = p.dface.nfaces[offset+facet2].extrusion
-  @assert ext1 == ext2
-  (ext1+1).data
-end
-
 
 function get_wedge(cell_nodes::Vector,facet1::Integer,facet2::Integer,p::Polytope)
   @assert !are_facets_opposite(facet1,facet2,p)
@@ -244,36 +193,262 @@ function get_wedges(cell_nodes,facet1,facet2,p::Polytope)
   wedge1,wedge2
 end
 
-function compute_intersections(cell_nodes,node_to_coordinates,p::Polytope,e::Segment)
+function get_connectivities(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  facets,vs::Tuple)
+
+  new_cells = Vector{Int}[]
+  if !are_facets_opposite(facets...,p)
+    wedge1,wedge2 = get_wedges(K,facets...,p)
+    facets = (1,opposite_facet(1,p))
+    K = wedge1
+    push!(new_cells,wedge2)
+  end
+  facet1,facet2 = facets
+  partition = get_partition(K,X,facet1,p,vs) 
+  reffe = LagrangianRefFE(Float64,p,partition)
+  [ new_cells; compute_new_cells(K,X,reffe) ]
+end
+
+function compute_new_vertices(K,X::Vector{<:Point},p::Polytope,plane)
+  vertices = eltype(X)[]
+  edge_to_nodes = get_face_vertices(p,1)
+  for edge in 1:num_faces(p,1)
+    p1 = X[K[edge_to_nodes[edge][1]]]
+    p2 = X[K[edge_to_nodes[edge][2]]]
+    d1 = signed_distance(p1,plane)
+    d2 = signed_distance(p2,plane)
+    s1 = d1 ≥ 0 ? 1 : -1
+    s2 = d2 ≥ 0 ? 1 : -1
+    if s1 ≠ s2
+      if abs(d1) < TOL || abs(d2) < TOL
+        vertex = abs(d1) < abs(d2) ? p1 : p2
+      else
+        α = abs(d1) / (abs(d1)+abs(d2))
+        vertex = p1 + (p2-p1)*α
+      end
+      push!(vertices,vertex)
+    end
+  end
+  vertices
+end
+
+function get_default_directions(E,STL_edges::Vector{<:Segment{D}}) where D
+  acc_v = 0
+  for e in E
+    edge = STL_edges[e]
+    v = edge[2] - edge[1]
+    acc_v += v
+  end
+  if D == 2
+    ()
+  elseif D == 3
+    _,d = findmin(acc_v.data)
+    v = zero( VectorValue{D,Int} )
+    v = Base.setindex(v,1,d)
+    (v,)
+  end
+end
+
+function compute_plane_from_edge(K,X,p,e::Segment,default_directions)
+  v = e[2] - e[1]
+  n = orthogonal(v,default_directions...)
+  if norm(n) < TOL
+    v_ϵ = perturbation(K,X,p,e)
+    v += v_ϵ
+    n = orthogonal(v,default_directions...)
+    @assert norm(n) > TOL
+  end
+  n /= norm(n)
+  o = center(e)
+  (o,n)
+end
+
+function get_dface_perpendicular_to_vectors(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  d::Integer,
+  vs::Tuple)
+
+  for dface in 1:num_faces(p,d)
+    face = get_dimrange(p,d)[dface]
+    if is_face_perpendicular_to_vectors(K,X,p,face,vs)
+      return face
+    end
+  end
+  @assert false
+end
+
+function compute_intersected_faces(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  face::Integer,
+  plane)
+
+  d = get_facedims(p)[face]
+  @assert d == 2
+  dface = face - get_dimrange(p,d)[1] + 1
+  dface_edges = get_faces(p,d,1)[dface]
+  edge_to_nodes = get_face_vertices(p,1)
+  face1,face2 = UNSET,UNSET
+  for edge in dface_edges
+    p1 = X[K[edge_to_nodes[edge][1]]]
+    p2 = X[K[edge_to_nodes[edge][2]]]
+    d1 = signed_distance(p1,plane)
+    d2 = signed_distance(p2,plane)
+    s1 = d1 ≥ 0 ? 1 : -1
+    s2 = d2 ≥ 0 ? 1 : -1
+    if s1 ≠ s2
+      if abs(d1) < TOL || abs(d2) < TOL
+        if abs(d1) < abs(d2)
+          face = edge_to_nodes[edge][1]
+        else
+          face = edge_to_nodes[edge][2]
+        end
+      else
+        face = get_dimrange(p,1)[edge]
+      end
+      if face1 == UNSET
+        face1 = face
+      elseif face2 == UNSET
+        face2 = face
+      else
+        @assert false
+      end
+    end
+  end
+  (face1,face2)
+end
+
+function get_farthest_facets(face0::Integer,faces,p::Polytope)
+  @assert get_facedims(p)[face0] == 2
   D = num_dims(p)
-  point1 = zero(eltype(node_to_coordinates))
-  point2 = zero(eltype(node_to_coordinates))
-  face1 = UNSET
-  face2 = UNSET
-  for facet in 1:num_facets(p)
-    if have_intersection(cell_nodes,node_to_coordinates,p,facet,e)
-      point = intersection_point(cell_nodes,node_to_coordinates,p,facet,e)
-      for d in 0:D-1
-        dfaces = get_faces(p,D-1,d)[facet]
-        dface_to_nodes = get_face_vertices(p,d) 
-        for dface in dfaces
-          if distance(cell_nodes,node_to_coordinates,p,d,dface,point) < TOL
-            point = projection(cell_nodes,node_to_coordinates,p,d,dface,point)
-            face = get_dimrange(p,d)[dface]
-            if face1 == UNSET
-              face1 = face
-              point1 = point
-            elseif face2 == UNSET
-              face2 = face
-              point2 = point
-            else
-              @assert false
-            end
+  face1,face2 = faces
+  dim1 = get_facedims(p)[face1]
+  dim2 = get_facedims(p)[face2]
+  nface1 = face1 - get_dimrange(p,dim1)[1] + 1
+  nface2 = face2 - get_dimrange(p,dim2)[1] + 1
+  for facet1 in get_faces(p,dim1,D-1)[nface1]
+    if !is_facet_on_face(facet1,face0,p)
+      for facet2 in get_faces(p,dim2,D-1)[nface2]
+        if !is_facet_on_face(facet2,face0,p)
+          @assert facet1 ≠ facet2
+          if are_facets_opposite(facet1,facet2,p)
+            return (facet1,facet2)
           end
         end
       end
     end
   end
-  @assert face1 ≠ UNSET && face2 ≠ UNSET
-  (face1,face2,point1,point2)
+  facet1 = first(get_faces(p,dim1,D-1)[nface1])
+  facet2 = first(get_faces(p,dim2,D-1)[nface2])
+  facet1,facet2
 end
+
+function are_sharing_a_facet(face0::Integer,faces,p::Polytope)
+  @assert get_facedims(p)[face0] == 2
+  D = num_dims(p)
+  face1,face2 = faces
+  dim1 = get_facedims(p)[face1]
+  dim2 = get_facedims(p)[face2]
+  nface1 = face1 - get_dimrange(p,dim1)[1] + 1
+  nface2 = face2 - get_dimrange(p,dim2)[1] + 1
+  for facet1 in get_faces(p,dim1,D-1)[nface1]
+    if !is_facet_on_face(facet1,face0,p)
+      for facet2 in get_faces(p,dim2,D-1)[nface2]
+        if !is_facet_on_face(facet2,face0,p)
+          if facet1 == facet2
+            return true
+          end
+        end
+      end
+    end
+  end
+  false
+end
+
+function perturbation(K,T::Vector{<:Point},p::Polytope,e::Segment)
+  point = nothing
+  for facet in 1:num_facets(p)
+    if have_intersection(K,T,p,facet,e)
+      point = intersection_point(K,T,p,facet,e)
+      break
+    end
+  end
+  @assert point !== nothing
+  min_dist = Inf
+  closest_facet = UNSET
+  for facet in 1:num_facets(p)
+    if !have_intersection(K,T,p,facet,e)
+      dist = distance(K,T,p,facet,p)
+      if dist < min_dist
+        min_dist = dist
+        closest_facet = facet
+      end
+    end
+  end
+  normal(K,T,p,closest_facet)
+end
+
+function is_face_perpendicular_to_vectors(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  face::Integer,
+  vs::Tuple)
+
+  face_lnodes = get_face_vertices(p)[face]
+  x1 = X[K[face_lnodes[1]]]
+  for v in vs
+    @assert maximum(v) == 1 && norm(v) == 1
+    x0 = x1 ⋅ v
+    for ln in face_lnodes
+      x = X[K[ln]]
+      if x ⋅ v ≠ x0
+        return false
+      end 
+    end
+  end
+  true
+end
+
+function signed_distance(point::Point,plane::Tuple{VectorValue,VectorValue})
+  o,n = plane
+  (point-o)⋅n
+end
+
+function is_facet_on_face(facet::Integer,face::Integer,p::Polytope)
+  D = num_dims(p)
+  face1 = get_dimrange(p,D-1)[facet]
+  face2 = face
+  is_face_on_face(face1,face2,p)
+end
+
+function is_face_on_face(face1::Integer,face2::Integer,p::Polytope)
+  d1 = get_facedims(p)[face1]
+  d2 = get_facedims(p)[face2]
+  dface1 = face1 - get_dimrange(p,d1)[1] + 1 
+  dface2 = face2 - get_dimrange(p,d2)[1] + 1
+  dface1 ∈ get_faces(p,d2,d1)[dface2]
+end
+
+function get_partition(K,X::Vector{<:Point},facet::Integer,p::Polytope{D},vs::Tuple) where D
+  facet_edges = get_faces(p,D-1,1)[facet]
+  for edge in facet_edges
+    face = get_dimrange(p,1)[edge]
+    if is_face_perpendicular_to_vectors(K,X,p,face,vs)
+      ext = p.dface.nfaces[ face ].extrusion
+      d = findfirst(isequal(1),ext.data)
+      n = tfill(1,Val{D}())
+      n = Base.setindex(n,2,d)
+      return n
+    end
+  end
+  @assert false
+end
+
+
