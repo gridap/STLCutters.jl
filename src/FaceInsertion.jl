@@ -24,7 +24,8 @@ function edge_refinement(
   plane = compute_plane_from_edge(K,X,p,e,directions)
   case = compute_case(K,X,p,plane)
   Tnew = compute_new_cells(K,X,p,case)
-  Xnew = compute_new_vertices(K,X,p,plane,case)
+  Xnew = compute_new_vertices!(Tnew,K,X,p,plane,case)
+  delete_empty_cells!(Tnew,p)
   Tnew,Xnew
 end
 
@@ -60,9 +61,10 @@ function compute_new_cells(K,X,p,case)
   Tnew
 end
 
-function compute_new_vertices(K,X,p,plane,case)
+function compute_new_vertices!(T,K,X,p,plane,case)
   v_to_cv = get_vertex_to_cell_vertices_from_case(num_dims(p),case)
   vertices = eltype(X)[]
+  ivertex = 0
   for i in num_vertices(p)+1:length(v_to_cv)
     nodes = v_to_cv[i]
     @assert length(nodes) == 2    
@@ -72,15 +74,74 @@ function compute_new_vertices(K,X,p,plane,case)
     d2 = signed_distance(p2,plane)
 
     if abs(d1) < TOL || abs(d2) < TOL
-      vertex = abs(d1) < abs(d2) ? p1 : p2
-      #update T, delete v
+      if abs(d1) < abs(d2)
+        new_node = K[nodes[1]]
+      else
+        new_node = K[nodes[2]]
+      end
+      old_node = length(X)+ivertex
+      update_connectivities!(T,old_node=>new_node)
     else
       α = abs(d1) / (abs(d1)+abs(d2))
       vertex = p1 + (p2-p1)*α
+      push!(vertices,vertex)
+      ivertex += 1
     end
-    push!(vertices,vertex)
   end
   vertices
+end
+
+function update_connectivities!(T,node_to_node::Pair)
+  old_node,new_node = node_to_node
+  for (icell,cell) in enumerate(T), (inode,node) in enumerate(cell)
+    if node == old_node
+      T[icell][inode] = new_node
+    elseif node > old_node
+      T[icell][inode] -= 1
+    end
+  end
+end
+
+function delete_empty_cells!(T,p)
+  icell = 1
+  while icell ≤ length(T)
+    cell = T[icell]
+    if is_cell_empty(cell,p)
+      deleteat!(T,icell)
+    else
+      icell += 1
+    end
+  end
+end
+
+function is_face_empty(K,p::Polytope,face::Integer)
+  num_facets = 0
+  d = get_facedims(p)[face]
+  dface = face - get_dimrange(p,d)[1] + 1
+  nfaces = get_faces(p,d,d-1)[dface]
+  for nface in nfaces
+    if d-1 == 1
+      edge = nface
+      if !is_edge_empty(K,p,edge)
+        num_facets += 1
+      end
+    else
+      if !is_face_empty(K,p,get_dimrange(p,d-1)[nface])
+        num_facets += 1
+      end
+    end
+  end
+  num_facets < d+1
+end
+
+function is_edge_empty(K,p,edge)
+  nodes = get_face_vertices(p,1)[edge]
+  K[nodes[1]] == K[nodes[2]]
+end
+
+function is_cell_empty(K,p)
+  face = num_faces(p)
+  is_face_empty(K,p,face)
 end
 
 function compute_new_cells(

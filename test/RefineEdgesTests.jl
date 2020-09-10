@@ -41,9 +41,47 @@ insert_edges!(T,X,p,E,Tnew,STL_edges,Tnew_to_e,e_in,vs)
 T = Tnew
 T_to_e = Tnew_to_e
 
+@test length(T) == 6
+
 grid = compute_grid(T,X,QUAD)
 
 writevtk(grid,"Tree")
+
+
+p = QUAD
+T,X = initial_mesh(p)
+
+p1 = Point(0.0,0.0)
+p2 = Point(0.5,1.1)
+edge1 = Segment(p1,p2) 
+
+p1 = Point(0.0,0.0)
+p2 = Point(1.1,1.1)
+edge2 = Segment(p1,p2) 
+
+STL_edges = [edge1,edge2]
+
+E = distribute_faces(T,X,p,1:length(STL_edges),STL_edges)
+
+vs = get_default_directions(E[1],STL_edges)
+
+Tnew = eltype(T)[]
+
+Tnew_to_e = Vector{Int}[]
+
+e_in = Int[]
+
+insert_edges!(T,X,p,E,Tnew,STL_edges,Tnew_to_e,e_in,vs)
+
+T = Tnew
+T_to_e = Tnew_to_e
+
+grid = compute_grid(T,X,QUAD)
+
+@test length(T) == 2
+
+writevtk(grid,"Tree")
+
 
 p = HEX
 T,X = initial_mesh(p)
