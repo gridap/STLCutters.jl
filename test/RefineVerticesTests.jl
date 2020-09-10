@@ -15,9 +15,11 @@ STL_vertices = [
   Point(0.4,0.1),
   Point(0.3,0.3) ]
 
-T,X = initial_mesh(QUAD)
+p = QUAD
 
-V = distribute_faces(T,X,1:length(STL_vertices),STL_vertices)
+T,X = initial_mesh(p)
+
+V = distribute_faces(T,X,p,1:length(STL_vertices),STL_vertices)
 
 Tnew = eltype(T)[]
 
@@ -25,7 +27,7 @@ Tnew_to_v = Vector{Int}[]
 
 v_in = Int[]
 
-insert_vertices!(T,X,V,Tnew,STL_vertices,Tnew_to_v,v_in)
+insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
 
 T = Tnew
 T_to_v = Tnew_to_v
@@ -38,7 +40,7 @@ D = 2
 @test T_to_v[3] == [2,4,1]
 @test length(X) == (2^(D-1))*length(STL_vertices)+2^D
 
-grid = compute_grid(T,X,QUAD)
+grid = compute_grid(T,X,p)
 
 writevtk(grid,"Tree")
 
@@ -50,9 +52,11 @@ STL_vertices = [
   Point(0.4,0.1),
   Point(0.5-1e-10,0.3) ]
 
-T,X = initial_mesh(QUAD)
+p = QUAD
 
-V = distribute_faces(T,X,1:length(STL_vertices),STL_vertices)
+T,X = initial_mesh(p)
+
+V = distribute_faces(T,X,p,1:length(STL_vertices),STL_vertices)
 
 Tnew = eltype(T)[]
 
@@ -60,7 +64,7 @@ Tnew_to_v = Vector{Int}[]
 
 v_in = Int[]
 
-insert_vertices!(T,X,V,Tnew,STL_vertices,Tnew_to_v,v_in)
+insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
 
 T = Tnew
 T_to_v = Tnew_to_v
@@ -73,7 +77,7 @@ D = 2
 @test T_to_v[3] == [2,1]
 @test length(X) == (2^(D-1))*(length(STL_vertices)-1)+2^D
 
-grid = compute_grid(T,X,QUAD)
+grid = compute_grid(T,X,p)
 
 #writevtk(grid,"Tree")
 
@@ -85,9 +89,11 @@ STL_vertices = [
   Point(0.4,0.1,0.2),
   Point(0.3,0.7,0.4) ]
 
-T,X = initial_mesh(HEX)
+p = HEX
 
-V = distribute_faces(T,X,1:length(STL_vertices),STL_vertices)
+T,X = initial_mesh(p)
+
+V = distribute_faces(T,X,p,1:length(STL_vertices),STL_vertices)
 
 Tnew = eltype(T)[]
 
@@ -95,7 +101,7 @@ Tnew_to_v = Vector{Int}[]
 
 v_in = Int[]
 
-insert_vertices!(T,X,V,Tnew,STL_vertices,Tnew_to_v,v_in)
+insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
 
 T = Tnew
 T_to_v = Tnew_to_v
@@ -108,7 +114,7 @@ D = 3
 @test T_to_v[3] == [2,4,1]
 @test length(X) == (2^(D-1))*length(STL_vertices)+2^D
 
-grid = compute_grid(T,X,HEX)
+grid = compute_grid(T,X,p)
 
 writevtk(grid,"3DTree")
 

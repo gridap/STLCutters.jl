@@ -1,11 +1,11 @@
 
 function distribute_faces(
   cell_to_nodes,
-  node_to_coordinates::Vector{<:Point{D}},
+  node_to_coordinates::Vector{<:Point},
+  p::Polytope,
   faces::AbstractVector,
-  STL_faces) where D
+  STL_faces)
 
-  p = Polytope(tfill(HEX_AXIS,Val{D}()))
   cell_to_faces = Vector{Int}[]
   for (i,cell) in enumerate(cell_to_nodes)
     push!(cell_to_faces,[])

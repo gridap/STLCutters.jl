@@ -27,4 +27,6 @@ include("CellRefinement.jl")
 include("FaceInsertion.jl")
 include("FaceDistribution.jl")
 
+include("tables/LookupTables.jl")
+
 end # module

@@ -1,17 +1,17 @@
 
 const TOL = 1e6*eps()
 
-function insert_vertices!(T,X,V,Tnew,STL_vertices,Tnew_to_v,v_in)
+function insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
   for (k,Vk) in zip(T,V)
 
     iv = UNSET
     while length(Vk) > 0
       iv = farthest_vertex_from_boundary(k,X,Vk,STL_vertices)
-      p = STL_vertices[Vk[iv]]
-      dist = distance_to_boundary(k,X,p)
+      point = STL_vertices[Vk[iv]]
+      dist = distance_to_boundary(k,X,point)
       if dist < TOL
-        p = move_vertex_to_cell_boundary(k,X,p)
-        STL_vertices[Vk[iv]] = p
+        point = move_vertex_to_cell_boundary(k,X,point)
+        STL_vertices[Vk[iv]] = point
         deleteat!(Vk,iv)
       else
         break
@@ -22,10 +22,10 @@ function insert_vertices!(T,X,V,Tnew,STL_vertices,Tnew_to_v,v_in)
       v = Vk[iv]
       deleteat!(Vk,iv)
       v_in_k = [ v_in ; [v] ]
-      Tk,Xnew = vertex_refinement(k,X,STL_vertices[v])
+      Tk,Xnew = vertex_refinement(k,X,p,STL_vertices[v])
       append!(X,Xnew)
-      VTk = distribute_faces(Tk,X,Vk,STL_vertices)
-      insert_vertices!(Tk,X,VTk,Tnew,STL_vertices,Tnew_to_v,v_in_k)
+      VTk = distribute_faces(Tk,X,p,Vk,STL_vertices)
+      insert_vertices!(Tk,X,p,VTk,Tnew,STL_vertices,Tnew_to_v,v_in_k)
     else
       push!(Tnew,k)
       push!(Tnew_to_v,v_in)
@@ -33,16 +33,16 @@ function insert_vertices!(T,X,V,Tnew,STL_vertices,Tnew_to_v,v_in)
   end
 end
 
-function insert_edges!(T,X,E,Tnew,STL_edges,Tnew_to_e,e_in,vs)
+function insert_edges!(T,X,p,E,Tnew,STL_edges,Tnew_to_e,e_in,vs)
   for (k,Ek) in zip(T,E)
 
     if length(Ek) > 0
       e = popfirst!(Ek)
       e_in_k = [ e_in ; [e] ]
-      Tk,Xnew = edge_refinement(k,X,STL_edges[e],vs)
+      Tk,Xnew = edge_refinement(k,X,p,STL_edges[e],vs)
       append!(X,Xnew)
-      VTk = distribute_faces(Tk,X,Ek,STL_edges)
-      insert_edges!(Tk,X,VTk,Tnew,STL_edges,Tnew_to_e,e_in_k,vs)
+      VTk = distribute_faces(Tk,X,p,Ek,STL_edges)
+      insert_edges!(Tk,X,p,VTk,Tnew,STL_edges,Tnew_to_e,e_in_k,vs)
     else
       push!(Tnew,k)
       push!(Tnew_to_e,e_in)
