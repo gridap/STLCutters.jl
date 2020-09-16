@@ -7,6 +7,7 @@ using Gridap.ReferenceFEs
 using Gridap.Arrays
 using Gridap.Helpers
 
+import Gridap.ReferenceFEs: get_polytope
 
 export Table
 export Point
@@ -22,7 +23,10 @@ export distribute_faces
 export compute_grid
 export initial_mesh
 
+include("CellMeshes.jl")
+
 include("Intersections.jl")
+include("STLs.jl")
 include("CellRefinement.jl")
 include("FaceInsertion.jl")
 include("FaceDistribution.jl")

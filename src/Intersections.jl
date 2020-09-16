@@ -3,22 +3,13 @@ struct Segment{D,T}
   vertices::Tuple{Point{D,T},Point{D,T}}
 end
 
-struct Cell{D,T}
-  cell_nodes::Vector{Int}
-  node_to_coordinates::Vector{Point{D,T}}
-  polytope::ExtrusionPolytope{D}
-end
-
-struct Face{D,T}
-  cell::Cell{D,T}
-  face::Int
-end
-
 Segment(a...) = Segment(a)
 
 Base.getindex(a::Segment,i::Integer) = a.vertices[i]
 
 center(a::Segment) = a[1]/2+a[2]/2
+
+get_polytope(a::Segment) = SEG2
 
 function Base.setindex(p::Point,v,idx::Integer)
   data = Base.setindex(p.data,v,idx)
@@ -117,12 +108,20 @@ function have_intersection(cell_nodes,node_to_coordinates,point::Point)
 end
 
 function have_intersection(cell_nodes,node_to_coordinates,p::Polytope,e::Segment)
+  tmin = 1.0
+  tmax = 0.0
   for facet in 1:num_facets(p)
     if have_intersection(cell_nodes,node_to_coordinates,p,facet,e)
-      return true
+      t = compute_intersection_paremeter(cell_nodes,node_to_coordinates,p,facet,e)
+      if t < tmin
+        tmin = t
+      end
+      if t > tmax
+        tmax = t
+      end
     end
   end
-  false
+  tmin + TOL < tmax
 end
 
 function have_intersection(cell_nodes,node_to_coordinates,p::Polytope,facet::Integer,e::Segment)
@@ -137,6 +136,14 @@ function have_intersection(cell_nodes,node_to_coordinates,p::Polytope,facet::Int
     x = e[1] + s1_s2 * α
     contains_projection(cell_nodes,node_to_coordinates,p,facet,x)
   end
+end
+
+function compute_intersection_paremeter(cell_nodes,node_to_coordinates,p::Polytope,facet::Integer,e::Segment)
+  c = center(cell_nodes,node_to_coordinates,p,facet)
+  n = normal(cell_nodes,node_to_coordinates,p,facet)
+  s1_s2 = e[2] - e[1]
+  s1_c = c - e[1]
+  ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
 end
 
 function intersection_point(cell_nodes,node_to_coordinates,p::Polytope,facet::Integer,e::Segment)

@@ -11,20 +11,22 @@ using Gridap.Helpers
 using Gridap.Arrays
 
 using STLCutters: get_default_directions
+using STLCutters: compute_stl_topology 
+using STLCutters: get_edge_coordinates 
 
 
 p = QUAD
 T,X = initial_mesh(p)
 
-p1 = Point(-0.1,0.5)
-p2 = Point(0.5,1.1)
-edge1 = Segment(p1,p2) 
+stl_v = [ 
+  Point(-0.1,0.5),
+  Point(0.5,1.1),
+  Point(1.1,0.5) ]
+stl_faces = Table( [[1,2],[1,3] ] )
 
-p1 = Point(-0.1,0.5)
-p2 = Point(1.1,0.5)
-edge2 = Segment(p1,p2) 
+stl = compute_stl_topology(stl_faces,stl_v)
 
-STL_edges = [edge1,edge2]
+STL_edges = get_edge_coordinates(stl)
 
 E = distribute_faces(T,X,p,1:length(STL_edges),STL_edges)
 
@@ -51,15 +53,14 @@ writevtk(grid,"Tree")
 p = QUAD
 T,X = initial_mesh(p)
 
-p1 = Point(0.0,0.0)
-p2 = Point(0.5,1.1)
-edge1 = Segment(p1,p2) 
+stl_v = [ 
+  Point(0.0,0.0),
+  Point(0.5,1.1),
+  Point(1.1,1.1) ]
+stl_faces = Table( [[1,2],[1,3] ] )
 
-p1 = Point(0.0,0.0)
-p2 = Point(1.1,1.1)
-edge2 = Segment(p1,p2) 
-
-STL_edges = [edge1,edge2]
+stl = compute_stl_topology(stl_faces,stl_v)
+STL_edges = get_edge_coordinates(stl)
 
 E = distribute_faces(T,X,p,1:length(STL_edges),STL_edges)
 
@@ -78,7 +79,7 @@ T_to_e = Tnew_to_e
 
 grid = compute_grid(T,X,QUAD)
 
-@test length(T) == 2
+@test length(T) == 3
 
 writevtk(grid,"Tree")
 

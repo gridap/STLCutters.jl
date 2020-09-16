@@ -79,7 +79,7 @@ function compute_new_vertices!(T,K,X,p,plane,case)
       else
         new_node = K[nodes[2]]
       end
-      old_node = length(X)+ivertex
+      old_node = length(X)+ivertex+1
       update_connectivities!(T,old_node=>new_node)
     else
       α = abs(d1) / (abs(d1)+abs(d2))
@@ -229,12 +229,15 @@ function compute_facemap(grid::CartesianGrid)
   grid_face_to_reffe_face
 end
 
+
+Base.abs(a::VectorValue) = VectorValue( abs.(Tuple(a)) )
+
 function get_default_directions(E,STL_edges::Vector{<:Segment{D}}) where D
   acc_v = 0
   for e in E
     edge = STL_edges[e]
     v = edge[2] - edge[1]
-    acc_v += v
+    acc_v += abs(v)
   end
   if D == 2
     ()
