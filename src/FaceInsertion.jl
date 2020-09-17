@@ -29,7 +29,46 @@ function edge_refinement(
   Tnew,Xnew
 end
 
+function facet_refinement(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  facets::Vector{<:Integer},
+  f)
+
+  levelsets = [ CellMeshes.Plane(center(f[facet]),normal(f[facet])) for facet in facets ]
+  mesh = CellMeshes.CellMesh(X,K,p)
+  CellMeshes.compute_cell_mesh!(mesh,levelsets)
+
+  Xnew = CellMeshes.get_vertex_coordinates(mesh)
+  Tnew = CellMeshes.get_cell_to_vertices(mesh)
+  cell_to_io = CellMeshes.get_cell_to_inout(mesh)
+
+  update_connectivities!(Tnew,K,X,p)
+  update_vertex_coordinates!(Xnew,p)
+
+  Tnew,Xnew,cell_to_io
+end
 ## Helpers
+
+function update_connectivities!(Tnew,K,X::Vector{<:Point},p::Polytope)
+  for (i,Knew) in enumerate(Tnew), (j,node) in enumerate(Knew)
+    if node ≤ num_vertices(p)
+      Tnew[i,j] = K[node]
+    else
+      Tnew[i,j] = node - num_vertices(p) + length(X)
+    end
+  end
+  Tnew
+end
+
+function update_vertex_coordinates!(Xnew::Vector{<:Point},p::Polytope)
+  for _ in 1:num_vertices(p)
+    popfirst!(Xnew)
+  end
+  Xnew
+end
+
 
 function compute_case(K,X,p,plane)
   case = 0

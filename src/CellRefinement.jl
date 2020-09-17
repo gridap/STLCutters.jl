@@ -50,6 +50,22 @@ function insert_edges!(T,X,p,E,Tnew,STL_edges,Tnew_to_e,e_in,vs)
   end
 end
 
+function insert_facets!(T,X,p,F,Tnew,cell_types,cell_to_io,STL_facets)
+  for (k,Fk) in zip(T,F)
+    if length(Fk) > 0
+      Tk,Xnew,c_io = facet_refinement(k,X,p,Fk,STL_facets)
+      append!(Tnew,Tk)
+      append!(X,Xnew)
+      append!(cell_to_io,c_io)
+      append!(cell_types,fill(TET_AXIS,length(Tk)))
+    else
+      push!(Tnew,k)
+      push!(cell_to_io,UNSET)
+      push!(cell_types,HEX_AXIS)
+    end
+  end
+end
+
 ## Helpers
 
 function initial_mesh(p::Polytope)

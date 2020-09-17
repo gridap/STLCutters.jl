@@ -29,9 +29,29 @@ function get_edge_coordinates(stl::GridTopology)
   edge_coordinates
 end
 
+function get_facet_coordinates(stl::GridTopology{Dc,2}) where Dc
+  get_edge_coordinates(stl)
+end
+
+function get_facet_coordinates(stl::GridTopology{Dc,3}) where Dc
+  Tp = eltype(get_vertex_coordinates(stl))
+  T = eltype(Tp)
+  Dp = length(Tp)
+  facet_coordinates = Vector{Triangle{Dp,T}}(undef,num_cells(stl))
+  for facet in 1:num_cells(stl)
+    facet_coordinates[facet] = get_facet_coordinates(stl,facet)
+  end
+  facet_coordinates
+end
+
 function get_edge_coordinates(stl::GridTopology,edge::Integer)
   edge_vertices = get_faces(stl,1,0)[edge]
   X = get_vertex_coordinates(stl)
   Segment( X[edge_vertices[1]], X[edge_vertices[2]] )
 end
 
+function get_facet_coordinates(stl::GridTopology{Dc,3},facet::Integer) where Dc
+  facet_vertices = get_faces(stl,2,0)[facet]
+  X = get_vertex_coordinates(stl)
+  Triangle( X[facet_vertices[1]], X[facet_vertices[2]], X[facet_vertices[3]] )
+end
