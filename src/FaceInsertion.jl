@@ -6,11 +6,9 @@ function vertex_refinement(
   point::Point{D}) where D
 
   d = farthest_axis_from_boundary(cell_nodes,node_to_coordinates,point)
-  n = tfill(1,Val{D}())
-  n = Base.setindex(n,2,d)
-  reffe = LagrangianRefFE(Float64,p,n)
-  new_cells = compute_new_cells(cell_nodes,node_to_coordinates,reffe)
-  new_vertices = compute_new_vertices(cell_nodes,node_to_coordinates,reffe,point)
+  case = compute_case(cell_nodes,node_to_coordinates,p,d)
+  new_cells = compute_new_cells(cell_nodes,node_to_coordinates,p,case)
+  new_vertices = compute_new_vertices(cell_nodes,node_to_coordinates,p,point,d,case)
   new_cells, new_vertices
 end
 
@@ -50,6 +48,18 @@ function facet_refinement(
   Tnew,Xnew,cell_to_io
 end
 ## Helpers
+
+function compute_case(K,X,p::Polytope,d::Integer)
+  @assert is_n_cube(p)
+  case = 0
+  for node in 1:num_vertices(p)
+    if (node-1) & (1<<(d-1)) ≠ 0
+      case |= (1<<(node-1))
+    end
+  end
+  case + 1
+end
+
 
 function update_connectivities!(Tnew,K,X::Vector{<:Point},p::Polytope)
   for (i,Knew) in enumerate(Tnew), (j,node) in enumerate(Knew)
@@ -98,6 +108,23 @@ function compute_new_cells(K,X,p,case)
     end
   end
   Tnew
+end
+
+function compute_new_vertices(K,X,p::Polytope,point::Point,d::Integer,case::Integer)
+  v_to_cv = get_vertex_to_cell_vertices_from_case(num_dims(p),case)
+  vertices = zeros(eltype(X),length(v_to_cv)-num_vertices(p))
+  ivertex = 0
+  for i in num_vertices(p)+1:length(v_to_cv)
+    nodes = v_to_cv[i]
+    @assert length(nodes) == 2    
+    p1 = X[K[nodes[1]]]
+    p2 = X[K[nodes[2]]]
+
+    v = i - num_vertices(p)
+    vertex = Base.setindex(p1,point[d],d)
+    vertices[v] = vertex
+  end
+  vertices
 end
 
 function compute_new_vertices!(T,K,X,p,plane,case)
