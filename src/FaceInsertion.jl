@@ -20,7 +20,7 @@ function edge_refinement(
   directions)
 
   plane = compute_plane_from_edge(K,X,p,e,directions)
-  case = compute_case(K,X,p,plane)
+  case = compute_case(K,X,p,plane,directions)
   Tnew = compute_new_cells(K,X,p,case)
   Xnew = compute_new_vertices!(Tnew,K,X,p,plane,case)
   delete_empty_cells!(Tnew,p)
@@ -79,11 +79,56 @@ function update_vertex_coordinates!(Xnew::Vector{<:Point},p::Polytope)
   Xnew
 end
 
+function project_node(K,X::Vector{<:Point},p::Polytope,node::Integer,ref_ds::Tuple)
+  @assert is_n_cube(p)
+  n = node
+  for d in ref_ds
+    n = ( (n-1) & ~(1<<(d-1)) ) + 1
+  end
+  n
+end
 
-function compute_case(K,X,p,plane)
+function _get_direction(v::VectorValue)
+  @assert norm(v) == 1
+  @assert maximum(abs(v)) == 1
+  findfirst( i -> abs(i) == 1, Tuple(v) )
+end
+
+function _reference_facet(K,X,p,v)
+  @assert is_n_cube(p)
+  d = _get_direction(v)
+  for facet in 1:num_facets(p)
+    facet_nodes = get_face_vertices(p,num_dims(p)-1)[facet]
+    pd = X[K[facet_nodes[1]]][d]
+    next_facet = false
+    for node in facet_nodes
+      if X[K[node]][d] ≠ pd
+        next_facet = true
+        break
+      end
+    end
+    if !next_facet
+      return facet
+    end
+  end
+  @assert false
+end
+
+function _get_direction(K,X,p,v)
+  facet0 = _reference_facet(K,X,p,v)
+  _get_direction(get_facet_normals(p)[facet0])
+end
+
+function reference_directions(K,X,p::Polytope,vs::NTuple{N}) where N
+  ntuple( i -> _get_direction(K,X,p,vs[i]), Val{N}() )
+end
+
+function compute_case(K,X,p,plane,vs)
   case = 0
+  ref_ds = reference_directions(K,X,p,vs)
   for node in 1:num_vertices(p)
-    point = X[K[node]]
+    n = project_node(K,X,p,node,ref_ds)
+    point = X[K[n]]
     dist = signed_distance(point,plane)
     if dist > 0
       case |= (1<<(node-1))
