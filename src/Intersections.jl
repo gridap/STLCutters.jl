@@ -82,6 +82,7 @@ function distance(cell_nodes,node_to_coordinates,p::Polytope,d::Integer,dface::I
 end
 
 function distance(cell_nodes,node_to_coordinates,p::Polytope,face::Integer,point::Point)
+  D = length(eltype(node_to_coordinates))
   d = get_facedims(p)[face]
   dface = face - get_dimrange(p,d)[1] + 1
   if d == 0

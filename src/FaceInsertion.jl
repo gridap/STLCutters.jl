@@ -377,24 +377,26 @@ end
 function perturbation(K,T::Vector{<:Point},p::Polytope,e::Segment)
   point = nothing
   for facet in 1:num_facets(p)
-    if have_intersection(K,T,p,facet,e)
-      point = intersection_point(K,T,p,facet,e)
+    face = get_dimrange(p,num_dims(p)-1)[facet]
+    if have_intersection(K,T,p,face,e)
+      point = intersection_point(K,T,p,face,e)
       break
     end
   end
   @assert point !== nothing
   min_dist = Inf
-  closest_facet = UNSET
+  closest_face = UNSET
   for facet in 1:num_facets(p)
-    if !have_intersection(K,T,p,facet,e)
-      dist = distance(K,T,p,facet,p)
+    face = get_dimrange(p,num_dims(p)-1)[facet]
+    if !have_intersection(K,T,p,face,e)
+      dist = distance(K,T,p,face,point)
       if dist < min_dist
         min_dist = dist
-        closest_facet = facet
+        closest_face = face
       end
     end
   end
-  normal(K,T,p,closest_facet)
+  normal(K,T,p,closest_face)
 end
 
 function signed_distance(point::Point,plane::Tuple{VectorValue,VectorValue})
