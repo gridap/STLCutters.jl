@@ -21,16 +21,16 @@ end
 
 ## Helpers
 
-function distance_to_boundary(cell_nodes,node_to_coordinates,p::Point)
-  @assert have_intersection(cell_nodes,node_to_coordinates,p)
-  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates)
-  min( minimum(p-pmin), minimum(pmax-p) )
+function distance_to_boundary(cell_nodes,node_to_coordinates,p::Polytope,point::Point)
+  @assert have_intersection(cell_nodes,node_to_coordinates,p,point)
+  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates,p)
+  min( minimum(point-pmin), minimum(pmax-point) )
 end
 
-function farthest_axis_from_boundary(cell_nodes,node_to_coordinates,p::Point)
-  @assert have_intersection(cell_nodes,node_to_coordinates,p)
-  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates)
-  max_dists = max( p-pmin, pmax-p )
+function farthest_axis_from_boundary(cell_nodes,node_to_coordinates,p::Polytope,point::Point)
+  @assert have_intersection(cell_nodes,node_to_coordinates,p,point)
+  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates,p)
+  max_dists = max( point-pmin, pmax-point )
   _,d = findmax(max_dists.data)
   d
 end

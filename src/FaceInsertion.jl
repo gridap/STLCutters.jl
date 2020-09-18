@@ -5,7 +5,7 @@ function vertex_refinement(
   p::Polytope,
   point::Point{D}) where D
 
-  d = farthest_axis_from_boundary(cell_nodes,node_to_coordinates,point)
+  d = farthest_axis_from_boundary(cell_nodes,node_to_coordinates,p,point)
   case = compute_case(cell_nodes,node_to_coordinates,p,d)
   new_cells = compute_new_cells(cell_nodes,node_to_coordinates,p,case)
   new_vertices = compute_new_vertices(cell_nodes,node_to_coordinates,p,point,d,case)
@@ -171,6 +171,8 @@ function compute_new_vertices(K,X,p::Polytope,point::Point,d::Integer,case::Inte
   end
   vertices
 end
+
+Base.setindex(a::VectorValue,val,idx::Integer) = VectorValue(Base.setindex(Tuple(a),val,idx))
 
 function compute_new_vertices!(T,K,X,p,plane,case)
   v_to_cv = get_vertex_to_cell_vertices_from_case(num_dims(p),case)

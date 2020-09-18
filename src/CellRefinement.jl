@@ -6,11 +6,11 @@ function insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
 
     iv = UNSET
     while length(Vk) > 0
-      iv = farthest_vertex_from_boundary(k,X,Vk,STL_vertices)
+      iv = farthest_vertex_from_boundary(k,X,p,Vk,STL_vertices)
       point = STL_vertices[Vk[iv]]
-      dist = distance_to_boundary(k,X,point)
+      dist = distance_to_boundary(k,X,p,point)
       if dist < TOL
-        point = move_vertex_to_cell_boundary(k,X,point)
+        point = move_vertex_to_cell_boundary(k,X,p,point)
         STL_vertices[Vk[iv]] = point
         deleteat!(Vk,iv)
       else
@@ -78,9 +78,10 @@ end
 function move_vertex_to_cell_boundary(
   cell_nodes::Vector{<:Integer},
   node_to_coordinates::Vector{<:Point},
+  p::Polytope,
   point::Point{D}) where D
 
-  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates)
+  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates,p)
   for d in 1:D
     if point[d] - pmin[d] < TOL 
       point = Base.setindex(point,pmin[d],d)
@@ -94,14 +95,15 @@ end
 function farthest_vertex_from_boundary(
   cell_nodes::Vector{<:Integer},
   node_to_coordinates::Vector{<:Point},
+  p::Polytope,
   vertices::Vector,
   STL_vertices)
 
   iv = UNSET
   max_dist = 0.0
   for (i,v) in enumerate(vertices)
-    p = STL_vertices[v]
-    dist = distance_to_boundary(cell_nodes,node_to_coordinates,p)
+    point = STL_vertices[v]
+    dist = distance_to_boundary(cell_nodes,node_to_coordinates,p,point)
     if dist > max_dist
       max_dist = dist
       iv = i

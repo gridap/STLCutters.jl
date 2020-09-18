@@ -1,54 +1,257 @@
 
-struct Segment{D,T}
+abstract type Face{Df,Dp} end
+
+struct Segment{D,T}<:Face{1,D}
   vertices::Tuple{Point{D,T},Point{D,T}}
+end
+
+struct Triangle{D,T}<:Face{2,D}
+  vertices::Tuple{Point{D,T},Point{D,T},Point{D,T}}
+end
+
+struct Cell{Df,Dp,Tp,P<:Polytope{Df}}<:Face{Df,Dp}
+  nodes::Vector{Int}
+  vertex_coordinates::Vector{Point{Dp,Tp}}
+  polytope::P
+end
+
+struct CellFace{Df,Dp,C}<:Face{Df,Dp}
+  dface::Int
+  cell::C
+  function CellFace{Df}(df::Integer,c::Cell{Dc,Dp}) where {Df,Dc,Dp}
+    new{Df,Dp,typeof(c)}(df,c)
+  end
+  function CellFace{Df}(df::Integer,c::CellFace{Dc,Dp}) where {Df,Dc,Dp}
+    new{Df,Dp,typeof(c)}(df,c)
+  end
 end
 
 Segment(a...) = Segment(a)
 
-Base.getindex(a::Segment,i::Integer) = a.vertices[i]
+Triangle(a...) = Triangle(a)
 
-center(a::Segment) = a[1]/2+a[2]/2
-
-get_polytope(a::Segment) = SEGMENT
-
-struct Triangle{D,T}
-  vertices::Tuple{Point{D,T},Point{D,T},Point{D,T}}
+function Base.getindex(::Face)
+  @abstractmethod
 end
 
-Triangle(a...) = Triangle(a)
+Base.getindex(a::Segment,i::Integer) = a.vertices[i]
 
 Base.getindex(a::Triangle,i::Integer) = a.vertices[i]
 
-center(a::Triangle) = a[1]/3+a[2]/3+a[3]/3
+function Base.getindex(a::Cell,i::Integer)
+  K = a.nodes
+  X = a.vertex_coordinates
+  X[K[i]]
+end
 
-get_polytope(a::Triangle) = TRI
-  
-get_vertex_coordinates(a::Triangle) = a.vertices
+function Base.getindex(a::CellFace,i::Integer)
+  p = get_polytope(a.cell)
+  d = face_dim(a)
+  dface_nodes = get_face_vertices(p,d)[a.dface]
+  a.cell[dface_nodes[i]]
+end
 
-num_vertices(a::Triangle) = 3
+Base.lastindex(a::Face) = num_vertices(a)
 
-function normal(a::Triangle)
+function get_polytope(::Face)
+  @abstractmethod
+end
+
+get_polytope(::Segment) = SEGMENT
+
+function get_polytope(::Triangle)
+  TRI.face_orientations[3] = -1
+  TRI
+end
+
+get_polytope(a::Cell) = a.polytope
+
+get_polytope(a::CellFace{1}) = SEGMENT
+
+function get_polytope(a::CellFace{2})
+  if is_simplex(a.cell)
+    TRI
+  elseif is_n_cube(a.cell)
+    QUAD
+  else
+    @notimplemented
+  end
+end
+
+function get_polytope(a::CellFace{3})
+  if is_simplex(a.cell)
+    TRI
+  elseif is_n_cube(a.cell)
+    QUAD
+  else
+    @notimplemented
+  end
+end
+
+num_dims(::Face{Df,Dp}) where {Df,Dp} = Dp
+
+face_dim(::Face{D}) where D = D
+
+function num_vertices(a::Face)
+  p = get_polytope(a)
+  num_vertices(p)
+end
+
+function num_edges(a::Face)
+  p = get_polytope(a)
+  num_edges(p)
+end
+
+function num_facets(a::Face)
+  p = get_polytope(a)
+  num_facets(p)
+end
+
+function num_faces(a::Face,d::Integer)
+  p = get_polytope(a)
+  num_faces(p,d)
+end
+
+get_vertex(a::Face,vertex::Integer) = get_dface(a,vertex,Val{0}())
+
+get_edge(a::Face,edge::Integer) = get_dface(a,edge,Val{1}())
+
+get_facet(a::Face{D},facet::Integer) where D = get_dface(a,facet,Val{D-1}())
+
+function get_dface(a::Face,dface::Integer,::Val{d}) where d
+  p = get_polytope(a)
+  dface_to_nodes = get_face_vertices(p,d)[dface]
+  if is_simplex(a)
+    dface_vertices = ntuple( i -> a[dface_to_nodes[i]], Val{d+1}() )
+    simplex_face( dface_vertices )
+  elseif is_n_cube(a)
+    dface_vertices = ntuple( i -> a[dface_to_nodes[i]], Val{2^d}() )
+    n_cube_face( dface_vertices )
+  else
+    @unreachable
+  end
+end
+
+function get_dface(a::Cell,dface::Integer,::Val{d}) where d
+  CellFace{d}(dface,a)
+end
+
+function get_dface(a::CellFace,dface::Integer,::Val{d}) where d
+  CellFace{d}(dface,a)
+end
+
+function get_dface(a::Face,dface::Integer,::Val{0})
+  a[dface]
+end
+
+function get_dface(a::Cell,dface::Integer,::Val{0})
+  a[dface]
+end
+
+function get_dface(a::CellFace,dface::Integer,::Val{0})
+  a[dface]
+end
+
+is_simplex(a::Face) = is_simplex(get_polytope(a))
+
+is_n_cube(a::Face) = is_n_cube(get_polytope(a))
+
+is_simplex(::Segment) = true
+
+is_simplex(::Triangle) = true
+
+is_n_cube(::Segment) = true
+
+is_n_cube(::Triangle) = true
+
+function simplex_face(v::NTuple{N,<:Point}) where N
+  if N == 1
+    v[1]
+  elseif N == 2
+    Segment(v)
+  elseif N == 3
+    Triangle(v)
+  else
+    @notimplemented
+  end
+end
+
+function n_cube_face(v::NTuple{N,<:Point}) where N
+  @notimplemented
+end
+
+function center(a::Face)
+  c = zero( typeof(a[1]) )
+  for i in 1:num_vertices(a)
+    c += a[i] / num_vertices(a)
+  end
+  c
+end
+
+center(a::Point) = a
+
+function normal(::Face)
+  @notimplemented
+end
+
+function normal(a::Face{1,2})
+  v = a[2] - a[1]
+  n = orthogonal(v)
+  n / norm(n)
+end
+
+function normal(a::Face{2,3})
   v1 = a[2]-a[1]
   v2 = a[3]-a[1]
   n = orthogonal(v1,v2)
   n / norm(n)
 end
 
-function get_cell(a::Triangle)
-  K = 1:num_vertices(a)
-  X = get_vertex_coordinates(a)
-  p = get_polytope(a)
-  K,X,p
+function normal(a::Segment{2})
+  v = a[2] - a[1]
+  n = orthogonal(v)
+  n / norm(n)
 end
 
-function Base.setindex(p::Point,v,idx::Integer)
-  data = Base.setindex(p.data,v,idx)
-  Point(data)
+function normal(a::Triangle{3})
+  v1 = a[2]-a[1]
+  v2 = a[3]-a[1]
+  n = orthogonal(v1,v2)
+  n / norm(n)
+end
+
+function normal(::Face,::Integer)
+  @abstractmethod
+end
+
+function normal(f::Face{D,D},facet::Integer) where D
+  normal( get_facet(f,facet) )
+end
+
+function normal(f::Face{1,D},facet::Integer) where D
+  if facet == 1
+    n = f[1]-f[2]
+  elseif facet == 2
+    n = f[2]-f[1]
+  else
+    @unreachable
+  end
+  n / norm(n)
+end
+
+function normal(f::Face{2,3},facet::Integer)
+  p = get_polytope(f)
+  n = normal(f)
+  _f = get_facet(f,facet)
+  v = _f[2]-_f[1]
+  v /= norm(v)
+  v *= get_facet_orientations(p)[facet]
+  n × v
 end
 
 distance(a::Point,b::Point) =  norm( a - b )
 
-function distance(p::Point{D},s::Segment{D}) where D
+function distance(p::Point{D},s::Face{1,D}) where D
   s1_s2 = s[2] - s[1]
   l = norm(s1_s2)
   v = s1_s2 / l
@@ -63,115 +266,35 @@ function distance(p::Point{D},s::Segment{D}) where D
   end
 end
 
-distance(s::Segment,p::Point) = distance(p,s) 
+function distance(p::Point{Dp},f::Face{Df,Dp}) where {Df,Dp}
+  @notimplementedif Df ≠ Dp-1
+  n = normal(f)
+  c = center(f)
+  abs( (p-c) ⋅ n )
+end
 
 function projection(p::Point{D},q::Point{D}) where D
   q
 end
 
-function projection(p::Point{D},s::Segment{D}) where D
+function projection(p::Point{D},s::Face{1,D}) where D
   c = center(s)
   v = s[2] - s[1]
   v = v / norm(v)
   c + ( ( p - c ) ⋅ v ) * v
 end
 
-function distance(cell_nodes,node_to_coordinates,p::Polytope,d::Integer,dface::Integer,point::Point)
-  face = get_dimrange(p,d)[dface]
-  distance(cell_nodes,node_to_coordinates,p,face,point)
+function projection(p::Point{Dp},f::Face{Df,Dp}) where {Df,Dp}
+  @notimplementedif Df ≠ Dp-1
+  n = normal(f)
+  c = center(f)
+  p + ( ( c - p ) ⋅ n ) * n
 end
 
-function distance(cell_nodes,node_to_coordinates,p::Polytope,face::Integer,point::Point)
-  D = length(eltype(node_to_coordinates))
-  d = get_facedims(p)[face]
-  dface = face - get_dimrange(p,d)[1] + 1
-  if d == 0
-    vertex = node_to_coordinates[ cell_nodes[ dface ] ]
-    distance(vertex,point)
-  elseif d == 1
-    dface_nodes = get_face_vertices(p,d)[dface]
-    p1 = node_to_coordinates[ cell_nodes[ dface_nodes[1] ] ] 
-    p2 = node_to_coordinates[ cell_nodes[ dface_nodes[2] ] ] 
-    seg = Segment(p1,p2)
-    distance(seg,point)
-  elseif d == D-1
-    c = center(cell_nodes,node_to_coordinates,p,face)
-    n = normal(cell_nodes,node_to_coordinates,p,face)
-    abs( (point-c) ⋅ n )
-  else
-    @assert false
-  end
-end
-
-function projection(cell_nodes,node_to_coordinates,p::Polytope,d::Integer,dface::Integer,point::Point)
-  face = get_dimrange(p,d)[dface]
-  projection(cell_nodes,node_to_coordinates,p,face,point)
-end
-
-function projection(cell_nodes,node_to_coordinates,p::Polytope{D},face::Integer,point::Point) where D
-  d = get_facedims(p)[face]
-  dface = face - get_dimrange(p,d)[1] + 1
-  if d == 0
-    vertex = node_to_coordinates[ cell_nodes[ dface ] ]
-    projection(point,vertex)
-  elseif d == 1
-    dface_nodes = get_face_vertices(p,d)[dface]
-    p1 = node_to_coordinates[ cell_nodes[ dface_nodes[1] ] ] 
-    p2 = node_to_coordinates[ cell_nodes[ dface_nodes[2] ] ] 
-    seg = Segment(p1,p2)
-    projection(point,seg)
-  elseif d == D-1
-    facet = dface
-    c = center(cell_nodes,node_to_coordinates,p,face)
-    n = normal(cell_nodes,node_to_coordinates,p,face)
-    point + ( ( c - point ) ⋅ n ) * n
-  else
-    @assert false
-  end
-end
-
-function get_bounding_box(
-  cell_nodes::Vector{<:Integer},
-  node_to_coordinates::Vector{<:Point})
-
-  # check is a cartesian cell
-  pmin = node_to_coordinates[ first(cell_nodes) ]
-  pmax = node_to_coordinates[ last(cell_nodes) ]
-  pmin,pmax
-end
-
-function have_intersection(cell_nodes,node_to_coordinates,::Polytope,point::Point)
-  have_intersection(cell_nodes,node_to_coordinates,point)
-end
-
-function have_intersection(cell_nodes,node_to_coordinates,point::Point)
-  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates)
-  all( pmin.data .< point.data ) || return false
-  all( pmax.data .> point.data ) || return false
-  true
-end
-
-function have_intersection(cell_nodes,node_to_coordinates,p::Polytope,e::Segment)
-  D = num_dims(p)
-  tmin = 1.0
-  tmax = 0.0
-  for facet in 1:num_facets(p)
-    face = get_dimrange(p,D-1)[facet]
-    if have_intersection(cell_nodes,node_to_coordinates,p,face,e)
-      t = compute_intersection_paremeter(cell_nodes,node_to_coordinates,p,face,e)
-      tmin = min(t,tmin)
-      tmax = max(t,tmax)
-    end
-  end
-  tmin + TOL < tmax
-end
-
-function have_intersection(cell_nodes,node_to_coordinates,p::Polytope,face::Integer,e::Segment)
-  D = length(eltype(node_to_coordinates))
-  @assert get_facedims(p)[face] == D-1
-  facet = face - get_dimrange(p,D-1)[1] + 1
-  c = center(cell_nodes,node_to_coordinates,p,face)
-  n = normal(cell_nodes,node_to_coordinates,p,face)
+function have_intersection(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
+  @notimplementedif Df + 1 ≠ Dp
+  c = center(f)
+  n = normal(f)
   s1_s2 = e[2] - e[1]
   s1_c = c - e[1]
   α = ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
@@ -179,218 +302,224 @@ function have_intersection(cell_nodes,node_to_coordinates,p::Polytope,face::Inte
     false
   else
     x = e[1] + s1_s2 * α
-    contains_projection(cell_nodes,node_to_coordinates,p,face,x)
+    contains_projection(f,x)
   end
 end
 
-function contains_projection(cell_nodes,node_to_coordinates,p::Polytope,face::Integer,point::Point)
-  d = get_facedims(p)[face]
-  dface = face - get_dimrange(p,d)[1] + 1
-  nfaces = get_faces(p,d,d-1)[dface]
-  for (nlface,nface) ∈ enumerate(nfaces)
-    c = center(cell_nodes,node_to_coordinates,p,d-1,nface)
-    n = normal(cell_nodes,node_to_coordinates,p,d,dface,d-1,nlface)
-    if ( point - c ) ⋅ n > TOL
-      return false
+function have_intersection(f::Face{D,D},e::Face{1,D}) where D
+  p0 = nothing
+  for i in 1:num_facets(f)
+    facet = get_facet(f,i)
+    if have_intersection(facet,e)
+      p = intersection_point(facet,e)
+      if p0 === nothing
+        p0 = p
+      elseif distance(p,p0) > TOL
+        return true
+      end
     end
   end
-  true
+  false
 end
 
-function compute_intersection_paremeter(cell_nodes,node_to_coordinates,p::Polytope,face::Integer,e::Segment)
-  D = length(eltype(node_to_coordinates))
-  @assert get_facedims(p)[face] == D-1
-  facet = face - get_dimrange(p,D-1)[1] + 1
-  c = center(cell_nodes,node_to_coordinates,p,face)
-  n = normal(cell_nodes,node_to_coordinates,p,face)
-  s1_s2 = e[2] - e[1]
-  s1_c = c - e[1]
-  ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
+function have_intersection(a::Face{D,D},b::Face{2,D}) where D
+  p0,p1 = nothing,nothing
+  for i in 1:num_faces(a,D-2)
+    face = get_dface(a,i,Val{D-2}())
+    if have_intersection(b,face)
+      p = intersection_point(b,face)
+      if p0 === nothing
+        p0 = p
+      elseif p1 === nothing
+        if distance(p,p0) > TOL
+          p1 = p
+        end
+      elseif distance(p,Segment(p0,p1)) > TOL
+        return true
+      end
+    end
+  end
+  false
 end
 
-function intersection_point(cell_nodes,node_to_coordinates,p::Polytope,face::Integer,e::Segment)
-  D = length(eltype(node_to_coordinates))
-  @assert get_facedims(p)[face] == D-1
-  facet = face - get_dimrange(p,D-1)[1] + 1
-  @assert have_intersection(cell_nodes,node_to_coordinates,p,face,e)
-  c = center(cell_nodes,node_to_coordinates,p,face)
-  n = normal(cell_nodes,node_to_coordinates,p,face)
+function have_intersection(f::Face{D,D},p::Point) where D
+  if is_cartesian(f)
+    pmin,pmax = get_bounding_box(f)
+    all( pmin.data .< p.data ) || return false
+    all( pmax.data .> p.data ) || return false
+    true
+  else
+    @notimplemented
+  end
+end
+
+function have_intersection(f::Face,p::Point)
+  @notimplemented
+end
+
+
+function intersection_point(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
+  @notimplementedif Df + 1 ≠ Dp
+  c = center(f)
+  n = normal(f)
   s1_s2 = e[2] - e[1]
   s1_c = c - e[1]
   α = ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
   e[1] + s1_s2 * α
 end
 
-
-function center(cell_nodes,node_to_coordinates,p::Polytope,d::Integer,dface::Integer)
-  face = get_dimrange(p,d)[dface]
-  center(cell_nodes,node_to_coordinates,p,face)
-end
-
-function center(cell_nodes,node_to_coordinates,p::Polytope,face::Integer)
-  d = get_facedims(p)[face]
-  dface = face - get_dimrange(p,d)[1] + 1
-  local_dface_nodes = get_faces(p,d,0)[dface]
-  c = zero(eltype(node_to_coordinates))
-  num_local_nodes = length(local_dface_nodes)
-  for ln in local_dface_nodes
-    n = cell_nodes[ln]
-    vertex = node_to_coordinates[n]
-    c += vertex/num_local_nodes
-  end
-  c
-end
-
-function normal(cell_nodes,node_to_coordinates,p::Polytope,d,dface::Integer,n,nlface::Integer)
-  D = length(eltype(node_to_coordinates))
-  @assert d == n+1
-  if d == D
-    facet = nlface
-    normal(cell_nodes,node_to_coordinates,p,facet)
-  elseif n == 0
-    nface = get_faces(p,d,d-1)[dface][nlface]
-    local_dface_nodes = get_face_vertices(p,d)[dface]
-    p1 = node_to_coordinates[ cell_nodes[ local_dface_nodes[1] ] ]
-    p2 = node_to_coordinates[ cell_nodes[ local_dface_nodes[2] ] ]
-    v = p2 - p1
-    v /= norm(v)
-    if nface == local_dface_nodes[1] 
-      -v
-    else # nface == 2
-      v
+function contains_projection(f::Face,p::Point)
+  for i in 1:num_facets(f)
+    facet = get_facet(f,i)
+    c = center(facet)
+    n = normal(f,i)
+    if (p-c) ⋅ n > TOL
+      return false
     end
-  elseif d == D-1
-    @assert D == 3 && n == 1
-    if is_simplex(p)
-      pf = TRI
-      pf.face_orientations[3] = -1
-    elseif is_n_cube(p)
-      pf = QUAD
-    else
-      @assert false
-    end
-    facet = dface
-    nface = get_faces(p,d,d-1)[dface][nlface]
-    n_f = normal(cell_nodes,node_to_coordinates,p,D-1,facet)
-    local_nface_nodes = get_face_vertices(pf,n)[nlface]
-    local_facet_nodes = get_face_vertices(p,d)[facet]
-    p1 = node_to_coordinates[ cell_nodes[ local_facet_nodes[ local_nface_nodes[1] ] ] ]
-    p2 = node_to_coordinates[ cell_nodes[ local_facet_nodes[ local_nface_nodes[2] ] ] ]
-    v = p2 - p1
-    v = v / norm(v)
-    v = v * pf.face_orientations[nlface] * p.face_orientations[facet]
-    n_f × v
-  else
-    @assert false
   end
-
+  true
 end
 
-function normal(cell_nodes,node_to_coordinates,p::Polytope,d::Integer,dface::Integer)
-  face = get_dimrange(p,d)[dface]
-  normal(cell_nodes,node_to_coordinates,p,face)
-end
+is_cartesian(::Face) = false
 
-function normal(cell_nodes,node_to_coordinates,p::Polytope,face::Integer)
-  D = length(eltype(node_to_coordinates))
-  @assert get_facedims(p)[face] == D-1
-  facet = face - get_dimrange(p,D-1)[1] + 1
-  function get_vertex(i)
-    ln = local_facet_nodes[i]
-    node = cell_nodes[ln]
-    node_to_coordinates[node]
-  end
-  function get_vector(i)
-    p_0 = get_vertex(1)
-    p_i = get_vertex(i+1)
-    p_i - p_0
-  end
-
-  local_facet_nodes = get_faces(p,D-1,0)[facet]
-  @assert length(local_facet_nodes) ≥ D
-  vectors = ntuple(get_vector,Val{D-1}())
-  n = orthogonal(vectors...)
-  n = n / norm(n)
-  n * p.face_orientations[facet]
-end
-
-
-function have_intersection(cell_nodes,node_to_coordinates,p::Polytope,tri::Triangle)
-  p1 = nothing
-  p2 = nothing
-  s = nothing
-  D = num_dims(p)
-  for dface in 1:num_faces(p,D-2)
-    face = get_dimrange(p,D-2)[dface]
-    if have_intersection(cell_nodes,node_to_coordinates,p,face,tri)
-      point = intersection_point(cell_nodes,node_to_coordinates,p,face,tri)
-      if p1 == nothing
-        p1 = point
-      elseif p2 === nothing
-        if distance(p1,point) > TOL
-          p2 = point
-          s = Segment(p1,p2)
+function is_cartesian(f::Face{D,D}) where D
+  if is_n_cube(f)
+    p = get_polytope(f)
+    for i in 1:num_facets(f)
+      n = get_facet_normals(p)[i]
+      facet = get_facet(f,i)
+      pd = n ⋅ facet[1]
+      for j in 1:num_vertices(facet)
+        if n ⋅ facet[j] ≠ pd
+          return false
         end
-      elseif distance(s,point) > TOL
-        return true
       end
-
     end
+    return true
   end
   false
 end
 
+function get_bounding_box(f::Face)
+  @assert is_cartesian(f)
+  f[1],f[end]
+end
 
-function have_intersection(cell_nodes,node_to_coordinates,p::Polytope{3},face::Integer,t::Triangle{3})
+
+## Interface
+
+function distance(K,X::Vector{<:Point},p::Polytope,point::Point)
+  c = Cell(K,X,p)
+  distance(c,point)
+end
+
+function distance(K,X::Vector{<:Point},p::Polytope,d::Integer,dface,point::Point)
+  # @generated 
+  c = Cell(K,X,p)
+  if d == 0
+    f0 = get_dface(c,dface,Val{0}())
+    distance(point,f0)
+  elseif d == 1
+    f1 = get_dface(c,dface,Val{1}())
+    distance(point,f1)
+  elseif d == 2
+    f2 = get_dface(c,dface,Val{2}())
+    distance(point,f2)
+  elseif d == 3
+    f3 = get_dface(c,dface,Val{3}())
+    distance(point,f3)
+  else
+    @notimplemented
+  end
+end
+
+function projection(K,X::Vector{<:Point},p::Polytope,point::Point)
+  c = Cell(K,X,p)
+  projection(c,point)
+end
+
+function projection(K,X::Vector{<:Point},p::Polytope,d::Integer,dface,point::Point)
+  # @generated 
+  c = Cell(K,X,p)
+  if d == 0
+    f0 = get_dface(c,dface,Val{0}())
+    projection(point,f0)
+  elseif d == 1
+    f1 = get_dface(c,dface,Val{1}())
+    projection(point,f1)
+  elseif d == 2
+    f2 = get_dface(c,dface,Val{2}())
+    projection(point,f2)
+  elseif d == 3
+    f3 = get_dface(c,dface,Val{3}())
+    projection(point,f3)
+  else
+    @notimplemented
+  end
+end
+
+function have_intersection(K,X::Vector{<:Point},p::Polytope,f::F) where F<:Union{Point,Face}
+  c = Cell(K,X,p)
+  have_intersection(c,f)
+end
+
+function have_intersection(K,X::Vector{<:Point},p::Polytope,d::Integer,dface,f::F) where F<:Union{Point,Face}
+  # @generated 
+  c = Cell(K,X,p)
+  if d == 0
+    f0 = get_dface(c,dface,Val{0}())
+    have_intersection(f0,f)
+  elseif d == 1
+    f1 = get_dface(c,dface,Val{1}())
+    have_intersection(f1,f)
+  elseif d == 2
+    f2 = get_dface(c,dface,Val{2}())
+    have_intersection(f2,f)
+  elseif d == 3
+    f3 = get_dface(c,dface,Val{3}())
+    have_intersection(f3,f)
+  else
+    @notimplemented
+  end
+end
+
+function intersection_point(K,X::Vector{<:Point},p::Polytope,f::F) where F<:Union{Point,Face}
+  c = Cell(K,X,p)
+  intersection_point(c,f)
+end
+
+function intersection_point(K,X::Vector{<:Point},p::Polytope,d::Integer,dface,f::F) where F<:Union{Point,Face}
+  # @generated 
+  c = Cell(K,X,p)
+  if d == 0
+    f0 = get_dface(c,dface,Val{0}())
+    intersection_point(f0,f)
+  elseif d == 1
+    f1 = get_dface(c,dface,Val{1}())
+    intersection_point(f1,f)
+  elseif d == 2
+    f2 = get_dface(c,dface,Val{2}())
+    intersection_point(f2,f)
+  elseif d == 3
+    f3 = get_dface(c,dface,Val{3}())
+    intersection_point(f3,f)
+  else
+    @notimplemented
+  end
+end
+
+function intersection_point(K,X,p,face,f) 
   d = get_facedims(p)[face]
-  @assert d == 1
-  edge = face - get_dimrange(p,d)[1] + 1
-  edge_nodes = get_face_vertices(p,d)[edge]
-  p1 = node_to_coordinates[ cell_nodes[ edge_nodes[1] ] ]
-  p2 = node_to_coordinates[ cell_nodes[ edge_nodes[2] ] ]
-  s = Segment(p1,p2)
-  have_intersection(t,s)
+  dface = face - get_dimrange(p,d)[1] + 1
+  intersection_point(K,X,p,d,dface,f)
 end
 
-function have_intersection(t::Triangle,s::Segment)
-  Kt,Xt,pt = get_cell(t)
-  tface = num_faces(pt)
-  have_intersection(Kt,Xt,pt,tface,s)
+function get_bounding_box(K,X::Vector{<:Point},p::Polytope)
+  c = Cell(K,X,p)
+  get_bounding_box(c)
 end
 
-function intersection_point(cell_nodes,node_to_coordinates,p::Polytope{3},face::Integer,t::Triangle{3})
-  d = get_facedims(p)[face]
-  @assert d == 1
-  edge = face - get_dimrange(p,d)[1] + 1
-  edge_nodes = get_face_vertices(p,d)[edge]
-  p1 = node_to_coordinates[ cell_nodes[ edge_nodes[1] ] ]
-  p2 = node_to_coordinates[ cell_nodes[ edge_nodes[2] ] ]
-  s = Segment(p1,p2)
-  intersection_point(t,s)
-end
-
-function intersection_point(t::Triangle,s::Segment)
-  Kt,Xt,pt = get_cell(t)
-  tface = num_faces(pt)
-  intersection_point(Kt,Xt,pt,tface,s)
-end
-
-function compute_intersection_paremeters(
-  cell_nodes,
-  node_to_coordinates,
-  p::Polytope{3},
-  face::Integer,
-  t::Triangle{3})
-
-  point = intersection_point(cell_nodes,node_to_coordinates,p,face,t)
-  v1 = t[2]-t[1]
-  v2 = t[3]-t[1]
-  v1 /= norm(v1)
-  v2 /= norm(v1)
-  s = (point-t[1])⋅v1
-  t = (point-t[1])⋅v2
-  s,t
-end
+## Orthogonal
 
 function orthogonal(a::VectorValue{2})
   VectorValue( -a[2], a[1] )

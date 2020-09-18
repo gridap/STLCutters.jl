@@ -8,10 +8,14 @@ using Gridap.Arrays
 using Gridap.Helpers
 
 import Gridap.ReferenceFEs: get_polytope
+import Gridap.ReferenceFEs: is_simplex 
+import Gridap.ReferenceFEs: is_n_cube 
 import Gridap.ReferenceFEs: get_vertex_coordinates
-import Gridap.ReferenceFEs: num_vertices
 import Gridap.ReferenceFEs: num_faces 
+import Gridap.ReferenceFEs: num_vertices
+import Gridap.ReferenceFEs: num_edges 
 import Gridap.ReferenceFEs: num_facets 
+import Gridap.ReferenceFEs: num_dims 
 
 export Table
 export Point
