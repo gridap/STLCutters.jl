@@ -11,7 +11,6 @@ using Gridap.Helpers
 using Gridap.Arrays
 
 using STLCutters: get_default_directions
-using STLCutters: compute_stl_topology 
 using STLCutters: compute_stl_grid 
 using STLCutters: get_edge_coordinates 
 
@@ -32,7 +31,6 @@ stl = GridTopology(stl_grid)
 
 STL_vertices = get_vertex_coordinates(stl)
 STL_edges = get_edge_coordinates(stl)
-
 
 
 T,X = initial_mesh(p)

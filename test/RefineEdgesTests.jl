@@ -11,8 +11,8 @@ using Gridap.Helpers
 using Gridap.Arrays
 
 using STLCutters: get_default_directions
-using STLCutters: compute_stl_topology 
 using STLCutters: get_edge_coordinates 
+using STLCutters: compute_stl_grid 
 
 
 p = QUAD
@@ -24,7 +24,8 @@ stl_v = [
   Point(1.1,0.5) ]
 stl_faces = Table( [[1,2],[1,3] ] )
 
-stl = compute_stl_topology(stl_faces,stl_v)
+stl_grid = compute_stl_grid(stl_faces,stl_v)
+stl = GridTopology(stl_grid)
 
 STL_edges = get_edge_coordinates(stl)
 
@@ -59,7 +60,8 @@ stl_v = [
   Point(1.1,1.1) ]
 stl_faces = Table( [[1,2],[1,3] ] )
 
-stl = compute_stl_topology(stl_faces,stl_v)
+stl_grid = compute_stl_grid(stl_faces,stl_v)
+stl = GridTopology(stl_grid)
 STL_edges = get_edge_coordinates(stl)
 
 E = distribute_faces(T,X,p,1:length(STL_edges),STL_edges)

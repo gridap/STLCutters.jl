@@ -1,12 +1,4 @@
 
-function compute_stl_topology(
-  cell_to_vertices::Table,
-  vertex_to_coordinates::Vector{<:Point})
-
-  grid = compute_stl_grid(cell_to_vertices,vertex_to_coordinates)
-  GridTopology(grid)
-end
-
 function compute_stl_grid(
   cell_to_vertices::Table,
   vertex_to_coordinates::Vector{<:Point{D}}) where D

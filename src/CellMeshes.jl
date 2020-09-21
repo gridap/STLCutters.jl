@@ -146,20 +146,20 @@ struct CellMeshCache
   d_to_inactive_dfaces::Vector{Vector{Bool}}
   d_to_dface_to_new_dfaces::Vector{Vector{Vector{Int}}}
   d_to_dface_to_cell_dface::Vector{Vector{Int}}
-  cell_to_lfacet_to_orientation::Table{Int,Int32}
+  cell_to_lfacet_to_orientation::Table{Int,Vector{Int},Vector{Int32}}
   vertex_to_surface_mesh_faces::Vector{Vector{Int}}
   facet_to_surface_mesh_facet::Vector{Int}
 end
 
 struct CutterCache
-  d_to_ldface_to_dface::Table{Int,Int32}
-  m_n_to_mface_to_nfaces::Matrix{Table{Int,Int32}}
-  cell_to_lfacet_to_orientation::Table{Int,Int32}
+  d_to_ldface_to_dface::Table{Int,Vector{Int},Vector{Int32}}
+  m_n_to_mface_to_nfaces::Matrix{Table{Int,Vector{Int},Vector{Int32}}}
+  cell_to_lfacet_to_orientation::Table{Int,Vector{Int},Vector{Int32}}
 end
 
 struct LevelSetCache{D,T}
   levelsets::Vector{Plane{D,T}}
-  vertex_to_levelset_to_inoutcut::Table{Int8,Int32}
+  vertex_to_levelset_to_inoutcut::Table{Int8,Vector{Int8},Vector{Int32}}
   levelset_region_to_inout::Dict{Int,Int8}
   vector_cache_int::Vector{Int}
   vector_cache_float::Vector{Float64}
@@ -176,8 +176,8 @@ end
 
 struct CellMesh{D,T}
   vertex_coordinates::Vector{Point{D,T}}
-  m_n_to_mface_to_nfaces::Matrix{Table{Int,Int32}}
-  d_to_dface_to_in_out_boundary::Table{Int8,Int32}
+  m_n_to_mface_to_nfaces::Matrix{Table{Int,Vector{Int},Vector{Int32}}}
+  d_to_dface_to_in_out_boundary::Table{Int8,Vector{Int8},Vector{Int32}}
   cache::MeshCache
 end
 
@@ -193,7 +193,7 @@ end
 
 function CellMesh{D,T}() where {D,T}
   coordinates = Point{D,T}[]
-  m_n_to_mf_to_nf = Matrix{Table{Int,Int32}}(undef,D+1,D+1)
+  m_n_to_mf_to_nf = Matrix{Table{Int,Vector{Int},Vector{Int32}}}(undef,D+1,D+1)
   d_df_to_io = empty_table(Int,Int32,0)
   for d in 0:D, n in 0:D
     m_n_to_mf_to_nf[d+1,n+1] = empty_table(Int,Int32,0)

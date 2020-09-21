@@ -113,7 +113,7 @@ facet_to_io = get_facet_to_inout(mesh)
 grid = UnstructuredGrid(X,T,[TET4],ones(length(T)))
 facets = UnstructuredGrid(X,F,[TRI3],ones(length(F)))
 
-writevtk(grid,"mesh",cellfields=["io"=>cell_to_io])
-writevtk(facets,"facets",cellfields=["io"=>facet_to_io])
+#writevtk(grid,"mesh",cellfields=["io"=>cell_to_io])
+#writevtk(facets,"facets",cellfields=["io"=>facet_to_io])
 
 end # module
