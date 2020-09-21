@@ -4,6 +4,7 @@ using Test
 
 @testset "CellMeshes" begin include("CellMeshesTests.jl") end
 
+@testset "STLs" begin include("STLsTests.jl") end
 @testset "Intersections" begin include("IntersectionsTests.jl") end
 @testset "RefineVertices" begin include("RefineVerticesTests.jl") end
 @testset "RefineEdges" begin include("RefineEdgesTests.jl") end

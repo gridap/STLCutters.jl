@@ -1,11 +1,14 @@
 module STLCutters
 
-using LinearAlgebra
 using Gridap
 using Gridap.Geometry
 using Gridap.ReferenceFEs
 using Gridap.Arrays
 using Gridap.Helpers
+using LinearAlgebra
+using FileIO
+
+import MeshIO
 
 import Gridap.ReferenceFEs: get_polytope
 import Gridap.ReferenceFEs: is_simplex 
