@@ -494,6 +494,7 @@ function compute_tables(p::Polytope,write=false)
   case_to_table_id = fill(UNSET,num_combinations(p))
   table_id_to_connectivities = Vector{Vector{Int}}[]
   table_id_to_vertices = Vector{Vector{Int}}[] 
+  table_id_to_cell_to_inout = Vector{Int8}[]
   table_id = 0
   for case in 1:num_combinations(p)
     T,X,Tnew = initialize_mesh(p)
@@ -505,14 +506,15 @@ function compute_tables(p::Polytope,write=false)
       refine_cells!(T,X,p,case,Tnew)
       T = Tnew
 
+      in_out = compute_in_out(T,p,case)
+
       push!( table_id_to_connectivities, T )
       push!( table_id_to_vertices, X )
-
+      push!( table_id_to_cell_to_inout, in_out)
 
       if write 
         println("$p case $case: $(length(T)) cells, $(length(X)) vertices")
         X = compute_vertex_coordinates(X,p)
-        in_out = compute_in_out(T,p,case)
         grid = compute_grid(T,X,p)
         writevtk(grid,"$(num_dims(p))D_case_$case",cellfields=["IN_OUT"=>in_out])
       end
@@ -520,29 +522,34 @@ function compute_tables(p::Polytope,write=false)
   end
   case_to_table_id,
   table_id_to_connectivities,
-  table_id_to_vertices
+  table_id_to_vertices,
+  table_id_to_cell_to_inout
 end
 
 function compute_tables(dims=2:3,write=false)
   d_to_case_to_table_id = Vector{Int}[]
   d_to_table_id_to_connectivities = Vector{Vector{Vector{Int}}}[]
   d_to_table_id_to_vertices = Vector{Vector{Vector{Int}}}[] 
+  d_to_table_id_to_cell_to_inout = Vector{Vector{Int8}}[] 
   for d in dims
     p = Polytope(tfill(HEX_AXIS,Val(d)))
     output = compute_tables(p,write)
 
     case_to_table_id,
     table_id_to_connectivities,
-    table_id_to_vertices = output
+    table_id_to_vertices,
+    table_id_to_cell_to_inout = output
 
     push!( d_to_case_to_table_id, case_to_table_id )
     push!( d_to_table_id_to_connectivities, table_id_to_connectivities )
     push!( d_to_table_id_to_vertices, table_id_to_vertices )
+    push!( d_to_table_id_to_cell_to_inout, table_id_to_cell_to_inout )
   end
 
   d_to_case_to_table_id,
   d_to_table_id_to_connectivities,
-  d_to_table_id_to_vertices
+  d_to_table_id_to_vertices,
+  d_to_table_id_to_cell_to_inout
 end
 
 
@@ -568,28 +575,44 @@ end
 "
 
 function write_tables(filename,write_ouput=false)
-  tables = compute_tables(2:3,write_ouput)
+  dims = 2:3
+  tables = compute_tables(dims,write_ouput)
 
   d_to_case_to_table_id,
   d_to_table_id_to_connectivities,
-  d_to_table_id_to_vertices = tables
+  d_to_table_id_to_vertices,
+  d_to_table_id_to_cell_to_inout = tables
 
   f = open(filename,"w")
 
   println(f,header)
   println(f,getters)
 
-  println(f,"const d_to_case_to_table_id = ")
-  println(f,d_to_case_to_table_id)
 
-  println(f,"const d_to_table_id_to_connectivities = ")
-  println(f,d_to_table_id_to_connectivities)
+  _print_data(f,dims,d_to_case_to_table_id,"#_to_case_to_table_id")
 
-  println(f,"const d_to_table_id_to_vertices = ")
-  println(f,d_to_table_id_to_vertices)
+  _print_data(f,dims,d_to_table_id_to_connectivities,"#_to_table_id_to_connectivities")
+  
+  _print_data(f,dims,d_to_table_id_to_vertices,"#_to_table_id_to_vertices")
+  
+  _print_data(f,dims,d_to_table_id_to_cell_to_inout,"#_to_table_id_to_cell_to_inout")
 
   close(f)
 end
 
+function _print_data(f::IO,dims,tables,name)
+  for (d,table) in zip(dims,tables)
+    println(f,"const "*replace(name,'#'=>"d$d")*" =")
+    println(f,table)
+    println(f)
+  end
+  println(f,"const "*replace(name,'#'=>"d")*" =")
+  print(f," [ ")
+  for d in dims
+    print(f,replace(name,'#'=>"d$d")*", ")
+  end
+  println(f,"]")
+  println(f)
+end
 
 end # module
