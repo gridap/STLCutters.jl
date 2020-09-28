@@ -229,8 +229,9 @@ function normal(a::Face{2,3})
     v1 = s[2]-s[1]
     v2 = s[3]-s[1]
     n = orthogonal(v1,v2)
-    if norm(n) > 0
-      return n / norm(n)
+    _norm = norm(n)
+    if _norm > 0
+      return n / _norm
     end
   end
   @unreachable
@@ -349,7 +350,11 @@ function distance(s1::Face{1,3},s2::Face{1,3})
   v2 /= norm(v2)
   n = v1 × v2  
   if norm(n) < 1e-14
-    return min( distance(s1[1],s2), distance(s1[2],s2), distance(s2[1],s1), distance(s2[2],s1) )
+    return min( 
+      distance(s1[1],s2), 
+      distance(s1[2],s2), 
+      distance(s2[1],s1), 
+      distance(s2[2],s1) )
   end
   n /= norm(n)
   n1 = n × v1
@@ -365,7 +370,11 @@ function distance(s1::Face{1,3},s2::Face{1,3})
   s1_c = c2 - s1[1]
   α2 = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
   if α1 < 0 || α2 < 0 || α1 > 1 || α2 > 1
-    return min( distance(s1[1],s2), distance(s1[2],s2), distance(s2[1],s1), distance(s2[2],s1) )
+    return min( 
+      distance(s1[1],s2),
+      distance(s1[2],s2),
+      distance(s2[1],s1),
+      distance(s2[2],s1) )
   end
   abs( ( c2 - c1 ) ⋅ n )
 end
@@ -568,20 +577,11 @@ function is_on_cell_facet(c::Face{D,D},f::Face{Df,D},face::Integer) where {Df,D}
   false
 end
 
-function get_cell_facet_on_facet(c::Face{D,D},f::Face) where D
-  for i in 1:num_facets(c)
-    facet = get_facet(c,i)
-    if surface(facet) > 0 &&
-       are_coplanar(facet,f) &&
-       are_overlapped(facet,f)
-      
-       return i
-    end
-  end
-  @unreachable
-end
+function get_cell_facet_on_facet(
+  c::Face{D,D},
+  f::Face{Df,D},
+  face::Integer) where {Df,D}
 
-function get_cell_facet_on_facet(c::Face{D,D},f::Face{Df,D},face::Integer) where {Df,D}
   for i in 1:num_facets(c)
     facet = get_facet(c,i)
     if surface(facet) > 0
@@ -747,13 +747,33 @@ function are_overlapped(c::Face,f::Face,face::Integer)
   are_overlapped(c,f,d,dface)
 end
 
-@generated(
 function are_overlapped(c::Face,f::Face{D},d::Integer,dface::Integer) where D
+  dispatch_face(are_overlapped,c,f,d,dface)
+end
+
+## Generated funcs
+
+@generated(
+function dispatch_face(fun,a::Face{D},d::Integer,dface::Integer,b...) where D
   str = ""
   for d in 0:D
     str *= "if d == $d \n"
-    str *= "  f$d =  get_dface(f,dface,Val{$d}()) \n"
-    str *= "  are_overlapped(c,f$d) \n"
+    str *= "  f$d =  get_dface(a,dface,Val{$d}()) \n"
+    str *= "  fun(f$d,b...) \n"
+    str *= "else"
+  end
+  str *= "\n  @notimplemented \nend"
+  Meta.parse(str)
+end
+)
+
+@generated(
+function dispatch_face(fun,a,b::Face{D},d::Integer,dface::Integer) where D
+  str = ""
+  for d in 0:D
+    str *= "if d == $d \n"
+    str *= "  f$d =  get_dface(b,dface,Val{$d}()) \n"
+    str *= "  fun(a,f$d) \n"
     str *= "else"
   end
   str *= "\n  @notimplemented \nend"
@@ -780,21 +800,13 @@ function distance(
   distance(c,d,dface,point)
 end
 
-@generated function distance(c::Cell{D},d::Integer,dface::Integer,point::Point) where D
-  str = ""
-  for d in 0:D
-    str *= "if d == $d \n"
-    str *= "  f$d =  get_dface(c,dface,Val{$d}()) \n"
-    str *= "  distance(point,f$d) \n"
-    str *= "else"
-  end
-  str *= "\n  @notimplemented \nend"
-  Meta.parse(str)
+function distance(c::Cell{D},d::Integer,dface::Integer,point::Point) where D
+  dispatch_face(distance,c,d,dface,point)
 end
 
 function projection(K,X::Vector{<:Point},p::Polytope,point::Point)
   c = Cell(K,X,p)
-  projection(c,point)
+  projection(point,c)
 end
 
 function projection(
@@ -809,18 +821,9 @@ function projection(
   projection(c,d,dface,point)
 end
 
-@generated(
 function projection(c::Cell{D},d::Integer,dface::Integer,point::Point) where D
-  str = ""
-  for d in 0:D
-    str *= "if d == $d \n"
-    str *= "  f$d =  get_dface(c,dface,Val{$d}()) \n"
-    str *= "  projection(point,f$d) \n"
-    str *= "else"
-  end
-  str *= "\n  @notimplemented \nend"
-  Meta.parse(str)
-end)
+  dispatch_face(projection,point,c,d,dface)
+end
 
 function have_intersection(
   K,
@@ -844,23 +847,14 @@ function have_intersection(
   have_intersection(c,d,dface,f)
 end
 
-@generated( 
 function have_intersection(
   c::Cell{D},
   d::Integer,
   dface::Integer,
   f::F) where {D,F<:Union{Point,Face}}
 
-  str = ""
-  for d in 0:D
-    str *= "if d == $d \n"
-    str *= "  f$d =  get_dface(c,dface,Val{$d}()) \n"
-    str *= "  have_intersection(f$d,f) \n"
-    str *= "else"
-  end
-  str *= "\n  @notimplemented \nend"
-  Meta.parse(str)
-end)
+  dispatch_face(have_intersection,c,d,dface,f)
+end
 
 function intersection_point(
   K,
@@ -884,24 +878,14 @@ function intersection_point(
   intersection_point(c,d,dface,f)
 end
 
-@generated( 
 function intersection_point(
   c::Cell{D},
   d::Integer,
   dface::Integer,
   f::F) where {D,F<:Union{Point,Face}}
 
-  str = ""
-  for d in 0:D
-    str *= "if d == $d \n"
-    str *= "  f$d =  get_dface(c,dface,Val{$d}()) \n"
-    str *= "  intersection_point(f$d,f) \n"
-    str *= "else"
-  end
-  str *= "\n  @notimplemented \nend"
-  Meta.parse(str)
+  dispatch_face(intersection_point,c,d,dface,f)
 end
-)
 
 function intersection_point(K,X,p,face,f) 
   d = get_facedims(p)[face]
@@ -950,84 +934,6 @@ function get_cell_facet_on_facet(
   c = Cell(K,X,p)
   get_cell_facet_on_facet(c,f,df)
 end
-
-function are_overlapped(
-  K,
-  X::Vector{<:Point},
-  p::Polytope,
-  d::Integer,
-  dface::Integer,
-  f::F,
-  face::Integer) where F<:Union{Point,Face}
-
-  c = Cell(K,X,p)
-  are_overlapped(c,d,dface,f,face)
-end
-
-function are_overlapped(
-  c::Cell,
-  d::Integer,
-  dface::Integer,
-  f::F,
-  face::Integer) where F<:Union{Point,Face}
-
-  p = get_polytope(f)
-  n = get_facedims(p)[face]
-  nface = face - get_dimrange(p,n)[1] + 1
-  are_overlapped(c,d,dface,f,n,nface)
-end
-
-function are_overlapped(
-  K,
-  X::Vector{<:Point},
-  p::Polytope,
-  d::Integer,
-  dface::Integer,
-  f::F) where F<:Union{Point,Face}
-
-  c = Cell(K,X,p)
-  are_overlapped(c,d,dface,f)
-end
-
-@generated( 
-function are_overlapped(
-  c::Cell{D},
-  d::Integer,
-  dface::Integer,
-  f::F,
-  n::Integer,
-  nface::Integer) where {D,F<:Union{Point,Face}}
-
-  str = ""
-  for d in 0:D
-    str *= "if n == $d \n"
-    str *= "  f$d =  get_dface(f,nface,Val{$d}()) \n"
-    str *= "  are_overlapped(c,d,dface,f$d) \n"
-    str *= "else"
-  end
-  str *= "\n  @notimplemented \nend"
-  Meta.parse(str)
-end
-)
-
-@generated( 
-function are_overlapped(
-  c::Cell{D},
-  d::Integer,
-  dface::Integer,
-  f::F) where {D,F<:Union{Point,Face}}
-
-  str = ""
-  for d in 0:D
-    str *= "if d == $d \n"
-    str *= "  f$d =  get_dface(c,dface,Val{$d}()) \n"
-    str *= "  are_overlapped(f$d,f) \n"
-    str *= "else"
-  end
-  str *= "\n  @notimplemented \nend"
-  Meta.parse(str)
-end
-)
 
 function get_bounding_box(K,X::Vector{<:Point},p::Polytope)
   c = Cell(K,X,p)
