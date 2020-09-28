@@ -4,15 +4,37 @@ function distribute_faces(
   node_to_coordinates::Vector{<:Point},
   p::Polytope,
   faces::AbstractVector,
-  STL_faces)
+  STL_faces,
+  query=have_intersection::Function)
 
   cell_to_faces = Vector{Int}[]
   for (i,cell) in enumerate(cell_to_nodes)
     push!(cell_to_faces,[])
     for face in faces
       object = STL_faces[face]
-      if have_intersection(cell,node_to_coordinates,p,object)
+      if query(cell,node_to_coordinates,p,object)
         push!(cell_to_faces[i],face)
+      end
+    end
+  end
+  cell_to_faces
+end
+
+function distribute_face_skeleton(
+  cell_to_nodes,
+  node_to_coordinates::Vector{<:Point},
+  p::Polytope,
+  faces::AbstractVector,
+  f::Face)
+
+  cell_to_faces = Vector{Int}[]
+  for (i,cell) in enumerate(cell_to_nodes)
+    push!(cell_to_faces,[])
+    if is_on_cell_facet(cell,node_to_coordinates,p,f)
+      for face in faces
+        if is_on_cell_facet(cell,node_to_coordinates,p,f,face)
+          push!(cell_to_faces[i],face)
+        end
       end
     end
   end

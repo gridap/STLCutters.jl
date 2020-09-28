@@ -15,6 +15,7 @@ using STLCutters: get_default_directions
 using STLCutters: compute_stl_grid 
 using STLCutters: get_edge_coordinates 
 using STLCutters: get_facet_coordinates 
+using STLCutters: is_on_cell_facet 
 
 stl_v = [ 
   Point(-0.1,0.5,0.5),
@@ -27,7 +28,8 @@ stl_v = [
   Point(0.5,-0.1,0.2),
   Point(1.1,-0.1,0.3) ]
 
-stl_faces = Table( [[1,2,3],[1,3,4],[1,6,2],[3,2,5],[1,4,7],[4,8,7],[4,9,8],[3,9,4] ] )
+stl_faces = [[1,2,3],[1,3,4],[1,6,2],[3,2,5],[1,4,7],[4,8,7],[4,9,8],[3,9,4]]
+stl_faces = Table(stl_faces)
 
 stl_grid = compute_stl_grid(stl_faces,stl_v)
 stl = GridTopology(stl_grid)
@@ -95,6 +97,101 @@ grid = UnstructuredGrid(X,Table(T),[HEX8,TET4],cell_types)
 writevtk(grid,"mesh",cellfields=["IO"=>cell_to_io])
 
 
+## 2D Facet on Skeleton
 
+v = [
+  Point(-0.5,1.0),
+  Point(0.4,0.3),
+  Point(1.5,0.3) ]
+f = Table([[1,2],[2,3]])
+stl_grid = compute_stl_grid(f,v)
+stl = GridTopology(stl_grid)
+
+STL_vertices = get_vertex_coordinates(stl)
+STL_facets = get_facet_coordinates(stl)
+
+p = QUAD
+T,X = initial_mesh(p)
+
+
+V = distribute_faces(T,X,p,1:length(STL_vertices),STL_vertices)
+
+Tnew = eltype(T)[]
+
+Tnew_to_v = Vector{Int}[]
+
+v_in = Int[]
+
+insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
+
+T = Tnew
+T_to_v = Tnew_to_v
+
+
+grid = compute_grid(T,X,p)
+
+writevtk(grid,"vertex_grid")
+writevtk(stl_grid,"stl")
+
+
+
+F = distribute_faces(T,X,p,1:length(STL_facets),STL_facets,is_on_cell_facet)
+
+Tnew = eltype(T)[]
+insert_facets!(T,X,p,F,Tnew,STL_facets)
+
+T = Tnew
+
+grid = compute_grid(T,X,p)
+
+writevtk(grid,"skeleton_grid")
+writevtk(stl_grid,"stl")
+
+## 3D Facet on Skeleton
+
+v = [
+  Point(0.3,0.5,0.2),
+  Point(0.7,0.7,0.2),
+  Point(0.7,-0.3,0.2) ]
+f = Table([[1,2,3]])
+stl_grid = compute_stl_grid(f,v)
+stl = GridTopology(stl_grid)
+
+p = HEX
+T,X = initial_mesh(p)
+
+STL_vertices = get_vertex_coordinates(stl)
+STL_facets = get_facet_coordinates(stl)
+V = distribute_faces(T,X,p,1:length(STL_vertices),STL_vertices)
+
+Tnew = eltype(T)[]
+
+Tnew_to_v = Vector{Int}[]
+
+v_in = Int[]
+
+insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
+
+T = Tnew
+T_to_v = Tnew_to_v
+
+
+grid = compute_grid(T,X,p)
+
+writevtk(grid,"vertex_grid3")
+writevtk(stl_grid,"stl3")
+
+F = distribute_faces(T,X,p,1:length(STL_facets),STL_facets,is_on_cell_facet)
+
+Tnew = eltype(T)[]
+
+insert_facets!(T,X,p,F,Tnew,STL_facets)
+
+T = Tnew
+
+
+grid = compute_grid(T,X,p)
+
+writevtk(grid,"skeleton_grid3")
 
 end # module

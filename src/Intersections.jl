@@ -18,17 +18,14 @@ end
 struct CellFace{Df,Dp,C}<:Face{Df,Dp}
   dface::Int
   cell::C
-  function CellFace{Df}(df::Integer,c::Cell{Dc,Dp}) where {Df,Dc,Dp}
-    new{Df,Dp,typeof(c)}(df,c)
-  end
-  function CellFace{Df}(df::Integer,c::CellFace{Dc,Dp}) where {Df,Dc,Dp}
+  function CellFace{Df}(df::Integer,c::Face{Dc,Dp}) where {Df,Dc,Dp}
     new{Df,Dp,typeof(c)}(df,c)
   end
 end
 
-Segment(a...) = Segment(a)
+Segment(a::Point...) = Segment(a)
 
-Triangle(a...) = Triangle(a)
+Triangle(a::Point...) = Triangle(a)
 
 function Base.getindex(::Face)
   @abstractmethod
@@ -112,6 +109,11 @@ function num_faces(a::Face,d::Integer)
   num_faces(p,d)
 end
 
+function num_faces(a::Face)
+  p = get_polytope(a)
+  num_faces(p)
+end
+
 get_vertex(a::Face,vertex::Integer) = get_dface(a,vertex,Val{0}())
 
 get_edge(a::Face,edge::Integer) = get_dface(a,edge,Val{1}())
@@ -180,6 +182,27 @@ function n_cube_face(v::NTuple{N,<:Point}) where N
   @notimplemented
 end
 
+function num_simplices(f::Face)
+  if is_simplex(f)
+    1
+  else
+    p = get_polytope(f)
+    length(simplexify(p))
+  end
+end
+
+function simplex(f::Face{Df},i::Integer) where Df
+  @boundscheck 0 < i ≤ num_simplices(f) || throw(BoundsError())
+  if is_simplex(f)
+    f
+  else
+    p = get_polytope(f)
+    simplex_to_nodes = simplexify(p)[1][i]
+    simplex_vertices = ntuple( i -> f[simplex_to_nodes[i]], Val{Df+1}() )
+    simplex_face( simplex_vertices )
+  end
+end
+
 function center(a::Face)
   c = zero( typeof(a[1]) )
   for i in 1:num_vertices(a)
@@ -201,10 +224,16 @@ function normal(a::Face{1,2})
 end
 
 function normal(a::Face{2,3})
-  v1 = a[2]-a[1]
-  v2 = a[3]-a[1]
-  n = orthogonal(v1,v2)
-  n / norm(n)
+  for i in 1:num_simplices(a)
+    s = simplex(a,i)
+    v1 = s[2]-s[1]
+    v2 = s[3]-s[1]
+    n = orthogonal(v1,v2)
+    if norm(n) > 0
+      return n / norm(n)
+    end
+  end
+  @unreachable
 end
 
 function normal(a::Segment{2})
@@ -249,11 +278,58 @@ function normal(f::Face{2,3},facet::Integer)
   n × v
 end
 
+function measure(f::Face)
+  if is_simplex(f)
+    simplex_measure(f)
+  else
+    m = 0.0
+    for i in 1:num_simplices(f)
+      s = simplex(f,i)
+      m += simplex_measure(s)
+    end
+    m
+  end
+end
+
+function measure(f::Face{1})
+  norm( f[2] -f[1] )
+end
+
+function simplex_measure(f::Face{Df,Dp}) where {Df,Dp}
+  @notimplementedif Df ≠ Dp-1
+  @notimplementedif !is_simplex(f)
+  factor = 1/factorial(Df)
+  v = ntuple( i -> f[i+1]-f[1], Val{Df}() )
+  norm( orthogonal(v...) ) * factor
+end
+
+function simplex_measure(f::Face{2,2})
+  @notimplementedif !is_simplex(f)
+  factor = 1 / 2
+  v1 = f[2] - f[1]
+  v2 = f[3] - f[1]
+  abs( v1 ⋅ v2 ) * factor
+end
+
+simplex_measure(f::Face{1}) = measure(f)
+
+Base.length(f::Face{1}) = measure(f)
+
+function surface(f::Face{Df,Dp}) where {Df,Dp}
+  @notimplementedif Df ≠ Dp-1
+  measure(f)
+end
+
+volume(f::Face{D,D}) where D = measure(f)
+
 distance(a::Point,b::Point) =  norm( a - b )
+
+distance(s::Face{1},p::Point) = distance(p,s)
 
 function distance(p::Point{D},s::Face{1,D}) where D
   s1_s2 = s[2] - s[1]
   l = norm(s1_s2)
+  @assert l > 0
   v = s1_s2 / l
   s1_p = p - s[1]
   s1_projection = ( s1_p ⋅ v ) * v
@@ -264,6 +340,34 @@ function distance(p::Point{D},s::Face{1,D}) where D
   else
     norm(p_projection)
   end
+end
+
+function distance(s1::Face{1,3},s2::Face{1,3})
+  v1 = s1[2] - s1[1]
+  v2 = s2[2] - s2[1]
+  v1 /= norm(v1)
+  v2 /= norm(v2)
+  n = v1 × v2  
+  if norm(n) < 1e-14
+    return min( distance(s1[1],s2), distance(s1[2],s2), distance(s2[1],s1), distance(s2[2],s1) )
+  end
+  n /= norm(n)
+  n1 = n × v1
+  n1 /= norm(n1)
+  c1 = center(s1)
+  s1_s2 = s2[2] - s2[1]
+  s1_c = c1 - s2[1]
+  α1 = ( n1 ⋅ s1_c ) / ( n1 ⋅ s1_s2 )
+  n2 = n × v2
+  n2 /= norm(n2)
+  c2 = center(s2)
+  s1_s2 = s1[2] - s1[1]
+  s1_c = c2 - s1[1]
+  α2 = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
+  if α1 < 0 || α2 < 0 || α1 > 1 || α2 > 1
+    return min( distance(s1[1],s2), distance(s1[2],s2), distance(s2[1],s1), distance(s2[2],s1) )
+  end
+  abs( ( c2 - c1 ) ⋅ n )
 end
 
 function distance(p::Point{Dp},f::Face{Df,Dp}) where {Df,Dp}
@@ -306,16 +410,22 @@ function have_intersection(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
   end
 end
 
+function have_intersection(f1::Face{1,3},f2::Face{1,3})
+  !are_colinear(f1,f2) && distance(f1,f2) < TOL
+end
+
 function have_intersection(f::Face{D,D},e::Face{1,D}) where D
   p0 = nothing
   for i in 1:num_facets(f)
     facet = get_facet(f,i)
-    if have_intersection(facet,e)
-      p = intersection_point(facet,e)
-      if p0 === nothing
-        p0 = p
-      elseif distance(p,p0) > TOL
-        return true
+    if surface(facet) > 0
+      if have_intersection(facet,e)
+        p = intersection_point(facet,e)
+        if p0 === nothing
+          p0 = p
+        elseif distance(p,p0) > TOL
+          return true
+        end
       end
     end
   end
@@ -358,6 +468,7 @@ function have_intersection(f::Face,p::Point)
 end
 
 
+
 function intersection_point(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
   @notimplementedif Df + 1 ≠ Dp
   c = center(f)
@@ -366,6 +477,46 @@ function intersection_point(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
   s1_c = c - e[1]
   α = ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
   e[1] + s1_s2 * α
+end
+
+function intersection_point(s1::Face{1,3},s2::Face{1,3})
+  v1 = s1[2] - s1[1]
+  v2 = s2[2] - s2[1]
+  v1 /= norm(v1)
+  v2 /= norm(v2)
+  n = v1 × v2
+  n /= norm(n)
+  n1 = n × v1
+  n1 /= norm(n1)
+  c1 = center(s1)
+  s1_s2 = s2[2] - s2[1]
+  s1_c = c1 - s2[1]
+  α1 = ( n1 ⋅ s1_c ) / ( n1 ⋅ s1_s2 )
+  n2 = n × v2
+  n2 /= norm(n2)
+  c2 = center(s2)
+  s1_s2 = s1[2] - s1[1]
+  s1_c = c2 - s1[1]
+  α2 = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
+
+  if α1 ≤ 0 || α2 ≤ 0 || α1 ≥ 1 || α2 ≥ 1
+    min_dist = Inf
+    p = s1[1]
+    for (a,b) in zip((s2,s1),(s1,s2))
+      for i in 1:num_vertices(a)
+        dist = distance(a[i],b)
+        if dist < min_dist
+          p = a[i]
+        end
+      end
+    end
+    p = projection(p,s1)
+    @assert contains_projection(s1,p)
+    return p
+  end
+
+  s1[1] + α2 * s1_s2
+
 end
 
 function contains_projection(f::Face,p::Point)
@@ -378,6 +529,70 @@ function contains_projection(f::Face,p::Point)
     end
   end
   true
+end
+
+function contains_projection(f1::Face,f2::Face)
+  for i in 1:num_vertices(f2)
+    if !contains_projection(f1,f2[i])
+      return false
+    end
+  end
+  true
+end
+
+function is_on_cell_facet(c::Face{D,D},f::Face{Df,D}) where {Df,D}
+  for i in 1:num_facets(c)
+    facet = get_facet(c,i)
+    if surface(facet) > 0
+      if are_coplanar(facet,f)
+        if are_overlapped(facet,f)
+          return true
+        end
+      end
+    end
+  end
+  false
+end
+
+function is_on_cell_facet(c::Face{D,D},f::Face{Df,D},face::Integer) where {Df,D}
+  for i in 1:num_facets(c)
+    facet = get_facet(c,i)
+    if surface(facet) > 0
+       are_coplanar(facet,f) &&
+       are_overlapped(facet,f) &&
+       are_overlapped(facet,f,face)
+
+       return true
+    end
+  end
+  false
+end
+
+function get_cell_facet_on_facet(c::Face{D,D},f::Face) where D
+  for i in 1:num_facets(c)
+    facet = get_facet(c,i)
+    if surface(facet) > 0 &&
+       are_coplanar(facet,f) &&
+       are_overlapped(facet,f)
+      
+       return i
+    end
+  end
+  @unreachable
+end
+
+function get_cell_facet_on_facet(c::Face{D,D},f::Face{Df,D},face::Integer) where {Df,D}
+  for i in 1:num_facets(c)
+    facet = get_facet(c,i)
+    if surface(facet) > 0
+       are_coplanar(facet,f) &&
+       are_overlapped(facet,f) &&
+       are_overlapped(facet,f,face)
+
+       return i
+    end
+  end
+  @unreachable
 end
 
 is_cartesian(::Face) = false
@@ -405,6 +620,146 @@ function get_bounding_box(f::Face)
   f[1],f[end]
 end
 
+function are_coplanar(::Face{Df,D},::Face{D,D}) where {Df,D}
+  @notimplemented
+end
+
+function are_coplanar(::Face{D,D},::Face{Df,D}) where {Df,D}
+  @notimplemented
+end
+
+function are_coplanar(::Face{D,D},::Face{D,D}) where D
+  @notimplemented
+end
+
+function are_coplanar(f1::Face{Df1,Dp},f2::Face{Df2,Dp}) where {Df1,Df2,Dp}
+  @notimplementedif Df1 ≠ Dp - 1 || Df1 < Df2
+  n = normal(f1)
+  c = center(f1)
+  for i in 1:num_vertices(f2)
+    p = f2[i]
+    if abs( (p-c)⋅n ) > TOL
+      return false
+    end
+  end
+  true
+end
+
+function are_colinear(s1::Face{1,3},s2::Face{1,3})
+  θmin = 1e-13
+  v1 = s1[2] - s1[1]
+  v2 = s2[2] - s2[1]
+  v1 /= norm(v1)
+  v2 /= norm(v2)
+  n = v1 × v2
+  norm(n) < θmin
+end
+
+function are_overlapped(f1::Face{2,3},f2::Face{2,3})
+  @notimplementedif !are_coplanar(f1,f2)
+  p0,p1 = nothing,nothing
+  for (a,b) in zip((f1,f2),(f2,f1))
+    for i in 1:num_vertices(a)
+      if contains_projection(b,a[i])
+        p = a[i]
+        if p0 === nothing
+          p0 = p
+        elseif p1 === nothing
+          if distance(p,p0) > TOL
+            p1 =  p
+          end
+        elseif distance(p,Segment(p0,p1)) > TOL
+          return true
+        end
+      end
+    end
+  end
+  for i in 1:num_facets(f1), j in 1:num_facets(f2)
+    facet1 = get_facet(f1,i)
+    facet2 = get_facet(f2,j)
+    if have_intersection(facet1,facet2)
+      p = intersection_point(facet1,facet2)
+      if p0 === nothing
+        p0 = p
+      elseif p1 === nothing
+        if distance(p,p0) > TOL
+          p1 =  p
+        end
+      elseif distance(p,Segment(p0,p1)) > TOL
+        return true
+      end
+    end
+  end
+  false
+end
+
+function are_overlapped(f1::Face{1,2},f2::Face{1,2})
+  @notimplementedif !are_coplanar(f1,f2)
+  p0 = nothing
+  for (a,b) in zip((f1,f2),(f2,f1))
+    for i in 1:num_vertices(a)
+      if contains_projection(b,a[i])
+        p = a[i]
+        if p0 === nothing
+          p0 = p
+        elseif distance(p,p0) > TOL
+          return true
+        end
+      end
+    end
+  end
+  false
+end
+
+function are_overlapped(f::Face,p::Point)
+  contains_projection(f,p)
+end
+
+function are_overlapped(f::Face{2,3},s::Face{1,3})
+  p0 = nothing
+  for i in 1:num_vertices(s)
+    if contains_projection(f,s[i])
+      if p0 == nothing
+        p0 = s[i]
+      elseif distance(p0,s[i]) > TOL
+        return true
+      end
+    end
+  end
+  for i in 1:num_facets(f)
+    facet = get_facet(f,i)
+    if have_intersection(facet,s)
+      p = intersection_point(facet,s)
+      if p0 === nothing
+        p0 = p
+      elseif distance(p0,p) > TOL
+        return true
+      end
+    end
+  end
+  false
+end
+
+function are_overlapped(c::Face,f::Face,face::Integer)
+  p = get_polytope(f)
+  d = get_facedims(p)[face]
+  dface = face - get_dimrange(p,d)[1] + 1
+  are_overlapped(c,f,d,dface)
+end
+
+@generated(
+function are_overlapped(c::Face,f::Face{D},d::Integer,dface::Integer) where D
+  str = ""
+  for d in 0:D
+    str *= "if d == $d \n"
+    str *= "  f$d =  get_dface(f,dface,Val{$d}()) \n"
+    str *= "  are_overlapped(c,f$d) \n"
+    str *= "else"
+  end
+  str *= "\n  @notimplemented \nend"
+  Meta.parse(str)
+end
+)
 
 ## Interface
 
@@ -413,24 +768,28 @@ function distance(K,X::Vector{<:Point},p::Polytope,point::Point)
   distance(c,point)
 end
 
-function distance(K,X::Vector{<:Point},p::Polytope,d::Integer,dface,point::Point)
-  # @generated 
+function distance(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  d::Integer,
+  dface::Integer,
+  point::Point)
+
   c = Cell(K,X,p)
-  if d == 0
-    f0 = get_dface(c,dface,Val{0}())
-    distance(point,f0)
-  elseif d == 1
-    f1 = get_dface(c,dface,Val{1}())
-    distance(point,f1)
-  elseif d == 2
-    f2 = get_dface(c,dface,Val{2}())
-    distance(point,f2)
-  elseif d == 3
-    f3 = get_dface(c,dface,Val{3}())
-    distance(point,f3)
-  else
-    @notimplemented
+  distance(c,d,dface,point)
+end
+
+@generated function distance(c::Cell{D},d::Integer,dface::Integer,point::Point) where D
+  str = ""
+  for d in 0:D
+    str *= "if d == $d \n"
+    str *= "  f$d =  get_dface(c,dface,Val{$d}()) \n"
+    str *= "  distance(point,f$d) \n"
+    str *= "else"
   end
+  str *= "\n  @notimplemented \nend"
+  Meta.parse(str)
 end
 
 function projection(K,X::Vector{<:Point},p::Polytope,point::Point)
@@ -438,75 +797,111 @@ function projection(K,X::Vector{<:Point},p::Polytope,point::Point)
   projection(c,point)
 end
 
-function projection(K,X::Vector{<:Point},p::Polytope,d::Integer,dface,point::Point)
-  # @generated 
+function projection(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  d::Integer,
+  dface::Integer,
+  point::Point)
+
   c = Cell(K,X,p)
-  if d == 0
-    f0 = get_dface(c,dface,Val{0}())
-    projection(point,f0)
-  elseif d == 1
-    f1 = get_dface(c,dface,Val{1}())
-    projection(point,f1)
-  elseif d == 2
-    f2 = get_dface(c,dface,Val{2}())
-    projection(point,f2)
-  elseif d == 3
-    f3 = get_dface(c,dface,Val{3}())
-    projection(point,f3)
-  else
-    @notimplemented
-  end
+  projection(c,d,dface,point)
 end
 
-function have_intersection(K,X::Vector{<:Point},p::Polytope,f::F) where F<:Union{Point,Face}
+@generated(
+function projection(c::Cell{D},d::Integer,dface::Integer,point::Point) where D
+  str = ""
+  for d in 0:D
+    str *= "if d == $d \n"
+    str *= "  f$d =  get_dface(c,dface,Val{$d}()) \n"
+    str *= "  projection(point,f$d) \n"
+    str *= "else"
+  end
+  str *= "\n  @notimplemented \nend"
+  Meta.parse(str)
+end)
+
+function have_intersection(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  f::F) where F<:Union{Point,Face}
+
   c = Cell(K,X,p)
   have_intersection(c,f)
 end
 
-function have_intersection(K,X::Vector{<:Point},p::Polytope,d::Integer,dface,f::F) where F<:Union{Point,Face}
-  # @generated 
+function have_intersection(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  d::Integer,
+  dface::Integer,
+  f::F) where F<:Union{Point,Face}
+
   c = Cell(K,X,p)
-  if d == 0
-    f0 = get_dface(c,dface,Val{0}())
-    have_intersection(f0,f)
-  elseif d == 1
-    f1 = get_dface(c,dface,Val{1}())
-    have_intersection(f1,f)
-  elseif d == 2
-    f2 = get_dface(c,dface,Val{2}())
-    have_intersection(f2,f)
-  elseif d == 3
-    f3 = get_dface(c,dface,Val{3}())
-    have_intersection(f3,f)
-  else
-    @notimplemented
-  end
+  have_intersection(c,d,dface,f)
 end
 
-function intersection_point(K,X::Vector{<:Point},p::Polytope,f::F) where F<:Union{Point,Face}
+@generated( 
+function have_intersection(
+  c::Cell{D},
+  d::Integer,
+  dface::Integer,
+  f::F) where {D,F<:Union{Point,Face}}
+
+  str = ""
+  for d in 0:D
+    str *= "if d == $d \n"
+    str *= "  f$d =  get_dface(c,dface,Val{$d}()) \n"
+    str *= "  have_intersection(f$d,f) \n"
+    str *= "else"
+  end
+  str *= "\n  @notimplemented \nend"
+  Meta.parse(str)
+end)
+
+function intersection_point(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  f::F) where F<:Union{Point,Face}
+
   c = Cell(K,X,p)
   intersection_point(c,f)
 end
 
-function intersection_point(K,X::Vector{<:Point},p::Polytope,d::Integer,dface,f::F) where F<:Union{Point,Face}
-  # @generated 
+function intersection_point(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  d::Integer,
+  dface::Integer,
+  f::F) where F<:Union{Point,Face}
+
   c = Cell(K,X,p)
-  if d == 0
-    f0 = get_dface(c,dface,Val{0}())
-    intersection_point(f0,f)
-  elseif d == 1
-    f1 = get_dface(c,dface,Val{1}())
-    intersection_point(f1,f)
-  elseif d == 2
-    f2 = get_dface(c,dface,Val{2}())
-    intersection_point(f2,f)
-  elseif d == 3
-    f3 = get_dface(c,dface,Val{3}())
-    intersection_point(f3,f)
-  else
-    @notimplemented
-  end
+  intersection_point(c,d,dface,f)
 end
+
+@generated( 
+function intersection_point(
+  c::Cell{D},
+  d::Integer,
+  dface::Integer,
+  f::F) where {D,F<:Union{Point,Face}}
+
+  str = ""
+  for d in 0:D
+    str *= "if d == $d \n"
+    str *= "  f$d =  get_dface(c,dface,Val{$d}()) \n"
+    str *= "  intersection_point(f$d,f) \n"
+    str *= "else"
+  end
+  str *= "\n  @notimplemented \nend"
+  Meta.parse(str)
+end
+)
 
 function intersection_point(K,X,p,face,f) 
   d = get_facedims(p)[face]
@@ -514,9 +909,134 @@ function intersection_point(K,X,p,face,f)
   intersection_point(K,X,p,d,dface,f)
 end
 
+function is_on_cell_facet(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  f::F) where F<:Union{Point,Face}
+
+  c = Cell(K,X,p)
+  is_on_cell_facet(c,f)
+end
+
+function is_on_cell_facet(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  f::F,
+  df::Integer) where F<:Union{Point,Face}
+
+  c = Cell(K,X,p)
+  is_on_cell_facet(c,f,df)
+end
+
+function get_cell_facet_on_facet(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  f::F) where F<:Union{Point,Face}
+
+  c = Cell(K,X,p)
+  get_cell_facet_on_facet(c,f)
+end
+
+function get_cell_facet_on_facet(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  f::F,
+  df::Integer) where F<:Union{Point,Face}
+
+  c = Cell(K,X,p)
+  get_cell_facet_on_facet(c,f,df)
+end
+
+function are_overlapped(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  d::Integer,
+  dface::Integer,
+  f::F,
+  face::Integer) where F<:Union{Point,Face}
+
+  c = Cell(K,X,p)
+  are_overlapped(c,d,dface,f,face)
+end
+
+function are_overlapped(
+  c::Cell,
+  d::Integer,
+  dface::Integer,
+  f::F,
+  face::Integer) where F<:Union{Point,Face}
+
+  p = get_polytope(f)
+  n = get_facedims(p)[face]
+  nface = face - get_dimrange(p,n)[1] + 1
+  are_overlapped(c,d,dface,f,n,nface)
+end
+
+function are_overlapped(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  d::Integer,
+  dface::Integer,
+  f::F) where F<:Union{Point,Face}
+
+  c = Cell(K,X,p)
+  are_overlapped(c,d,dface,f)
+end
+
+@generated( 
+function are_overlapped(
+  c::Cell{D},
+  d::Integer,
+  dface::Integer,
+  f::F,
+  n::Integer,
+  nface::Integer) where {D,F<:Union{Point,Face}}
+
+  str = ""
+  for d in 0:D
+    str *= "if n == $d \n"
+    str *= "  f$d =  get_dface(f,nface,Val{$d}()) \n"
+    str *= "  are_overlapped(c,d,dface,f$d) \n"
+    str *= "else"
+  end
+  str *= "\n  @notimplemented \nend"
+  Meta.parse(str)
+end
+)
+
+@generated( 
+function are_overlapped(
+  c::Cell{D},
+  d::Integer,
+  dface::Integer,
+  f::F) where {D,F<:Union{Point,Face}}
+
+  str = ""
+  for d in 0:D
+    str *= "if d == $d \n"
+    str *= "  f$d =  get_dface(c,dface,Val{$d}()) \n"
+    str *= "  are_overlapped(f$d,f) \n"
+    str *= "else"
+  end
+  str *= "\n  @notimplemented \nend"
+  Meta.parse(str)
+end
+)
+
 function get_bounding_box(K,X::Vector{<:Point},p::Polytope)
   c = Cell(K,X,p)
   get_bounding_box(c)
+end
+
+function get_facet(K,X::Vector{<:Point},p::Polytope,i::Integer)
+  c = Cell(K,X,p)
+  get_facet(c,i)
 end
 
 ## Orthogonal
@@ -549,8 +1069,9 @@ end
 
 function orthogonal(a::VectorValue{D}...) where D
   if length(a) != D-1
-    throw(ArgumentError("orthogonal(::VectorValue{D}...) only well-defined for D-1 VectorValues{D}'s"))
+    msg = 
+    "orthogonal(::VectorValue{D}...) only defined for D-1 VectorValues{D}'s"
+    throw(ArgumentError(msg))
   end
   orthogonal(a,)
 end
-
