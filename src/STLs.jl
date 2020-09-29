@@ -11,9 +11,15 @@ function read_stl(filename::String)
   vertex_to_coordinates,facet_to_vertices,facet_to_normals
 end
 
-Base.convert( ::Type{Point{D,T}}, x::MeshIO.Point{D} )  where {D,T} = Point{D,T}(x.data)
-Base.convert( ::Type{VectorValue{D,T}}, x::MeshIO.Normal{D} )  where {D,T} = VectorValue{D,T}(x.data)
-Base.convert( ::Type{Vector}, x::MeshIO.Face ) = collect(x.data)
+function Base.convert(::Type{Point{D,T}},x::MeshIO.Point{D}) where {D,T} 
+  Point{D,T}(x.data)
+end
+
+function Base.convert(::Type{VectorValue{D,T}},x::MeshIO.Normal{D})  where {D,T}
+  VectorValue{D,T}(x.data)
+end
+
+Base.convert(::Type{Vector},x::MeshIO.Face) = collect(x.data)
 
 function compute_stl_grid(
   cell_to_vertices::Table,
