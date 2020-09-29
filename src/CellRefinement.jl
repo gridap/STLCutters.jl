@@ -66,44 +66,6 @@ function insert_facets!(T,X,p,F,Tnew,cell_types,cell_to_io,STL_facets)
   end
 end
 
-function insert_facets!(T,X,p,F,Tnew,STL_facets)
-  for (k,Fk) in zip(T,F)
-    f_i = UNSET
-    while length(Fk) > 0
-      f = popfirst!(Fk)
-      if is_on_cell_facet(k,X,p,STL_facets[f])
-        f_i = f
-        break
-      end
-    end
-    if f_i ≠ UNSET
-      facet = STL_facets[f_i]
-      sF = distribute_face_skeleton([k],X,p,1:num_faces(facet)-1,facet)
-      Tk = Vector{Int}[]
-      insert_facet_skeleton!([k],X,p,sF,facet,Tk)
-      FTk = distribute_faces(Tk,X,p,Fk,STL_facets)
-      insert_facets!(Tk,X,p,FTk,Tnew,STL_facets)
-    else
-      push!(Tnew,k)
-    end
-  end
-end
-
-function insert_facet_skeleton!(T,X,p,F,face::Face,Tnew)
-  for (k,Fk) in zip(T,F)
-
-    if length(Fk) > 0
-      f = popfirst!(Fk)
-      Tk,Xnew = boundary_refinement(k,X,p,face,f)
-      append!(X,Xnew)
-      FTk = distribute_face_skeleton(Tk,X,p,Fk,face)
-      insert_facet_skeleton!(Tk,X,p,FTk,face,Tnew)
-    else
-      push!(Tnew,k)
-    end
-  end
-end
-
 ## Helpers
 
 function initial_mesh(p::Polytope)
@@ -149,6 +111,21 @@ function farthest_vertex_from_boundary(
   end
   iv
 end
+
+function distance_to_boundary(cell_nodes,node_to_coordinates,p::Polytope,point::Point)
+  @assert have_intersection(cell_nodes,node_to_coordinates,p,point)
+  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates,p)
+  min( minimum(point-pmin), minimum(pmax-point) )
+end
+
+function farthest_axis_from_boundary(cell_nodes,node_to_coordinates,p::Polytope,point::Point)
+  @assert have_intersection(cell_nodes,node_to_coordinates,p,point)
+  pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates,p)
+  max_dists = max( point-pmin, pmax-point )
+  _,d = findmax(max_dists.data)
+  d
+end
+
 
 function compute_grid(
   cell_to_nodes::AbstractArray,

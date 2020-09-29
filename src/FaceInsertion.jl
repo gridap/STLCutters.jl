@@ -23,7 +23,7 @@ function edge_refinement(
   case = compute_case(K,X,p,plane,directions)
   Tnew = compute_new_cells(K,X,p,case)
   Xnew = compute_new_vertices!(Tnew,K,X,p,plane,case)
-  delete_empty_cells!(Tnew,p)
+  delete_empty_cells!(Tnew,[X;Xnew],p)
   Tnew,Xnew
 end
 
@@ -48,116 +48,7 @@ function facet_refinement(
   Tnew,Xnew,cell_to_io
 end
 
-function boundary_refinement(
-  K,
-  X::Vector{<:Point},
-  p::Polytope,
-  f::Face,
-  face::Integer)
-
-  facet = get_cell_facet_on_facet(K,X,p,f,face)
-  plane = get_perpendicular_plane(K,X,p,facet,f,face)
-  case = compute_case(K,X,p,facet,plane)
-
-  Tnew = compute_new_cells(K,X,p,case)
-  Xnew = compute_new_vertices!(Tnew,K,X,p,facet,plane,case)
-  delete_empty_cells!(Tnew,p)
-  Tnew,Xnew
-end
-
 ## Helpers
-
-function get_perpendicular_plane(K,X,p::Polytope,ifacet::Integer,f::Face,df::Integer)
-  pf = get_polytope(f)
-  d = get_facedims(pf)[df]
-  dface = df - get_dimrange(pf,d)[1] + 1
-  facet = get_facet(K,X,p,ifacet)
-  if d == 0
-    face0 = get_dface(f,dface,Val{0}())
-    plane = get_perpendicular_plane(facet,face0)
-  elseif d == 1
-    face1 = get_dface(f,dface,Val{1}())
-    plane = get_perpendicular_plane(facet,face1)
-  elseif d == 2
-    face2 = get_dface(f,dface,Val{2}())
-    plane = get_perpendicular_plane(facet,face2)
-  else
-    @unreachable
-  end
-end
-
-function get_perpendicular_plane(f::Face,p::Point)
-  D = face_dim(f)
-  closest_facet = UNSET
-  min_dist = Inf
-  for i in 1:num_facets(f)
-    facet = get_facet(f,i)
-    if isa(facet,Point) || measure(facet) > 0
-      dist = distance(facet,p)
-      if dist < min_dist
-        min_dist = dist
-        closest_facet = i
-      end
-    end
-  end 
-  p_f = get_polytope(f)
-  edges = get_faces(p_f,D-1,1)[closest_facet]
-  closest_edge = UNSET
-  min_dist = Inf
-  for i in edges
-    edge = get_edge(f,i)
-    if length(edge) > 0
-      dist = distance(edge,p)
-      if dist < min_dist
-        min_dist = dist
-        closest_edge = i
-      end
-    end
-  end
-  edge = get_edge(f,closest_edge)
-  n = edge[2]-edge[1]
-  n /= norm(n)
-  (p,n)
-end
-
-function get_perpendicular_plane(f::Face,e::Face{1,3})
-  v = e[2] - e[1]
-  v /= norm(v)
-  nf = normal(f)
-  n = nf × v
-  p = center(e)
-  (p,n)
-end
-
-function get_perpendicular_plane(::Face{Df},::Face{Df}) where Df
-  @unreachable
-end
-
-function opposite_facet(f::Face,facet::Integer)
-  @notimplementedif is_n_cube(f)
-  ((facet-1)⊻1) + 1 
-end
-
-function compute_case(K,X,p::Polytope,facet::Integer,plane::Tuple{Point,VectorValue})
-  c = 0
-  case = 0
-  D = num_dims(p)
-  facet_vertices = get_face_vertices(p,D-1)[facet]
-  for vertex in facet_vertices
-    point = X[K[vertex]]
-    dist = signed_distance(point,plane)
-    if dist > 0
-      c += 1
-      case |= (1<<(vertex-1))
-    end
-  end
-  if c > length(facet_vertices)/2
-    for vertex in facet_vertices
-      case ⊻= (1<<(vertex-1))
-    end
-  end
-  case + 1
-end
 
 function compute_case(K,X,p::Polytope,d::Integer)
   @assert is_n_cube(p)
@@ -360,7 +251,7 @@ function update_connectivities!(T,node_to_node::Pair)
   end
 end
 
-function delete_empty_cells!(T,p)
+function delete_empty_cells!(T,X,p)
   icell = 1
   while icell ≤ length(T)
     cell = T[icell]

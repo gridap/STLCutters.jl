@@ -9,6 +9,10 @@ struct Triangle{D,T}<:Face{2,D}
   vertices::Tuple{Point{D,T},Point{D,T},Point{D,T}}
 end
 
+struct Tetrahedron{D,T}<:Face{3,D}
+  vertices::Tuple{Point{D,T},Point{D,T},Point{D,T},Point{D,T}}
+end
+
 struct Cell{Df,Dp,Tp,P<:Polytope{Df}}<:Face{Df,Dp}
   nodes::Vector{Int}
   vertex_coordinates::Vector{Point{Dp,Tp}}
@@ -27,6 +31,8 @@ Segment(a::Point...) = Segment(a)
 
 Triangle(a::Point...) = Triangle(a)
 
+Tetrahedron(a::Point...) = Tetrahedron(a)
+
 function Base.getindex(::Face)
   @abstractmethod
 end
@@ -34,6 +40,8 @@ end
 Base.getindex(a::Segment,i::Integer) = a.vertices[i]
 
 Base.getindex(a::Triangle,i::Integer) = a.vertices[i]
+
+Base.getindex(a::Tetrahedron,i::Integer) = a.vertices[i]
 
 function Base.getindex(a::Cell,i::Integer)
   K = a.nodes
@@ -60,6 +68,8 @@ function get_polytope(::Triangle)
   TRI.face_orientations[3] = -1
   TRI
 end
+
+get_polytope(::Tetrahedron) = TET
 
 get_polytope(a::Cell) = a.polytope
 
@@ -162,9 +172,13 @@ is_simplex(::Segment) = true
 
 is_simplex(::Triangle) = true
 
+is_simplex(::Tetrahedron) = true
+
 is_n_cube(::Segment) = true
 
-is_n_cube(::Triangle) = true
+is_n_cube(::Triangle) = false
+
+is_n_cube(::Tetrahedron) = false
 
 function simplex_face(v::NTuple{N,<:Point}) where N
   if N == 1
@@ -173,6 +187,8 @@ function simplex_face(v::NTuple{N,<:Point}) where N
     Segment(v)
   elseif N == 3
     Triangle(v)
+  elseif N == 4
+    Tetrahedron(v)
   else
     @notimplemented
   end
@@ -187,7 +203,7 @@ function num_simplices(f::Face)
     1
   else
     p = get_polytope(f)
-    length(simplexify(p))
+    length(simplexify(p)[1])
   end
 end
 
@@ -310,6 +326,15 @@ function simplex_measure(f::Face{2,2})
   v1 = f[2] - f[1]
   v2 = f[3] - f[1]
   abs( v1 ⋅ v2 ) * factor
+end
+
+function simplex_measure(f::Face{3,3})
+  @notimplementedif !is_simplex(f)
+  factor = 1 / 6
+  v1 = f[2] - f[1]
+  v2 = f[3] - f[1]
+  v3 = f[4] - f[1]
+  abs( (v1×v2) ⋅ v3 ) * factor
 end
 
 simplex_measure(f::Face{1}) = measure(f)
@@ -566,7 +591,7 @@ end
 function is_on_cell_facet(c::Face{D,D},f::Face{Df,D},face::Integer) where {Df,D}
   for i in 1:num_facets(c)
     facet = get_facet(c,i)
-    if surface(facet) > 0
+    if surface(facet) > 0 &&
        are_coplanar(facet,f) &&
        are_overlapped(facet,f) &&
        are_overlapped(facet,f,face)
@@ -584,7 +609,7 @@ function get_cell_facet_on_facet(
 
   for i in 1:num_facets(c)
     facet = get_facet(c,i)
-    if surface(facet) > 0
+    if surface(facet) > 0 &&
        are_coplanar(facet,f) &&
        are_overlapped(facet,f) &&
        are_overlapped(facet,f,face)
@@ -645,6 +670,17 @@ function are_coplanar(f1::Face{Df1,Dp},f2::Face{Df2,Dp}) where {Df1,Df2,Dp}
   true
 end
 
+function are_coplanar(f::Face{Df,Dp},p::Point{Dp}) where {Df,Dp}
+  @notimplementedif Df1 ≠ Dp - 1 
+  n = normal(f)
+  c = center(f)
+  if abs( (p-c)⋅n ) > TOL
+    false
+  else
+    true
+  end
+end
+
 function are_colinear(s1::Face{1,3},s2::Face{1,3})
   θmin = 1e-13
   v1 = s1[2] - s1[1]
@@ -653,6 +689,40 @@ function are_colinear(s1::Face{1,3},s2::Face{1,3})
   v2 /= norm(v2)
   n = v1 × v2
   norm(n) < θmin
+end
+
+function is_coplanar_to_a_facet(c::Face,p::Point)
+  for i in 1:num_facets(c)
+    facet = get_facet(c,i)
+    if isa(facet,Point) ||  measure(facet) > 0
+      p′ = projection(p,facet)
+      if distance(p,p′) < TOL
+        return true
+      end
+    end
+  end
+  false
+end
+
+function is_coplanar_to_a_facet(c::Face,f::Face)
+  for i in 1:num_facets(c)
+    facet = get_facet(c,i)
+    if measure(facet) > 0
+      is_coplanar = true
+      for v in 1:num_vertices(f)
+        p = f[v]
+        p′ = projection(p,facet)
+        if distance(p,p′) > TOL
+          is_coplanar = false
+          break
+        end
+      end
+      if is_coplanar
+        return true
+      end
+    end
+  end
+  false
 end
 
 function are_overlapped(f1::Face{2,3},f2::Face{2,3})
@@ -712,10 +782,11 @@ function are_overlapped(f1::Face{1,2},f2::Face{1,2})
 end
 
 function are_overlapped(f::Face,p::Point)
-  contains_projection(f,p)
+  contains_projection(f,p) #&& !is_coplanar_to_a_facet(f,p)
 end
 
 function are_overlapped(f::Face{2,3},s::Face{1,3})
+  #!is_coplanar_to_a_facet(f,s) || return false
   p0 = nothing
   for i in 1:num_vertices(s)
     if contains_projection(f,s[i])
