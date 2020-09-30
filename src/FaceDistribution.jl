@@ -49,3 +49,16 @@ function distribute_facets(
 
   distribute_faces(cell_to_nodes,node_to_coordinates,p,stl,facets,Val{Dp-1}())
 end
+
+function distribute_faces(grid::Grid,stl::DiscreteModel,faces::AbstractVector)
+  cell_to_faces = Vector{Int}[]
+  for i in 1:num_cells(grid)
+    push!(cell_to_faces,[])
+    for face in faces
+      if have_intersection(grid,i,stl,face)
+        push!(cell_to_faces[i],face)
+      end
+    end
+  end
+  cell_to_faces
+end

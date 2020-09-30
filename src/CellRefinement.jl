@@ -1,8 +1,8 @@
 
 const TOL = 1e6*eps()
 
-function insert_vertices!(T,X,p,stl::DiscreteModel,V,Tnew,Tnew_to_v,v_in)
-  for (k,Vk) in zip(T,V)
+function insert_vertices!(T,X,p,stl::DiscreteModel,V,f,Tnew,fnew)
+  for (k,Vk,fk) in zip(T,V,f)
 
     v_i = UNSET
     while length(Vk) > 0
@@ -22,49 +22,104 @@ function insert_vertices!(T,X,p,stl::DiscreteModel,V,Tnew,Tnew_to_v,v_in)
     if length(Vk) > 0 
       v = Vk[v_i]
       deleteat!(Vk,v_i)
-      v_in_k = [ v_in ; [v] ]
       Tk,Xnew = vertex_refinement(k,X,p,get_vertex(stl,v))
       append!(X,Xnew)
       VTk = distribute_vertices(Tk,X,p,stl,Vk)
-      insert_vertices!(Tk,X,p,stl,VTk,Tnew,Tnew_to_v,v_in_k)
+      fTk = fill([fk;v],length(Tk))
+      insert_vertices!(Tk,X,p,stl,VTk,fTk,Tnew,fnew)
     else
       push!(Tnew,k)
-      push!(Tnew_to_v,v_in)
+      push!(fnew,fk)
     end
   end
 end
 
-function insert_edges!(T,X,p,stl::DiscreteModel,E,Tnew,Tnew_to_e,e_in,vs)
-  for (k,Ek) in zip(T,E)
+function insert_edges!(T,X,p,stl::DiscreteModel,E,f,Tnew,fnew,vs)
+  for (k,Ek,fk) in zip(T,E,f)
 
     if length(Ek) > 0
       e = popfirst!(Ek)
-      e_in_k = [ e_in ; [e] ]
       Tk,Xnew = edge_refinement(k,X,p,get_edge(stl,e),vs)
       append!(X,Xnew)
       ETk = distribute_edges(Tk,X,p,stl,Ek)
-      insert_edges!(Tk,X,p,stl,ETk,Tnew,Tnew_to_e,e_in_k,vs)
+      _f =  e+get_offset(get_grid_topology(stl),1)
+      fTk = fill([fk;_f],length(Tk))
+      insert_edges!(Tk,X,p,stl,ETk,fTk,Tnew,fnew,vs)
     else
       push!(Tnew,k)
-      push!(Tnew_to_e,e_in)
+      push!(fnew,fk)
     end
   end
 end
 
-function insert_facets!(T,X,p,stl,F,Tnew,cell_types,cell_to_io)
-  for (k,Fk) in zip(T,F)
+function insert_facets!(T,X,p,stl,F,f,Tnew,fnew,cell_types,cell_to_io)
+  for (k,Fk,fk) in zip(T,F,f)
     if length(Fk) > 0
       Tk,Xnew,c_io = facet_refinement(k,X,p,stl,Fk)
       append!(Tnew,Tk)
       append!(X,Xnew)
       append!(cell_to_io,c_io)
       append!(cell_types,fill(TET_AXIS,length(Tk)))
+      _fk = [fk;Fk.+get_offset(get_grid_topology(stl),num_dims(stl))]
+      append!(fnew,fill(_fk,length(Tk)))
     else
       push!(Tnew,k)
       push!(cell_to_io,UNSET)
       push!(cell_types,HEX_AXIS)
+      push!(fnew,fk)
     end
   end
+end
+
+function define_cells!(grid::Grid,f,cell_to_io)
+  for i in 1:num_cells(grid)
+    if cell_to_io[i] == UNSET
+      define_cell!(grid,i,f,cell_to_io)
+    end
+  end
+end
+
+function define_cell!(grid::Grid,i::Integer,f,cell_to_io)
+  neig = first_sibling(grid,i,f)
+  if cell_to_io[neig] == UNSET
+    define_cell!(grid,neig,f,cell_to_io)
+  else
+    cell_to_io[i] = cell_to_io[neig]
+  end
+end
+
+function first_sibling(grid::Grid,i::Integer,f)
+  fi = f[i]
+  for k in 1:num_cells(grid)
+    if k ≠ i
+      fk = f[k]
+      if fi ⊆ fk && are_connected(grid,i,k,0)
+        return k
+      end
+    end
+  end
+  @unreachable
+end
+
+function are_connected(grid::Grid,i::Integer,k::Integer,d::Integer)
+  p_i = get_polytope( get_reffes(grid)[ get_cell_type(grid)[i] ] )
+  p_k = get_polytope( get_reffes(grid)[ get_cell_type(grid)[k] ] )
+  nodes_i = get_cell_nodes(grid)[i]
+  nodes_k = get_cell_nodes(grid)[k]
+  faces_i = get_face_vertices(p_i,d)
+  faces_k = get_face_vertices(p_k,d)
+  for fi in faces_i, fk in faces_k
+    connected = true
+    for ni in fi, nk in fk
+      if nodes_i[ni] ≠ nodes_k[nk]
+        connected = false
+      end
+    end
+    if connected
+      return true
+    end
+  end
+  false
 end
 
 ## Helpers

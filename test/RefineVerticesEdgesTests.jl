@@ -28,21 +28,20 @@ stl_faces = Table( [[1,2],[2,3],[3,4]] )
 stl = compute_stl_model(stl_faces,stl_vertices)
 # Vertices
 Tnew = eltype(T)[]
-Tnew_to_v = Vector{Int}[]
-v_in = Int[]
+fnew = Vector{Int}[]
+f = fill(Int[],length(T))
 V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
-insert_vertices!(T,X,p,stl,V,Tnew,Tnew_to_v,v_in)
+insert_vertices!(T,X,p,stl,V,f,Tnew,fnew)
 T = Tnew
-T_to_v = Tnew_to_v
+f = fnew
 # Edges
 Tnew = eltype(T)[]
-Tnew_to_e = Vector{Int}[]
-e_in = Int[]
+fnew = Vector{Int}[]
 E = distribute_edges(T,X,p,stl,1:num_edges(stl))
 vs = get_default_directions(1:num_edges(stl),stl)
-insert_edges!(T,X,p,stl,E,Tnew,Tnew_to_e,e_in,vs)
+insert_edges!(T,X,p,stl,E,f,Tnew,fnew,vs)
 T = Tnew
-T_to_e = Tnew_to_e
+f = fnew
 @test length(T) == 6
 grid = compute_grid(T,X,p)
 writevtk(grid,"Tree")
@@ -62,21 +61,20 @@ stl_faces = Table( [[1,2,3],[1,2,5],[1,4,5],[1,4,3]] )
 stl = compute_stl_model(stl_faces,stl_vertices)
 # Vertices
 Tnew = eltype(T)[]
-Tnew_to_v = Vector{Int}[]
-v_in = Int[]
+fnew = Vector{Int}[]
+f = fill(Int[],length(T))
 V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
-insert_vertices!(T,X,p,stl,V,Tnew,Tnew_to_v,v_in)
+insert_vertices!(T,X,p,stl,V,f,Tnew,fnew)
 T = Tnew
-T_to_v = Tnew_to_v
+f = fnew
 # Edges
 Tnew = eltype(T)[]
-Tnew_to_e = Vector{Int}[]
-e_in = Int[]
+fnew = Vector{Int}[]
 E = distribute_edges(T,X,p,stl,1:num_edges(stl))
 vs = get_default_directions(1:num_edges(stl),stl)
-insert_edges!(T,X,p,stl,E,Tnew,Tnew_to_e,e_in,vs)
+insert_edges!(T,X,p,stl,E,f,Tnew,fnew,vs)
 T = Tnew
-T_to_e = Tnew_to_e
+f = fnew
 grid = compute_grid(T,X,p)
 writevtk(grid,"Tree3D")
 writevtk(get_grid(stl),"stl3D")

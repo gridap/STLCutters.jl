@@ -25,13 +25,13 @@ stl_v = [
 stl_faces = Table( [[1,2],[1,3] ] )
 stl = compute_stl_model(stl_faces,stl_v)
 Tnew = eltype(T)[]
-Tnew_to_e = Vector{Int}[]
-e_in = Int[]
+fnew = Vector{Int}[]
+f = fill(Int[],length(T))
 E = distribute_edges(T,X,p,stl,1:num_edges(stl))
 vs = get_default_directions(E[1],stl)
-insert_edges!(T,X,p,stl,E,Tnew,Tnew_to_e,e_in,vs)
+insert_edges!(T,X,p,stl,E,f,Tnew,fnew,vs)
 T = Tnew
-T_to_e = Tnew_to_e
+f = fnew
 @test length(T) == 6
 grid = compute_grid(T,X,p)
 writevtk(grid,"Tree")
@@ -45,13 +45,13 @@ stl_v = [
 stl_faces = Table( [[1,2],[1,3] ] )
 stl = compute_stl_model(stl_faces,stl_v)
 Tnew = eltype(T)[]
-Tnew_to_e = Vector{Int}[]
-e_in = Int[]
+fnew = Vector{Int}[]
+f = fill(Int[],length(T))
 E = distribute_edges(T,X,p,stl,1:num_edges(stl))
 vs = get_default_directions(E[1],stl)
-insert_edges!(T,X,p,stl,E,Tnew,Tnew_to_e,e_in,vs)
+insert_edges!(T,X,p,stl,E,f,Tnew,fnew,vs)
 T = Tnew
-T_to_e = Tnew_to_e
+f = fnew
 grid = compute_grid(T,X,p)
 @test length(T) == 3
 writevtk(grid,"Tree")
@@ -67,14 +67,13 @@ stl_vertices = [
 stl_faces = Table( [[1,2],[3,4]] )
 stl = compute_model(stl_faces,stl_vertices,SEGMENT)
 Tnew = eltype(T)[]
-Tnew_to_e = Vector{Int}[]
-e_in = Int[]
-Ek = 1:num_edges(stl)
-E = distribute_edges(T,X,p,stl,Ek)
+fnew = Vector{Int}[]
+f = fill(Int[],length(T))
+E = distribute_edges(T,X,p,stl,1:num_edges(stl))
 vs = get_default_directions(E[1],stl)
-insert_edges!(T,X,p,stl,E,Tnew,Tnew_to_e,e_in,vs)
+insert_edges!(T,X,p,stl,E,f,Tnew,fnew,vs)
 T = Tnew
-T_to_e = Tnew_to_e
+f = fnew
 grid = compute_grid(T,X,p)
 writevtk(grid,"Tree3D")
 writevtk(get_grid(stl),"stl")
@@ -92,14 +91,13 @@ stl_vertices = [
 stl_faces = Table( [[1,2],[3,4],[5,6]] )
 stl = compute_model(stl_faces,stl_vertices,SEGMENT)
 Tnew = eltype(T)[]
-Tnew_to_e = Vector{Int}[]
-e_in = Int[]
-Ek = 1:num_edges(stl)
-E = distribute_edges(T,X,p,stl,Ek)
+fnew = Vector{Int}[]
+f = fill(Int[],length(T))
+E = distribute_edges(T,X,p,stl,1:num_edges(stl))
 vs = get_default_directions(E[1],stl)
-insert_edges!(T,X,p,stl,E,Tnew,Tnew_to_e,e_in,vs)
+insert_edges!(T,X,p,stl,E,f,Tnew,fnew,vs)
 T = Tnew
-T_to_e = Tnew_to_e
+f = fnew
 grid = compute_grid(T,X,p)
 writevtk(grid,"Tree3D")
 writevtk(get_grid(stl),"stl")

@@ -160,3 +160,44 @@ function is_water_tight(top::GridTopology{Dc}) where Dc
   l = length.( get_faces(top,Dc-1,Dc) )
   maximum(l) == minimum(l) == 2
 end
+
+function have_intersection(
+  grid::Grid,
+  cell::Integer,
+  m::DiscreteModel,
+  face::Integer)
+
+  dispatch_face(have_intersection,grid,cell,m,face)
+end
+
+function dispatch_face(fun,grid::Grid,cell::Integer,args...)
+  K = get_cell_nodes(grid)[cell]
+  X = get_node_coordinates(grid)
+  reffes = get_reffes(grid)
+  cell_types = get_cell_type(grid)
+  p = get_polytope( reffes[cell_types[cell]] )
+  c = Cell(K,X,p)
+  dispatch_face(fun,c,args...)
+end
+
+function dispatch_face(fun,a,b::DiscreteModel,face::Integer)
+  topo = get_grid_topology(b)
+  d = get_facedims(topo)[face]
+  dface = face - get_dimrange(topo,d)[1] + 1
+  dispatch_face(fun,a,b,d,dface)
+end
+
+@generated(
+function dispatch_face(fun,a,b::DiscreteModel{D},d::Integer,df::Integer) where D
+  str = ""
+  for d in 0:D
+    str *= "if d == $d \n"
+    str *= "  f$d =  get_dface(b,df,Val{$d}()) \n"
+    str *= "  fun(a,f$d) \n"
+    str *= "else"
+  end
+  str *= "\n  @notimplemented \nend"
+  Meta.parse(str)
+end
+)
+

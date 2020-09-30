@@ -493,15 +493,13 @@ function have_intersection(f::Face{D,D},p::Point) where D
     all( pmax.data .> p.data ) || return false
     true
   else
-    @notimplemented
+    contains_projection(f,p) # || is_on_boundary
   end
 end
 
 function have_intersection(f::Face,p::Point)
   @notimplemented
 end
-
-
 
 function intersection_point(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
   @notimplementedif Df + 1 ≠ Dp

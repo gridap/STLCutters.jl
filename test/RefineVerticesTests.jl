@@ -23,16 +23,16 @@ stl_vertices = [
 stl_faces = Table( [[1],[2],[3],[4]] )
 stl = compute_model(stl_faces,stl_vertices,VERTEX)
 Tnew = eltype(T)[]
-Tnew_to_v = Vector{Int}[]
-v_in = Int[]
+fnew = Vector{Int}[]
+f = fill(Int[],length(T))
 V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
-insert_vertices!(T,X,p,stl,V,Tnew,Tnew_to_v,v_in)
+insert_vertices!(T,X,p,stl,V,f,Tnew,fnew)
 T = Tnew
-T_to_v = Tnew_to_v
+f = fnew
 D = 2
-@test length(T) == length(T_to_v) == num_vertices(stl)+1
-@test T_to_v[1] == T_to_v[2] == [2,4,1,3]
-@test T_to_v[3] == [2,4,1]
+@test length(T) == length(f) == num_vertices(stl)+1
+@test f[1] == f[2] == [2,4,1,3]
+@test f[3] == [2,4,1]
 @test length(X) == (2^(D-1))*num_vertices(stl)+2^D
 grid = compute_grid(T,X,p)
 writevtk(grid,"Tree")
@@ -49,16 +49,16 @@ stl_vertices = [
 stl_faces = Table( [[1],[2],[3],[4]] )
 stl = compute_model(stl_faces,stl_vertices,VERTEX)
 Tnew = eltype(T)[]
-Tnew_to_v = Vector{Int}[]
-v_in = Int[]
+fnew = Vector{Int}[]
+f = fill(Int[],length(T))
 V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
-insert_vertices!(T,X,p,stl,V,Tnew,Tnew_to_v,v_in)
+insert_vertices!(T,X,p,stl,V,f,Tnew,fnew)
 T = Tnew
-T_to_v = Tnew_to_v
+f = fnew
 D = 2
-@test length(T) == length(T_to_v) == num_vertices(stl)
-@test T_to_v[1] == T_to_v[2] == [2,1,3]
-@test T_to_v[3] == [2,1]
+@test length(T) == length(f) == num_vertices(stl)
+@test f[1] == f[2] == [2,1,3]
+@test f[3] == [2,1]
 @test length(X) == (2^(D-1))*(num_vertices(stl)-1)+2^D
 grid = compute_grid(T,X,p)
 #writevtk(grid,"Tree")
@@ -75,16 +75,16 @@ stl_vertices = [
 stl_faces = Table( [[1],[2],[3],[4]] )
 stl = compute_model(stl_faces,stl_vertices,VERTEX)
 Tnew = eltype(T)[]
-Tnew_to_v = Vector{Int}[]
-v_in = Int[]
+fnew = Vector{Int}[]
+f = fill(Int[],length(T))
 V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
-insert_vertices!(T,X,p,stl,V,Tnew,Tnew_to_v,v_in)
+insert_vertices!(T,X,p,stl,V,f,Tnew,fnew)
 T = Tnew
-T_to_v = Tnew_to_v
+f = fnew
 D = 3
-@test length(T) == length(T_to_v) == num_vertices(stl)+1
-@test T_to_v[1] == T_to_v[2] == [2,4,1,3]
-@test T_to_v[3] == [2,4,1]
+@test length(T) == length(f) == num_vertices(stl)+1
+@test f[1] == f[2] == [2,4,1,3]
+@test f[3] == [2,4,1]
 @test length(X) == (2^(D-1))*num_vertices(stl)+2^D
 grid = compute_grid(T,X,p)
 writevtk(grid,"3DTree")
