@@ -1,31 +1,32 @@
 
 const TOL = 1e6*eps()
 
-function insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
+function insert_vertices!(T,X,p,stl::DiscreteModel,V,Tnew,Tnew_to_v,v_in)
   for (k,Vk) in zip(T,V)
 
-    iv = UNSET
+    v_i = UNSET
     while length(Vk) > 0
-      iv = farthest_vertex_from_boundary(k,X,p,Vk,STL_vertices)
-      point = STL_vertices[Vk[iv]]
+      i = farthest_vertex_from_boundary(k,X,p,stl,Vk)
+      point = get_vertex(stl,Vk[i])
       dist = distance_to_boundary(k,X,p,point)
       if dist < TOL
         point = move_vertex_to_cell_boundary(k,X,p,point)
-        STL_vertices[Vk[iv]] = point
-        deleteat!(Vk,iv)
+        get_vertex_coordinates(get_grid_topology(stl))[i] = point
+        deleteat!(Vk,i)
       else
+        v_i = i
         break
       end
     end
 
-    if length(Vk) > 0
-      v = Vk[iv]
-      deleteat!(Vk,iv)
+    if length(Vk) > 0 
+      v = Vk[v_i]
+      deleteat!(Vk,v_i)
       v_in_k = [ v_in ; [v] ]
-      Tk,Xnew = vertex_refinement(k,X,p,STL_vertices[v])
+      Tk,Xnew = vertex_refinement(k,X,p,get_vertex(stl,v))
       append!(X,Xnew)
-      VTk = distribute_faces(Tk,X,p,Vk,STL_vertices)
-      insert_vertices!(Tk,X,p,VTk,Tnew,STL_vertices,Tnew_to_v,v_in_k)
+      VTk = distribute_vertices(Tk,X,p,stl,Vk)
+      insert_vertices!(Tk,X,p,stl,VTk,Tnew,Tnew_to_v,v_in_k)
     else
       push!(Tnew,k)
       push!(Tnew_to_v,v_in)
@@ -33,16 +34,16 @@ function insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
   end
 end
 
-function insert_edges!(T,X,p,E,Tnew,STL_edges,Tnew_to_e,e_in,vs)
+function insert_edges!(T,X,p,stl::DiscreteModel,E,Tnew,Tnew_to_e,e_in,vs)
   for (k,Ek) in zip(T,E)
 
     if length(Ek) > 0
       e = popfirst!(Ek)
       e_in_k = [ e_in ; [e] ]
-      Tk,Xnew = edge_refinement(k,X,p,STL_edges[e],vs)
+      Tk,Xnew = edge_refinement(k,X,p,get_edge(stl,e),vs)
       append!(X,Xnew)
-      ETk = distribute_faces(Tk,X,p,Ek,STL_edges)
-      insert_edges!(Tk,X,p,ETk,Tnew,STL_edges,Tnew_to_e,e_in_k,vs)
+      ETk = distribute_edges(Tk,X,p,stl,Ek)
+      insert_edges!(Tk,X,p,stl,ETk,Tnew,Tnew_to_e,e_in_k,vs)
     else
       push!(Tnew,k)
       push!(Tnew_to_e,e_in)
@@ -50,10 +51,10 @@ function insert_edges!(T,X,p,E,Tnew,STL_edges,Tnew_to_e,e_in,vs)
   end
 end
 
-function insert_facets!(T,X,p,F,Tnew,cell_types,cell_to_io,STL_facets)
+function insert_facets!(T,X,p,stl,F,Tnew,cell_types,cell_to_io)
   for (k,Fk) in zip(T,F)
     if length(Fk) > 0
-      Tk,Xnew,c_io = facet_refinement(k,X,p,Fk,STL_facets)
+      Tk,Xnew,c_io = facet_refinement(k,X,p,stl,Fk)
       append!(Tnew,Tk)
       append!(X,Xnew)
       append!(cell_to_io,c_io)
@@ -96,20 +97,20 @@ function farthest_vertex_from_boundary(
   cell_nodes::Vector{<:Integer},
   node_to_coordinates::Vector{<:Point},
   p::Polytope,
-  vertices::Vector,
-  STL_vertices)
+  stl::DiscreteModel,
+  vertices::Vector)
 
-  iv = UNSET
+  v_i = UNSET
   max_dist = 0.0
   for (i,v) in enumerate(vertices)
-    point = STL_vertices[v]
+    point = get_vertex(stl,v)
     dist = distance_to_boundary(cell_nodes,node_to_coordinates,p,point)
     if dist > max_dist
       max_dist = dist
-      iv = i
+      v_i = i
     end
   end
-  iv
+  v_i
 end
 
 function distance_to_boundary(cell_nodes,node_to_coordinates,p::Polytope,point::Point)
@@ -125,7 +126,6 @@ function farthest_axis_from_boundary(cell_nodes,node_to_coordinates,p::Polytope,
   _,d = findmax(max_dists.data)
   d
 end
-
 
 function compute_grid(
   cell_to_nodes::AbstractArray,

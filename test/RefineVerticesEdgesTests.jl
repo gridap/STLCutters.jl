@@ -11,122 +11,74 @@ using Gridap.Helpers
 using Gridap.Arrays
 
 using STLCutters: get_default_directions
-using STLCutters: compute_stl_grid 
-using STLCutters: get_edge_coordinates 
+using STLCutters: compute_stl_model 
+using STLCutters: distribute_vertices 
+using STLCutters: distribute_edges 
 
+## 2D
 
 p = QUAD
 T,X = initial_mesh(p)
-
-
-STL_v = [ 
+stl_vertices = [ 
   Point(-0.1,0.2),
   Point(0.5,0.3),
   Point(0.8,0.5),
   Point(1.1,0.5) ]
-STL_faces = Table( [[1,2],[2,3],[3,4]] )
-
-stl_grid = compute_stl_grid(STL_faces,STL_v)
-stl = GridTopology(stl_grid)
-
-STL_vertices = get_vertex_coordinates(stl)
-STL_edges = get_edge_coordinates(stl)
-
-
-T,X = initial_mesh(p)
-
-V = distribute_faces(T,X,p,1:length(STL_vertices),STL_vertices)
-
+stl_faces = Table( [[1,2],[2,3],[3,4]] )
+stl = compute_stl_model(stl_faces,stl_vertices)
+# Vertices
 Tnew = eltype(T)[]
-
 Tnew_to_v = Vector{Int}[]
-
 v_in = Int[]
-
-insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
-
+V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
+insert_vertices!(T,X,p,stl,V,Tnew,Tnew_to_v,v_in)
 T = Tnew
 T_to_v = Tnew_to_v
-
-
-E = distribute_faces(T,X,p,1:length(STL_edges),STL_edges)
-
-vs = get_default_directions(1:length(STL_edges),STL_edges)
-
+# Edges
 Tnew = eltype(T)[]
-
 Tnew_to_e = Vector{Int}[]
-
 e_in = Int[]
-
-insert_edges!(T,X,p,E,Tnew,STL_edges,Tnew_to_e,e_in,vs)
-
+E = distribute_edges(T,X,p,stl,1:num_edges(stl))
+vs = get_default_directions(1:num_edges(stl),stl)
+insert_edges!(T,X,p,stl,E,Tnew,Tnew_to_e,e_in,vs)
 T = Tnew
 T_to_e = Tnew_to_e
-
 @test length(T) == 6
-
-grid = compute_grid(T,X,QUAD)
-
+grid = compute_grid(T,X,p)
 writevtk(grid,"Tree")
-writevtk(stl_grid,"STL")
+writevtk(get_grid(stl),"stl")
 
+## 3D 
 
 p = HEX
 T,X = initial_mesh(p)
-
-
-STL_vertices = [ 
+stl_vertices = [ 
   Point(0.4,0.4,0.5),
   Point(1.1,0.3,0.4),
   Point(1.1,0.9,0.7),
   Point(-0.1,0.5,0.3),
   Point(0.5,-0.1,0.5) ]
-
-STL_T = Table( [[1,2,3],[1,2,5],[1,4,5],[1,4,3]] )
-
-stl_grid = compute_stl_grid(STL_T,STL_vertices)
-stl = GridTopology(stl_grid)
-
-STL_vertices = get_vertex_coordinates(stl)
-STL_edges = get_edge_coordinates(stl)
-
-# 3D
-
-T,X = initial_mesh(p)
-
-V = distribute_faces(T,X,p,1:length(STL_vertices),STL_vertices)
-
+stl_faces = Table( [[1,2,3],[1,2,5],[1,4,5],[1,4,3]] )
+stl = compute_stl_model(stl_faces,stl_vertices)
+# Vertices
 Tnew = eltype(T)[]
-
 Tnew_to_v = Vector{Int}[]
-
 v_in = Int[]
-
-insert_vertices!(T,X,p,V,Tnew,STL_vertices,Tnew_to_v,v_in)
-
+V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
+insert_vertices!(T,X,p,stl,V,Tnew,Tnew_to_v,v_in)
 T = Tnew
 T_to_v = Tnew_to_v
-
-
-E = distribute_faces(T,X,p,1:length(STL_edges),STL_edges)
-
-vs = get_default_directions(1:length(STL_edges),STL_edges)
-
+# Edges
 Tnew = eltype(T)[]
-
 Tnew_to_e = Vector{Int}[]
-
 e_in = Int[]
-
-insert_edges!(T,X,p,E,Tnew,STL_edges,Tnew_to_e,e_in,vs)
-
+E = distribute_edges(T,X,p,stl,1:num_edges(stl))
+vs = get_default_directions(1:num_edges(stl),stl)
+insert_edges!(T,X,p,stl,E,Tnew,Tnew_to_e,e_in,vs)
 T = Tnew
 T_to_e = Tnew_to_e
-
-grid = compute_grid(T,X,HEX)
-
+grid = compute_grid(T,X,p)
 writevtk(grid,"Tree3D")
-writevtk(stl_grid,"STL3D")
+writevtk(get_grid(stl),"stl3D")
 
 end # module

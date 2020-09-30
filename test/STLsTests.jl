@@ -7,22 +7,20 @@ using Gridap.Geometry
 using Gridap.ReferenceFEs
 
 using STLCutters: read_stl
-using STLCutters: compute_stl_grid
+using STLCutters: compute_stl_model
 
 using STLCutters: is_water_tight
 using STLCutters: merge_nodes
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
 
-stl = compute_stl_grid(T,X)
-topo = GridTopology(stl)
-@test !is_water_tight(topo)
-#writevtk(stl,"cube",cellfields=["normals"=>N])
+stl = compute_stl_model(T,X)
+@test !is_water_tight(stl)
+writevtk(stl.grid,"cube",cellfields=["normals"=>N])
 
 
 stl = merge_nodes(stl)
-topo = GridTopology(stl)
-@test is_water_tight(topo)
-#writevtk(stl,"cube",cellfields=["normals"=>N])
+@test is_water_tight(stl)
+writevtk(stl.grid,"cube",cellfields=["normals"=>N])
 
 end # module

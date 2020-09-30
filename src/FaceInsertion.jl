@@ -31,10 +31,12 @@ function facet_refinement(
   K,
   X::Vector{<:Point},
   p::Polytope,
-  facets::Vector{<:Integer},
-  f)
+  stl::DiscreteModel,
+  facets::Vector{<:Integer})
 
-  levelsets = [ CellMeshes.Plane(center(f[facet]),normal(f[facet])) for facet in facets ]
+  levelsets = [ 
+    CellMeshes.Plane(center(get_cell(stl,facet)),normal(get_cell(stl,facet))) 
+    for facet in facets ]
   mesh = CellMeshes.CellMesh(X,K,p)
   CellMeshes.compute_cell_mesh!(mesh,levelsets)
 
@@ -380,6 +382,23 @@ end
 
 
 Base.abs(a::VectorValue) = VectorValue( abs.(Tuple(a)) )
+
+function get_default_directions(E,stl::DiscreteModel{Dc,Dp}) where {Dc,Dp}
+  sum_v = 0
+  for e in E
+    edge = get_edge(stl,e)
+    v = edge[2] - edge[1]
+    sum_v += abs(v)
+  end
+  if Dp == 2
+    ()
+  elseif Dp == 3
+    _,d = findmin(Tuple(sum_v))
+    v = zero( VectorValue{Dp,Int} )
+    v = Base.setindex(v,1,d)
+    (v,)
+  end
+end
 
 function get_default_directions(E,STL_edges::Vector{<:Segment{D}}) where D
   acc_v = 0

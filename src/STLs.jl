@@ -21,58 +21,55 @@ end
 
 Base.convert(::Type{Vector},x::MeshIO.Face) = collect(x.data)
 
-function compute_stl_grid(
+function compute_stl_model(
   cell_to_vertices::Table,
   vertex_to_coordinates::Vector{<:Point{D}}) where D
 
   p = Polytope( tfill(TET_AXIS,Val{D-1}()) )
-  reffe = LagrangianRefFE(p)
-  reffes = [reffe]
-  cell_types = fill(1,length(cell_to_vertices))
-  UnstructuredGrid(vertex_to_coordinates,cell_to_vertices,reffes,cell_types)
+  compute_model(cell_to_vertices,vertex_to_coordinates,p)
 end
 
-function get_edge_coordinates(stl::GridTopology)
-  Tp = eltype(get_vertex_coordinates(stl))
-  T = eltype(Tp)
-  Dp = length(Tp)
-  edge_coordinates = Vector{Segment{Dp,T}}(undef,num_edges(stl))
-  for edge in 1:num_edges(stl)
-    edge_coordinates[edge] = get_edge_coordinates(stl,edge)
-  end
-  edge_coordinates
+function compute_model(
+  cell_to_vertices::Table,
+  vertex_to_coordinates::Vector{<:Point},
+  p::Polytope)
+
+  grid = compute_grid(cell_to_vertices,vertex_to_coordinates,p)
+  UnstructuredDiscreteModel(grid)
 end
 
-function get_facet_coordinates(stl::GridTopology{Dc,2}) where Dc
-  get_edge_coordinates(stl)
+function get_dface(stl::DiscreteModel,iface::Integer,::Val{d}) where d
+  @notimplementedif length( get_polytopes(stl) ) ≠ 1 
+  @notimplementedif !is_simplex( get_polytopes(stl)[1] )
+  0 < iface ≤ num_faces(stl,d) || 
+    throw(AssertionError(
+      "get_dface() :: access at $d-face $iface of $(num_faces(stl,d))"))
+  stl_topology = get_grid_topology(stl)
+  face_vertices = get_faces(stl_topology,d,0)[iface]
+  X = get_vertex_coordinates(stl_topology)
+  v = ntuple( i -> X[face_vertices[i]], Val{d+1}() )
+  simplex_face(v)
+end 
+
+function get_vertex(stl::DiscreteModel,vertex::Integer) 
+  get_vertex_coordinates(get_grid_topology(stl))[vertex]
 end
 
-function get_facet_coordinates(stl::GridTopology{Dc,3}) where Dc
-  Tp = eltype(get_vertex_coordinates(stl))
-  T = eltype(Tp)
-  Dp = length(Tp)
-  facet_coordinates = Vector{Triangle{Dp,T}}(undef,num_cells(stl))
-  for facet in 1:num_cells(stl)
-    facet_coordinates[facet] = get_facet_coordinates(stl,facet)
-  end
-  facet_coordinates
+function get_edge(stl::DiscreteModel,edge::Integer)
+  get_dface(stl,edge,Val{1}())
 end
 
-function get_edge_coordinates(stl::GridTopology,edge::Integer)
-  edge_vertices = get_faces(stl,1,0)[edge]
-  X = get_vertex_coordinates(stl)
-  Segment( X[edge_vertices[1]], X[edge_vertices[2]] )
+function get_facet(stl::DiscreteModel{Dc},facet::Integer) where Dc
+  get_dface(stl,facet,Val{Dc-1}())
 end
 
-function get_facet_coordinates(stl::GridTopology{Dc,3},facet::Integer) where Dc
-  facet_vertices = get_faces(stl,2,0)[facet]
-  X = get_vertex_coordinates(stl)
-  Triangle( X[facet_vertices[1]], X[facet_vertices[2]], X[facet_vertices[3]] )
+function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
+  get_dface(stl,cell,Val{Dc}())
 end
 
-function merge_nodes(stl::Grid)
-  X,T = delete_repeated_vertices(stl)
-  compute_stl_grid(T,X)
+function merge_nodes(stl::DiscreteModel)
+  X,T = delete_repeated_vertices(get_grid(stl))
+  compute_stl_model(T,X)
 end
 
 function delete_repeated_vertices(stl::Grid)
@@ -156,6 +153,8 @@ function _compute_min_length(mesh::Grid)
   end
   min_length
 end
+
+is_water_tight(model::DiscreteModel) = is_water_tight(get_grid_topology(model))
 
 function is_water_tight(top::GridTopology{Dc}) where Dc
   l = length.( get_faces(top,Dc-1,Dc) )
