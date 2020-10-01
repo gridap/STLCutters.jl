@@ -405,10 +405,52 @@ function distance(s1::Face{1,3},s2::Face{1,3})
 end
 
 function distance(p::Point{Dp},f::Face{Df,Dp}) where {Df,Dp}
+  if contains_projection(f,p)
+    distance_to_infinite_face(f,p)
+  else
+    min_dist = Inf
+    for i in 1:num_facets(f)
+      facet = get_facet(f,i)
+      dist = distance(p,facet)
+      if dist < min_dist
+        min_dist = dist
+      end
+    end
+    min_dist
+  end
+end
+
+distance(f::Face,p::Point) = distance(p,f)
+
+function distance_to_infinite_face(a::Point{D},b::Point{D}) where D
+  distance(a,b)
+end
+
+function distance_to_infinite_face(s::Face{1,3},p::Point{3})
+  p′ = projection(p,s)
+  distance(p,p′)
+end
+
+function distance_to_infinite_face(f::Face{Df,Dp},p::Point{Dp}) where {Df,Dp}
   @notimplementedif Df ≠ Dp-1
   n = normal(f)
   c = center(f)
   abs( (p-c) ⋅ n )
+end
+
+function distance_to_infinite_face(
+  f1::Face{Df1,Dp},
+  f2::Face{Df2,Dp}) where {Df1,Df2,Dp}
+
+  @notimplementedif Df1 < Df2 || Df1 == Dp
+  max_dist = 0.0
+  for i in 1:num_vertices(f2)
+    dist = distance_to_infinite_face(f1,f2[i])
+    if dist > max_dist
+      max_dist = dist
+    end
+  end
+  max_dist
 end
 
 function projection(p::Point{D},q::Point{D}) where D
@@ -493,7 +535,7 @@ function have_intersection(f::Face{D,D},p::Point) where D
     all( pmax.data .> p.data ) || return false
     true
   else
-    contains_projection(f,p) # || is_on_boundary
+    @notimplemented
   end
 end
 
@@ -572,50 +614,18 @@ function contains_projection(f1::Face,f2::Face)
   true
 end
 
-function is_on_cell_facet(c::Face{D,D},f::Face{Df,D}) where {Df,D}
-  for i in 1:num_facets(c)
-    facet = get_facet(c,i)
+function is_on_boundary(f1::Face,f2::Union{Point,Face})
+  for i in 1:num_facets(f1)
+    facet = get_facet(f1,i)
     if surface(facet) > 0
-      if are_coplanar(facet,f)
-        if are_overlapped(facet,f)
+      if distance_to_infinite_face(facet,f2) < TOL
+        if are_overlapped(facet,f2)
           return true
         end
       end
     end
   end
   false
-end
-
-function is_on_cell_facet(c::Face{D,D},f::Face{Df,D},face::Integer) where {Df,D}
-  for i in 1:num_facets(c)
-    facet = get_facet(c,i)
-    if surface(facet) > 0 &&
-       are_coplanar(facet,f) &&
-       are_overlapped(facet,f) &&
-       are_overlapped(facet,f,face)
-
-       return true
-    end
-  end
-  false
-end
-
-function get_cell_facet_on_facet(
-  c::Face{D,D},
-  f::Face{Df,D},
-  face::Integer) where {Df,D}
-
-  for i in 1:num_facets(c)
-    facet = get_facet(c,i)
-    if surface(facet) > 0 &&
-       are_coplanar(facet,f) &&
-       are_overlapped(facet,f) &&
-       are_overlapped(facet,f,face)
-
-       return i
-    end
-  end
-  @unreachable
 end
 
 is_cartesian(::Face) = false
@@ -780,11 +790,10 @@ function are_overlapped(f1::Face{1,2},f2::Face{1,2})
 end
 
 function are_overlapped(f::Face,p::Point)
-  contains_projection(f,p) #&& !is_coplanar_to_a_facet(f,p)
+  contains_projection(f,p) || distance(f,projection(p,f)) < TOL
 end
 
 function are_overlapped(f::Face{2,3},s::Face{1,3})
-  #!is_coplanar_to_a_facet(f,s) || return false
   p0 = nothing
   for i in 1:num_vertices(s)
     if contains_projection(f,s[i])
@@ -807,17 +816,6 @@ function are_overlapped(f::Face{2,3},s::Face{1,3})
     end
   end
   false
-end
-
-function are_overlapped(c::Face,f::Face,face::Integer)
-  p = get_polytope(f)
-  d = get_facedims(p)[face]
-  dface = face - get_dimrange(p,d)[1] + 1
-  are_overlapped(c,f,d,dface)
-end
-
-function are_overlapped(c::Face,f::Face{D},d::Integer,dface::Integer) where D
-  dispatch_face(are_overlapped,c,f,d,dface)
 end
 
 ## Generated funcs
@@ -901,7 +899,7 @@ function have_intersection(
   f::F) where F<:Union{Point,Face}
 
   c = Cell(K,X,p)
-  have_intersection(c,f)
+  have_intersection(c,f) || is_on_boundary(c,f)
 end
 
 function have_intersection(
@@ -962,46 +960,14 @@ function intersection_point(K,X,p,face,f)
   intersection_point(K,X,p,d,dface,f)
 end
 
-function is_on_cell_facet(
+function is_on_boundary(
   K,
   X::Vector{<:Point},
   p::Polytope,
   f::F) where F<:Union{Point,Face}
 
   c = Cell(K,X,p)
-  is_on_cell_facet(c,f)
-end
-
-function is_on_cell_facet(
-  K,
-  X::Vector{<:Point},
-  p::Polytope,
-  f::F,
-  df::Integer) where F<:Union{Point,Face}
-
-  c = Cell(K,X,p)
-  is_on_cell_facet(c,f,df)
-end
-
-function get_cell_facet_on_facet(
-  K,
-  X::Vector{<:Point},
-  p::Polytope,
-  f::F) where F<:Union{Point,Face}
-
-  c = Cell(K,X,p)
-  get_cell_facet_on_facet(c,f)
-end
-
-function get_cell_facet_on_facet(
-  K,
-  X::Vector{<:Point},
-  p::Polytope,
-  f::F,
-  df::Integer) where F<:Union{Point,Face}
-
-  c = Cell(K,X,p)
-  get_cell_facet_on_facet(c,f,df)
+  is_on_boundary(c,f)
 end
 
 function get_bounding_box(K,X::Vector{<:Point},p::Polytope)

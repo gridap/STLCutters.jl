@@ -27,6 +27,9 @@ function edge_refinement(
   Tnew,Xnew
 end
 
+# ignore faces on ∂K, if all are in ∂K, define as in/out
+# to do so, ∂K faces have to be previously included in the list
+# alternatively, we can do this in a different loop
 function facet_refinement(
   K,
   X::Vector{<:Point},
@@ -34,23 +37,67 @@ function facet_refinement(
   stl::DiscreteModel,
   facets::Vector{<:Integer})
 
-  levelsets = [ 
-    CellMeshes.Plane(center(get_cell(stl,facet)),normal(get_cell(stl,facet))) 
-    for facet in facets ]
-  mesh = CellMeshes.CellMesh(X,K,p)
-  CellMeshes.compute_cell_mesh!(mesh,levelsets)
+  levelsets = get_levelsets(K,X,p,stl,facets)
+  if length(levelsets) > 0
+    mesh = CellMeshes.CellMesh(X,K,p)
+    CellMeshes.compute_cell_mesh!(mesh,levelsets)
 
-  Xnew = CellMeshes.get_vertex_coordinates(mesh)
-  Tnew = CellMeshes.get_cell_to_vertices(mesh)
-  cell_to_io = CellMeshes.get_cell_to_inout(mesh)
+    Xnew = CellMeshes.get_vertex_coordinates(mesh)
+    Tnew = CellMeshes.get_cell_to_vertices(mesh)
+    cell_to_io = CellMeshes.get_cell_to_inout(mesh)
+    cell_type = TET_AXIS
 
-  update_connectivities!(Tnew,K,X,p)
-  update_vertex_coordinates!(Xnew,p)
+    update_connectivities!(Tnew,K,X,p)
+    update_vertex_coordinates!(Xnew,p)
+  else
+    Tnew = [K]
+    Xnew = empty(X)
+    cell_to_io = [ define_cell(K,X,p,get_cell(stl,1)) ]
+    cell_type = HEX_AXIS
+  end
 
-  Tnew,Xnew,cell_to_io
+  cell_types = fill(cell_type,length(Tnew))
+  Tnew,Xnew,cell_to_io,cell_types
 end
 
 ## Helpers
+function define_cell(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  f::Face)
+
+  plane = center(f),normal(f)
+  max_dist = 0.0
+  for i in 1:num_vertices(p)
+    v = X[K[i]]
+    dist = signed_distance(v,plane)
+    if abs(dist) > abs(max_dist)
+      max_dist = dist
+    end
+  end
+  if max_dist < 0
+    CellMeshes.FACE_OUT
+  else
+    CellMeshes.FACE_IN
+  end
+end
+
+function get_levelsets(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  stl::DiscreteModel,
+  facets::Vector{<:Integer})
+
+  masks = [ is_on_boundary(K,X,p,get_cell(stl,facet)) for facet in facets ]   
+  levelsets = [ 
+    CellMeshes.Plane(
+      center(get_cell(stl,facet)),
+      normal(get_cell(stl,facet))) 
+    for facet in facets ]
+  deleteat!(levelsets,masks)
+end
 
 function compute_case(K,X,p::Polytope,d::Integer)
   @assert is_n_cube(p)

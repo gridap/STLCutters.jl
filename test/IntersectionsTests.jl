@@ -8,7 +8,7 @@ using Gridap.ReferenceFEs
 using STLCutters: orthogonal
 using STLCutters: distance
 using STLCutters: projection
-using STLCutters: is_on_cell_facet
+using STLCutters: is_on_boundary 
 
 p = QUAD
 K = collect(1:num_vertices(p))
@@ -164,7 +164,7 @@ p3 = Point(0.0,1.0,0.0)
 
 t = Triangle(p1,p2,p3)
 
-@test is_on_cell_facet(K,X,p,t)
+@test is_on_boundary(K,X,p,t)
 
 p = QUAD
 K = collect(1:num_vertices(p))
@@ -175,7 +175,7 @@ p2 = Point(0.5,0.0)
 
 s = Segment(p1,p2)
 
-@test is_on_cell_facet(K,X,p,s)
+@test is_on_boundary(K,X,p,s)
 
 end # module
 

@@ -37,6 +37,16 @@ end
 function insert_edges!(T,X,p,stl::DiscreteModel,E,f,Tnew,fnew,vs)
   for (k,Ek,fk) in zip(T,E,f)
 
+    while length(Ek) > 0
+      e = Ek[1]
+      edge = get_edge(stl,e)
+      if is_on_boundary(k,X,p,edge)
+        popfirst!(Ek)
+      else
+        break
+      end
+    end
+
     if length(Ek) > 0
       e = popfirst!(Ek)
       Tk,Xnew = edge_refinement(k,X,p,get_edge(stl,e),vs)
@@ -55,11 +65,11 @@ end
 function insert_facets!(T,X,p,stl,F,f,Tnew,fnew,cell_types,cell_to_io)
   for (k,Fk,fk) in zip(T,F,f)
     if length(Fk) > 0
-      Tk,Xnew,c_io = facet_refinement(k,X,p,stl,Fk)
+      Tk,Xnew,c_io,cts = facet_refinement(k,X,p,stl,Fk)
       append!(Tnew,Tk)
       append!(X,Xnew)
       append!(cell_to_io,c_io)
-      append!(cell_types,fill(TET_AXIS,length(Tk)))
+      append!(cell_types,cts)
       _fk = [fk;Fk.+get_offset(get_grid_topology(stl),num_dims(stl))]
       append!(fnew,fill(_fk,length(Tk)))
     else
@@ -165,13 +175,14 @@ function farthest_vertex_from_boundary(
       v_i = i
     end
   end
+  @assert v_i ≠ UNSET
   v_i
 end
 
 function distance_to_boundary(cell_nodes,node_to_coordinates,p::Polytope,point::Point)
   @assert have_intersection(cell_nodes,node_to_coordinates,p,point)
   pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates,p)
-  min( minimum(point-pmin), minimum(pmax-point) )
+  abs( min( minimum(point-pmin), minimum(pmax-point) ) )
 end
 
 function farthest_axis_from_boundary(cell_nodes,node_to_coordinates,p::Polytope,point::Point)
