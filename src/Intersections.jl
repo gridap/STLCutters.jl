@@ -27,6 +27,14 @@ struct CellFace{Df,Dp,C}<:Face{Df,Dp}
   end
 end
 
+struct GridCell{Df,Dp,G}<:Face{Df,Dp}
+  cell::Integer
+  grid::G
+  function GridCell(grid::Grid{Df,Dp},cell::Integer) where {Df,Dp}
+    new{Df,Dp,typeof(grid)}(cell,grid)
+  end
+end
+  
 Segment(a::Point...) = Segment(a)
 
 Triangle(a::Point...) = Triangle(a)
@@ -54,6 +62,10 @@ function Base.getindex(a::CellFace,i::Integer)
   d = face_dim(a)
   dface_nodes = get_face_vertices(p,d)[a.dface]
   a.cell[dface_nodes[i]]
+end
+
+function Base.getindex(a::GridCell,i::Integer)
+  get_cell_coordinates(a.grid)[a.cell][i]
 end
 
 Base.lastindex(a::Face) = num_vertices(a)
@@ -87,12 +99,16 @@ end
 
 function get_polytope(a::CellFace{3})
   if is_simplex(a.cell)
-    TRI
+    TET
   elseif is_n_cube(a.cell)
-    QUAD
+    HEX
   else
     @notimplemented
   end
+end
+
+function get_polytope(a::GridCell)
+  get_polytope(get_cell_reffes(a.grid)[a.cell])
 end
 
 num_dims(::Face{Df,Dp}) where {Df,Dp} = Dp
@@ -130,6 +146,10 @@ get_edge(a::Face,edge::Integer) = get_dface(a,edge,Val{1}())
 
 get_facet(a::Face{D},facet::Integer) where D = get_dface(a,facet,Val{D-1}())
 
+get_cell(a::Face) = a
+
+get_cell(g::Grid,i::Integer) = GridCell(g,i)
+
 function get_dface(a::Face,dface::Integer,::Val{d}) where d
   p = get_polytope(a)
   dface_to_nodes = get_face_vertices(p,d)[dface]
@@ -152,6 +172,10 @@ function get_dface(a::CellFace,dface::Integer,::Val{d}) where d
   CellFace{d}(dface,a)
 end
 
+function get_dface(a::GridCell,dface::Integer,::Val{d}) where d
+  CellFace{d}(dface,a)
+end
+
 function get_dface(a::Face,dface::Integer,::Val{0})
   a[dface]
 end
@@ -161,6 +185,10 @@ function get_dface(a::Cell,dface::Integer,::Val{0})
 end
 
 function get_dface(a::CellFace,dface::Integer,::Val{0})
+  a[dface]
+end
+
+function get_dface(a::GridCell,dface::Integer,::Val{0})
   a[dface]
 end
 
@@ -250,6 +278,7 @@ function normal(a::Face{2,3})
       return n / _norm
     end
   end
+  @show a[1],a[2],a[3],a[4]
   @unreachable
 end
 
@@ -422,6 +451,43 @@ end
 
 distance(f::Face,p::Point) = distance(p,f)
 
+function distance(f::Face{D,D},p::Point{D}) where D
+  if have_intersection(f,p)
+    0.0
+  else
+    Inf # distance to boundary
+  end
+end
+
+function distance(a::Face{D,D},b::Face{Df,D}) where {Df,D}
+  @notimplementedif D == Df
+  if have_intersection(a,b)
+    0.0
+  else
+    Inf # distance to boundary
+  end
+end
+
+function distance(a::Face{1,2},b::Face{1,2})
+  if have_intersection(a,b)
+    0.0
+  else
+    Inf # distance to boundary
+  end
+end
+
+function distance(a::Face,b::Face)
+  @abstractmethod
+end
+
+function distance(a::Face,fa::Integer,b::Face,fb::Integer)
+  dispatch_faces(distance,a,fa,b,fb)
+end
+
+function distance(a::Union{Point,Face},b::Face,d::Integer,df::Integer)
+  dispatch_face(distance,a,b,d,df)
+end
+
 function distance_to_infinite_face(a::Point{D},b::Point{D}) where D
   distance(a,b)
 end
@@ -486,6 +552,8 @@ function have_intersection(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
   end
 end
 
+have_intersection(e::Face{1},f::Face{2}) = have_intersection(f,e)
+
 function have_intersection(f1::Face{1,3},f2::Face{1,3})
   !are_colinear(f1,f2) && distance(f1,f2) < TOL
 end
@@ -510,6 +578,40 @@ end
 
 function have_intersection(a::Face{D,D},b::Face{2,D}) where D
   p0,p1 = nothing,nothing
+ # for i in 1:num_vertices(b)
+ #   if contains_projection(a,b[i])
+ #     va = [a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8]]
+ #     vb = b[i]
+ #     @show va,vb
+ #     p = b[i]
+ #     if p0 === nothing
+ #       p0 = p
+ #     elseif p1 === nothing
+ #       if distance(p,p0) > TOL
+ #         p1 = p
+ #       end
+ #     elseif distance(p,Segment(p0,p1)) > TOL
+ #       return true
+ #     end
+ #   end
+ # end
+  for i in 1:num_faces(a,D-1), j in 1:num_edges(b)
+    face = get_dface(a,i,Val{D-1}())
+    edge = get_edge(b,j)
+    if measure(face) ≠ 0 && have_intersection(face,edge)
+
+      p = intersection_point(face,edge)
+      if p0 === nothing
+        p0 = p
+      elseif p1 === nothing
+        if distance(p,p0) > TOL
+          p1 = p
+        end
+      elseif distance(p,Segment(p0,p1)) > TOL
+        return true
+      end
+    end
+  end
   for i in 1:num_faces(a,D-2)
     face = get_dface(a,i,Val{D-2}())
     if have_intersection(b,face)
@@ -535,12 +637,16 @@ function have_intersection(f::Face{D,D},p::Point) where D
     all( pmax.data .> p.data ) || return false
     true
   else
-    @notimplemented
+    contains_projection(f,p)
   end
 end
 
 function have_intersection(f::Face,p::Point)
   @notimplemented
+end
+
+function have_intersection(a::Face,fa::Integer,b::Face,fb::Integer)
+  dispatch_face(have_intersection,a,fa,b,fb)
 end
 
 function intersection_point(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
@@ -552,6 +658,8 @@ function intersection_point(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
   α = ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
   e[1] + s1_s2 * α
 end
+
+intersection_point(e::Face{1},f::Face{2}) = intersection_point(f,e)
 
 function intersection_point(s1::Face{1,3},s2::Face{1,3})
   v1 = s1[2] - s1[1]
@@ -593,13 +701,19 @@ function intersection_point(s1::Face{1,3},s2::Face{1,3})
 
 end
 
+function intersection_point(f::Face{D,D},p::Point) where D
+  p
+end
+
 function contains_projection(f::Face,p::Point)
   for i in 1:num_facets(f)
     facet = get_facet(f,i)
-    c = center(facet)
-    n = normal(f,i)
-    if (p-c) ⋅ n > TOL
-      return false
+    if isa(facet,Point) || measure(facet) ≠ 0
+      c = center(facet)
+      n = normal(f,i)
+      if (p-c) ⋅ n > TOL
+        return false
+      end
     end
   end
   true
@@ -818,7 +932,21 @@ function are_overlapped(f::Face{2,3},s::Face{1,3})
   false
 end
 
+
+
+
+
 ## Generated funcs
+
+function dispatch_faces(fun,a::Face,fa::Integer,b::Face,fb::Integer)
+  pa = get_polytope(a)
+  da = get_facedims(pa)[fa]
+  dfa = fa - get_offset(pa,da)
+  pb = get_polytope(b)
+  db = get_facedims(pb)[fb]
+  dfb = fb - get_offset(pb,db)
+  dispatch_face(fun,a,da,dfa,b,db,dfb)
+end
 
 @generated(
 function dispatch_face(fun,a::Face{D},d::Integer,dface::Integer,b...) where D
@@ -954,7 +1082,15 @@ function intersection_point(
   dispatch_face(intersection_point,c,d,dface,f)
 end
 
-function intersection_point(K,X,p,face,f) 
+function intersection_point(a::Face,fa::Integer,b::Face,fb::Integer)
+  dispatch_faces(intersection_point,a,fa,b,fb)
+end
+
+function intersection_point(a::Union{Point,Face},b::Face,d::Integer,df::Integer)
+  dispatch_face(intersection_point,a,b,d,df)
+end
+
+function intersection_point(K,X::Vector{<:Point},p::Polytope,face::Integer,f) 
   d = get_facedims(p)[face]
   dface = face - get_dimrange(p,d)[1] + 1
   intersection_point(K,X,p,d,dface,f)

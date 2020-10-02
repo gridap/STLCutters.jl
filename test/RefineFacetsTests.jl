@@ -147,6 +147,7 @@ cell_types = Int8[]
 cell_to_io = Int8[]
 Fk = 1:num_cells(stl)
 F = distribute_facets(T,X,p,stl,1:num_cells(stl))
+@show F
 @test maximum( length.(F) ) == 1
 insert_facets!(T,X,p,stl,F,f,Tnew,fnew,cell_types,cell_to_io)
 T = Tnew

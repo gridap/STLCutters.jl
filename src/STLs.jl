@@ -170,13 +170,17 @@ function have_intersection(
   dispatch_face(have_intersection,grid,cell,m,face)
 end
 
+function is_on_boundary(
+  grid::Grid,
+  cell::Integer,
+  m::DiscreteModel,
+  face::Integer)
+
+  dispatch_face(is_on_boundary,grid,cell,m,face)
+end
+
 function dispatch_face(fun,grid::Grid,cell::Integer,args...)
-  K = get_cell_nodes(grid)[cell]
-  X = get_node_coordinates(grid)
-  reffes = get_reffes(grid)
-  cell_types = get_cell_type(grid)
-  p = get_polytope( reffes[cell_types[cell]] )
-  c = Cell(K,X,p)
+  c = get_cell(grid,cell)
   dispatch_face(fun,c,args...)
 end
 

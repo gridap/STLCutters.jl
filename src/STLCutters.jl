@@ -43,6 +43,7 @@ include("STLs.jl")
 include("CellRefinement.jl")
 include("FaceInsertion.jl")
 include("FaceDistribution.jl")
+include("SurfaceRefinement.jl")
 
 include("tables/LookupTables.jl")
 
