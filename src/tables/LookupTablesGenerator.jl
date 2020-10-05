@@ -490,6 +490,47 @@ function compute_in_out(T,p::Polytope,case::Integer)
   in_out
 end
 
+function signed_volume(K,X::Vector{<:Point},p::Polytope)
+  simplices,ps = simplexify(p)
+  Xk = X[K]
+  vol = 0.0
+  for simplex in simplices
+    rvol = simplex_signed_volume(simplex,get_vertex_coordinates(p),ps)
+    vol += simplex_signed_volume(simplex,Xk,ps) * sign(rvol)
+  end
+  vol
+end
+
+function correct_volumes(T,X,p::Polytope)
+  @assert is_n_cube(p)
+  vol = 0.0
+  fv = get_face_vertices(p,num_dims(p)-1)
+  Tnew = deepcopy(T)
+  for (i,K) in enumerate(T)
+    vol_k = signed_volume(K,X,p)
+    if vol_k < 0
+      Kp = [K[fv[2]];K[fv[1]]]
+      vol_k = signed_volume(Kp,X,p)
+      Tnew[i] = Kp
+    end
+    @assert vol_k > 0
+    vol += vol_k
+  end
+  @assert vol ≈ 1
+  Tnew
+end
+
+function simplex_signed_volume(K,X,p::Polytope{D}) where D
+  @assert is_simplex(p)
+  factor = 1/factorial(D)
+  v = ntuple( i -> X[K[i+1]]-X[K[1]], Val{D}() )
+  data = ntuple( i -> v[ ((i-1)÷D)+1 ][ ((i-1)%D)+1 ], Val{D^2}() )
+  t = TensorValue(data...)
+  vol = det(t) * factor
+  vol
+end
+
+
 function compute_tables(p::Polytope,write=false)
   case_to_table_id = fill(UNSET,num_combinations(p))
   table_id_to_connectivities = Vector{Vector{Int}}[]
@@ -506,6 +547,9 @@ function compute_tables(p::Polytope,write=false)
       refine_cells!(T,X,p,case,Tnew)
       T = Tnew
 
+      Xp = compute_vertex_coordinates(X,p)
+      T = correct_volumes(T,Xp,p)
+
       in_out = compute_in_out(T,p,case)
 
       push!( table_id_to_connectivities, T )
@@ -514,8 +558,7 @@ function compute_tables(p::Polytope,write=false)
 
       if write 
         println("$p case $case: $(length(T)) cells, $(length(X)) vertices")
-        X = compute_vertex_coordinates(X,p)
-        grid = compute_grid(T,X,p)
+        grid = compute_grid(T,Xp,p)
         writevtk(grid,"$(num_dims(p))D_case_$case",cellfields=["IN_OUT"=>in_out])
       end
     end

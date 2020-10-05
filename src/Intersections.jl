@@ -278,7 +278,6 @@ function normal(a::Face{2,3})
       return n / _norm
     end
   end
-  @show a[1],a[2],a[3],a[4]
   @unreachable
 end
 
@@ -300,7 +299,9 @@ function normal(::Face,::Integer)
 end
 
 function normal(f::Face{D,D},facet::Integer) where D
-  normal( get_facet(f,facet) )
+  p = get_polytope(f)
+  n = normal( get_facet(f,facet) )
+  n * get_facet_orientations(p)[facet]
 end
 
 function normal(f::Face{1,D},facet::Integer) where D
@@ -354,7 +355,7 @@ function simplex_measure(f::Face{2,2})
   factor = 1 / 2
   v1 = f[2] - f[1]
   v2 = f[3] - f[1]
-  abs( v1 ⋅ v2 ) * factor
+  abs( v1 × v2 ) * factor
 end
 
 function simplex_measure(f::Face{3,3})
@@ -376,6 +377,38 @@ function surface(f::Face{Df,Dp}) where {Df,Dp}
 end
 
 volume(f::Face{D,D}) where D = measure(f)
+
+function signed_volume(f::Face{D,D}) where D
+  if is_simplex(f)
+    simplex_signed_volume(f)
+  else
+    vol = 0.0
+    for i in 1:num_simplices(f)
+      s = simplex(f,i)
+      vol += simplex_signed_volume(s) * simplex_sign(f,i)
+    end
+    vol
+  end
+end
+
+function simplex_signed_volume(f::Face{D,D}) where D
+  @notimplementedif !is_simplex(f)
+  factor = 1/factorial(D)
+  v = ntuple( i -> f[i+1]-f[1], Val{D}() )
+  data = ntuple( i -> v[ ((i-1)÷D)+1 ][ ((i-1)%D)+1 ], Val{D^2}() )
+  t = TensorValue(data...)
+  vol = det(t) * factor
+  vol
+end
+
+function simplex_sign(f::Face,i::Integer)
+  simplex_sign(get_polytope(f),i)
+end
+
+function simplex_sign(p::Polytope,i::Integer)
+  c = Cell(get_face_vertices(p,num_dims(p))[1],get_vertex_coordinates(p),p)
+  sign( simplex_signed_volume( simplex(c,i) ) ) 
+end
 
 distance(a::Point,b::Point) =  norm( a - b )
 
@@ -476,8 +509,20 @@ function distance(a::Face{1,2},b::Face{1,2})
   end
 end
 
-function distance(a::Face,b::Face)
-  @abstractmethod
+function distance(a::Face{2,3},b::Face{1,3})
+  if have_intersection(a,b)
+    0.0
+  else
+    Inf # distance to boundary
+  end
+end
+
+function distance(a::Face{1,3},b::Face{2,3})
+  if have_intersection(a,b)
+    0.0
+  else
+    Inf # distance to boundary
+  end
 end
 
 function distance(a::Face,fa::Integer,b::Face,fb::Integer)
@@ -578,23 +623,20 @@ end
 
 function have_intersection(a::Face{D,D},b::Face{2,D}) where D
   p0,p1 = nothing,nothing
- # for i in 1:num_vertices(b)
- #   if contains_projection(a,b[i])
- #     va = [a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8]]
- #     vb = b[i]
- #     @show va,vb
- #     p = b[i]
- #     if p0 === nothing
- #       p0 = p
- #     elseif p1 === nothing
- #       if distance(p,p0) > TOL
- #         p1 = p
- #       end
- #     elseif distance(p,Segment(p0,p1)) > TOL
- #       return true
- #     end
- #   end
- # end
+  for i in 1:num_vertices(b)
+    if contains_projection(a,b[i])
+      p = b[i]
+      if p0 === nothing
+        p0 = p
+      elseif p1 === nothing
+        if distance(p,p0) > TOL
+          p1 = p
+        end
+      elseif distance(p,Segment(p0,p1)) > TOL
+        return true
+      end
+    end
+  end
   for i in 1:num_faces(a,D-1), j in 1:num_edges(b)
     face = get_dface(a,i,Val{D-1}())
     edge = get_edge(b,j)

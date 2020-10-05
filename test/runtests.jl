@@ -11,4 +11,6 @@ using Test
 @testset "RefineVerticesEdges" begin include("RefineVerticesEdgesTests.jl") end
 @testset "RefineFacets" begin include("RefineFacetsTests.jl") end
 
+@testset "SurfaceRefinement" begin include("SurfaceRefinementTests.jl") end
+
 end # module

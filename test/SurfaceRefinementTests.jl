@@ -45,5 +45,6 @@ writevtk(grid,"bg_mesh")
 writevtk(get_grid(stl),"surface",cellfields=["bgcell"=>f_to_bgcell])
 
 # TODO: Testing
+# whole stl inside bgmesh, compare surfaces, save refined_stl_face_to_old_stl_face
 
 end # module
