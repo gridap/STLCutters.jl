@@ -16,11 +16,17 @@ function compute_face_to_cells(grid::Grid,stl::DiscreteModel)
   stl_face_to_cells, cell_to_stl_faces
 end
 
+function refine_surface(grid::Grid,stl::DiscreteModel)
+  stlf_to_c,_ = compute_face_to_cells(grid,stl)
+  refine_surface(grid,stl,stlf_to_c) 
+end
+
 function refine_surface(grid::Grid,stl::DiscreteModel,stl_face_to_cells)
   @notimplementedif num_dims(grid) ≠ num_dims(stl)+1
   T = Vector{Int}[]
   X = empty( get_vertex_coordinates(get_grid_topology(stl)) )
   f_to_bgcell = Int[]
+  f_to_f = Int[]
   for stl_facet in 1:num_cells(stl)
     stl_face = get_dimrange(get_grid_topology(stl),num_dims(stl))[stl_facet]
     for cell in stl_face_to_cells[stl_face]
@@ -33,11 +39,12 @@ function refine_surface(grid::Grid,stl::DiscreteModel,stl_face_to_cells)
       append!(T,Tk)
       append!(X,Xk)
       append!(f_to_bgcell, fill(cell,length(Tk)) )
+      append!(f_to_f, fill(stl_facet,length(Tk)) )
     end
   end
   T = Table(T)
   stl = compute_stl_model(T,X)
-  stl,f_to_bgcell
+  stl,f_to_bgcell,f_to_f
 end
 
 function is_cell_out(

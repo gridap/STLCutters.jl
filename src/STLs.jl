@@ -205,3 +205,36 @@ function dispatch_face(fun,a,b::DiscreteModel{D},d::Integer,df::Integer) where D
 end
 )
 
+function measure(a::Grid)
+  m = 0.0
+  for i in 1:num_cells(a)
+    c = get_cell(a,i)
+    m += measure(c)
+  end
+  m
+end
+
+function measures(a::Grid,num::Integer,map)
+  m = zeros(num)
+  for i in 1:num_cells(a)
+    c = get_cell(a,i)
+    m[map[i]] += measure(c)
+  end
+  m
+end
+
+volume(a::Grid{D,D}) where D = measure(a)
+
+function surface(a::Grid{Df,Dp}) where {Df,Dp}
+  @notimplementedif Df ≠ Dp-1
+  measure(a)
+end
+
+function surfaces(a::Grid{Df,Dp},num::Integer,map) where {Df,Dp}
+  @notimplementedif Df ≠ Dp-1
+  measures(a,num,map)
+end
+
+surface(a::DiscreteModel) = surface(get_grid(a))
+
+surfaces(a::DiscreteModel,args...) = surfaces(get_grid(a),args...)

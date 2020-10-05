@@ -83,7 +83,11 @@ end
 
 get_polytope(::Tetrahedron) = TET
 
-get_polytope(a::Cell) = a.polytope
+function get_polytope(a::Cell)
+  HEX.face_orientations[3] = 1
+  HEX.face_orientations[4] = -1
+  a.polytope
+end
 
 get_polytope(a::CellFace{1}) = SEGMENT
 
@@ -108,6 +112,8 @@ function get_polytope(a::CellFace{3})
 end
 
 function get_polytope(a::GridCell)
+  HEX.face_orientations[3] = 1
+  HEX.face_orientations[4] = -1
   get_polytope(get_cell_reffes(a.grid)[a.cell])
 end
 
@@ -744,6 +750,18 @@ function intersection_point(s1::Face{1,3},s2::Face{1,3})
 end
 
 function intersection_point(f::Face{D,D},p::Point) where D
+  p
+end
+
+function intersection_point(f::Face,p::Point)
+  projection(p,f)
+end
+
+function intersection_point(a::Point,b::Point)
+  a
+end
+
+function intersection_point(p::Point,f::Face)
   p
 end
 
