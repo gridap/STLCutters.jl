@@ -229,10 +229,3 @@ function intersection_point(
   intersection_point(c,cell_face,facet,face)
 end
 
-
-
-
-
-
-
-

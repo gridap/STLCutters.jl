@@ -17,99 +17,77 @@ using STLCutters: distribute_vertices
 using STLCutters: distribute_edges 
 using STLCutters: distribute_facets 
 using STLCutters: define_cells!
+using STLCutters: volume 
 
-# 2D-1
+function test_facets(p,vertices,facets)
+  stl = compute_stl_model(Table(facets),vertices)
+  T,X = initial_mesh(p)
+  Tnew,fnew = eltype(T)[], Vector{Int}[]
+  f = fill(Int[],length(T))
+  V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
+  insert_vertices!(T,X,p,stl,V,f,Tnew,fnew)
+  T,f = Tnew,fnew
+  vertex_grid = compute_grid(T,X,p)
+  if num_dims(p) == 3
+    Tnew,fnew = eltype(T)[], Vector{Int}[]
+    E = distribute_edges(T,X,p,stl,1:num_edges(stl))
+    vs = get_default_directions(1:num_edges(stl),stl)
+    insert_edges!(T,X,p,stl,E,f,Tnew,fnew,vs)
+    T,f = Tnew,fnew
+    edge_grid = compute_grid(T,X,p)
+  end
+  Tnew,fnew = eltype(T)[], Vector{Int}[]
+  cell_types,cell_to_io = Int8[], Int8[]
+  F = distribute_facets(T,X,p,stl,1:num_cells(stl))
+  insert_facets!(T,X,p,stl,F,f,Tnew,fnew,cell_types,cell_to_io)
+  T,f = Tnew,fnew
+  if num_dims(p) == 2
+    reffes = [QUAD4,TRI3]
+  else
+    reffes = [HEX8,TET4]
+  end
+  grid = UnstructuredGrid(X,Table(T),reffes,cell_types)
+  define_cells!(grid,f,cell_to_io)
+  if num_dims(p) == 2
+    grids = vertex_grid,grid
+  else
+    grids = vertex_grid,edge_grid,grid
+  end
+  grids...,cell_to_io,stl
+end
+
+# 2D
+
 p = QUAD
-T,X = initial_mesh(p)
-stl_vertices = [
+
+vertices = [
   Point(-0.5,1.0),
   Point(0.4,0.3),
   Point(1.5,1.0) ]
-stl_faces = Table( [[1,2],[2,3]] )
-stl = compute_stl_model(stl_faces,stl_vertices)
-# Vertices
-Tnew = eltype(T)[]
-fnew = Vector{Int}[]
-f = fill(Int[],length(T))
-V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
-insert_vertices!(T,X,p,stl,V,f,Tnew,fnew)
-T = Tnew
-f = fnew
-## Edges
-#Tnew = eltype(T)[]
-#Tnew_to_e = Vector{Int}[]
-#e_in = Int[]
-#E = distribute_edges(T,X,p,stl,1:num_edges(stl))
-#vs = get_default_directions(1:num_edges(stl),stl)
-#insert_edges!(T,X,p,stl,E,Tnew,Tnew_to_e,e_in,vs)
-#T = Tnew
-#T_to_e = Tnew_to_e
-#grid = compute_grid(T,X,p)
-# Facets
-fnew = eltype(f)[]
-Tnew = eltype(T)[]
-cell_types = Int8[]
-cell_to_io = Int8[]
-Fk = 1:num_cells(stl)
-F = distribute_facets(T,X,p,stl,1:num_cells(stl))
-insert_facets!(T,X,p,stl,F,f,Tnew,fnew,cell_types,cell_to_io)
-T = Tnew
-f = fnew
-grid = UnstructuredGrid(X,Table(T),[QUAD4,TRI3],cell_types)
-define_cells!(grid,f,cell_to_io)
+facets = [[1,2],[2,3]]
+vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 @test count(isequal(UNSET),cell_to_io) == 0
-writevtk(grid,"mesh2D_1",cellfields=["IO"=>cell_to_io])
-writevtk(get_grid(stl),"stl2D_1")
+@test volume(grid) ≈ 1
+#writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
+#writevtk(get_grid(stl),"stl2D")
 
-# 2D-2
-p = QUAD
-T,X = initial_mesh(p)
-stl_vertices = [
+vertices = [
   Point(-0.5,1.0),
   Point(0.4,0.3),
   Point(1.5,0.3) ]
-stl_faces = Table( [[1,2],[2,3]] )
-stl = compute_stl_model(stl_faces,stl_vertices)
-# Vertices
-Tnew = eltype(T)[]
-fnew = Vector{Int}[]
-f = fill(Int[],length(T))
-V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
-insert_vertices!(T,X,p,stl,V,f,Tnew,fnew)
-T = Tnew
-f = fnew
-## Edges
-#Tnew = eltype(T)[]
-#Tnew_to_e = Vector{Int}[]
-#e_in = Int[]
-#E = distribute_edges(T,X,p,stl,1:num_edges(stl))
-#vs = get_default_directions(1:num_edges(stl),stl)
-#insert_edges!(T,X,p,stl,E,Tnew,Tnew_to_e,e_in,vs)
-#T = Tnew
-#T_to_e = Tnew_to_e
-#grid = compute_grid(T,X,p)
-# Facets
-fnew = eltype(f)[]
-Tnew = eltype(T)[]
-cell_types = Int8[]
-cell_to_io = Int8[]
-Fk = 1:num_cells(stl)
-F = distribute_facets(T,X,p,stl,1:num_cells(stl))
-insert_facets!(T,X,p,stl,F,f,Tnew,fnew,cell_types,cell_to_io)
-T = Tnew
-f = fnew
-grid = UnstructuredGrid(X,Table(T),[QUAD4,TRI3],cell_types)
-#define_cells!(grid,f,cell_to_io)
+facets = [[1,2],[2,3]]
+vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 @test count(isequal(UNSET),cell_to_io) == 0
-writevtk(grid,"mesh2D_2",cellfields=["IO"=>cell_to_io])
-writevtk(get_grid(stl),"stl2D_2")
-
+@test volume(grid) ≈ 1
+#writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
+#writevtk(get_grid(stl),"stl2D")
 
 
 # 3D
+
 p = HEX
-T,X = initial_mesh(p)
-stl_vertices = [ 
+
+vertices = [
   Point(-0.1,0.5,0.5),
   Point(0.5,1.1,0.5),
   Point(1.1,0.5,0.5),
@@ -119,41 +97,12 @@ stl_vertices = [
   Point(-0.1,-0.1,0.3),
   Point(0.5,-0.1,0.2),
   Point(1.1,-0.1,0.3) ]
-stl_faces = [[1,2,3],[1,3,4],[1,6,2],[3,2,5],[1,4,7],[4,8,7],[4,9,8],[3,9,4]]
-stl_faces = Table(stl_faces)
-stl = compute_stl_model(stl_faces,stl_vertices)
-# Vertices
-Tnew = eltype(T)[]
-fnew = Vector{Int}[]
-f = fill(Int[],length(T))
-V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
-insert_vertices!(T,X,p,stl,V,f,Tnew,fnew)
-T = Tnew
-f = fnew
-# Edges
-Tnew = eltype(T)[]
-fnew = Vector{Int}[]
-E = distribute_edges(T,X,p,stl,1:num_edges(stl))
-vs = get_default_directions(1:num_edges(stl),stl)
-insert_edges!(T,X,p,stl,E,f,Tnew,fnew,vs)
-T = Tnew
-f = fnew
-grid = compute_grid(T,X,p)
-writevtk(grid,"edge_mesh")
-# Facets
-Tnew = eltype(T)[]
-fnew = eltype(f)[]
-cell_types = Int8[]
-cell_to_io = Int8[]
-Fk = 1:num_cells(stl)
-F = distribute_facets(T,X,p,stl,1:num_cells(stl))
-@test maximum( length.(F) ) == 1
-insert_facets!(T,X,p,stl,F,f,Tnew,fnew,cell_types,cell_to_io)
-T = Tnew
-f = fnew
-grid = UnstructuredGrid(X,Table(T),[HEX8,TET4],cell_types)
-define_cells!(grid,f,cell_to_io)
-writevtk(grid,"mesh",cellfields=["IO"=>cell_to_io])
-writevtk(get_grid(stl),"stl")
+facets = [[1,2,3],[1,3,4],[1,6,2],[3,2,5],[1,4,7],[4,8,7],[4,9,8],[3,9,4]]
+vgrid,egrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
+@test count(isequal(UNSET),cell_to_io) == 0
+@test volume(grid) ≈ 1
+#writevtk(egrid,"edge_mesh")
+#writevtk(grid,"mesh",cellfields=["IO"=>cell_to_io])
+#writevtk(get_grid(stl),"stl")
 
 end # module
