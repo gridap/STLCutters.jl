@@ -165,39 +165,43 @@ function have_intersection(
   grid::Grid,
   cell::Integer,
   m::DiscreteModel,
-  face::Integer)
+  face::Integer
+  ;atol=nothing)
 
-  dispatch_face(have_intersection,grid,cell,m,face)
+  dispatch_face(have_intersection,grid,cell,m,face,atol=atol)
 end
 
 function is_on_boundary(
   grid::Grid,
   cell::Integer,
   m::DiscreteModel,
-  face::Integer)
+  face::Integer
+  ;atol::Real)
 
-  dispatch_face(is_on_boundary,grid,cell,m,face)
+  dispatch_face(is_on_boundary,grid,cell,m,face,atol=atol)
 end
 
-function dispatch_face(fun,grid::Grid,cell::Integer,args...)
+function dispatch_face(fun,grid::Grid,cell::Integer,args...;kargs...)
   c = get_cell(grid,cell)
-  dispatch_face(fun,c,args...)
+  dispatch_face(fun,c,args...;kargs...)
 end
 
-function dispatch_face(fun,a,b::DiscreteModel,face::Integer)
+function dispatch_face(fun,a,b::DiscreteModel,face::Integer;kargs...)
   topo = get_grid_topology(b)
   d = get_facedims(topo)[face]
   dface = face - get_dimrange(topo,d)[1] + 1
-  dispatch_face(fun,a,b,d,dface)
+  dispatch_face(fun,a,b,d,dface;kargs...)
 end
 
 @generated(
-function dispatch_face(fun,a,b::DiscreteModel{D},d::Integer,df::Integer) where D
+function dispatch_face(
+  fun,a,b::DiscreteModel{D},d::Integer,df::Integer;kargs...) where D
+
   str = ""
   for d in 0:D
     str *= "if d == $d \n"
     str *= "  f$d =  get_dface(b,df,Val{$d}()) \n"
-    str *= "  fun(a,f$d) \n"
+    str *= "  fun(a,f$d;kargs...) \n"
     str *= "else"
   end
   str *= "\n  @notimplemented \nend"

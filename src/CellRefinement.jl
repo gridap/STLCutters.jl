@@ -40,7 +40,7 @@ function insert_edges!(T,X,p,stl::DiscreteModel,E,f,Tnew,fnew,vs)
     while length(Ek) > 0
       e = Ek[1]
       edge = get_edge(stl,e)
-      if is_on_boundary(k,X,p,edge)
+      if is_on_boundary(k,X,p,edge,atol=TOL)
         popfirst!(Ek)
       else
         break
@@ -80,6 +80,8 @@ function insert_facets!(T,X,p,stl,F,f,Tnew,fnew,cell_types,cell_to_io)
     end
   end
 end
+
+## Helpers
 
 function define_cells!(grid::Grid,f,cell_to_io)
   for i in 1:num_cells(grid)
@@ -132,7 +134,6 @@ function are_connected(grid::Grid,i::Integer,k::Integer,d::Integer)
   false
 end
 
-## Helpers
 
 function initial_mesh(p::Polytope)
   X = collect(get_vertex_coordinates(p))
@@ -179,14 +180,22 @@ function farthest_vertex_from_boundary(
   v_i
 end
 
-function distance_to_boundary(cell_nodes,node_to_coordinates,p::Polytope,point::Point)
-  @assert have_intersection(cell_nodes,node_to_coordinates,p,point)
+function distance_to_boundary(
+  cell_nodes,
+  node_to_coordinates::Vector{<:Point},
+  p::Polytope,
+  point::Point)
+
   pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates,p)
   abs( min( minimum(point-pmin), minimum(pmax-point) ) )
 end
 
-function farthest_axis_from_boundary(cell_nodes,node_to_coordinates,p::Polytope,point::Point)
-  @assert have_intersection(cell_nodes,node_to_coordinates,p,point)
+function farthest_axis_from_boundary(
+  cell_nodes,
+  node_to_coordinates::Vector{<:Point},
+  p::Polytope,
+  point::Point)
+
   pmin,pmax = get_bounding_box(cell_nodes,node_to_coordinates,p)
   max_dists = max( point-pmin, pmax-point )
   _,d = findmax(max_dists.data)

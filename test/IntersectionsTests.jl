@@ -85,7 +85,7 @@ p1 = Point(-0.1,0.5)
 p2 = Point(0.5,1.1)
 edge = Segment(p1,p2) 
 
-@test have_intersection(K,X,p,edge)
+@test have_intersection(K,X,p,edge,atol=1e-9)
 
 face1 = get_dimrange(p,1)[2]
 face2 = get_dimrange(p,1)[3]
@@ -96,7 +96,7 @@ p1 = Point(-2.1,0.5)
 p2 = Point(0.5,2.1)
 edge = Segment((p1,p2)) 
 
-@test !have_intersection(K,X,p,edge)
+@test !have_intersection(K,X,p,edge,atol=1e-9)
 
 p = HEX
 K = collect(1:num_vertices(p))
@@ -106,7 +106,7 @@ p1 = Point(-0.1,0.5,0.8)
 p2 = Point(0.5,1.1,0.2)
 edge = Segment((p1,p2)) 
 
-@test have_intersection(K,X,p,edge)
+@test have_intersection(K,X,p,edge,atol=1e-9)
 
 face1 = get_dimrange(p,2)[4]
 face2 = get_dimrange(p,2)[5]
@@ -152,7 +152,7 @@ p = HEX
 K = collect(1:num_vertices(p))
 X = collect(get_vertex_coordinates(p))
 
-@test have_intersection(K,X,p,t)
+@test have_intersection(K,X,p,t,atol=1e-9)
 
 p = HEX
 K = collect(1:num_vertices(p))
@@ -164,7 +164,7 @@ p3 = Point(0.0,1.0,0.0)
 
 t = Triangle(p1,p2,p3)
 
-@test is_on_boundary(K,X,p,t)
+@test is_on_boundary(K,X,p,t,atol=1e-9)
 
 p = QUAD
 K = collect(1:num_vertices(p))
@@ -175,7 +175,7 @@ p2 = Point(0.5,0.0)
 
 s = Segment(p1,p2)
 
-@test is_on_boundary(K,X,p,s)
+@test is_on_boundary(K,X,p,s,atol=1e-9)
 
 end # module
 

@@ -494,7 +494,7 @@ function distance(f::Face{D,D},p::Point{D}) where D
   if have_intersection(f,p)
     0.0
   else
-    Inf # distance to boundary
+    distance_to_boundary(f,p)
   end
 end
 
@@ -503,31 +503,16 @@ function distance(a::Face{D,D},b::Face{Df,D}) where {Df,D}
   if have_intersection(a,b)
     0.0
   else
-    Inf # distance to boundary
+    distance_to_boundary(a,b)
   end
 end
 
-function distance(a::Face{1,2},b::Face{1,2})
+function distance(a::Face{Df1,Dp},b::Face{Df2,Dp}) where {Df1,Df2,Dp}
+  @notimplementedif Df1+Df2 ≠ Dp
   if have_intersection(a,b)
     0.0
   else
-    Inf # distance to boundary
-  end
-end
-
-function distance(a::Face{2,3},b::Face{1,3})
-  if have_intersection(a,b)
-    0.0
-  else
-    Inf # distance to boundary
-  end
-end
-
-function distance(a::Face{1,3},b::Face{2,3})
-  if have_intersection(a,b)
-    0.0
-  else
-    Inf # distance to boundary
+    distance_to_boundary(a,b)
   end
 end
 
@@ -570,6 +555,18 @@ function distance_to_infinite_face(
   max_dist
 end
 
+function distance_to_boundary(a::Face,b::Union{Point,Face})
+  min_dist = Inf
+  for i in 1:num_facets(a)
+    facet = get_facet(a,i)
+    dist = distance(facet,b)
+    if dist < min_dist
+      min_dist = dist
+    end
+  end
+  min_dist
+end
+
 function projection(p::Point{D},q::Point{D}) where D
   q
 end
@@ -588,97 +585,7 @@ function projection(p::Point{Dp},f::Face{Df,Dp}) where {Df,Dp}
   p + ( ( c - p ) ⋅ n ) * n
 end
 
-function have_intersection(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
-  @notimplementedif Df + 1 ≠ Dp
-  c = center(f)
-  n = normal(f)
-  s1_s2 = e[2] - e[1]
-  s1_c = c - e[1]
-  α = ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
-  if α < -TOL || α > 1+TOL || isnan(α)
-    false
-  else
-    x = e[1] + s1_s2 * α
-    contains_projection(f,x)
-  end
-end
-
-have_intersection(e::Face{1},f::Face{2}) = have_intersection(f,e)
-
-function have_intersection(f1::Face{1,3},f2::Face{1,3})
-  !are_colinear(f1,f2) && distance(f1,f2) < TOL
-end
-
-function have_intersection(f::Face{D,D},e::Face{1,D}) where D
-  p0 = nothing
-  for i in 1:num_facets(f)
-    facet = get_facet(f,i)
-    if surface(facet) > 0
-      if have_intersection(facet,e)
-        p = intersection_point(facet,e)
-        if p0 === nothing
-          p0 = p
-        elseif distance(p,p0) > TOL
-          return true
-        end
-      end
-    end
-  end
-  false
-end
-
-function have_intersection(a::Face{D,D},b::Face{2,D}) where D
-  p0,p1 = nothing,nothing
-  for i in 1:num_vertices(b)
-    if contains_projection(a,b[i])
-      p = b[i]
-      if p0 === nothing
-        p0 = p
-      elseif p1 === nothing
-        if distance(p,p0) > TOL
-          p1 = p
-        end
-      elseif distance(p,Segment(p0,p1)) > TOL
-        return true
-      end
-    end
-  end
-  for i in 1:num_faces(a,D-1), j in 1:num_edges(b)
-    face = get_dface(a,i,Val{D-1}())
-    edge = get_edge(b,j)
-    if measure(face) ≠ 0 && have_intersection(face,edge)
-
-      p = intersection_point(face,edge)
-      if p0 === nothing
-        p0 = p
-      elseif p1 === nothing
-        if distance(p,p0) > TOL
-          p1 = p
-        end
-      elseif distance(p,Segment(p0,p1)) > TOL
-        return true
-      end
-    end
-  end
-  for i in 1:num_faces(a,D-2)
-    face = get_dface(a,i,Val{D-2}())
-    if have_intersection(b,face)
-      p = intersection_point(b,face)
-      if p0 === nothing
-        p0 = p
-      elseif p1 === nothing
-        if distance(p,p0) > TOL
-          p1 = p
-        end
-      elseif distance(p,Segment(p0,p1)) > TOL
-        return true
-      end
-    end
-  end
-  false
-end
-
-function have_intersection(f::Face{D,D},p::Point) where D
+function have_intersection(f::Face{D,D},p::Point;atol=nothing) where D
   if is_cartesian(f)
     pmin,pmax = get_bounding_box(f)
     all( pmin.data .< p.data ) || return false
@@ -689,12 +596,133 @@ function have_intersection(f::Face{D,D},p::Point) where D
   end
 end
 
-function have_intersection(f::Face,p::Point)
-  @notimplemented
+function have_intersection(f::Face{Df,Dp},e::Face{1,Dp};atol=nothing) where {Df,Dp}
+  @notimplementedif Df + 1 ≠ Dp
+  c = center(f)
+  n = normal(f)
+  s1_s2 = e[2] - e[1]
+  s1_c = c - e[1]
+  α = ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
+  if α < 0 || α > 1 || isnan(α)
+    false
+  else
+    x = e[1] + s1_s2 * α
+    contains_projection(f,x)
+  end
 end
 
-function have_intersection(a::Face,fa::Integer,b::Face,fb::Integer)
-  dispatch_face(have_intersection,a,fa,b,fb)
+have_intersection(e::Face{1},f::Face{2};atol=nothing) = have_intersection(f,e)
+
+function have_intersection(a::Face{D,D},b::Face{1,D};atol::Real) where D
+  _have_intersection(a,b,atol=atol)
+end
+
+function have_intersection(a::Face{D,D},b::Face{Df,D};atol::Real) where {Df,D}
+  _have_intersection(a,b;atol=atol)
+end
+
+function _have_intersection(a::Face{D,D},b::Face{Df,D};atol::Real) where {Df,D}
+  height = intersection_height(a,b) 
+  !isnothing(height) && height > atol
+end
+
+function intersection_height(f::Face{D,D},e::Face{1,D}) where D
+  points = zero(e[1]),zero(e[1])
+  n = 0
+  for i in 1:num_vertices(e)
+    if contains_projection(f,e[i])
+      p = e[i]
+      points,n = _max_area(p,points,n)
+    end
+  end
+  for i in 1:num_facets(f)
+    facet = get_facet(f,i)
+    if surface(facet) > 0 && have_intersection(facet,e)
+      p = intersection_point(facet,e)
+      points,n = _max_area(p,points,n)
+    end
+  end
+  n < length(points) ? nothing : min_height(simplex_face(points))
+end
+
+function intersection_height(a::Face{D,D},b::Face{2,D}) where D
+  points = zero(b[1]),zero(b[1]),zero(b[1])
+  n = 0
+  for i in 1:num_vertices(b)
+    if contains_projection(a,b[i])
+      p = b[i]
+      points,n = _max_area(p,points,n)
+    end
+  end
+  for i in 1:num_faces(a,D-1), j in 1:num_edges(b)
+    face = get_dface(a,i,Val{D-1}())
+    edge = get_edge(b,j)
+    if measure(face) ≠ 0 && have_intersection(face,edge)
+      p = intersection_point(face,edge)
+      points,n = _max_area(p,points,n)
+    end
+  end
+  for i in 1:num_faces(a,D-2)
+    face = get_dface(a,i,Val{D-2}())
+    if have_intersection(b,face)
+      p = intersection_point(b,face)
+      points,n = _max_area(p,points,n)
+    end
+  end
+  n < length(points) ? nothing : min_height(simplex_face(points))
+end
+
+
+function _max_area(p::Point,points::Tuple,n::Integer)
+  if n < length(points)
+    repeated = false
+    for i in 1:n
+      if points[i] == p
+        repeated = true
+        break
+      end
+    end
+    if !repeated
+      n += 1
+      points = Base.setindex(points,p,n)
+    end
+  else
+    max_m = measure( simplex_face(points) )
+    imax = UNSET
+    for i in 1:length(points)
+      _points = Base.setindex(points,p,i)
+      m = measure( simplex_face(_points) )
+      if m > max_m
+        imax = i
+        max_m = m
+      end
+    end
+    if imax ≠ UNSET
+      points = Base.setindex(points,p,imax)
+    end
+  end
+  points,n
+end
+      
+function min_height(e::Face{1})
+  length(e)
+end
+
+function min_height(f::Face)
+  vol = measure(f)
+  max_surf = 0.0
+  for i in 1:num_facets(f)
+    facet = get_facet(f,i)
+    surf = measure(facet)
+    if surf > max_surf
+      max_surf = surf
+    end
+  end
+  vol / max_surf
+end
+
+function have_intersection(a::Face,fa::Integer,b::Face,fb::Integer;atol=nothing)
+  dispatch_face(have_intersection,a,fa,b,fb;atol=atol)
 end
 
 function intersection_point(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
@@ -728,7 +756,6 @@ function intersection_point(s1::Face{1,3},s2::Face{1,3})
   s1_s2 = s1[2] - s1[1]
   s1_c = c2 - s1[1]
   α2 = ( n2 ⋅ s1_c ) / ( n2 ⋅ s1_s2 )
-
   if α1 ≤ 0 || α2 ≤ 0 || α1 ≥ 1 || α2 ≥ 1
     min_dist = Inf
     p = s1[1]
@@ -744,9 +771,7 @@ function intersection_point(s1::Face{1,3},s2::Face{1,3})
     @assert contains_projection(s1,p)
     return p
   end
-
   s1[1] + α2 * s1_s2
-
 end
 
 function intersection_point(f::Face{D,D},p::Point) where D
@@ -771,7 +796,7 @@ function contains_projection(f::Face,p::Point)
     if isa(facet,Point) || measure(facet) ≠ 0
       c = center(facet)
       n = normal(f,i)
-      if (p-c) ⋅ n > TOL
+      if (p-c) ⋅ n > 0
         return false
       end
     end
@@ -788,12 +813,12 @@ function contains_projection(f1::Face,f2::Face)
   true
 end
 
-function is_on_boundary(f1::Face,f2::Union{Point,Face})
+function is_on_boundary(f1::Face,f2::Union{Point,Face};atol::Real)
   for i in 1:num_facets(f1)
     facet = get_facet(f1,i)
     if surface(facet) > 0
-      if distance_to_infinite_face(facet,f2) < TOL
-        if are_overlapped(facet,f2)
+      if distance_to_infinite_face(facet,f2) < atol
+        if are_overlapped(facet,f2,atol=atol)
           return true
         end
       end
@@ -806,13 +831,11 @@ is_cartesian(::Face) = false
 
 function is_cartesian(f::Face{D,D}) where D
   if is_n_cube(f)
-    p = get_polytope(f)
-    for i in 1:num_facets(f)
-      n = get_facet_normals(p)[i]
-      facet = get_facet(f,i)
-      pd = n ⋅ facet[1]
-      for j in 1:num_vertices(facet)
-        if n ⋅ facet[j] ≠ pd
+    pmin,pmax = f[1],f[end]
+    for i in 1:num_vertices(f)
+      for d in 1:D
+        pd = ((i-1) & (1<<(d-1))) == 0 ? pmin[d] : pmax[d]
+        if f[i][d] ≠ pd
           return false
         end
       end
@@ -827,173 +850,79 @@ function get_bounding_box(f::Face)
   f[1],f[end]
 end
 
-function are_coplanar(::Face{Df,D},::Face{D,D}) where {Df,D}
-  @notimplemented
-end
-
-function are_coplanar(::Face{D,D},::Face{Df,D}) where {Df,D}
-  @notimplemented
-end
-
-function are_coplanar(::Face{D,D},::Face{D,D}) where D
-  @notimplemented
-end
-
-function are_coplanar(f1::Face{Df1,Dp},f2::Face{Df2,Dp}) where {Df1,Df2,Dp}
-  @notimplementedif Df1 ≠ Dp - 1 || Df1 < Df2
-  n = normal(f1)
-  c = center(f1)
-  for i in 1:num_vertices(f2)
-    p = f2[i]
-    if abs( (p-c)⋅n ) > TOL
-      return false
+function overlapping_height(f1::Face{1,2},f2::Face{1,2})
+  points = zero(f2[1]),zero(f2[1])
+  n = 0
+  for (a,b) in zip((f1,f2),(f2,f1)), i in 1:num_vertices(a)
+    if contains_projection(b,a[i])
+      p = a[i]
+      points,n = _max_area(p,points,n)
     end
   end
-  true
+  n < length(points) ? nothing : min_height(simplex_face(points))
 end
 
-function are_coplanar(f::Face{Df,Dp},p::Point{Dp}) where {Df,Dp}
-  @notimplementedif Df1 ≠ Dp - 1 
-  n = normal(f)
-  c = center(f)
-  if abs( (p-c)⋅n ) > TOL
-    false
-  else
-    true
-  end
-end
-
-function are_colinear(s1::Face{1,3},s2::Face{1,3})
-  θmin = 1e-13
-  v1 = s1[2] - s1[1]
-  v2 = s2[2] - s2[1]
-  v1 /= norm(v1)
-  v2 /= norm(v2)
-  n = v1 × v2
-  norm(n) < θmin
-end
-
-function is_coplanar_to_a_facet(c::Face,p::Point)
-  for i in 1:num_facets(c)
-    facet = get_facet(c,i)
-    if isa(facet,Point) ||  measure(facet) > 0
-      p′ = projection(p,facet)
-      if distance(p,p′) < TOL
-        return true
-      end
-    end
-  end
-  false
-end
-
-function is_coplanar_to_a_facet(c::Face,f::Face)
-  for i in 1:num_facets(c)
-    facet = get_facet(c,i)
-    if measure(facet) > 0
-      is_coplanar = true
-      for v in 1:num_vertices(f)
-        p = f[v]
-        p′ = projection(p,facet)
-        if distance(p,p′) > TOL
-          is_coplanar = false
-          break
-        end
-      end
-      if is_coplanar
-        return true
-      end
-    end
-  end
-  false
-end
-
-function are_overlapped(f1::Face{2,3},f2::Face{2,3})
-  @notimplementedif !are_coplanar(f1,f2)
-  p0,p1 = nothing,nothing
+function overlapping_height(f1::Face{2,3},f2::Face{2,3})
+  points = tfill(zero(f2[1]),Val{3}())
+  n = 0
   for (a,b) in zip((f1,f2),(f2,f1))
     for i in 1:num_vertices(a)
       if contains_projection(b,a[i])
         p = a[i]
-        if p0 === nothing
-          p0 = p
-        elseif p1 === nothing
-          if distance(p,p0) > TOL
-            p1 =  p
-          end
-        elseif distance(p,Segment(p0,p1)) > TOL
-          return true
-        end
+        points,n = _max_area(p,points,n)
       end
     end
   end
   for i in 1:num_facets(f1), j in 1:num_facets(f2)
     facet1 = get_facet(f1,i)
     facet2 = get_facet(f2,j)
-    if have_intersection(facet1,facet2)
-      p = intersection_point(facet1,facet2)
-      if p0 === nothing
-        p0 = p
-      elseif p1 === nothing
-        if distance(p,p0) > TOL
-          p1 =  p
-        end
-      elseif distance(p,Segment(p0,p1)) > TOL
-        return true
+    _o = center(facet2)
+    _n = normal(f1) × (facet2[2]-facet2[1])
+    _n /= norm(_n)
+    α = ( (_o-facet1[1]) ⋅ _n ) / ( (facet1[2]-facet1[1]) ⋅ _n )
+    if 0 ≤ α ≤ 1
+      p = facet1[1] + α*(facet1[2]-facet1[1])
+      if contains_projection(facet2,p)
+        points,n = _max_area(p,points,n)
       end
     end
   end
-  false
+  n < length(points) ? nothing : min_height(simplex_face(points))
 end
 
-function are_overlapped(f1::Face{1,2},f2::Face{1,2})
-  @notimplementedif !are_coplanar(f1,f2)
-  p0 = nothing
-  for (a,b) in zip((f1,f2),(f2,f1))
-    for i in 1:num_vertices(a)
-      if contains_projection(b,a[i])
-        p = a[i]
-        if p0 === nothing
-          p0 = p
-        elseif distance(p,p0) > TOL
-          return true
-        end
+function overlapping_height(f1::Face{2,3},f2::Face{1,3})
+  points = tfill(zero(f2[1]),Val{2}())
+  n = 0
+  for i in 1:num_vertices(f2)
+    if contains_projection(f1,f2[i])
+      p = f2[i]
+      points,n = _max_area(p,points,n)
+    end
+  end
+  for i in 1:num_facets(f1)
+    facet = get_facet(f1,i)
+    _o = center(f2)
+    _n = normal(f1) × (f2[2]-f2[1])
+    _n /= norm(_n)
+    α = ( (_o-facet[1]) ⋅ _n ) / ( (facet[2]-facet[1]) ⋅ _n )
+    if 0 ≤ α ≤ 1
+      p = facet[1] + α*(facet[2]-facet[1])
+      if contains_projection(f2,p)
+        points,n = _max_area(p,points,n)
       end
     end
   end
-  false
+  n < length(points) ? nothing : min_height(simplex_face(points))
 end
 
-function are_overlapped(f::Face,p::Point)
-  contains_projection(f,p) || distance(f,projection(p,f)) < TOL
+function are_overlapped(a::Face,b::Face;atol::Real)
+  height = overlapping_height(a,b)
+  !isnothing(height) && height > atol
 end
 
-function are_overlapped(f::Face{2,3},s::Face{1,3})
-  p0 = nothing
-  for i in 1:num_vertices(s)
-    if contains_projection(f,s[i])
-      if p0 == nothing
-        p0 = s[i]
-      elseif distance(p0,s[i]) > TOL
-        return true
-      end
-    end
-  end
-  for i in 1:num_facets(f)
-    facet = get_facet(f,i)
-    if have_intersection(facet,s)
-      p = intersection_point(facet,s)
-      if p0 === nothing
-        p0 = p
-      elseif distance(p0,p) > TOL
-        return true
-      end
-    end
-  end
-  false
+function are_overlapped(f::Face,p::Point;atol)
+  contains_projection(f,p)
 end
-
-
-
 
 
 ## Generated funcs
@@ -1009,12 +938,14 @@ function dispatch_faces(fun,a::Face,fa::Integer,b::Face,fb::Integer)
 end
 
 @generated(
-function dispatch_face(fun,a::Face{D},d::Integer,dface::Integer,b...) where D
+function dispatch_face(
+  fun,a::Face{D},d::Integer,dface::Integer,b...;kargs...) where D
+
   str = ""
   for d in 0:D
     str *= "if d == $d \n"
     str *= "  f$d =  get_dface(a,dface,Val{$d}()) \n"
-    str *= "  fun(f$d,b...) \n"
+    str *= "  fun(f$d,b...;kargs...) \n"
     str *= "else"
   end
   str *= "\n  @notimplemented \nend"
@@ -1023,12 +954,14 @@ end
 )
 
 @generated(
-function dispatch_face(fun,a,b::Face{D},d::Integer,dface::Integer) where D
+function dispatch_face(
+  fun,a,b::Face{D},d::Integer,dface::Integer;kargs...) where D
+
   str = ""
   for d in 0:D
     str *= "if d == $d \n"
     str *= "  f$d =  get_dface(b,dface,Val{$d}()) \n"
-    str *= "  fun(a,f$d) \n"
+    str *= "  fun(a,f$d;kargs...) \n"
     str *= "else"
   end
   str *= "\n  @notimplemented \nend"
@@ -1084,10 +1017,11 @@ function have_intersection(
   K,
   X::Vector{<:Point},
   p::Polytope,
-  f::F) where F<:Union{Point,Face}
+  f::Union{Point,Face}
+  ;atol=nothing) 
 
   c = Cell(K,X,p)
-  have_intersection(c,f) || is_on_boundary(c,f)
+  have_intersection(c,f,atol=atol)
 end
 
 function have_intersection(
@@ -1096,19 +1030,21 @@ function have_intersection(
   p::Polytope,
   d::Integer,
   dface::Integer,
-  f::F) where F<:Union{Point,Face}
+  f::Union{Point,Face}
+  ;atol=nothing)
 
   c = Cell(K,X,p)
-  have_intersection(c,d,dface,f)
+  have_intersection(c,d,dface,f,atol=atol)
 end
 
 function have_intersection(
   c::Cell{D},
   d::Integer,
   dface::Integer,
-  f::F) where {D,F<:Union{Point,Face}}
+  f::Union{Point,Face}
+  ;atol=nothing) where D
 
-  dispatch_face(have_intersection,c,d,dface,f)
+  dispatch_face(have_intersection,c,d,dface,f;atol=atol)
 end
 
 function intersection_point(
@@ -1160,10 +1096,11 @@ function is_on_boundary(
   K,
   X::Vector{<:Point},
   p::Polytope,
-  f::F) where F<:Union{Point,Face}
+  f::Union{Point,Face}
+  ;atol::Real)
 
   c = Cell(K,X,p)
-  is_on_boundary(c,f)
+  is_on_boundary(c,f,atol=atol)
 end
 
 function get_bounding_box(K,X::Vector{<:Point},p::Polytope)

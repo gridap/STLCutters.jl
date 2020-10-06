@@ -7,7 +7,7 @@ function compute_face_to_cells(grid::Grid,stl::DiscreteModel)
   for cell in 1:num_cells(grid)
     for stl_facet in 1:num_cells(stl)
       stl_face = stl_facet + get_offset(get_grid_topology(stl),num_dims(stl))
-      if have_intersection(grid,cell,stl,stl_face)
+      if have_intersection(grid,cell,stl,stl_face,atol=TOL)
         push!(stl_face_to_cells[stl_face],cell)
         push!(cell_to_stl_faces[cell],stl_face)
       end
@@ -30,7 +30,7 @@ function refine_surface(grid::Grid,stl::DiscreteModel,stl_face_to_cells)
   for stl_facet in 1:num_cells(stl)
     stl_face = get_dimrange(get_grid_topology(stl),num_dims(stl))[stl_facet]
     for cell in stl_face_to_cells[stl_face]
-      if is_on_boundary(grid,cell,stl,stl_face) && 
+      if is_on_boundary(grid,cell,stl,stl_face,atol=TOL) && 
          is_cell_out(grid,cell,stl,stl_face)
         continue
       end

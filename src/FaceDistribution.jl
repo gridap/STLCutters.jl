@@ -12,7 +12,9 @@ function distribute_faces(
     push!(cell_to_dfaces,[])
     for dface in dfaces
       object = get_dface(stl,dface,Val{d}())
-      if have_intersection(cell,node_to_coordinates,p,object)
+      if have_intersection(cell,node_to_coordinates,p,object,atol=TOL) ||
+        is_on_boundary(cell,node_to_coordinates,p,object,atol=TOL)
+
         push!(cell_to_dfaces[i],dface)
       end
     end
@@ -50,15 +52,3 @@ function distribute_facets(
   distribute_faces(cell_to_nodes,node_to_coordinates,p,stl,facets,Val{Dp-1}())
 end
 
-function distribute_faces(grid::Grid,stl::DiscreteModel,faces::AbstractVector)
-  cell_to_faces = Vector{Int}[]
-  for i in 1:num_cells(grid)
-    push!(cell_to_faces,[])
-    for face in faces
-      if have_intersection(grid,i,stl,face)
-        push!(cell_to_faces[i],face)
-      end
-    end
-  end
-  cell_to_faces
-end

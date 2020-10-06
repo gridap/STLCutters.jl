@@ -27,9 +27,6 @@ function edge_refinement(
   Tnew,Xnew
 end
 
-# ignore faces on ∂K, if all are in ∂K, define as in/out
-# to do so, ∂K faces have to be previously included in the list
-# alternatively, we can do this in a different loop
 function facet_refinement(
   K,
   X::Vector{<:Point},
@@ -61,6 +58,7 @@ function facet_refinement(
 end
 
 ## Helpers
+
 function define_cell(
   K,
   X::Vector{<:Point},
@@ -90,7 +88,7 @@ function get_levelsets(
   stl::DiscreteModel,
   facets::Vector{<:Integer})
 
-  masks = [ is_on_boundary(K,X,p,get_cell(stl,facet)) for facet in facets ]   
+  masks = [ is_on_boundary(K,X,p,get_cell(stl,facet),atol=TOL) for facet in facets] 
   levelsets = [ 
     CellMeshes.Plane(
       center(get_cell(stl,facet)),
@@ -222,7 +220,9 @@ function compute_new_vertices(K,X,p::Polytope,point::Point,d::Integer,case::Inte
   vertices
 end
 
-Base.setindex(a::VectorValue,val,idx::Integer) = VectorValue(Base.setindex(Tuple(a),val,idx))
+function Base.setindex(a::VectorValue,val,idx::Integer) 
+  VectorValue(Base.setindex(Tuple(a),val,idx))
+end
 
 function compute_new_vertices!(T,K,X,p::Polytope,facet::Integer,plane,case::Integer)
   v_to_cv = get_vertex_to_cell_vertices_from_case(num_dims(p),case)
