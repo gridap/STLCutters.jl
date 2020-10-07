@@ -227,7 +227,13 @@ function measures(a::Grid,num::Integer,map)
   m
 end
 
+function measures(a::Grid)
+  measures(a,num_cells(a),1:num_cells(a))
+end
+
 volume(a::Grid{D,D}) where D = measure(a)
+
+volumes(a::Grid{D,D},args...) where D = measures(a,args...)
 
 function surface(a::Grid{Df,Dp}) where {Df,Dp}
   @notimplementedif Df ≠ Dp-1

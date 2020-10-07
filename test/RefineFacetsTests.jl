@@ -22,21 +22,21 @@ using STLCutters: volume
 function test_facets(p,vertices,facets)
   stl = compute_stl_model(Table(facets),vertices)
   T,X = initial_mesh(p)
-  Tnew,fnew = eltype(T)[], Vector{Int}[]
   f = fill(Int[],length(T))
+  Tnew,fnew = empty(T), empty(f)
   V = distribute_vertices(T,X,p,stl,1:num_vertices(stl))
   insert_vertices!(T,X,p,stl,V,f,Tnew,fnew)
   T,f = Tnew,fnew
   vertex_grid = compute_grid(T,X,p)
   if num_dims(p) == 3
-    Tnew,fnew = eltype(T)[], Vector{Int}[]
+    Tnew,fnew = empty(T), empty(f)
     E = distribute_edges(T,X,p,stl,1:num_edges(stl))
-    vs = get_default_directions(1:num_edges(stl),stl)
+    vs = get_default_directions(vcat(E...),stl)
     insert_edges!(T,X,p,stl,E,f,Tnew,fnew,vs)
     T,f = Tnew,fnew
     edge_grid = compute_grid(T,X,p)
   end
-  Tnew,fnew = eltype(T)[], Vector{Int}[]
+  Tnew,fnew = empty(T), empty(f)
   cell_types,cell_to_io = Int8[], Int8[]
   F = distribute_facets(T,X,p,stl,1:num_cells(stl))
   insert_facets!(T,X,p,stl,F,f,Tnew,fnew,cell_types,cell_to_io)
@@ -82,10 +82,33 @@ vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 #writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
 #writevtk(get_grid(stl),"stl2D")
 
+vertices = [
+  Point(-0.5,1.0),
+  Point(0.4,0.3),
+  Point(1.5,1.0) ]
+facets = [[1,2],[2,3]]
+vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
+@test count(isequal(UNSET),cell_to_io) == 0
+@test volume(grid) ≈ 1
+#writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
+#writevtk(get_grid(stl),"stl2D")
 
 # 3D
 
 p = HEX
+
+vertices = [
+  Point(-2.0,-2.0,3.0),
+  Point(0.4,-2.0,0.3),
+  Point(0.4,2.0,0.3),
+  Point(3.0,3.0,3.0) ]
+facets = [[1,2,3],[2,4,3]]
+vgrid,egrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
+@test count(isequal(UNSET),cell_to_io) == 0
+@test volume(grid) ≈ 1
+#writevtk(egrid,"edge_mesh")
+#writevtk(grid,"mesh",cellfields=["IO"=>cell_to_io])
+#writevtk(get_grid(stl),"stl")
 
 vertices = [
   Point(-0.1,0.5,0.5),

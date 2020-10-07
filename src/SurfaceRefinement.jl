@@ -5,8 +5,7 @@ function compute_face_to_cells(grid::Grid,stl::DiscreteModel)
   stl_face_to_cells = [ Int[] for _ in 1:num_faces(stl) ] 
   cell_to_stl_faces = [ Int[] for _ in 1:num_cells(grid) ]
   for cell in 1:num_cells(grid)
-    for stl_facet in 1:num_cells(stl)
-      stl_face = stl_facet + get_offset(get_grid_topology(stl),num_dims(stl))
+    for stl_face in 1:num_faces(stl)
       if have_intersection(grid,cell,stl,stl_face,atol=TOL)
         push!(stl_face_to_cells[stl_face],cell)
         push!(cell_to_stl_faces[cell],stl_face)

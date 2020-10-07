@@ -10,7 +10,7 @@ using Test
 @testset "RefineEdges" begin include("RefineEdgesTests.jl") end
 @testset "RefineVerticesEdges" begin include("RefineVerticesEdgesTests.jl") end
 @testset "RefineFacets" begin include("RefineFacetsTests.jl") end
-
+@testset "GridRefinement" begin include("GridRefinementTests.jl") end
 @testset "SurfaceRefinement" begin include("SurfaceRefinementTests.jl") end
 
 end # module
