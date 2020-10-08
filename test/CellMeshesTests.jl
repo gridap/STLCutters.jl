@@ -70,7 +70,42 @@ facets = UnstructuredGrid(X,F,[SEG2],ones(length(F)))
 #writevtk(grid,"mesh",cellfields=["io"=>cell_to_io])
 #writevtk(facets,"facets",cellfields=["io"=>facet_to_io])
 
+function _normal(a::Point{2},b::Point{2})
+  v = b-a
+  VectorValue(-v[2],v[1])
+end
 
+vertices = [ Point(1.1,0.6),Point(0.5,1.0),Point(0.0,0.5),Point(1.1,0.4) ]
+c = vertices[1:end-1]
+n = [ _normal( vertices[i], vertices[i+1] ) for i in 1:length(vertices)-1 ]
+
+levelsets = Plane.(c,n)
+
+X = [
+  Point(0.0,0.0),
+  Point(1.0,0.0),
+  Point(0.0,1.0),
+  Point(1.0,1.0) ]
+K = [1,2,3,4]
+
+p = QUAD
+
+mesh = CellMesh(X,K,p)
+compute_cell_mesh!(mesh,levelsets)
+
+X = get_vertex_coordinates(mesh)
+
+T = get_cell_to_vertices(mesh)
+F = get_facet_to_vertices(mesh)
+
+cell_to_io = get_cell_to_inout(mesh)
+facet_to_io = get_facet_to_inout(mesh)
+
+grid = UnstructuredGrid(X,T,[TRI3],ones(length(T)))
+facets = UnstructuredGrid(X,F,[SEG2],ones(length(F)))
+
+#writevtk(grid,"mesh",cellfields=["io"=>cell_to_io])
+#writevtk(facets,"facets",cellfields=["io"=>facet_to_io])
 
 X = VectorValue{3,Float64}[
   (0.0, 0.0, 10.0),                         

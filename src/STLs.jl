@@ -181,6 +181,11 @@ function is_on_boundary(
   dispatch_face(is_on_boundary,grid,cell,m,face,atol=atol)
 end
 
+function get_bounding_box(m::DiscreteModel,face::Integer)
+  dispatch_face(get_bounding_box,m,face)
+end
+
+
 function dispatch_face(fun,grid::Grid,cell::Integer,args...;kargs...)
   c = get_cell(grid,cell)
   dispatch_face(fun,c,args...;kargs...)
@@ -193,6 +198,13 @@ function dispatch_face(fun,a,b::DiscreteModel,face::Integer;kargs...)
   dispatch_face(fun,a,b,d,dface;kargs...)
 end
 
+function dispatch_face(fun,a::DiscreteModel,face::Integer;kargs...)
+  topo = get_grid_topology(a)
+  d = get_facedims(topo)[face]
+  dface = face - get_dimrange(topo,d)[1] + 1
+  dispatch_face(fun,a,d,dface;kargs...)
+end
+
 @generated(
 function dispatch_face(
   fun,a,b::DiscreteModel{D},d::Integer,df::Integer;kargs...) where D
@@ -202,6 +214,22 @@ function dispatch_face(
     str *= "if d == $d \n"
     str *= "  f$d =  get_dface(b,df,Val{$d}()) \n"
     str *= "  fun(a,f$d;kargs...) \n"
+    str *= "else"
+  end
+  str *= "\n  @notimplemented \nend"
+  Meta.parse(str)
+end
+)
+
+@generated(
+function dispatch_face(
+  fun,a::DiscreteModel{D},d::Integer,df::Integer;kargs...) where D
+
+  str = ""
+  for d in 0:D
+    str *= "if d == $d \n"
+    str *= "  f$d =  get_dface(a,df,Val{$d}()) \n"
+    str *= "  fun(f$d;kargs...) \n"
     str *= "else"
   end
   str *= "\n  @notimplemented \nend"
@@ -248,3 +276,13 @@ end
 surface(a::DiscreteModel) = surface(get_grid(a))
 
 surfaces(a::DiscreteModel,args...) = surfaces(get_grid(a),args...)
+
+function get_bounding_box(stl::DiscreteModel)
+  vertices = get_vertex_coordinates(get_grid_topology(stl))
+  pmin = pmax = vertices[1]
+  for vertex in vertices
+    pmin = Point( min.( Tuple(pmin), Tuple(vertex) ) )
+    pmax = Point( max.( Tuple(pmax), Tuple(vertex) ) )
+  end
+  pmin,pmax
+end

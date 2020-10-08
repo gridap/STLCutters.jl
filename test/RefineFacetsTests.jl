@@ -18,6 +18,8 @@ using STLCutters: distribute_edges
 using STLCutters: distribute_facets 
 using STLCutters: define_cells!
 using STLCutters: volume 
+using STLCutters: volumes 
+using STLCutters: FACE_IN
 
 function test_facets(p,vertices,facets)
   stl = compute_stl_model(Table(facets),vertices)
@@ -68,6 +70,7 @@ facets = [[1,2],[2,3]]
 vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 @test count(isequal(UNSET),cell_to_io) == 0
 @test volume(grid) ≈ 1
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ 0.5232323232323232
 #writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
 #writevtk(get_grid(stl),"stl2D")
 
@@ -79,6 +82,7 @@ facets = [[1,2],[2,3]]
 vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 @test count(isequal(UNSET),cell_to_io) == 0
 @test volume(grid) ≈ 1
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ 0.637777777777777
 #writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
 #writevtk(get_grid(stl),"stl2D")
 
@@ -90,8 +94,37 @@ facets = [[1,2],[2,3]]
 vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 @test count(isequal(UNSET),cell_to_io) == 0
 @test volume(grid) ≈ 1
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ 0.5232323232323232
 #writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
 #writevtk(get_grid(stl),"stl2D")
+
+vertices = [
+  Point(1.1,0.3),
+  Point(0.6,0.3),
+  Point(0.5,0.2),
+  Point(0.2,0.1),
+  Point(0.0,-0.1) ]
+facets = [[2,1],[3,2],[4,3],[5,4]]
+vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
+@test count(isequal(UNSET),cell_to_io) == 0
+@test volume(grid) ≈ 1
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ 0.805
+#writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
+#writevtk(get_grid(stl),"stl2D")
+
+vertices = [
+  Point(0.0,-0.1),
+  Point(0.7,0.2),
+  Point(0.9,0.6),
+  Point(0.7,0.8),
+  Point(1.0,1.1) ]
+facets = [[1,2],[2,3],[3,4],[4,5]]
+vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
+@test count(isequal(UNSET),cell_to_io) == 0
+@test volume(grid) ≈ 1
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ 0.733333333333
+writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
+writevtk(get_grid(stl),"stl2D")
 
 # 3D
 

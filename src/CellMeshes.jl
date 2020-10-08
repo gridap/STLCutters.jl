@@ -878,7 +878,7 @@ function compact_mesh!(mesh::CellMesh)
 end
 
 function cut_levelsets!(cell_mesh::CellMesh)
-  atol = 1e-13
+  atol = 1e-10
   ls_cache = get_levelset_cache(cell_mesh)
   distances = get_float_vector(ls_cache)
   levelsets = get_levelsets(ls_cache)
@@ -1019,12 +1019,71 @@ function is_vertex_cut(cache::LevelSetCache,vertex::Integer)
   false
 end
 
+function is_facet_cut(mesh::CellMesh,cache::LevelSetCache,facet::Integer)
+  v_to_ls_to_ioc = cache.vertex_to_levelset_to_inoutcut
+  f_to_v = get_facet_to_vertices(mesh)
+  for ls in 1:num_levelsets(cache)
+    ioc = FACE_CUT
+    for lv in 1:length(f_to_v,facet)
+      vertex = f_to_v[facet,lv]
+      v_ioc = v_to_ls_to_ioc[vertex,ls]
+      if v_ioc != FACE_CUT
+        ioc = v_ioc
+      end
+    end
+    if ioc == FACE_CUT
+      return true
+    end
+  end
+  false
+end
+
+function get_facet_in_region(mesh::CellMesh,cache::LevelSetCache,facet::Integer)
+  v_to_ls_to_ioc = cache.vertex_to_levelset_to_inoutcut
+  f_to_v = get_facet_to_vertices(mesh)
+  r = 0
+  for ls in 1:num_levelsets(cache)
+    ioc = FACE_CUT
+    for lv in 1:length(f_to_v,facet)
+      vertex = f_to_v[facet,lv]
+      v_ioc = v_to_ls_to_ioc[vertex,ls]
+      if v_ioc != FACE_CUT
+        ioc = v_ioc
+      end
+    end
+    if ioc ∈ (FACE_IN,FACE_CUT)
+      r |= 1<<(ls-1)
+    end
+  end
+  r + 1
+end
+
+function get_facet_out_region(mesh::CellMesh,cache::LevelSetCache,facet::Integer)
+  v_to_ls_to_ioc = cache.vertex_to_levelset_to_inoutcut
+  f_to_v = get_facet_to_vertices(mesh)
+  r = 0
+  for ls in 1:num_levelsets(cache)
+    ioc = FACE_CUT
+    for lv in 1:length(f_to_v,facet)
+      vertex = f_to_v[facet,lv]
+      v_ioc = v_to_ls_to_ioc[vertex,ls]
+      if v_ioc != FACE_CUT
+        ioc = v_ioc
+      end
+    end
+   if ioc == FACE_IN
+      r |= 1<<(ls-1)
+    end
+  end
+  r + 1
+end
+
 function define_regions!(mesh::CellMesh)
   ls_cache = get_levelset_cache(mesh) 
-  for vertex in 1:num_vertices(mesh)
-    if is_vertex_cut(ls_cache,vertex)
-      r_in = get_in_region(ls_cache,vertex)
-      r_out = get_out_region(ls_cache,vertex)
+  for facet in 1:num_facets(mesh)
+    if is_facet_cut(mesh,ls_cache,facet)
+      r_in = get_facet_in_region(mesh,ls_cache,facet)
+      r_out = get_facet_out_region(mesh,ls_cache,facet)
       set_region_in!(ls_cache,r_in)
       set_region_out!(ls_cache,r_out)
     end

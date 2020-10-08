@@ -51,7 +51,7 @@ function facet_refinement(
   else
     Tnew = [K]
     Xnew = empty(X)
-    cell_to_io = [ define_cell(K,X,p,get_cell(stl,1)) ]
+    cell_to_io = [ define_cell(K,X,p,get_cell(stl,facets[1])) ]
     cell_type = HEX_AXIS
   end
 

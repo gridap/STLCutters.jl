@@ -11,7 +11,7 @@ function insert_vertices!(T,X,p,stl::DiscreteModel,V,f,Tnew,fnew)
       dist = distance_to_boundary(k,X,p,point)
       if dist < TOL
         point = move_vertex_to_cell_boundary(k,X,p,point)
-        get_vertex_coordinates(get_grid_topology(stl))[i] = point
+        get_vertex_coordinates(get_grid_topology(stl))[Vk[i]] = point
         deleteat!(Vk,i)
       else
         v_i = i
@@ -105,7 +105,7 @@ function first_sibling(grid::Grid,i::Integer,f)
   for k in 1:num_cells(grid)
     if k ≠ i
       fk = f[k]
-      if fi ⊆ fk && are_connected(grid,i,k,0)
+      if fi ⊆ fk && are_connected(grid,i,k,0) && are_in_touch(grid,i,k)
         return k
       end
     end
@@ -134,6 +134,17 @@ function are_connected(grid::Grid,i::Integer,k::Integer,d::Integer)
   false
 end
 
+function are_in_touch(grid::Grid,i::Integer,k::Integer)
+  cell_i = get_cell(grid,i)
+  cell_k = get_cell(grid,k)
+  for f in 1:num_facets(cell_k)
+    facet = get_facet(cell_k,f)
+    if measure(facet) > 0 && is_on_boundary(cell_i,facet,atol=TOL)
+      return true
+    end
+  end
+  false
+end
 
 function initial_mesh(p::Polytope)
   X = collect(get_vertex_coordinates(p))

@@ -423,16 +423,15 @@ distance(s::Face{1},p::Point) = distance(p,s)
 function distance(p::Point{D},s::Face{1,D}) where D
   s1_s2 = s[2] - s[1]
   l = norm(s1_s2)
-  @assert l > 0
   v = s1_s2 / l
   s1_p = p - s[1]
   s1_projection = ( s1_p ⋅ v ) * v
   s2_projection = s1_projection - s1_s2
   p_projection = s1_projection - s1_p
-  if norm( s1_projection ) > l || norm( s2_projection) > l
-    min( distance(s[1],p), distance(s[2],p) )
-  else
+  if norm( s1_projection ) ≤ l && norm( s2_projection) ≤ l
     norm(p_projection)
+  else
+    min( distance(s[1],p), distance(s[2],p) )
   end
 end
 
@@ -845,9 +844,19 @@ function is_cartesian(f::Face{D,D}) where D
   false
 end
 
+get_bounding_box(p::Point) = p,p
+
 function get_bounding_box(f::Face)
-  @assert is_cartesian(f)
-  f[1],f[end]
+  if is_cartesian(f)
+    f[1],f[end]
+  else
+    pmin = pmax = f[1]
+    for i in 1:num_vertices(f)
+      pmin = Point(min.(Tuple(pmin),Tuple(f[i])))
+      pmax = Point(max.(Tuple(pmax),Tuple(f[i])))
+    end
+    pmin,pmax
+  end
 end
 
 function overlapping_height(f1::Face{1,2},f2::Face{1,2})
