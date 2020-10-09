@@ -70,7 +70,7 @@ facets = [[1,2],[2,3]]
 vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 @test count(isequal(UNSET),cell_to_io) == 0
 @test volume(grid) ≈ 1
-@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ 0.5232323232323232
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ (1-0.5232323232323232)
 #writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
 #writevtk(get_grid(stl),"stl2D")
 
@@ -82,7 +82,7 @@ facets = [[1,2],[2,3]]
 vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 @test count(isequal(UNSET),cell_to_io) == 0
 @test volume(grid) ≈ 1
-@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ 0.637777777777777
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ (1-0.637777777777777)
 #writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
 #writevtk(get_grid(stl),"stl2D")
 
@@ -94,7 +94,7 @@ facets = [[1,2],[2,3]]
 vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 @test count(isequal(UNSET),cell_to_io) == 0
 @test volume(grid) ≈ 1
-@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ 0.5232323232323232
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ (1-0.5232323232323232)
 #writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
 #writevtk(get_grid(stl),"stl2D")
 
@@ -108,7 +108,7 @@ facets = [[2,1],[3,2],[4,3],[5,4]]
 vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 @test count(isequal(UNSET),cell_to_io) == 0
 @test volume(grid) ≈ 1
-@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ 0.805
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ (1-0.805)
 #writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
 #writevtk(get_grid(stl),"stl2D")
 
@@ -122,7 +122,20 @@ facets = [[1,2],[2,3],[3,4],[4,5]]
 vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
 @test count(isequal(UNSET),cell_to_io) == 0
 @test volume(grid) ≈ 1
-@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ 0.733333333333
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ (1-0.733333333333)
+writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
+writevtk(get_grid(stl),"stl2D")
+
+vertices = [
+  Point(1.0,1.5),
+  Point(0.4,0.5),
+  Point(0.7,0.1),
+  Point(1.5,1.0) ]
+facets = [[1,2],[2,3],[3,4]]
+vgrid,grid,cell_to_io,stl = test_facets(p,vertices,facets)
+@test count(isequal(UNSET),cell_to_io) == 0
+@test volume(grid) ≈ 1
+@test sum(volumes(grid) .* (cell_to_io .== FACE_IN)) ≈ (1-0.354375)
 writevtk(grid,"mesh2D",cellfields=["IO"=>cell_to_io])
 writevtk(get_grid(stl),"stl2D")
 

@@ -95,9 +95,8 @@ function define_cell!(grid::Grid,i::Integer,f,cell_to_io)
   neig = first_sibling(grid,i,f)
   if cell_to_io[neig] == UNSET
     define_cell!(grid,neig,f,cell_to_io)
-  else
-    cell_to_io[i] = cell_to_io[neig]
-  end
+  end 
+  cell_to_io[i] = cell_to_io[neig]
 end
 
 function first_sibling(grid::Grid,i::Integer,f)

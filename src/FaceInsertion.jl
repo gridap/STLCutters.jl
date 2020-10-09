@@ -166,7 +166,7 @@ function compute_case(K,X,p,plane,vs)
     n = project_node(K,X,p,node,ref_ds)
     point = X[K[n]]
     dist = signed_distance(point,plane)
-    if dist > 0
+    if dist < 0
       case |= (1<<(node-1))
     end
   end
@@ -268,7 +268,7 @@ function define_cell(
       max_dist = dist
     end
   end
-  if max_dist < 0
+  if max_dist > 0
     CellMeshes.FACE_OUT
   else
     CellMeshes.FACE_IN
@@ -283,29 +283,30 @@ end
 
 Base.abs(a::VectorValue) = VectorValue( abs.(Tuple(a)) )
 
-function perturbation(K,T::Vector{<:Point},p::Polytope,e::Segment)
+function perturbation(K,X::Vector{<:Point},p::Polytope,e::Segment)
   point = nothing
   for facet in 1:num_facets(p)
     face = get_dimrange(p,num_dims(p)-1)[facet]
-    if have_intersection(K,T,p,face,e)
-      point = intersection_point(K,T,p,face,e)
+    if have_intersection(K,X,p,face,e)
+      point = intersection_point(K,X,p,face,e)
       break
     end
   end
   @assert point !== nothing
   min_dist = Inf
-  closest_face = UNSET
-  for facet in 1:num_facets(p)
-    face = get_dimrange(p,num_dims(p)-1)[facet]
-    if !have_intersection(K,T,p,face,e)
-      dist = distance(K,T,p,face,point)
+  closest_facet = UNSET
+  for i in 1:num_facets(p)
+    facet = get_facet(K,X,p,i)
+    if surface(facet) > 0 && !have_intersection(facet,e)
+      dist = distance(facet,point)
       if dist < min_dist
         min_dist = dist
-        closest_face = face
+        closest_facet = i
       end
     end
   end
-  normal(K,T,p,closest_face)
+  @assert closest_facet ≠ UNSET
+  normal( get_facet(K,X,p,closest_facet) )
 end
 
 function signed_distance(point::Point,plane::Tuple{VectorValue,VectorValue})

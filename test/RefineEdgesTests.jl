@@ -169,4 +169,15 @@ grid = compute_grid(T,X,p)
 #writevtk(grid,"Tree")
 #writevtk(get_grid(stl),"stl")
 
+vertices = Point{3,Float64}[
+  (0.5, -0.1, 0.2),
+  (2.5, 0.7, -0.6),
+  (0.7, 1.9, -0.2),
+  (-2.1, 1.9, -0.7) ]
+edges = [[1,2],[1,3],[1,4]]
+T,X,f,stl = test_edges(p,vertices,edges)
+grid = compute_grid(T,X,p)
+@test length(T) == 9
+@test volume(grid) ≈ 1
+
 end # module

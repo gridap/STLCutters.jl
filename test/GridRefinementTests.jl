@@ -12,6 +12,8 @@ using STLCutters: refine_grid
 using STLCutters: volume,volumes
 using STLCutters: FACE_CUT, FACE_IN, FACE_OUT
 using STLCutters: get_bounding_box 
+using STLCutters: read_stl 
+using STLCutters: merge_nodes 
 
 
 vertices = [
@@ -140,36 +142,13 @@ bg_mesh = CartesianGrid(origin,sizes,partion)
 using STLCutters: compute_face_to_cells
 using STLCutters: get_face_lists 
 using STLCutters: init_cell_mesh 
-using STLCutters: distribute_vertices, distribute_facets 
+using STLCutters: distribute_vertices, distribute_edges, distribute_facets 
 using STLCutters: define_cells! 
+using STLCutters: get_default_directions
+using STLCutters: compute_grid 
 
 grid = bg_mesh
-cell = 1 
 _,cell_to_stlf = compute_face_to_cells(grid,stl)
-
-reffes = [QUAD4,TRI3]
-V,F = get_face_lists(stl,cell,cell_to_stlf)
-if length(F) > 0
-Tk,Xk,p = init_cell_mesh(grid,cell) 
-fk = [Int[]]
-Tknew,fknew = empty(Tk), empty(fk)
-VTk = distribute_vertices(Tk,Xk,p,stl,V)
-insert_vertices!(Tk,Xk,p,stl,VTk,fk,Tknew,fknew)
-Tk,fk = Tknew,fknew
-vgrid = compute_grid(Table(Tk),Xk,QUAD)
-writevtk(vgrid,"vertex_grid")
-Tknew,fknew = empty(Tk), empty(fk)
-k_cell_types,k_cell_to_io = Int8[], Int8[]
-FTk = distribute_facets(Tk,Xk,p,stl,F)
-insert_facets!(Tk,Xk,p,stl,FTk,fk,Tknew,fknew,k_cell_types,k_cell_to_io)
-Tk,fk = Tknew,fknew
-grid_k = UnstructuredGrid(Xk,Table(Tk),reffes,k_cell_types)
-
-define_cells!(grid_k,fk,k_cell_to_io)
-
-writevtk(grid_k,"facet_grid",cellfields=["io"=>k_cell_to_io])
-  
-end
 
 writevtk(bg_mesh,"mesh")
 out = refine_grid(bg_mesh,stl)
@@ -177,9 +156,60 @@ T,X,reffes,cell_types,cell_to_io,cell_to_bgcell,bgcell_to_ioc = out
 
 submesh = UnstructuredGrid(X,Table(T),reffes,cell_types)
 
+writevtk(submesh,"submesh2D",cellfields=["io"=>cell_to_io,"bgcell"=>cell_to_bgcell])
+writevtk(bg_mesh,"bgmesh2D",cellfields=["io"=>bgcell_to_ioc])
+
+
+
+X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
+
+stl = compute_stl_model(T,X)
+stl = merge_nodes(stl)
+writevtk(stl,"cube")
+n = 10
+δ = 0.2
+pmin,pmax = get_bounding_box(stl)
+diagonal = pmax-pmin
+origin = pmin - diagonal*δ
+sizes = Tuple( diagonal*(1+2δ)/n )
+partion = (n,n,n)
+
+bg_mesh = CartesianGrid(origin,sizes,partion)
+
+out = refine_grid(bg_mesh,stl)
+T,X,reffes,cell_types,cell_to_io,cell_to_bgcell,bgcell_to_ioc = out 
+
+
+submesh = UnstructuredGrid(X,Table(T),reffes,cell_types)
+
 writevtk(submesh,"submesh",cellfields=["io"=>cell_to_io,"bgcell"=>cell_to_bgcell])
 writevtk(bg_mesh,"bgmesh",cellfields=["io"=>bgcell_to_ioc])
 
 
+X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 
+stl = compute_stl_model(T,X)
+stl = merge_nodes(stl)
+writevtk(stl,"bunny")
+n = 20
+δ = 0.2
+pmin,pmax = get_bounding_box(stl)
+diagonal = pmax-pmin
+origin = pmin - diagonal*δ
+sizes = Tuple( diagonal*(1+2δ)/n )
+partion = (n,n,n)
+
+bg_mesh = CartesianGrid(origin,sizes,partion)
+
+writevtk(bg_mesh,"mesh")
+
+
+out = refine_grid(bg_mesh,stl)
+T,X,reffes,cell_types,cell_to_io,cell_to_bgcell,bgcell_to_ioc = out 
+
+
+submesh = UnstructuredGrid(X,Table(T),reffes,cell_types)
+
+writevtk(submesh,"submesh",cellfields=["io"=>cell_to_io,"bgcell"=>cell_to_bgcell])
+writevtk(bg_mesh,"bgmesh",cellfields=["io"=>bgcell_to_ioc])
 end # module

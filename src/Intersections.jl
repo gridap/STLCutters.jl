@@ -279,6 +279,7 @@ function normal(a::Face{2,3})
     v1 = s[2]-s[1]
     v2 = s[3]-s[1]
     n = orthogonal(v1,v2)
+    n *= simplex_sign(a,i)
     _norm = norm(n)
     if _norm > 0
       return n / _norm
@@ -558,9 +559,11 @@ function distance_to_boundary(a::Face,b::Union{Point,Face})
   min_dist = Inf
   for i in 1:num_facets(a)
     facet = get_facet(a,i)
-    dist = distance(facet,b)
-    if dist < min_dist
-      min_dist = dist
+    if isa(facet,Point) || measure(facet) ≠ 0 
+      dist = distance(facet,b)
+      if dist < min_dist
+        min_dist = dist
+      end
     end
   end
   min_dist
@@ -605,7 +608,7 @@ function have_intersection(f::Face{Df,Dp},e::Face{1,Dp};atol=nothing) where {Df,
   if α < 0 || α > 1 || isnan(α)
     false
   else
-    x = e[1] + s1_s2 * α
+    x = e[1]*(1-α) + e[2]* α
     contains_projection(f,x)
   end
 end
@@ -621,15 +624,15 @@ function have_intersection(a::Face{D,D},b::Face{Df,D};atol::Real) where {Df,D}
 end
 
 function _have_intersection(a::Face{D,D},b::Face{Df,D};atol::Real) where {Df,D}
-  height = intersection_height(a,b) 
+  height = intersection_height(a,b,atol=atol) 
   !isnothing(height) && height > atol
 end
 
-function intersection_height(f::Face{D,D},e::Face{1,D}) where D
+function intersection_height(f::Face{D,D},e::Face{1,D};atol::Real) where D
   points = zero(e[1]),zero(e[1])
   n = 0
   for i in 1:num_vertices(e)
-    if contains_projection(f,e[i])
+    if distance(f,e[i]) < atol
       p = e[i]
       points,n = _max_area(p,points,n)
     end
@@ -644,11 +647,11 @@ function intersection_height(f::Face{D,D},e::Face{1,D}) where D
   n < length(points) ? nothing : min_height(simplex_face(points))
 end
 
-function intersection_height(a::Face{D,D},b::Face{2,D}) where D
+function intersection_height(a::Face{D,D},b::Face{2,D};atol::Real) where D
   points = zero(b[1]),zero(b[1]),zero(b[1])
   n = 0
   for i in 1:num_vertices(b)
-    if contains_projection(a,b[i])
+    if distance(a,b[i]) < atol
       p = b[i]
       points,n = _max_area(p,points,n)
     end
@@ -656,15 +659,19 @@ function intersection_height(a::Face{D,D},b::Face{2,D}) where D
   for i in 1:num_faces(a,D-1), j in 1:num_edges(b)
     face = get_dface(a,i,Val{D-1}())
     edge = get_edge(b,j)
-    if measure(face) ≠ 0 && have_intersection(face,edge)
+    if measure(face) ≠ 0 &&
+      distance_to_infinite_face(face,edge) > atol &&
+      distance(face,edge) < atol
       p = intersection_point(face,edge)
+      p = projection(p,face)
       points,n = _max_area(p,points,n)
     end
   end
   for i in 1:num_faces(a,D-2)
     face = get_dface(a,i,Val{D-2}())
-    if have_intersection(b,face)
+    if distance(b,face) < atol
       p = intersection_point(b,face)
+      p = projection(p,face)
       points,n = _max_area(p,points,n)
     end
   end
@@ -731,7 +738,7 @@ function intersection_point(f::Face{Df,Dp},e::Face{1,Dp}) where {Df,Dp}
   s1_s2 = e[2] - e[1]
   s1_c = c - e[1]
   α = ( n ⋅ s1_c ) / ( n ⋅ s1_s2 )
-  e[1] + s1_s2 * α
+  e[1]*(1-α) + e[2]*α
 end
 
 intersection_point(e::Face{1},f::Face{2}) = intersection_point(f,e)
@@ -989,6 +996,18 @@ function distance(
   K,
   X::Vector{<:Point},
   p::Polytope,
+  face::Integer,
+  f::Union{Point,Face})
+  
+  d = get_facedims(p)[face]
+  dface = face - get_offset(p,d)
+  distance(K,X,p,d,dface,f)
+end
+
+function distance(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
   d::Integer,
   dface::Integer,
   point::Point)
@@ -1031,6 +1050,19 @@ function have_intersection(
 
   c = Cell(K,X,p)
   have_intersection(c,f,atol=atol)
+end
+
+function have_intersection(
+  K,
+  X::Vector{<:Point},
+  p::Polytope,
+  face::Integer,
+  f::Union{Point,Face}
+  ;atol=nothing)
+  
+  d = get_facedims(p)[face]
+  dface = face - get_offset(p,d)
+  have_intersection(K,X,p,d,dface,f,atol=atol)
 end
 
 function have_intersection(

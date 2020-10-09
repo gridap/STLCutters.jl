@@ -878,7 +878,7 @@ function compact_mesh!(mesh::CellMesh)
 end
 
 function cut_levelsets!(cell_mesh::CellMesh)
-  atol = 1e-10
+  atol = 1e-6
   ls_cache = get_levelset_cache(cell_mesh)
   distances = get_float_vector(ls_cache)
   levelsets = get_levelsets(ls_cache)
@@ -914,9 +914,9 @@ function set_vertex_ioc_to_ls!(ls_cache::LevelSetCache,vertex::Integer,ls::Integ
   v_to_ls_to_ioc = ls_cache.vertex_to_levelset_to_inoutcut
   if dist == 0
     v_to_ls_to_ioc[vertex,ls] = FACE_CUT
-  elseif dist > 0
+  elseif dist < 0
     v_to_ls_to_ioc[vertex,ls] = FACE_IN
-  else # dist < 0
+  else # dist > 0
     v_to_ls_to_ioc[vertex,ls] = FACE_OUT
   end
 end

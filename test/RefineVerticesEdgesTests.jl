@@ -61,7 +61,7 @@ vertices = [
 faces = [[1,2,3],[1,2,5],[1,4,5],[1,4,3]]
 T,X,f,stl = test_vertices_edges(p,vertices,faces,TRI)
 grid = compute_grid(T,X,p)
-@test length(T) == 12
+@test length(T) == 11
 @test volume(grid) ≈ 1
 #writevtk(grid,"Tree")
 #writevtk(get_grid(stl),"stl")
