@@ -113,7 +113,7 @@ function _group_vertices(stl::Grid{Dc,D}) where {Dc,D}
     for i in m
       f = d -> i.I[d] == 1 ? floor(p[d],digits=num_digits) : ceil(p[d],digits=num_digits)
       r = ntuple( f, Val{D}() )
-      r = Int.(exp10(num_digits).*r).+1
+      r = Int.(round.(exp10(num_digits).*r)).+1
       cell = lids[r...]
       push!(cells,cell)
       push!(vertices,iv)

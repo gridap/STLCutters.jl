@@ -147,22 +147,25 @@ function refine_stl_face(grid::Grid,cell::Integer,m::DiscreteModel,f::Integer)
     d = get_facedims(get_polytope(facet))[face]
     dface = face - get_offset(get_polytope(facet),d)
     for n in 0:d
-      for cell_face in 1:num_faces(p,D-(d-n))
-        points = _get_points(p,D-(d-n),cell_face,get_polytope(facet),d,dface,
+      for cell_dface in 1:num_faces(p,D-(d-n))
+        points = _get_points(p,D-(d-n),cell_dface,get_polytope(facet),d,dface,
                              cell_face_to_points,point_to_face)
         if length(points) == n+1
-          push!(faces[n+1],points)
-          push!(cell_face_to_ds[cell_face],n)
-          push!(cell_face_to_dfaces[cell_face],length(faces[n+1]))
+          cell_face = _get_cell_face(p,points,cell_face_to_points)
+          if get_facedims(p)[cell_face] == D-(d-n)
+            push!(faces[n+1],points)
+            push!(cell_face_to_ds[cell_dface],n)
+            push!(cell_face_to_dfaces[cell_dface],length(faces[n+1]))
+          end
         elseif length(points) > n+1
 
-          dfaces = _get_dfaces(n-1,p,D-(d-n),cell_face,
+          dfaces = _get_dfaces(n-1,p,D-(d-n),cell_dface,
                                cell_face_to_ds,cell_face_to_dfaces)
           for df in dfaces
             if points[1] ∉ faces[n][df]
               push!(faces[n+1],[points[1];faces[n][df]])
-              push!(cell_face_to_ds[cell_face],n)
-              push!(cell_face_to_dfaces[cell_face],length(faces[n+1]))
+              push!(cell_face_to_ds[cell_dface],n)
+              push!(cell_face_to_dfaces[cell_dface],length(faces[n+1]))
             end
           end
         end
@@ -245,6 +248,34 @@ function _get_dfaces(
     end
   end
   dfaces
+end
+
+                             
+function _get_cell_face(
+  p::Polytope,
+  points::Vector,
+  cell_face_to_points)
+
+  for cell_face in 1:num_faces(p)
+    is_the_face = true
+    for point in points
+      is_point_in_face = false
+      for _cell_face in get_faces(p)[cell_face]
+        if point in cell_face_to_points[_cell_face]
+          is_point_in_face = true
+          break
+        end
+      end
+      if !is_point_in_face
+        is_the_face = false
+        break
+      end
+    end
+    if is_the_face
+      return cell_face
+    end
+  end
+  @unreachable
 end
 
 function distance(
