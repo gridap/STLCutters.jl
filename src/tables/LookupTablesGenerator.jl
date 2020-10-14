@@ -1,12 +1,11 @@
 module LookupTablesGenerator
 
+using MiniQhull
 using Gridap
 using Gridap.ReferenceFEs
 using Gridap.Geometry
 using Gridap.Arrays
 using Gridap.Helpers
-
-
 
 num_combinations(p::Polytope) = 2^num_vertices(p)
 
@@ -139,7 +138,7 @@ function get_face_at_wedge_vertex(K,p::Polytope,case::Integer)
   D = num_dims(p)
   for dface in 1:num_faces(p,D-2)
     face = get_dimrange(p,D-2)[dface]
-    if !is_face_cut(K,p,face,case)
+    if !is_face_cut(K,p,face,case) 
       facets = get_faces(p,D-2,D-1)[dface]
       if is_facet_cut(K,p,facets[1],case) && is_facet_cut(K,p,facets[2],case)
         return face
@@ -339,6 +338,54 @@ function are_out_nodes_connected(cache,p::Polytope,case::Integer)
   end
 end
 
+function are_intersections_coplanar(p::Polytope,case::Integer)
+  tol = 1e-3
+  K = 1:num_vertices(p)
+  num_intersections = num_cut_edges(p,case)
+  if num_intersections == 0
+    return true
+  end
+  @assert num_intersections ≥ num_dims(p)
+  intersections = zeros(eltype(get_vertex_coordinates(p)),num_intersections)
+  i = 0
+  for edge in 1:num_faces(p,1)
+    if is_edge_cut(K,p,edge,case)
+      nodes = get_face_vertices(p,1)[edge]
+      i += 1
+      v1 = get_vertex_coordinates(p)[nodes[1]]
+      v2 = get_vertex_coordinates(p)[nodes[2]]
+      intersections[i] = (v1+v2)/2
+    end
+  end
+  o = intersections[1]
+  n = normal(intersections[1:num_dims(p)])
+  for point in intersections
+    if abs((point-o)⋅n) > tol
+      return false
+    end
+  end
+  true
+end
+
+function normal(points::Vector{<:Point{2}}) 
+  @notimplementedif length(points) ≠ 2
+  v = points[2]-points[1]
+  n = VectorValue(-v[2],v[1])
+  n / norm(n)
+end
+
+function normal(points::Vector{<:Point{3}}) 
+  @notimplementedif length(points) ≠ 3
+  v1 = points[2]-points[1]
+  v2 = points[3]-points[1]
+  n = v1 × v2
+  n / norm(n)
+end
+
+function normal(::Vector{<:Point})
+  @notimplemented
+end
+
 function compute_linear_grid_and_facemap(reffe::LagrangianRefFE)
   grid = compute_linear_grid(reffe)
   desc = get_cartesian_descriptor(grid)
@@ -430,6 +477,7 @@ function compute_wedges(K,X,p::Polytope,case::Integer)
   wedges
 end
 
+
 function initialize_mesh(p::Polytope)
   X = get_vertex_references(p)
   K = 1:num_vertices(p)
@@ -453,6 +501,91 @@ function refine_cells!(T,X,p,case,Tnew)
       end
     end
   end
+end
+
+function simplex_refinement(p::Polytope,case::Integer)
+  Ts,ps = simplexify(p)
+  X = get_vertex_coordinates(p)
+  X_to_ref = [ [i] for i in 1:num_vertices(p) ]
+  T = empty(Ts)
+  for Ks in Ts
+    Tk,Xk = refine_cell(X,Ks,ps,case,X_to_ref)
+    append!(T,Tk)
+    append!(X_to_ref,Xk)
+  end
+  T,X_to_ref = update_vertices(T,X_to_ref)
+  T,X_to_ref,ps
+end
+
+function refine_cell(X,K,p,case,X_to_ref)
+  Xk = X[K]
+  Xnew = empty(X_to_ref)
+  for edge in 1:num_edges(p)
+    if is_edge_cut(K,p,edge,case)
+      nodes = get_face_vertices(p,1)[edge]
+      point = sum( Xk[nodes] ) / length(nodes)
+      push!(Xk,point)
+      push!(Xnew,K[nodes])
+    end
+  end
+  coordinates = zeros(num_dims(p)*length(Xk))
+  i = 0
+  for point in Xk, d in 1:num_dims(p)
+    i += 1
+    coordinates[i] = point[d]
+  end
+  T = delaunay(num_dims(p),length(Xk),coordinates)
+  Tnew = Vector{Int}[]
+  for i in 1:size(T,2)
+    Knew = T[:,i]
+    for (j,node) in enumerate(Knew)
+      if node ≤ length(K)
+        Knew[j] = K[node]
+      else
+        Knew[j] = length(X_to_ref) + node - length(K)
+      end
+    end
+    push!(Tnew,Knew)
+  end
+  Tnew,Xnew
+end
+
+function update_vertices(T,X)
+  _map = collect(1:length(X))
+  for i in 1:length(X), j in i+1:length(X)
+    if X[i] ⊆ X[j] && X[i] ⊇ X[j]
+      _map[j] = _map[i]
+    end
+  end
+  Xnew = X[unique(_map)]
+  m = _map .== 1:length(_map)
+  m = cumsum(m) .* m
+  _map = m[_map]
+  Tnew = map( i -> _map[i], T )
+  Tnew,Xnew
+end
+
+function simplex_to_n_cubes(T,p::Polytope)
+  Tnew = empty(T)
+  for K in T
+    push!(Tnew,K[ simplex_to_n_cube(p) ])
+  end
+  Tnew
+end
+
+function simplex_to_n_cube(p::Polytope{1})
+  @assert is_simplex(p)
+  [1,2]
+end
+
+function simplex_to_n_cube(p::Polytope{2})
+  @assert is_simplex(p)
+  [1,2,3,3]
+end
+
+function simplex_to_n_cube(p::Polytope{3})
+  @assert is_simplex(p)
+  [1,2,3,3,4,4,4,4]
 end
 
 function compute_grid(
@@ -538,14 +671,19 @@ function compute_tables(p::Polytope,write=false)
   table_id_to_cell_to_inout = Vector{Int8}[]
   table_id = 0
   for case in 1:num_combinations(p)
-    T,X,Tnew = initialize_mesh(p)
-    if is_cut_by_one_plane(p,case) && num_cut_edges(p,case) ≤ length(get_face_vertices(p,num_dims(p)-1)[1])
+    if is_cut_by_one_plane(p,case) 
+
       table_id += 1
       case_to_table_id[case] = table_id
       
-      T,X,Tnew = initialize_mesh(p)
-      refine_cells!(T,X,p,case,Tnew)
-      T = Tnew
+      if are_intersections_coplanar(p,case)
+        T,X,Tnew = initialize_mesh(p)
+        refine_cells!(T,X,p,case,Tnew)
+        T = Tnew
+      else
+        T,X,ps = simplex_refinement(p,case)
+        T = simplex_to_n_cubes(T,ps)
+      end
 
       Xp = compute_vertex_coordinates(X,p)
       T = correct_volumes(T,Xp,p)
