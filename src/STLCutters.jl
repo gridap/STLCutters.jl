@@ -5,6 +5,10 @@ using Gridap.Geometry
 using Gridap.ReferenceFEs
 using Gridap.Arrays
 using Gridap.Helpers
+using GridapEmbedded
+using GridapEmbedded.CSG
+using GridapEmbedded.Interfaces
+using GridapEmbedded.LevelSetCutters
 using LinearAlgebra
 using FileIO
 
@@ -20,10 +24,16 @@ import Gridap.ReferenceFEs: num_edges
 import Gridap.ReferenceFEs: num_facets 
 import Gridap.ReferenceFEs: num_dims 
 
+import GridapEmbedded.Interfaces: cut
+import GridapEmbedded.CSG: get_tree
+import GridapEmbedded.CSG: compatible_geometries
+import GridapEmbedded.CSG: similar_geometry
+
 export Table
 export Point
 export Segment
 export Triangle
+export STLGeometry
 
 export distance
 export projection
@@ -36,6 +46,10 @@ export distribute_faces
 export compute_grid
 export initial_mesh
 
+export cut
+export surface
+export square
+
 include("CellMeshes.jl")
 
 include("Intersections.jl")
@@ -45,6 +59,8 @@ include("FaceInsertion.jl")
 include("FaceDistribution.jl")
 include("GridRefinement.jl")
 include("SurfaceRefinement.jl")
+
+include("Embedded.jl")
 
 include("tables/LookupTables.jl")
 

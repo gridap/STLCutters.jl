@@ -94,11 +94,11 @@ function is_cell_out(
   face::Integer)
 
   @assert num_dims(m) == get_facedims(get_grid_topology(m))[face]
-  facet = get_offset(get_grid_topology(m),num_dims(m))[face]
+  facet = face - get_offset(get_grid_topology(m),num_dims(m))
   f = get_cell(m,facet)
   plane = center(f),normal(f)
   max_dist = 0.0
-  for v in get_cell_coordinates(cell)
+  for v in get_cell_coordinates(grid)[cell]
     dist = signed_distance(v,plane)
     if abs(dist) > abs(max_dist)
       max_dist = dist
