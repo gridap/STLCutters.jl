@@ -104,7 +104,7 @@ function is_cell_out(
       max_dist = dist
     end
   end
-  if max_dist < 0
+  if max_dist > 0
     true
   else
     false
@@ -150,9 +150,9 @@ function refine_stl_face(grid::Grid,cell::Integer,m::DiscreteModel,f::Integer)
       for cell_dface in 1:num_faces(p,D-(d-n))
         points = _get_points(p,D-(d-n),cell_dface,get_polytope(facet),d,dface,
                              cell_face_to_points,point_to_face)
+
         if length(points) == n+1
-          cell_face = _get_cell_face(p,points,cell_face_to_points)
-          if get_facedims(p)[cell_face] == D-(d-n)
+          if face == _get_facet_face(get_polytope(facet),points,point_to_face)
             push!(faces[n+1],points)
             push!(cell_face_to_ds[cell_dface],n)
             push!(cell_face_to_dfaces[cell_dface],length(faces[n+1]))
@@ -250,7 +250,6 @@ function _get_dfaces(
   dfaces
 end
 
-                             
 function _get_cell_face(
   p::Polytope,
   points::Vector,
@@ -273,6 +272,31 @@ function _get_cell_face(
     end
     if is_the_face
       return cell_face
+    end
+  end
+  @unreachable
+end
+
+function _get_facet_face(
+  p::Polytope,
+  points::Vector,
+  point_to_face)
+
+  for face in 1:num_faces(p)
+    d = get_facedims(p)[face]
+    dface = face - get_offset(p,d)
+    is_the_face = true
+    for point in points
+      _face = point_to_face[point] 
+      _d = get_facedims(p)[_face]
+      _dface = _face - get_offset(p,_d) 
+      if _d > d || dface ∉ get_faces(p,_d,d)[_dface]
+        is_the_face = false
+        break
+      end
+    end
+    if is_the_face
+      return face
     end
   end
   @unreachable
