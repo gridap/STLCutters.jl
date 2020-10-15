@@ -7,35 +7,49 @@ using GridapEmbedded
 using Test
 
 using STLCutters: compute_stl_model
+using STLCutters: read_stl, merge_nodes, get_bounding_box 
 
 # Manufactured solution
-u(x) = x[1] + x[2] # - x[3]
-∇u(x) = VectorValue( 1, 1) #, -1)
+u(x) = x[1] + x[2] - x[3]
+∇u(x) = VectorValue( 1, 1, -1)
 Δu(x) = 0
 f(x) = - Δu(x)
 ud(x) = u(x)
 ∇(::typeof(u)) = ∇u
 
-n = 10
-partition = (n,n)
-
-pmin,pmax = Point(0.0,0.0),Point(1.0,1.0)
-
-vertices = [ Point(0.15,0.15),
-             Point(0.15,0.85),
-             Point(0.85,0.85), 
-             Point(0.85,0.15) ]
-faces = [[1,2],[2,3],[3,4],[4,1]]
-
-stl = compute_stl_model(Table(faces),vertices)
-
-geo = STLGeometry(stl,name="wall")
-
+#n = 10
+#partition = (n,n)
+#
+#pmin,pmax = Point(0.0,0.0),Point(1.0,1.0)
+#
+#vertices = [ Point(0.15,0.15),
+#             Point(0.15,0.85),
+#             Point(0.85,0.85), 
+#             Point(0.85,0.15),
+#             Point(0.55,0.18) ]
+#faces = [[1,2],[2,3],[3,4],[4,5],[5,1]]
+#
+#stl = compute_stl_model(Table(faces),vertices)
+#
+#geo = STLGeometry(stl,name="wall")
+#
 #partition = (n,n,n)
 #geo = STLGeometry("test/data/Bunny-LowPoly.stl",name="wall")
 #test/data/Bunny-LowPoly.stl
+#
+X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
+stl = compute_stl_model(T,X)
+stl = merge_nodes(stl)
+writevtk(stl,"cube")
+n = 10
+δ = 0.2
+pmin,pmax = get_bounding_box(stl)
+diagonal = pmax-pmin
+pmin = pmin - diagonal*δ
+pmax = pmax + diagonal*δ
+partition = (n,n,n)
 
-
+geo = STLGeometry(stl,name="wall")
 bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
