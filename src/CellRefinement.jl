@@ -92,19 +92,23 @@ end
 ## Helpers
 
 function define_cell!(grid::Grid,i::Integer,f,cell_to_io)
-  neig = first_sibling(grid,i,f)
+  neig = first_sibling(grid,i,f,cell_to_io)
   if cell_to_io[neig] == UNSET
     define_cell!(grid,neig,f,cell_to_io)
   end 
   cell_to_io[i] = cell_to_io[neig]
 end
 
-function first_sibling(grid::Grid,i::Integer,f)
+function first_sibling(grid::Grid,i::Integer,f,c_to_io)
   fi = f[i]
   for k in 1:num_cells(grid)
     if k ≠ i
       fk = f[k]
-      if fi ⊆ fk && are_connected(grid,i,k,0) && are_in_touch(grid,i,k)
+      if fi ⊆ fk && 
+         c_to_io ≠ CellMeshes.IGNORE_FACE &&
+         are_connected(grid,i,k,0) && 
+         are_in_touch(grid,i,k)
+
         return k
       end
     end

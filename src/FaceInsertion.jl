@@ -48,6 +48,8 @@ function facet_refinement(
 
     update_connectivities!(Tnew,K,X,p)
     update_vertex_coordinates!(Xnew,p)
+#    CellMeshes.deleteat!(Tnew,cell_to_io .== CellMeshes.IGNORE_FACE)
+#    deleteat!(cell_to_io,cell_to_io .== CellMeshes.IGNORE_FACE)
   else
     Tnew = [K]
     Xnew = empty(X)
@@ -226,13 +228,15 @@ function get_levelsets(
   stl::DiscreteModel,
   facets::Vector{<:Integer})
 
-  masks = [ is_on_boundary(K,X,p,get_cell(stl,facet),atol=TOL) for facet in facets] 
-  levelsets = [ 
-    CellMeshes.Plane(
-      center(get_cell(stl,facet)),
-      normal(get_cell(stl,facet))) 
-    for facet in facets ]
+  masks = [ is_on_boundary(K,X,p,get_cell(stl,f),atol=TOL) for f in facets] 
+  levelsets = [ _get_levelset(stl,f) for f in facets] 
   deleteat!(levelsets,masks)
+end
+
+function _get_levelset(stl::DiscreteModel{Df,Dp},facet::Integer) where {Df,Dp}
+  f = get_cell(stl,facet)
+  vertices = ntuple( i -> f[i], Val{Df+1}() )
+  CellMeshes.SimplexFacet( vertices )
 end
 
 function update_connectivities!(Tnew,K,X::Vector{<:Point},p::Polytope)

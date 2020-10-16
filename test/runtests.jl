@@ -12,6 +12,7 @@ using Test
 @testset "RefineFacets" begin include("RefineFacetsTests.jl") end
 @testset "GridRefinement" begin include("GridRefinementTests.jl") end
 @testset "SurfaceRefinement" begin include("SurfaceRefinementTests.jl") end
+@testset "Rotations" begin include("Rotations.jl") end
 
 @testset "IntegrationTest" begin include("Integration.jl") end
 @testset "PoissonTest" begin include("Poisson.jl") end

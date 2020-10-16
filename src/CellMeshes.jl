@@ -4,7 +4,7 @@ module CellMeshes
 using Gridap
 using Gridap.Arrays
 using Gridap.Geometry
-
+using Gridap.Helpers
 
 include("tables/LookupCutTables.jl")
 
@@ -13,11 +13,38 @@ const FACE_IN = 1
 const FACE_OUT = 2
 const FACE_BOUNDARY = 3
 const FACE_CUT = -1
+const IGNORE_FACE = 10
 
 
-struct Plane{D,T}
-  origin::Point{D,T}
-  normal::VectorValue{D,T}
+struct SimplexFacet{D,T}
+  vertices::NTuple{D,Point{D,T}}
+end
+
+SimplexFacet(a::Point...) = SimplexFacet(a)
+
+num_vertices(::SimplexFacet{D}) where D = D
+
+Base.getindex(a::SimplexFacet,i::Integer) = a.vertices[i]
+
+function center(a::SimplexFacet)
+  c = zero(a[1])
+  for i in 1:num_vertices(a)
+    c += a[i] / num_vertices(a)
+  end
+  c
+end
+
+function normal(a::SimplexFacet{2})
+  v = a[2]-a[1]
+  n = VectorValue(-v[2],v[1])
+  n / norm(n)
+end
+
+function normal(a::SimplexFacet{3})
+  v1 = a[2]-a[1]
+  v2 = a[3]-a[1]
+  n = v1 × v2
+  n / norm(n)
 end
 
 struct BoundingBox{D,T}
@@ -158,7 +185,7 @@ struct CutterCache
 end
 
 struct LevelSetCache{D,T}
-  levelsets::Vector{Plane{D,T}}
+  facets::Vector{SimplexFacet{D,T}}
   vertex_to_levelset_to_inoutcut::Table{Int8,Vector{Int8},Vector{Int32}}
   levelset_region_to_inout::Dict{Int,Int8}
   vector_cache_int::Vector{Int}
@@ -322,7 +349,7 @@ get_cache(mesh::CellMesh) = mesh.cache
 get_levelset_cache(mesh::CellMesh) = mesh.cache.levelset
 
 function LevelSetCache{D,T}() where {D,T}
-  ls = Plane{D,T}[]
+  ls = SimplexFacet{D,T}[]
   v_to_ls_to_ioc = empty_table(Int8,Int32,0)
   ls_region_to_io = Dict{Int,Int8}()
   int_cache = Int[]
@@ -878,15 +905,15 @@ function compact_mesh!(mesh::CellMesh)
 end
 
 function cut_levelsets!(cell_mesh::CellMesh)
-  atol = 1e-6
+  atol = 0#1e-10
   ls_cache = get_levelset_cache(cell_mesh)
   distances = get_float_vector(ls_cache)
-  levelsets = get_levelsets(ls_cache)
-  for (ls,plane) in enumerate(levelsets)
+  facets = get_facets(ls_cache)
+  for (ls,facet) in enumerate(facets)
     resize!(distances,num_vertices(cell_mesh))
     for vertex in 1:num_vertices(cell_mesh)
       point = get_vertex_coordinates(cell_mesh,vertex)
-      dist = signed_distance(point,plane)
+      dist = signed_distance(point,facet)
       if abs(dist) < atol
         dist = 0.0
       end
@@ -978,9 +1005,9 @@ function edge_intersection(mesh::CellMesh,edge::Integer,distances)
   (abs(dist2)/len)*p1 + (abs(dist1)/len)*p2
 end
 
-function signed_distance(p::Point,plane::Plane)
-  o = plane.origin
-  n = plane.normal
+function signed_distance(p::Point,facet::SimplexFacet)
+  o = center(facet)
+  n = normal(facet)
   (p-o)⋅n
 end
 
@@ -1080,16 +1107,53 @@ end
 
 function define_regions!(mesh::CellMesh)
   ls_cache = get_levelset_cache(mesh) 
-  for facet in 1:num_facets(mesh)
-    if is_facet_cut(mesh,ls_cache,facet)
-      r_in = get_facet_in_region(mesh,ls_cache,facet)
-      r_out = get_facet_out_region(mesh,ls_cache,facet)
-      set_region_in!(ls_cache,r_in)
-      set_region_out!(ls_cache,r_out)
-    end
+  for ls in 1:num_levelsets(ls_cache)
+    r_in = get_levelset_in_region(ls_cache,ls)
+    r_out = get_levelset_out_region(ls_cache,ls)
+    set_region_in!(ls_cache,r_in)
+    set_region_out!(ls_cache,r_out)
   end
   ls_cache.levelset_region_to_inout
 end
+
+function get_levelset_in_region(ls_cache,ls)
+  facets = get_facets(ls_cache)
+  facet = facets[ls]
+  r = 0
+  for (ls_i,facet_i) in enumerate(facets)
+    dist = 0.0
+    for v in 1:num_vertices(facet)
+      _dist = signed_distance(facet[v],facet_i)
+      if abs(_dist) > abs(dist)
+        dist = _dist
+      end
+    end
+    if ls_i == ls || dist ≤ 0
+      r |= (1<<(ls_i-1))
+    end
+  end
+  r+1
+end
+
+function get_levelset_out_region(ls_cache,ls)
+  facets = get_facets(ls_cache)
+  facet = facets[ls]
+  r = 0
+  for (ls_i,facet_i) in enumerate(facets)
+    dist = 0.0
+    for v in 1:num_vertices(facet)
+      _dist = signed_distance(facet[v],facet_i)
+      if abs(_dist) > abs(dist)
+        dist = _dist
+      end
+    end
+    if ls_i ≠ ls && dist < 0
+      r |= (1<<(ls_i-1))
+    end
+  end
+  r+1
+end
+
 
 function set_region_in!(cache::LevelSetCache,r::Integer)
   cache.levelset_region_to_inout[r] = FACE_IN
@@ -1154,19 +1218,20 @@ function define_faces!(mesh::CellMesh)
         d_to_dfaces_to_ioc[d+1,dface] = FACE_CUT
       else
         r = get_face_region(mesh,d,dface)
-        d_to_dfaces_to_ioc[d+1,dface] = r_to_io[r]
+        ioc = haskey(r_to_io,r) ? r_to_io[r] : IGNORE_FACE
+        d_to_dfaces_to_ioc[d+1,dface] = ioc
       end
     end
   end
 end
 
-function reset!(cache::LevelSetCache,mesh::CellMesh,levelsets)
-  empty!(cache.levelsets)
+function reset!(cache::LevelSetCache,mesh::CellMesh,facets)
+  empty!(cache.facets)
   empty!(cache.vertex_to_levelset_to_inoutcut)
   empty!(cache.levelset_region_to_inout)
-  append!(cache.levelsets,levelsets)
+  append!(cache.facets,facets)
   ls_to_ioc = get_int_vector(cache)
-  resize!(ls_to_ioc,length(levelsets))
+  resize!(ls_to_ioc,length(facets))
   fill!(ls_to_ioc,UNSET)
   for vertex in 1:num_vertices(mesh)
     push!(cache.vertex_to_levelset_to_inoutcut,ls_to_ioc)
@@ -1178,9 +1243,9 @@ get_int_vector(cache::LevelSetCache) = cache.vector_cache_int
 
 get_float_vector(cache::LevelSetCache) = cache.vector_cache_float
 
-get_levelsets(cache::LevelSetCache) = cache.levelsets
+get_facets(cache::LevelSetCache) = cache.facets
 
-num_levelsets(cache::LevelSetCache) = length(cache.levelsets)
+num_levelsets(cache::LevelSetCache) = length(cache.facets)
 
 function get_cell_to_inout(mesh::CellMesh{D}) where D
   mesh.d_to_dface_to_in_out_boundary[D+1]
@@ -1206,7 +1271,7 @@ function compute_cell_mesh!(mesh::CellMesh)
   mesh
 end
 
-function compute_cell_mesh!(mesh::CellMesh,levelsets::Vector{<:Plane})
+function compute_cell_mesh!(mesh::CellMesh,levelsets::Vector{<:SimplexFacet})
   ls_cache = mesh.cache.levelset
   reset!(ls_cache,mesh,levelsets)
   compute_cell_mesh!(mesh)

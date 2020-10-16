@@ -40,6 +40,31 @@ writevtk(submesh,"submesh",cellfields=["io"=>cell_to_io,"bgcell"=>cell_to_bgcell
 writevtk(bg_mesh,"bgmesh",cellfields=["io"=>bgcell_to_ioc])
 writevtk(stl,"stl")
 
+R(θ) = TensorValue(cos(θ),sin(θ),-sin(θ),cos(θ))
+origin = Point(0.5,0.5)
+bg_mesh = CartesianGrid( Point(0.0,0.0),(0.2,0.2),(5,5))
+vertices = [
+  Point(0.2,0.2),
+  Point(0.2,0.8),
+  Point(0.8,0.8),
+  Point(0.8,0.2) ]
+faces = [[1,2],[2,3],[3,4],[4,1]]
+vertices = origin .+ R(pi/1e8).⋅(vertices .- origin)
+stl = compute_stl_model(Table(faces),vertices)
+out = refine_grid(bg_mesh,stl)
+T,X,reffes,cell_types,cell_to_io,cell_to_bgcell,bgcell_to_ioc = out 
+submesh = UnstructuredGrid(X,Table(T),reffes,cell_types)
+vol = volume(submesh) + sum(volumes(bg_mesh).*(bgcell_to_ioc.≠FACE_CUT))
+@test volume(bg_mesh) ≈ vol
+vol1 = sum(volumes(submesh).*(cell_to_io.==FACE_IN))
+vol2 = sum(volumes(bg_mesh).*(bgcell_to_ioc.==FACE_IN))
+vol_in = vol1+vol2
+@test vol_in ≈ 0.6^2
+vol1 = sum(volumes(submesh).*(cell_to_io.==FACE_OUT))
+vol2 = sum(volumes(bg_mesh).*(bgcell_to_ioc.==FACE_OUT))
+vol_out = vol1+vol2
+@test vol_in+vol_out ≈ volume(bg_mesh)
+
 vertices = [
   Point(-2.0,-2.0,3.0),
   Point(0.4,-2.0,0.3),
