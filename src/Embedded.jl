@@ -101,7 +101,8 @@ function _convert_io(ioc::Integer)
   elseif ioc == FACE_CUT
     Int8(CUT)
   else
-    @unreachable
+    Int8(OUT)
+    #@unreachable
   end
 end
 

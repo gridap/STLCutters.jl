@@ -905,7 +905,7 @@ function compact_mesh!(mesh::CellMesh)
 end
 
 function cut_levelsets!(cell_mesh::CellMesh)
-  atol = 0#1e-10
+  atol = 0 #1e-10
   ls_cache = get_levelset_cache(cell_mesh)
   distances = get_float_vector(ls_cache)
   facets = get_facets(ls_cache)
@@ -1108,24 +1108,35 @@ end
 function define_regions!(mesh::CellMesh)
   ls_cache = get_levelset_cache(mesh) 
   for ls in 1:num_levelsets(ls_cache)
-    r_in = get_levelset_in_region(ls_cache,ls)
-    r_out = get_levelset_out_region(ls_cache,ls)
+    r_in = get_levelset_in_region(mesh,ls)
+    r_out = get_levelset_out_region(mesh,ls)
     set_region_in!(ls_cache,r_in)
     set_region_out!(ls_cache,r_out)
   end
   ls_cache.levelset_region_to_inout
 end
 
-function get_levelset_in_region(ls_cache,ls)
+function get_levelset_in_region(mesh::CellMesh,ls)
+  ls_cache = get_levelset_cache(mesh)
+  distances = get_float_vector(ls_cache)
+  resize!(distances,num_vertices(mesh))
   facets = get_facets(ls_cache)
   facet = facets[ls]
+  for vertex in 1:num_vertices(mesh)
+    point = get_vertex_coordinates(mesh,vertex)
+    dist = signed_distance(point,facet)
+    distances[vertex] = dist
+  end
   r = 0
   for (ls_i,facet_i) in enumerate(facets)
     dist = 0.0
-    for v in 1:num_vertices(facet)
-      _dist = signed_distance(facet[v],facet_i)
-      if abs(_dist) > abs(dist)
-        dist = _dist
+    for edge in 1:num_edges(mesh)
+      if _is_edge_cut(mesh,edge,distances)
+        point = _edge_intersection(mesh,edge,distances)
+        _dist = signed_distance(point,facet_i)
+        if abs(_dist) > abs(dist)
+          dist = _dist
+        end
       end
     end
     if ls_i == ls || dist ≤ 0
@@ -1135,16 +1146,27 @@ function get_levelset_in_region(ls_cache,ls)
   r+1
 end
 
-function get_levelset_out_region(ls_cache,ls)
+function get_levelset_out_region(mesh::CellMesh,ls)
+  ls_cache = get_levelset_cache(mesh)
+  distances = get_float_vector(ls_cache)
+  resize!(distances,num_vertices(mesh))
   facets = get_facets(ls_cache)
   facet = facets[ls]
+  for vertex in 1:num_vertices(mesh)
+    point = get_vertex_coordinates(mesh,vertex)
+    dist = signed_distance(point,facet)
+    distances[vertex] = dist
+  end
   r = 0
   for (ls_i,facet_i) in enumerate(facets)
     dist = 0.0
-    for v in 1:num_vertices(facet)
-      _dist = signed_distance(facet[v],facet_i)
-      if abs(_dist) > abs(dist)
-        dist = _dist
+    for edge in 1:num_edges(mesh)
+      if _is_edge_cut(mesh,edge,distances)
+        point = _edge_intersection(mesh,edge,distances)
+        _dist = signed_distance(point,facet_i)
+        if abs(_dist) > abs(dist)
+          dist = _dist
+        end
       end
     end
     if ls_i ≠ ls && dist < 0
@@ -1152,6 +1174,35 @@ function get_levelset_out_region(ls_cache,ls)
     end
   end
   r+1
+end
+
+function _is_edge_cut(mesh::CellMesh,edge::Integer,distances)
+  e_to_v = get_edge_to_vertices(mesh)
+  v1 = e_to_v[edge,1]
+  v2 = e_to_v[edge,2]
+  dist1 = distances[v1]
+  dist2 = distances[v2]
+  if dist1 == 0 || dist2 == 0
+    true
+  elseif sign(dist1) ≠ sign(dist2)
+    true
+  else
+    false
+  end
+end
+
+function _edge_intersection(mesh::CellMesh,edge::Integer,distances)
+  @assert _is_edge_cut(mesh,edge,distances)
+  e_to_v = get_edge_to_vertices(mesh)
+  v1 = e_to_v[edge,1]
+  v2 = e_to_v[edge,2]
+  dist1 = distances[v1]
+  dist2 = distances[v2]
+  len = abs(dist1) + abs(dist2)
+  p1 = get_vertex_coordinates(mesh,v1)
+  p2 = get_vertex_coordinates(mesh,v2)
+  len ≠ 0 || return p1
+  (abs(dist2)/len)*p1 + (abs(dist1)/len)*p2
 end
 
 
@@ -1264,9 +1315,9 @@ function get_facet_to_inout(mesh::CellMesh{D},facet) where D
 end
 
 function compute_cell_mesh!(mesh::CellMesh)
+  define_regions!(mesh)
   cut_levelsets!(mesh)
   compact_mesh!(mesh)
-  define_regions!(mesh)
   define_faces!(mesh)
   mesh
 end

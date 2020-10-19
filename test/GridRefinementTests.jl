@@ -213,31 +213,38 @@ vol1 = sum(volumes(submesh) .* (cell_to_io .== 1))
 vol2 = sum(volumes(bg_mesh) .* (bgcell_to_ioc .== 1))
 @test vol1+vol2 ≈ 1
 
-#X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
-#X = X.+2*1e-6*VectorValue(1,1,1)
-#stl = compute_stl_model(T,X)
-#stl = merge_nodes(stl)
-#writevtk(stl,"cup")
-#n = 40
-#δ = 0.2
-#pmin,pmax = get_bounding_box(stl)
-#diagonal = pmax-pmin
-#origin = pmin - diagonal*δ
-#sizes = Tuple( diagonal*(1+2δ)/n )
-#partion = (n,n,n)
-#bg_mesh = CartesianGrid(origin,sizes,partion)
-#writevtk(bg_mesh,"mesh")
-#
-#out = refine_grid(bg_mesh,stl)
-#T,X,reffes,cell_types,cell_to_io,cell_to_bgcell,bgcell_to_ioc = out 
-#
-#submesh = UnstructuredGrid(X,Table(T),reffes,cell_types)
-#
-#writevtk(submesh,"submesh",cellfields=["io"=>cell_to_io,"bgcell"=>cell_to_bgcell])
-#writevtk(bg_mesh,"bgmesh",cellfields=["io"=>bgcell_to_ioc])
-#
-#vol1 = sum(volumes(submesh) .* (cell_to_io .== 1))
-#vol2 = sum(volumes(bg_mesh) .* (bgcell_to_ioc .== 1))
-##@show vol1+vol2-1
+X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
+X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
+X = X.+2*1e-6*VectorValue(1,1,1)
+stl = compute_stl_model(T,X)
+stl = merge_nodes(stl)
+writevtk(stl,"cup")
+n = 10
+δ = 0.2
+pmin,pmax = get_bounding_box(stl)
+diagonal = pmax-pmin
+origin = pmin - diagonal*δ
+sizes = Tuple( diagonal*(1+2δ)/n )
+partion = (n,n,n)
+bg_mesh = CartesianGrid(origin,sizes,partion)
+writevtk(bg_mesh,"mesh")
+
+#pmin = get_cell_coordinates(bg_mesh)[215][1]
+#pmax = get_cell_coordinates(bg_mesh)[215][end]
+#bg_mesh = CartesianGrid(pmin,pmax,(1,1,1))
+
+
+
+out = refine_grid(bg_mesh,stl)
+T,X,reffes,cell_types,cell_to_io,cell_to_bgcell,bgcell_to_ioc = out 
+
+submesh = UnstructuredGrid(X,Table(T),reffes,cell_types)
+
+writevtk(submesh,"submesh",cellfields=["io"=>cell_to_io,"bgcell"=>cell_to_bgcell])
+writevtk(bg_mesh,"bgmesh",cellfields=["io"=>bgcell_to_ioc])
+
+vol1 = sum(volumes(submesh) .* (cell_to_io .== 1))
+vol2 = sum(volumes(bg_mesh) .* (bgcell_to_ioc .== 1))
+#@show vol1+vol2-1
 #@show vol1+vol2 - 74.12595970063474
 end # module
