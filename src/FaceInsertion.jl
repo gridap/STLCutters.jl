@@ -9,8 +9,8 @@ function vertex_refinement(
   d = farthest_axis_from_boundary(cell...,point)
   case = compute_case(cell...,d)
   new_cells = compute_new_cells(cell...,case)
-  new_vertices = compute_new_vertices(cell...,point,d,case)
-  new_cells, new_vertices
+  new_vertices, new_to_old_vertices = compute_new_vertices(cell...,point,d,case)
+  new_cells, new_vertices #, new_to_old_vertices
 end
 
 function edge_refinement(
@@ -24,9 +24,9 @@ function edge_refinement(
   plane = compute_plane_from_edge(cell...,e,directions)
   case = compute_case(cell...,plane,directions)
   Tnew = compute_new_cells(cell...,case)
-  Xnew = compute_new_vertices!(Tnew,cell...,plane,case)
+  Xnew,Xnew_to_old = compute_new_vertices!(Tnew,cell...,plane,case)
   delete_empty_cells!(Tnew,[X;Xnew],p)
-  Tnew,Xnew
+  Tnew,Xnew #,Xnew_to_old
 end
 
 function facet_refinement(
@@ -44,12 +44,23 @@ function facet_refinement(
     Xnew = CellMeshes.get_vertex_coordinates(mesh)
     Tnew = CellMeshes.get_cell_to_vertices(mesh)
     cell_to_io = CellMeshes.get_cell_to_inout(mesh)
+    node_to_io = CellMeshes.get_vertex_to_inout(mesh)
+    Xnew_to_old = CellMeshes.get_vertex_to_cell_vertices(mesh)
+    
     cell_type = TET_AXIS
 
     update_connectivities!(Tnew,K,X,p)
     update_vertex_coordinates!(Xnew,p)
-#    CellMeshes.deleteat!(Tnew,cell_to_io .== CellMeshes.IGNORE_FACE)
-#    deleteat!(cell_to_io,cell_to_io .== CellMeshes.IGNORE_FACE)
+
+    node_to_io = node_to_io[num_vertices(p)+1:end]
+    for i in 1:length(Xnew_to_old),j in 1:length(Xnew_to_old[i])
+      Xnew_to_old[i,j] = Xnew_to_old[i]+length(X)
+    end
+    deleteat!(Xnew_to_old,1:num_vertices(p))
+
+
+    #Tnew = [ Tnew[i] for i in findall(cell_to_io .≠ CellMeshes.IGNORE_FACE) ]
+    #deleteat!(cell_to_io,cell_to_io .== CellMeshes.IGNORE_FACE)
   else
     Tnew = [K]
     Xnew = empty(X)
@@ -114,6 +125,7 @@ function compute_new_vertices(
 
   v_to_cv = get_vertex_to_cell_vertices_from_case(num_dims(p),case)
   vertices = zeros(eltype(X),length(v_to_cv)-num_vertices(p))
+  vertex_to_older_vertices = Vector{Vector{Int}}(undef,length(v_to_cv)-num_vertices(p)) 
   ivertex = 0
   for i in num_vertices(p)+1:length(v_to_cv)
     nodes = v_to_cv[i]
@@ -124,8 +136,9 @@ function compute_new_vertices(
     v = i - num_vertices(p)
     vertex = Base.setindex(p1,point[d],d)
     vertices[v] = vertex
+    vertex_to_older_vertices[v] = K[nodes]
   end
-  vertices
+  vertices, vertex_to_older_vertices
 end
 
 ## Edges
@@ -177,9 +190,10 @@ function compute_case(K,X,p,plane,vs)
   case
 end
 
-function compute_new_vertices!(T,K,X,p,plane,case)
+function compute_new_vertices!(T,K,X,p,plane,case;atol=TOL)
   v_to_cv = get_vertex_to_cell_vertices_from_case(num_dims(p),case)
   vertices = eltype(X)[]
+  vertex_to_older_vertices = Vector{Int}[]
   ivertex = 0
   for i in num_vertices(p)+1:length(v_to_cv)
     nodes = v_to_cv[i]
@@ -189,7 +203,7 @@ function compute_new_vertices!(T,K,X,p,plane,case)
     d1 = signed_distance(p1,plane)
     d2 = signed_distance(p2,plane)
 
-    if abs(d1) < TOL || abs(d2) < TOL
+    if abs(d1) < atol || abs(d2) < atol
       if abs(d1) < abs(d2)
         new_node = K[nodes[1]]
       else
@@ -201,10 +215,11 @@ function compute_new_vertices!(T,K,X,p,plane,case)
       α = abs(d1) / (abs(d1)+abs(d2))
       vertex = p1 + (p2-p1)*α
       push!(vertices,vertex)
+      push!(vertex_to_older_vertices,K[nodes])
       ivertex += 1
     end
   end
-  vertices
+  vertices, vertex_to_older_vertices
 end
 
 function delete_empty_cells!(T,X,p)

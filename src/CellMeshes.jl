@@ -4,7 +4,14 @@ module CellMeshes
 using Gridap
 using Gridap.Arrays
 using Gridap.Geometry
+using Gridap.ReferenceFEs
 using Gridap.Helpers
+
+import Gridap.ReferenceFEs: num_vertices
+import Gridap.ReferenceFEs: num_edges
+import Gridap.ReferenceFEs: num_facets
+import Gridap.ReferenceFEs: get_faces
+import Gridap: num_cells
 
 include("tables/LookupCutTables.jl")
 
@@ -846,12 +853,10 @@ function compact_cache!(cache::MeshCache,mesh::CellMesh)
       end
     end
   end
-  for i in 1:num_cells(mesh)
-    if !isactive(mesh,D,i)
-      remove!(cell_cache.cell_to_lfacet_to_orientation,i)
-    end
+  deleteat!( cell_cache.cell_to_lfacet_to_orientation, get_masks(mesh,D) )
+  for d in 0:D
+    deleteat!( get_masks(mesh,d), get_masks(mesh,d) )
   end
-  compact!(cell_cache.cell_to_lfacet_to_orientation)
   cache
 end
 
@@ -891,7 +896,6 @@ function compact_mesh!(mesh::CellMesh)
     for n in 0:d
       deleteat!( get_faces(mesh,d,n), get_masks(mesh,d) )
     end
-    deleteat!( get_masks(mesh,d), get_masks(mesh,d) )
   end
   d_to_dfaces_to_ioc = mesh.d_to_dface_to_in_out_boundary
   empty!(d_to_dfaces_to_ioc)
@@ -901,6 +905,7 @@ function compact_mesh!(mesh::CellMesh)
     fill!(dfaces_to_ioc,UNSET)
     push!(d_to_dfaces_to_ioc,dfaces_to_ioc)
   end
+  compact_cache!(mesh.cache,mesh)
   mesh
 end
 
@@ -1326,6 +1331,31 @@ function compute_cell_mesh!(mesh::CellMesh,levelsets::Vector{<:SimplexFacet})
   ls_cache = mesh.cache.levelset
   reset!(ls_cache,mesh,levelsets)
   compute_cell_mesh!(mesh)
+end
+
+function get_vertex_to_cell_vertices(cell_mesh::CellMesh{D}) where D
+  vertex_to_cell_vertices = Vector{Vector{Int}}(undef, num_vertices(cell_mesh) )
+  p = Polytope( tfill(HEX_AXIS,Val{D}()) )
+  for d in 0:D-1
+    for dface in 1:num_faces(cell_mesh,d)
+      cell_dface = get_cell_dface(cell_mesh.cache.cell,d,dface)
+      if cell_dface ≠ UNSET
+        cell_vertices = get_faces(p,d,0)[cell_dface]
+        dface_vertices = get_faces(cell_mesh,d,0)[dface]
+        for vertex in dface_vertices
+          if !isassigned(vertex_to_cell_vertices,vertex)
+            vertex_to_cell_vertices[vertex] = cell_vertices
+          end
+        end
+      end
+    end
+  end
+  for vertex in 1:num_vertices(cell_mesh)
+    if !isassigned(vertex_to_cell_vertices,vertex)
+      vertex_to_cell_vertices[vertex] = []
+    end
+  end
+  vertex_to_cell_vertices
 end
 
 end # module

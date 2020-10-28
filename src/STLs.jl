@@ -105,7 +105,7 @@ function _group_vertices(stl::Grid{Dc,D}) where {Dc,D}
   cells = Int[]
   vertices = Int[]
   ranks = ceil.(Tuple(pmax-pmin),digits=num_digits)
-  ranks = Int.(exp10(num_digits).*ranks).+1
+  ranks = Int.(round.(exp10(num_digits).*ranks)).+1
   lids = LinearIndices( ranks )
   m = CartesianIndices( tfill(2,Val{D}()) )
   for (iv,v) in enumerate(get_node_coordinates(stl))
