@@ -38,7 +38,14 @@ end
 # structs. Probably, we mark the tets in which this happen as _flat_.
 # In any case, better not to eliminate these cells, even though they
 # won't be used for integration purposes, they can be needed in the
-# in / out algorithm
+# in / out algorithm. The in/out simply requires to mark vertices as
+# in /out. I would only use flat cells for this if there is no other
+# choice. It is hard to believe it will ever be needed. A node that
+# only belongs to flat cells? I think it is provably it cannot happen.
+# Since we are just cutting by faces (no vertex or edge insertion)
+# I think we just need to compute vertex-to-vertex distance. We
+# cannot create cells such that all vertices are far away but
+# on the same plane.
 function merge_vertices(R::Mesh)
   # TBI
   return R
