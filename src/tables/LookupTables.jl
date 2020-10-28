@@ -15,6 +15,11 @@ function get_vertex_to_cell_vertices_from_case(dim::Integer,case::Integer)
   d_to_table_id_to_vertices[dim-1][table_id]
 end
 
+function get_cell_to_inout_from_case(dim::Integer,case::Integer)
+  table_id = d_to_case_to_table_id[dim-1][case]
+  d_to_table_id_to_cell_to_inout[dim-1][table_id]
+end
+
 const d2_to_case_to_table_id =
 [1, 2, 3, 4, 5, 6, 0, 7, 8, 0, 9, 10, 11, 12, 13, 14]
 

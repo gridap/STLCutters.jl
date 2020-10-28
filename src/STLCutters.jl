@@ -59,6 +59,7 @@ include("FaceInsertion.jl")
 include("FaceDistribution.jl")
 include("GridRefinement.jl")
 include("SurfaceRefinement.jl")
+include("HexahedraIntersection.jl")
 
 include("Embedded.jl")
 

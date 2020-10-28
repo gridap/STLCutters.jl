@@ -34,12 +34,25 @@ struct GridCell{Df,Dp,G}<:Face{Df,Dp}
     new{Df,Dp,typeof(grid)}(cell,grid)
   end
 end
+
+struct Plane{D,T}
+  origin::Point{D,T}
+  normal::VectorValue{D,T}
+end
   
 Segment(a::Point...) = Segment(a)
 
 Triangle(a::Point...) = Triangle(a)
 
 Tetrahedron(a::Point...) = Tetrahedron(a)
+
+function Plane(a::Face{Df,Dp}) where {Df,Dp}
+  o = center(a)
+  n = normal(a)
+  Plane(o,n)
+end
+
+origin(a::Plane) = a.origin
 
 function Base.getindex(::Face)
   @abstractmethod
@@ -263,9 +276,13 @@ end
 
 center(a::Point) = a
 
+center(a::Plane) = orgin(a)
+
 function normal(::Face)
   @notimplemented
 end
+
+normal(a::Plane) = a.normal
 
 function normal(a::Face{1,2})
   v = a[2] - a[1]
@@ -415,6 +432,12 @@ end
 function simplex_sign(p::Polytope,i::Integer)
   c = Cell(get_face_vertices(p,num_dims(p))[1],get_vertex_coordinates(p),p)
   sign( simplex_signed_volume( simplex(c,i) ) ) 
+end
+
+function signed_distance(p::Point,Π::Plane)
+  o = origin( Π )
+  n = normal( Π )
+  (p-o) ⋅ n 
 end
 
 distance(a::Point,b::Point) =  norm( a - b )
