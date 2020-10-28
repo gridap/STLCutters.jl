@@ -47,3 +47,10 @@ end
 # In-out for cells with non-empty Π is immediate from the face plane ownership
 # We could create a try - catch + some validity test and increase tolerance
 # Validity tests can be based on contradictory in-out
+
+# We could create a cell type that has a cell + metadata (face owner)
+struct CellFromIntersection{P} <: P where P <: Polytope
+  p::P
+  facet_owners::Vector{Int}
+  is_flat::Bool
+end
