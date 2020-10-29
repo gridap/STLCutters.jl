@@ -59,6 +59,8 @@
 # probably not that problematic. In any case, this part has to be elaborated if
 # needed.
 
+# Track
+
 # Pseudo-code to perform tetrahedral intersections
 # The following code should be called for each cell obtained after
 # simplexify the kd-tree cells that have intersection with planes
@@ -66,9 +68,7 @@
 # planes that cut that cell and possibly more
 function intersection(t::Tetrahedron,Π::Vector{Plane},tol)
   π = first(Π)
-  f = intersection(π,t,tol) # Returns a face
-  π = plane(f) # it can change the plane
-  T = intersection(t,π,tol)
+  T = cut(t,π,tol)
   if length(Π) == 1
     R = T
   else
@@ -88,8 +88,10 @@ function intersection(π::Plane,t::Tetrahedron,tol)
   # return R
 end
 
+# Not intersection, better cut
+
 # Tet plane intersection with tol using marching tetrahedra
-function intersection(t::Tetrahedron,π::Plane,tol)
+function cut(t::Tetrahedron,π::Plane,tol)
   R = marching_tetrahedra(t,π,tol)
   merge_vertices!(R)
   return R
@@ -131,3 +133,64 @@ struct CellFromIntersection{P} <: P where P <: Polytope
   facet_owners::Vector{Int}
   is_flat::Bool
 end
+
+# As I said above, we want to keep track to the STL that owns the tet
+# faces been created. As a result, when we intersect a plane with a tet
+# there will be new facets that belong to the inserted face. On the other
+# hand, if an existing cell is being cut, we must do the following. We have
+# to check whether the new sub-cells are still on the STL face or are out of
+# the geometry. That is obvious using the signed distance.
+
+
+# the bang (!) comes from the fact that f can be modified within this subroutine
+function marching_tetrahedra!(t:Tetrahedron,f::Face,tol)
+  π = plane(f)
+  f = intersect(π,f)     # trimmed face (overwrite the face)
+  f, m = merge_vertices!(f,t)
+  # merge ft vertices with t vertices
+  # based on this aggregation, we can also return
+  # whether this face is still cutting f or not
+  # e.g., if m is -1 it still cuts, if m > 0, it returns the
+  # face (vertex, ..., facet) containing it (integer computation)
+
+  if m == -1 # not cutting
+    πn = plane(f)
+    T = cut(t,πn)
+    for fT in get_faces(T)
+      if belongs_to_face(fT,f)
+        # mark ft as owned by f
+      else if belongs_to_boundary(fT,t)
+        # keep owner (if any)
+      end
+    end
+    # new faces of T without t vertices are boundary facets (possibly only
+    # part of them on the boundary) and we mark them
+    # as boundary. For the facets on the boundary of t that were marked as
+    # boundary, we keep the owner face in the STL
+  else
+    T = mesh(t)
+    in_out_vertices!(T,t,πn)
+    # if m is a facet of t and not marked yet, mark it as belonging to f
+  end
+  return T
+end
+
+# T0 is a global mesh, T1 is a local mesh
+function in_out_sub_cells(T1::Grid,T0::Grid)
+  is_def = false
+  for s in T
+    for f in get_facets(s)
+      is_def = true
+      mark_in_out!(s,f)
+      # simply use signed distance of an s vertex not on f wrt s
+    end
+  end
+  if is_def
+    in_out_vertices(T1,T0) # obvious, all in -> in, all out -> out, in out -> boundary
+    # only for the vertices of the root mesh T0, not the local sub-mesh T1
+  end
+  # by construction, all cells in the Grid are marked or
+  # T is one tet that is not cut, in / out
+end
+
+# The T0 info can be later propagated on undef cells of T0
