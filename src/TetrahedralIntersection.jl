@@ -65,7 +65,10 @@
 # We assume that we already have a set of planes that contain all the
 # planes that cut that cell and possibly more
 function intersection(t::Tetrahedron,Π::Vector{Plane},tol)
-  T = intersection(t,first(Π),tol)
+  π = first(Π)
+  f = intersection(π,t,tol) # Returns a face
+  π = plane(f) # it can change the plane
+  T = intersection(t,π,tol)
   if length(Π) == 1
     R = T
   else
@@ -77,6 +80,12 @@ function intersection(t::Tetrahedron,Π::Vector{Plane},tol)
     end
   end
   return R
+end
+
+# Plane tet intersection with tol
+function intersection(π::Plane,t::Tetrahedron,tol)
+  # TBI
+  # return R
 end
 
 # Tet plane intersection with tol using marching tetrahedra
