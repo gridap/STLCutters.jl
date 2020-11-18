@@ -23,6 +23,7 @@ import Gridap.ReferenceFEs: num_vertices
 import Gridap.ReferenceFEs: num_edges 
 import Gridap.ReferenceFEs: num_facets 
 import Gridap.ReferenceFEs: num_dims 
+import Gridap.ReferenceFEs: simplexify 
 
 import GridapEmbedded.Interfaces: cut
 import GridapEmbedded.CSG: get_tree
@@ -54,12 +55,15 @@ include("CellMeshes.jl")
 
 include("Intersections.jl")
 include("STLs.jl")
+include("Polyhedron.jl")
+
+
 include("CellRefinement.jl")
 include("FaceInsertion.jl")
 include("FaceDistribution.jl")
 include("GridRefinement.jl")
 include("SurfaceRefinement.jl")
-include("HexahedraIntersection.jl")
+#include("HexahedraIntersection.jl")
 
 include("Embedded.jl")
 

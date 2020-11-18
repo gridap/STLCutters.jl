@@ -8,3 +8,4 @@
 /docs/site/
 *.swp
 *.vtu
+.vscode
