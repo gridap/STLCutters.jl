@@ -17,29 +17,29 @@ function compute_face_to_cells(grid::CartesianGrid,stl::DiscreteModel)
   stl_face_to_cells, cell_to_stl_faces
 end
 
-function get_cells_around(desc::CartesianDescriptor{D},pmin::Point,pmax::Point) where D
-  cmin,_ = get_cell_bounds(desc,pmin)
-  _,cmax = get_cell_bounds(desc,pmax)
-  cmin = CartesianIndices(desc.partition)[cmin]
-  cmax = CartesianIndices(desc.partition)[cmax]
-  ranges = ntuple( i -> cmin.I[i]:cmax.I[i], Val{D}() )
-  CartesianIndices( ranges )
-end
-
-function get_cell_bounds(desc::CartesianDescriptor,p::Point)
-  function _get_cell(cell)
-    cell = Int.(cell)
-    cell = max.(cell,1)
-    cell = min.(cell,desc.partition)
-    LinearIndices(desc.partition)[cell...]
-  end
-  tol = 0.1
-  coords = Tuple(p-desc.origin)./desc.sizes
-  cell = floor.(coords).+1
-  cell_min = cell .- ( (coords.-(floor.(coords))) .< tol )
-  cell_max = cell .+ ( (coords.-(floor.(coords))) .> (1-tol) )
-  _get_cell(cell_min),_get_cell(cell_max)
-end
+#function get_cells_around(desc::CartesianDescriptor{D},pmin::Point,pmax::Point) where D
+#  cmin,_ = get_cell_bounds(desc,pmin)
+#  _,cmax = get_cell_bounds(desc,pmax)
+#  cmin = CartesianIndices(desc.partition)[cmin]
+#  cmax = CartesianIndices(desc.partition)[cmax]
+#  ranges = ntuple( i -> cmin.I[i]:cmax.I[i], Val{D}() )
+#  CartesianIndices( ranges )
+#end
+#
+#function get_cell_bounds(desc::CartesianDescriptor,p::Point)
+#  function _get_cell(cell)
+#    cell = Int.(cell)
+#    cell = max.(cell,1)
+#    cell = min.(cell,desc.partition)
+#    LinearIndices(desc.partition)[cell...]
+#  end
+#  tol = 0.1
+#  coords = Tuple(p-desc.origin)./desc.sizes
+#  cell = floor.(coords).+1
+#  cell_min = cell .- ( (coords.-(floor.(coords))) .< tol )
+#  cell_max = cell .+ ( (coords.-(floor.(coords))) .> (1-tol) )
+#  _get_cell(cell_min),_get_cell(cell_max)
+#end
 
 ## Quadratic cost version
 function compute_face_to_cells(grid::Grid,stl::DiscreteModel)

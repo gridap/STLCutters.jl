@@ -963,6 +963,78 @@ function are_overlapped(f::Face,p::Point;atol)
   contains_projection(f,p)
 end
 
+function fast_intersection(p::Point,pmin::Point,pmax::Point)
+  all( Tuple(p) .> Tuple(pmin) ) || return false
+  all( Tuple(p) .< Tuple(pmax) ) || return false
+  true
+end
+
+function fast_intersection(e::Face{1,D},pmin::Point{D},pmax::Point{D}) where D
+  t_min,t_max = 0.0,1.0
+  for d in 1:D
+    p_d = e[1][d]
+    v_d = e[2][d] - e[1][d]
+    if v_d < 0
+      v_d = -v_d
+      p_d = - p_d + pmin[d] + pmax[d]
+    end
+    if v_d != 0
+      t = ( pmin[d] - p_d ) / v_d
+      if t > t_min
+        t_min = t
+      end
+      t = ( pmax[d] - p_d ) / v_d
+      if t < t_max
+        t_max = t
+      end
+    else
+      if p_d < pmin[d]
+        return false
+      end
+      if p_d > pmax[d]
+        return false
+      end
+    end
+  end
+  t_min < t_max
+end
+
+function fast_intersection(Π::Plane{D},pmin::Point{D},pmax::Point{D}) where D
+  n = normal(Π)
+  p = origin(Π)
+  f = d -> pmin[d] + pmax[d] - p[d]
+  _p = Point(ntuple( d -> n[d] < 0 ? f(d) : p[d], Val{D}() ))
+  _n = VectorValue(abs.(Tuple(n)))
+  _Π = Plane(_p,_n)
+  signed_distance(pmin,_Π) < 0 || return false
+  signed_distance(pmax,_Π) > 0 || return false
+  true
+end
+
+
+function fast_intersection(f::Face{2,3},pmin::Point{3},pmax::Point{3})
+  D = 3
+  n = normal(f)
+  c = center(f)
+  plane = Plane(c,n)
+  fast_intersection(plane,pmin,pmax) || return false
+  for i in 1:num_vertices(f)
+    v = f[i]
+    fast_intersection(v,pmin,pmax) && return true
+  end
+  for i in 1:num_edges(f)
+    e = get_edge(f,i)
+    fast_intersection(e,pmin,pmax) && return true
+  end
+
+  fd = (p,d) -> pmin[d] + pmax[d] - p[d]
+  fp = p -> Point(ntuple( d -> n[d] < 0 ? fd(p,d) : p[d], Val{D}() ))
+  vertices = ntuple(i-> fp(f[i]),3)
+  t = Triangle(vertices)
+  contains_projection(t,pmin) && return true
+  contains_projection(t,pmax) && return true
+  false
+end
 
 ## Generated funcs
 

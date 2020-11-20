@@ -23,6 +23,14 @@ end
 
 ## Constructors
 
+function Polyhedron(stl::DiscreteModel{Dc,Dp}) where {Dc,Dp}
+  𝓖 = compute_graph(stl)
+  X = get_node_coordinates(stl)
+  p = Polyhedron(X,𝓖,isopen=true)
+  set_faces!(p,stl,Dc-1)
+  p
+end
+
 function Polyhedron(stl::DiscreteModel{Dc,Dp},cell_facets) where {Dc,Dp}
   𝓖,v_to_n = compute_graph( stl, cell_facets )
   X = get_node_coordinates(stl)[v_to_n]
@@ -184,15 +192,11 @@ function merge(p::Polytope,cell::Polyhedron,poly::Polyhedron)
         sort!(e_to_v[e], by = i -> poly[i][d] ) 
       end
     end
-    if is_edge_oriented(p,cell,cut_edge,poly,first(e_to_v[cut_edge]))
-      vstart = get_face_vertices(p,1)[cut_edge][1]
-    else
-      vstart = get_face_vertices(p,1)[cut_edge][2]
-    end
-    isinside = zeros(Bool,num_vertices(cell)) # These can be stored on Int
-    istouch = zeros(Bool,num_vertices(cell))
+    isinside = falses(num_vertices(cell)) # These can be stored on Int
+    istouch = falses(num_vertices(cell))
+    vstart = get_face_vertices(p,1)[cut_edge][1]
+    isinside[vstart] = is_edge_oriented(p,cell,cut_edge,poly,first(e_to_v[cut_edge]))
     istouch[vstart] = true
-    isinside[vstart] = true
     stack = Int[]
     push!(stack,vstart)
     while length(stack) > 0
@@ -211,7 +215,7 @@ function merge(p::Polytope,cell::Polyhedron,poly::Polyhedron)
       if length(e_to_v[e]) > 0
         edge = get_face_vertices(p,1)[e]
         istarts = (0,1)
-        istarts = isinside[edge[1]] ? istats : reverse(istarts)
+        istarts = isinside[edge[1]] ? istarts : reverse(istarts)
         graphs = (graph_in,graph_out)
         for (istart,graph) in zip(istarts,graphs)
           for i in istart:2:length(e_to_v[e])
@@ -222,6 +226,10 @@ function merge(p::Polytope,cell::Polyhedron,poly::Polyhedron)
             link!(graph,v1,v1_neig,v2,v2_neig)
           end
         end
+        data_in.vertex_to_isopen[first(e_to_v[e])+num_vertices(p)] = false
+        data_in.vertex_to_isopen[last(e_to_v[e])+num_vertices(p)] = false
+        data_out.vertex_to_isopen[first(e_to_v[e])+num_vertices(p)] = false
+        data_out.vertex_to_isopen[last(e_to_v[e])+num_vertices(p)] = false
       end
     end
   else
@@ -238,10 +246,10 @@ function merge(p::Polytope,cell::Polyhedron,poly::Polyhedron)
       empty!(graph_out[v])
     end
   end
-  delete_open_vertices!(graph_in,p)
-  delete_open_vertices!(graph_out,p)
-  update_open_data!(graph_in,data_in)
-  update_open_data!(graph_out,data_out)
+  delete_open_vertices!(graph_in,data_in)
+  delete_open_vertices!(graph_out,data_out)
+  #update_open_data!(graph_in,data_in)
+  #update_open_data!(graph_out,data_out)
   Polyhedron(vertices,graph_in,data_in), Polyhedron(vertices,graph_out,data_out)
 end
 
@@ -279,12 +287,28 @@ function decompose(poly::Polyhedron,stl_edges,Πr,e_to_isconvex;isinside)
 end
 
 function simplexify(poly::Polyhedron{3})
+  vstart = fill(UNSET,num_vertices(poly))
+  stack = Int[]
+  for v in 1:num_vertices(poly)
+    isactive(poly,v) || continue
+    vstart[v] == UNSET || continue
+    vstart[v] = v
+    empty!(stack)
+    push!(stack,v)
+    while !isempty(stack)
+      vcurrent = pop!(stack)
+      for vneig in get_graph(poly)[vcurrent]
+        if vstart[vneig] == UNSET
+          vstart[vneig] = v
+          push!(stack,vneig)
+        end
+      end
+    end
+  end
   istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
-  vstart = UNSET
   T = Vector{Int}[]
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
-    vstart = vstart == UNSET ? v : vstart
     for i in 1:length(get_graph(poly)[v])
       !istouch[v][i] || continue
       istouch[v][i] = true
@@ -296,8 +320,8 @@ function simplexify(poly::Polyhedron{3})
         istouch[vnext][inext] = true
         vcurrent = vnext
         vnext = get_graph(poly)[vnext][inext]
-        if v ∉ (vstart,vcurrent,vnext)
-          k = [vstart,v,vcurrent,vnext]
+        if v ∉ (vstart[v],vcurrent,vnext)
+          k = [vstart[v],v,vcurrent,vnext]
           push!(T,k)
         end
       end
@@ -443,6 +467,56 @@ function edge_mesh(p::Polyhedron)
   UnstructuredGrid(X,T,[SEG2],fill(1,length(T)))
 end
 
+## Setup
+
+
+function compute_cell_to_facets(grid::CartesianGrid,stl::DiscreteModel)
+  desc = get_cartesian_descriptor(grid)
+  @notimplementedif desc.map !== identity
+  cell_to_stl_facets = [ Int[] for _ in 1:num_cells(grid) ]
+  δ = 0.1
+  for stl_facet in 1:num_cells(stl)
+    f = get_cell(stl,stl_facet)
+    pmin,pmax = get_bounding_box(f)
+    for cid in get_cells_around(desc,pmin,pmax)
+      cell = LinearIndices(desc.partition)[cid.I...]
+      _pmin = get_cell_coordinates(grid)[cell][1]
+      _pmax = get_cell_coordinates(grid)[cell][end]
+      Δ = (_pmax - _pmin) * δ
+      _pmin = _pmin - Δ
+      _pmax = _pmax + Δ
+      if fast_intersection(f,_pmin,_pmax)
+        push!(cell_to_stl_facets[cell],stl_facet)
+      end
+    end
+  end
+  cell_to_stl_facets
+end
+
+function get_cells_around(desc::CartesianDescriptor{D},pmin::Point,pmax::Point) where D
+  cmin,_ = get_cell_bounds(desc,pmin)
+  _,cmax = get_cell_bounds(desc,pmax)
+  cmin = CartesianIndices(desc.partition)[cmin]
+  cmax = CartesianIndices(desc.partition)[cmax]
+  ranges = ntuple( i -> cmin.I[i]:cmax.I[i], Val{D}() )
+  CartesianIndices( ranges )
+end
+
+function get_cell_bounds(desc::CartesianDescriptor,p::Point)
+  function _get_cell(cell)
+    cell = Int.(cell)
+    cell = max.(cell,1)
+    cell = min.(cell,desc.partition)
+    LinearIndices(desc.partition)[cell...]
+  end
+  tol = 0.1
+  coords = Tuple(p-desc.origin)./desc.sizes
+  cell = floor.(coords).+1
+  cell_min = cell .- ( (coords.-(floor.(coords))) .< tol )
+  cell_max = cell .+ ( (coords.-(floor.(coords))) .> (1-tol) )
+  _get_cell(cell_min),_get_cell(cell_max)
+end
+
 ## Helpers
 
 function polyhedron_data(num_vertices::Integer;isopen=false)
@@ -531,6 +605,61 @@ function add_vertex!(data::PolyhedronData,v1::Integer,v2::Integer,Πid::Integer)
   data
 end
 
+function compute_graph(stl::DiscreteModel{2})
+#  @notimplementedif !is_surface(stl)
+  @notimplementedif length(get_reffes(stl)) > 1
+  @notimplementedif get_polytope(first(get_reffes(stl))) ≠ TRI
+  D = 2
+  topo = get_grid_topology(stl)
+  v_to_e = get_faces(topo,0,1)
+  v_to_f = get_faces(topo,0,D)
+  f_to_v = get_faces(topo,D,0)
+  graph = [ Int[] for _ in 1:num_vertices(stl) ]
+  for v in 1:num_vertices(topo)
+    f0 = first(v_to_f[v])
+    fnext = f0
+    while true
+      i = findfirst(isequal(v),f_to_v[fnext])
+      inext = i == D+1 ? 1 : i+1
+      vnext = f_to_v[fnext][inext]
+      push!(graph[v],vnext)
+      _f = UNSET
+      for f in v_to_f[vnext]
+        if f ≠ fnext && v ∈ f_to_v[f]
+          _f = f
+          break
+        end
+      end
+      fnext = _f
+      fnext ≠ UNSET || break
+      fnext ≠ f0 || break
+    end
+    if fnext == UNSET
+      if length(graph[v]) < length(v_to_e[v])
+        v0 = first(graph[v])
+        fnext = f0
+        while fnext ≠ UNSET
+          i = findfirst(isequal(v),f_to_v[fnext])
+          inext = i == 1 ? D+1 : i-1
+          vnext = f_to_v[fnext][inext]
+          pushfirst!(graph[v],vnext)
+          _f = UNSET
+          for f in v_to_f[vnext]
+            if f ≠ fnext && v ∈ f_to_v[f]
+              _f = f
+              break
+            end
+          end
+          fnext = _f
+        end
+        @assert length(graph[v]) == length(v_to_e[v])
+      end
+      push!(graph[v],OPEN)
+    end
+  end
+  graph
+end
+
 function compute_graph(stl::DiscreteModel,face_list)
   nodes = Int[]
   for face in face_list
@@ -561,7 +690,7 @@ function compute_graph(stl::DiscreteModel,face_list)
   orient_graph!(graph)
   set_open_nodes!(graph)
   graph, nodes
-end  
+end
 
 function orient_graph!(graph)
   for v in 1:length(graph)
@@ -647,9 +776,46 @@ function set_faces!(data::PolyhedronData,stl::DiscreteModel,nodes,d::Integer)
   data
 end
 
+function set_faces!(data::PolyhedronData,stl::DiscreteModel,d::Integer)
+  topo = get_grid_topology(stl)
+  v_to_f = data.vertex_to_original_faces
+  for v in 1:length(v_to_f)
+    v_to_f[v] = get_faces(topo,0,d)[v]
+  end
+  data
+end
+
 function set_faces!(p::Polyhedron,a...)
   set_faces!(get_data(p),a...)
   p
+end
+
+function restrict(poly::Polyhedron,stl::DiscreteModel,stl_facets)
+  nodes = Int[]
+  for f in stl_facets
+    for n in get_cell_nodes(stl)[f]
+      if n ∉ nodes
+        push!(nodes,n)
+      end
+    end
+  end
+  restrict(poly,nodes)
+end
+
+function restrict(p::Polyhedron,nodes)
+  graph = get_graph(p)[nodes]
+  f = i -> i ∈ nodes ? findfirst(isequal(i),nodes) : OPEN
+  graph = map(i->map(f,i),graph)
+  data = restrict(get_data(p),nodes)
+  vertices = get_vertex_coordinates(p)[nodes]
+  Polyhedron(vertices,graph,data)
+end
+
+function restrict(data::PolyhedronData,nodes)
+  v_to_Π = data.vertex_to_planes[nodes]
+  v_to_of = data.vertex_to_original_faces[nodes]
+  v_to_o = data.vertex_to_isopen[nodes]
+  PolyhedronData(v_to_Π,v_to_of,v_to_o)
 end
 
 function next_vertex(p::Polyhedron,vprevious::Integer,vcurrent::Integer)
@@ -785,14 +951,14 @@ end
 function get_cell_planes(p::Polytope,pmin::Point,pmax::Point)
   @notimplementedif !is_n_cube(p)
   D = num_dims(p)
-  [ CartesianPlane(pmin+iseven(i)*pmax,D-((i-1)÷2),(-1)^i) for i in 1:2*D ]
+  [ CartesianPlane(isodd(i)*pmin+iseven(i)*pmax,D-((i-1)÷2),(-1)^i) for i in 1:2*D ]
 end
 
 function delete_open_vertices!(graph,p::Polytope)
   delete_open_vertices!(graph,1:num_vertices(p))
 end
 
-function delete_open_vertices!(graph,vrange)
+function delete_open_vertices!(graph,vrange::AbstractVector)
   stack = Int[]
   istouch = zeros(Bool,length(graph))
   for v in vrange
@@ -824,6 +990,45 @@ function delete_open_vertices!(graph,vrange)
         deleteat!(graph[v],i)
       end
     end
+  end
+  graph
+end
+
+function delete_open_vertices!(graph,data::PolyhedronData)
+  stack = Int[]
+  v_to_isopen = data.vertex_to_isopen
+  openpoly = true
+  for v in 1:length(graph)
+    if !v_to_isopen[v] && !isempty(graph[v])
+      openpoly = false 
+      empty!(stack)
+      push!(stack,v)
+      while !isempty(stack)
+        vcurrent = pop!(stack)
+        for vneig in graph[vcurrent]
+          if vneig ≠ OPEN && v_to_isopen[vneig]
+            v_to_isopen[vneig] = false
+            push!(stack,vneig)
+          end
+        end
+      end
+    end
+  end
+  if !openpoly
+    for v in 1:length(graph)
+      if !v_to_isopen[v] && OPEN ∈ graph[v]
+        i = findfirst(isequal(OPEN),graph[v])
+        deleteat!(graph[v],i)
+      end
+    end
+  else
+    for v in 1:length(graph)
+      if OPEN ∈ graph[v]
+        i = findfirst(isequal(OPEN),graph[v])
+        deleteat!(graph[v],i)
+      end
+    end
+    fill!(v_to_isopen,false)
   end
   graph
 end
