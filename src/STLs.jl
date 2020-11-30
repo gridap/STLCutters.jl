@@ -156,9 +156,21 @@ end
 
 is_water_tight(model::DiscreteModel) = is_water_tight(get_grid_topology(model))
 
+is_open_surface(model::DiscreteModel) = is_open_surface(get_grid_topology(model))
+
 function is_water_tight(top::GridTopology{Dc}) where Dc
   l = length.( get_faces(top,Dc-1,Dc) )
   maximum(l) == minimum(l) == 2
+end
+
+function is_surface(::GridTopology{Dc,Dp}) where {Dc,Dp}
+  Dc == Dp-1
+end
+
+function is_open_surface(top::GridTopology{Dc}) where Dc
+  is_surface(top) || return false
+  l = length.( get_faces(top,Dc-1,Dc) )
+  (1 ≤ maximum(l) ≤ 2) && (1 ≤ minimum(l) ≤ 2)
 end
 
 function have_intersection(
