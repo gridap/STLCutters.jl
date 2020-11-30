@@ -41,27 +41,146 @@ facet_to_vertices =
  [3,5,6],
  [6,7,2] ]
 
+using STLCutters: get_facet_planes
+using STLCutters: get_reflect_faces
+using STLCutters: compute_distances! 
+using STLCutters: flip
+using STLCutters: get_original_facets
+
+
+
 using STLCutters: get_cell, normal
 stl = compute_stl_model( Table(facet_to_vertices), vertices )
-N = [ normal(get_cell(stl,i)) for i in 1:num_cells(stl) ]
-Π_r = get_reflex_planes(stl)
-e_to_isconvex = get_convex_faces(stl)
+Dc = num_dims(stl)
+stl_topo = get_grid_topology(stl)
 
-writevtk(stl.grid,"_stl",cellfields=["N"=>N])
-cell_facets = 1:num_cells(stl)
-pmin,pmax = Point(0,0,0),Point(1,1,1)
+
+N = [ normal(get_cell(stl,i)) for i in 1:num_cells(stl) ]
+Πr = get_reflex_planes(stl,bisector=true)
+Πf = get_facet_planes(stl)
+
+rf_to_isconvex = get_convex_faces(stl)
+stl_k_facets = 1:num_cells(stl)
+
+K = Polyhedron(HEX)
 
 Γ0 = Polyhedron(stl)
-Γ0 = restrict(Γ0,stl,cell_facets)
+Γk0 = restrict(Γ0,stl,stl_k_facets)
 
-Πc = get_cell_planes(HEX,Point(0,0,0),Point(1,1,1))
-cell = Polyhedron(HEX)
+Πk = get_cell_planes(HEX,Point(0,0,0),Point(1,1,1))
+Πk_faces = -(1:length(Πk))
 
-Γ = clip(Γ0,Πc)
+@show stl_rfaces = get_reflect_faces(Γk0,stl)
+Πrk = view(Πr,stl_rfaces.-get_offset(stl_topo,Dc-1))
+Πfk = view(Πf,stl_k_facets)
+Πrk_faces = stl_rfaces 
+Πfk_faces = stl_k_facets .+ get_offset(stl_topo,Dc)
+
+compute_distances!(Γk0,Πk,Πk_faces)
+compute_distances!(Γk0,Πrk,Πrk_faces)
+compute_distances!(Γk0,Πfk,Πfk_faces)
+
+compute_distances!(K,Πrk,Πrk_faces)
+compute_distances!(K,Πfk,Πfk_faces)
+
+writevtk(edge_mesh(Γk0),"Gk0")
+
+Γk = clip(Γk0,Πk_faces)
+
+writevtk(edge_mesh(Γk),"Gk")
+
+Γk_out = flip(Γk)
+
+## introduce a view of rfaces, thus no need to introduce isinside
+offset = get_offset(stl_topo,Dc-1)
+rfaces = filter(i->!rf_to_isconvex[i-offset],Πrk_faces)
+
+Γks,Ks = decompose(Γk,K,rfaces)
+
+for (i,(Γki,Ki)) in enumerate(zip(Γks,Ks))
+  facets = get_original_facets(Γki,stl)
+  Kin = clip(Ki,facets)
+  push!(Ks_in,Kin)
+end
+
+for (i,(Γki,Ki,Ki_in)) in enumerate(zip(Γks,Ks,Ks_in))
+  writevtk(edge_mesh(Γki),"Gk_$i")
+  writevtk(edge_mesh(Ki),"K_$i")
+  writevtk(edge_mesh(Ki_in),"Kin_$i")
+end
+
+
+@unreachable 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#writevtk(stl.grid,"_stl",cellfields=["N"=>N])
+#cell_facets = 1:num_cells(stl)
+#pmin,pmax = Point(0,0,0),Point(1,1,1)
+#
+#Γ0 = restrict(Γ0,stl,cell_facets)
+#
+#Πc = get_cell_planes(HEX,Point(0,0,0),Point(1,1,1))
+#cell = Polyhedron(HEX)
+#
+#Γ = clip(Γ0,Πc)
+
+## Begin of change
+
+using STLCutters: compute_distances, add_vertex!, precompute_planes,split,_decompose
+using STLCutters: get_stl_edges, flip, _connect
+
+#Πp = precompute_planes(Γ,Π_r)
+#
+#a,b = split(Γ,Πp[1],-1)
+#c,d = split(a,Πp[2],-2)
+#
+#writevtk(edge_mesh(a),"a")
+#writevtk(edge_mesh(b),"b")
+#writevtk(edge_mesh(c),"c")
+#writevtk(edge_mesh(d),"d")
+
+#Γ0 = restrict(Γ0,stl,cell_facets)
+#stl_e = get_stl_edges(Γ0)
+#Π = view(Π_r,stl_e)
+#Πpγ = precompute_planes(Γ0,Π,stl_e)
+#Πpk = precompute_planes(cell,Π,stl_e)
+#
+#Γ = clip(Γ0,Πc,Πpγ)
+#
+#P = cat(cell,Γ)
+#Πp = cat(Πpk,Πpγ)
+#
+#@show typeof(P)
+#polys = _decompose(P,stl_e,Πp,e_to_isconvex,isinside=true)
+#@show length(polys)
+#
+#writevtk(edge_mesh(cell),"k")
+#for (i,poly) in enumerate(polys)
+#  _connect(poly)
+#  writevtk(edge_mesh(poly),"poly_$i")
+#end
+#
+### End of change
 
 writevtk(edge_mesh(Γ0),"Gamma_0")
 writevtk(edge_mesh(Γ),"Gamma")
 
+@unreachable
 p⁻,p⁺ = merge(HEX,cell,Γ)
 
 in_polys = decompose(p⁻,Π_r,e_to_isconvex,isinside=true)
@@ -205,7 +324,7 @@ grid = CartesianGrid(pmin,pmax,partition)
 
 writevtk(grid,"bg_grid")
 
-Π_r = get_reflex_planes(stl)
+Π_r = get_reflex_planes(stl,bisector=true)
 e_to_isconvex = get_convex_faces(stl)
 
 c_to_stlf = compute_cell_to_facets(grid,stl)
@@ -215,12 +334,14 @@ X = empty(X)
 k_to_io = Int8[]
 cell = 144
 cell = 123
-cell = 645
+cell = 127
+cell = 133
+#cell = 645
 cell_facets = Int[]
 
-for cell in 1:num_cells(grid)
-
-!isempty(c_to_stlf[cell]) || continue
+#for cell in 1:num_cells(grid)
+@show cell
+#!isempty(c_to_stlf[cell]) || continue
 
 pmin = get_cell_coordinates(grid)[cell][1]
 pmax = get_cell_coordinates(grid)[cell][end]
@@ -242,7 +363,7 @@ end
 cell = Polyhedron(p,get_cell_coordinates(grid)[cell])
 
 Γ = clip(Γ0,Πc)
-!isnothing(Γ) || continue
+#!isnothing(Γ) || continue
 
 #writevtk(edge_mesh(Γ0),"Gamma_0")
 #writevtk(edge_mesh(Γ),"Gamma")
@@ -251,8 +372,8 @@ cell = Polyhedron(p,get_cell_coordinates(grid)[cell])
 
 p⁻,p⁺ = merge(p,cell,Γ)
 
-#writevtk(edge_mesh(p⁻),"poly_in")
-#writevtk(edge_mesh(p⁺),"poly_out")
+writevtk(edge_mesh(p⁻),"poly_in")
+writevtk(edge_mesh(p⁺),"poly_out")
 
 
 in_polys = decompose(p⁻,Π_r,e_to_isconvex,isinside=true)
@@ -270,8 +391,8 @@ append!(X,Xout)
 append!(k_to_io,fill(FACE_OUT,length(Tout)))
 
 
-mesh_in = compute_grid(Table(Tin),Xin,TET)
-mesh_out = compute_grid(Table(Tout),Xout,TET)
+#mesh_in = compute_grid(Table(Tin),Xin,TET)
+#mesh_out = compute_grid(Table(Tout),Xout,TET)
 #
 #writevtk(edge_mesh(Γ0),"Gamma_0")
 #writevtk(edge_mesh(Γ),"Gamma")
@@ -287,10 +408,11 @@ mesh_out = compute_grid(Table(Tout),Xout,TET)
 #  writevtk(edge_mesh(poly),"poly_in_$i")
 #end
 #
+#@show length(out_polys)
 #writevtk(mesh_in,"simplices_in")
 #writevtk(mesh_out,"simplices_out")
 
-end
+#end
 
 submesh = compute_grid(Table(T),X,TET)
 writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io])
