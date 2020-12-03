@@ -130,11 +130,11 @@ end
 
 ## Polyhedra operations
 
-function clip(poly::Polyhedron,Π;inside=true)
+function clip(poly::Polyhedron,Π;inside=true,inout=trues(length(Π)))
   p = poly
-  for Πi in Π
+  for (i,Πi) in enumerate(Π)
     p⁻,p⁺ = split(p,Πi)
-    p = inside ? p⁻ : p⁺
+    p = inside == inout[i] ? p⁻ : p⁺
     !isnothing(p) || break
   end
   p
@@ -214,6 +214,9 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces)
     k⁻,k⁺ = split(cell,rf)
     S = [s⁻,s⁺]
     K = [k⁻,k⁺]
+    if any(isnothing,S) || any(isnothing,K)
+      S,K = [surf],[cell]
+    end
     if length(rfaces) == i
       R = S,K
     else
@@ -755,8 +758,8 @@ end
 function get_cell_planes(p::Polytope,pmin::Point,pmax::Point)
   @notimplementedif !is_n_cube(p)
   D = num_dims(p)
-  [ CartesianPlane(isodd(i)*pmin+iseven(i)*pmax,D-((i-1)÷2),(-1)^i) for i in 1:2*D ],
-  -(1:2*D)
+  [ CartesianPlane(isodd(i)*pmin+iseven(i)*pmax,D-((i-1)÷2),1) for i in 1:2*D ],
+  -(1:2*D),iseven.(1:2*D)
 end
 
 function is_convex(stl::DiscreteModel{Dc,Dp},d::Integer,dface::Integer) where {Dc,Dp}
@@ -870,6 +873,55 @@ function get_disconnected_parts(poly::Polyhedron)
   v_to_part,num_parts
 end
 
+function _get_disconnected_parts(poly::Polyhedron)
+  v_to_parts = [ Int[] for _ in 1:num_vertices(poly) ]
+  stack = Tuple{Int,Int}[]
+  num_parts = 0
+  for v in 1:num_vertices(poly)
+    isactive(poly,v) || continue
+    vnext = UNSET
+    for vneig in get_graph(poly)[v]
+      vneig ∉ (UNSET,OPEN) || continue
+      !any( p -> p ∈ v_to_parts[vneig], v_to_parts[v] ) || continue
+      vnext = vneig
+      break
+    end
+    vnext ≠ UNSET || continue
+    num_parts += 1
+    push!(v_to_parts[v],num_parts)
+    push!(v_to_parts[vnext],num_parts)
+    empty!(stack)
+    push!(stack,(v,vnext))
+    while !isempty(stack)
+      vprevious,vcurrent = pop!(stack)
+      i = findfirst(isequal(vprevious),get_graph(poly)[vcurrent])
+      inext = i == length(get_graph(poly)[vcurrent]) ? 1 : i+1
+      while i ≠ inext
+        vnext = get_graph(poly)[vcurrent][inext]
+        vnext ∉ (UNSET,OPEN) || break
+        if num_parts ∉ v_to_parts[vnext]
+          push!(v_to_parts[vnext],num_parts)
+          push!(stack,(vcurrent,vnext))
+        end
+        inext = inext == length(get_graph(poly)[vcurrent]) ? 1 : inext+1
+      end
+      
+      i ≠ inext || continue
+      inext = i == 1 ? length(get_graph(poly)[vcurrent]) : i-1
+      while i ≠ inext
+        vnext = get_graph(poly)[vcurrent][inext]
+        vnext ∉ (UNSET,OPEN) || break
+        if num_parts ∉ v_to_parts[vnext]
+          push!(v_to_parts[vnext],num_parts)
+          push!(stack,(vcurrent,vnext))
+        end
+        inext = inext == 1 ? length(get_graph(poly)[vcurrent]) : inext-1
+      end
+    end
+  end
+  v_to_parts,num_parts
+end
+
 
 function get_disconnected_faces(poly::Polyhedron,stl::DiscreteModel,d::Integer)
   v_to_f = get_data(poly).vertex_to_original_faces
@@ -879,6 +931,24 @@ function get_disconnected_faces(poly::Polyhedron,stl::DiscreteModel,d::Integer)
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
     part = v_to_part[v]
+    for f in v_to_f[v]
+      if facedims[f] == d && f ∉ part_to_faces[part]
+        push!(part_to_faces[part],f)
+      end
+    end
+  end
+  part_to_faces
+end
+
+function _get_disconnected_faces(poly::Polyhedron,stl::DiscreteModel,d::Integer)
+  v_to_f = get_data(poly).vertex_to_original_faces
+  facedims = get_facedims(get_grid_topology(stl))
+  v_to_parts,num_parts = _get_disconnected_parts(poly)
+  part_to_faces = [ Int[] for _ in 1:num_parts ]
+  for v in 1:num_vertices(poly)
+    isactive(poly,v) || continue
+    length(v_to_parts[v]) == 1 || continue
+    part = first(v_to_parts[v])
     for f in v_to_f[v]
       if facedims[f] == d && f ∉ part_to_faces[part]
         push!(part_to_faces[part],f)
@@ -969,30 +1039,16 @@ function refine(
   ;inside::Bool)
 
   Dc = num_dims(stl)
-  part_to_facets = get_disconnected_faces(Γ,stl,Dc)
-  if !inside
-    Γ = flip(Γ)
-  end
   o = get_offset(get_grid_topology(stl),Dc-1)
   reflex_faces = filter(f->reflex_face_to_isconvex[f-o]≠inside,reflex_faces)
   Γn,Kn = decompose(Γ,K,reflex_faces)
   Kn_clip = empty(Kn)
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
-    part_to_facets = get_disconnected_faces(Γi,stl,Dc)
+    part_to_facets = _get_disconnected_faces(Γi,stl,Dc)
     facets = get_original_facets(Γi,stl)
     group_to_facets = group_facing_facets(Γi,facets,part_to_facets;inside)
     for facets in group_to_facets
       Ki_clip = clip(Ki,facets;inside)
-      #if isnothing(Ki_clip)
-      #  @show group_to_facets
-      #  @show facets
-      #  @show facets.-get_offset(get_grid_topology(stl),Dc)
-      #  @show Γi.data.vertex_to_original_faces
-      #  @show Γi.edge_vertex_graph
-      #  writevtk(edge_mesh(Γi),"Gi")
-      #  writevtk(edge_mesh(Ki),"Ki")
-      #  @unreachable
-      #end
       !isnothing(Ki_clip) || continue
       push!(Kn_clip,Ki_clip)
     end

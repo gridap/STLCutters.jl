@@ -5,6 +5,7 @@ using Test
 using Gridap
 using Gridap.ReferenceFEs
 using Gridap.Geometry
+using Gridap.Arrays
 using STLCutters
 
 using STLCutters: Polyhedron 
@@ -31,6 +32,8 @@ using STLCutters: get_disconnected_faces
 using STLCutters: group_facing_facets 
 using STLCutters: filter_face_planes 
 using STLCutters: refine 
+using STLCutters: FACE_CUT 
+using STLCutters: get_cell 
 
 vertices = [
   Point(0.1,-0.2,0.5),
@@ -68,13 +71,13 @@ K = Polyhedron(HEX)
 stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
 stl_facets_k = stl_facets_k.+get_offset(get_grid_topology(stl),num_dims(stl))
 
-Πk,Πk_ids = get_cell_planes(HEX,Point(0,0,0),Point(1,1,1))
+Πk,Πk_ids,Πk_io = get_cell_planes(HEX,Point(0,0,0),Point(1,1,1))
 Πf,Πf_ids = filter_face_planes(stl,Πr,stl_reflex_faces_k,Πf,stl_facets_k)
 
 compute_distances!(Γk0,(Πk,Πf),(Πk_ids,Πf_ids))
 compute_distances!(K,Πf,Πf_ids)
 
-Γk = clip(Γk0,Πk_ids)
+Γk = clip(Γk0,Πk_ids,inout=Πk_io)
 
 Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
 Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
@@ -140,13 +143,13 @@ K = Polyhedron(HEX)
 stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
 stl_facets_k = stl_facets_k.+get_offset(get_grid_topology(stl),num_dims(stl))
 
-Πk,Πk_ids = get_cell_planes(HEX,Point(0,0,0),Point(1,1,1))
+Πk,Πk_ids,Πk_io = get_cell_planes(HEX,Point(0,0,0),Point(1,1,1))
 Πf,Πf_ids = filter_face_planes(stl,Πr,stl_reflex_faces_k,Πf,stl_facets_k)
 
 compute_distances!(Γk0,(Πk,Πf),(Πk_ids,Πf_ids))
 compute_distances!(K,Πf,Πf_ids)
 
-Γk = clip(Γk0,Πk_ids)
+Γk = clip(Γk0,Πk_ids,inout=Πk_io)
 
 Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
 Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
@@ -178,6 +181,7 @@ writevtk(mesh_out,"mesh_out")
 ## Real STL
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
+#X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
 stl = compute_stl_model(T,X)
 stl = merge_nodes(stl)
 Γ0 = Polyhedron(stl)
@@ -187,7 +191,7 @@ writevtk(get_grid(stl),"stl")
 
 p = HEX
 δ = 0.2
-n = 5
+n = 10
 D = 3
 
 pmin,pmax = get_bounding_box(stl)
@@ -211,101 +215,67 @@ T = Vector{Int}[]
 X = empty(X)
 k_to_io = Int8[]
 k_to_bgcell = Int[]
-cell = 116
-cell = 124
 
-#cell = 144
-#cell = 123
-#cell = 127
-#cell = 133
-##cell = 645
 cell_facets = Int[]
+bg_cell_to_inoutcut = fill(UNSET,num_cells(grid))
 
-@time for cell in 1:num_cells(grid)
-#  cell = 92
-#  @show cell
-!isempty(c_to_stlf[cell]) || continue
+for cell in 1:num_cells(grid)
+  !isempty(c_to_stlf[cell]) || continue
 
-pmin = get_cell_coordinates(grid)[cell][1]
-pmax = get_cell_coordinates(grid)[cell][end]
+  pmin = get_cell_coordinates(grid)[cell][1]
+  pmax = get_cell_coordinates(grid)[cell][end]
 
-empty!(cell_facets)
-for f in c_to_stlf[cell] 
-  for v in get_faces(get_grid_topology(stl),D-1,0)[f]
-    for _f in get_faces(get_grid_topology(stl),0,D-1)[v]
-      if _f ∉ cell_facets
-        push!(cell_facets,_f)
+  empty!(cell_facets)
+  for f in c_to_stlf[cell] 
+    for v in get_faces(get_grid_topology(stl),D-1,0)[f]
+      for _f in get_faces(get_grid_topology(stl),0,D-1)[v]
+        if _f ∉ cell_facets
+          push!(cell_facets,_f)
+        end
       end
     end
   end
-end
 
-K = Polyhedron(p,get_cell_coordinates(grid)[cell])
-Γk0 = restrict(Γ0,stl,cell_facets)
-
-stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
-stl_facets_k = c_to_stlf[cell].+get_offset(get_grid_topology(stl),num_dims(stl))
-
-Πk,Πk_ids = get_cell_planes(p,pmin,pmax)
-Πkf,Πkf_ids = filter_face_planes(stl,Πr,stl_reflex_faces_k,Πf,stl_facets_k)
-
-compute_distances!(Γk0,(Πk,Πkf),(Πk_ids,Πkf_ids))
-compute_distances!(K,Πkf,Πkf_ids)
-
-Γk = clip(Γk0,Πk_ids)
-!isnothing(Γk) || continue
-
-#@show cell
-#writevtk(edge_mesh(Γk),"surf")
-#writevtk(edge_mesh(K),"cell")
-#
-#
-#o = get_offset(get_grid_topology(stl),num_dims(stl)-1)
-#reflex_faces = filter(f->reflex_face_to_isconvex[f-o],stl_reflex_faces_k)
-#Γn,Kn = decompose(Γk,K,reflex_faces)
-#
-#for i in 1:length(Kn)
-#  writevtk(edge_mesh(Γn[i]),"G_$i")
-#  writevtk(edge_mesh(Kn[i]),"K_$i")
-#end
-#
-#f = get_original_facets(Γn[6],stl)
-#part_to_facets = get_disconnected_faces(Γk,stl,2)
-#part_to_facets_6 = get_disconnected_faces(Γn[6],stl,2)
-#@show f
-#@show part_to_facets
-#@show part_to_facets_6
-
-#@assert false
-
-Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
-Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
-
-#for (i,Ki) in enumerate(Kn_in)
-#  writevtk(edge_mesh(Ki),"Ki_$i")
-#end
-#for (i,Ki) in enumerate(Kn_out)
-#  writevtk(edge_mesh(Ki),"Ko_$i")
-#end
-Tin,Xin = simplexify(Kn_in)
-Tout,Xout = simplexify(Kn_out)
+  K = Polyhedron(p,get_cell_coordinates(grid)[cell])
+  Γk0 = restrict(Γ0,stl,cell_facets)
 
 
-append!(T, map(i->i.+length(X),Tin) )
-append!(X,Xin)
-append!(k_to_io,fill(FACE_IN,length(Tin)))
-append!(k_to_bgcell,fill(cell,length(Tin)))
-append!(T, map(i->i.+length(X),Tout) )
-append!(X,Xout)
-append!(k_to_io,fill(FACE_OUT,length(Tout)))
-append!(k_to_bgcell,fill(cell,length(Tout)))
+  stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
+  stl_facets_k = c_to_stlf[cell].+get_offset(get_grid_topology(stl),num_dims(stl))
 
+  Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax)
+  Πkf,Πkf_ids = filter_face_planes(stl,Πr,stl_reflex_faces_k,Πf,stl_facets_k)
+
+  compute_distances!(Γk0,(Πk,Πkf),(Πk_ids,Πkf_ids))
+  compute_distances!(K,Πkf,Πkf_ids)
+
+  Γk = clip(Γk0,Πk_ids,inout=Πk_io)
+  !isnothing(Γk) || continue
+
+
+  Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
+  Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
+
+  Tin,Xin = simplexify(Kn_in)
+  Tout,Xout = simplexify(Kn_out)
+
+
+  append!(T, map(i->i.+length(X),Tin) )
+  append!(X,Xin)
+  append!(k_to_io,fill(FACE_IN,length(Tin)))
+  append!(k_to_bgcell,fill(cell,length(Tin)))
+  append!(T, map(i->i.+length(X),Tout) )
+  append!(X,Xout)
+  append!(k_to_io,fill(FACE_OUT,length(Tout)))
+  append!(k_to_bgcell,fill(cell,length(Tout)))
+  bg_cell_to_inoutcut[cell] = FACE_CUT
 
 end
 
 submesh = compute_grid(Table(T),X,TET)
 writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
-
-
+num_cut_cells = count(isequal(FACE_CUT),bg_cell_to_inoutcut)
+cell_vol = volume(get_cell(grid,1))
+@test volume(submesh) ≈ num_cut_cells * cell_vol 
 
 end # module
