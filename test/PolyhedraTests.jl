@@ -13,7 +13,7 @@ using STLCutters: restrict
 using STLCutters: clip 
 using STLCutters: decompose 
 using STLCutters: edge_mesh
-using STLCutters: volume 
+using STLCutters: volume, volumes 
 using STLCutters: compute_stl_model 
 using STLCutters: compute_grid 
 using STLCutters: get_cell_planes 
@@ -85,6 +85,7 @@ Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=fals
 
 T_in,X_in = simplexify(Kn_in)
 T_out,X_out = simplexify(Kn_out)
+T_Γ,X_Γ = simplexify(Γk)
 
 n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
 
@@ -93,6 +94,7 @@ n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
 @test n_to_io == [fill(FACE_OUT,num_vertices(HEX)÷2);fill(FACE_IN,num_vertices(HEX)÷2)]
 mesh_in = compute_grid(T_in,X_in,TET)
 mesh_out = compute_grid(T_out,X_out,TET)
+mesh_Γ = compute_grid(T_Γ,X_Γ,TRI)  
 
 writevtk(edge_mesh(Γk),"Gk")
 
@@ -107,6 +109,8 @@ end
 writevtk(mesh_in,"mesh_in")
 
 writevtk(mesh_out,"mesh_out")
+
+writevtk(mesh_Γ,"mesh_G")
 
 @test volume(mesh_in) + volume(mesh_out) ≈ 1
 
@@ -161,6 +165,7 @@ Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=fals
 
 T_in,X_in = simplexify(Kn_in)
 T_out,X_out = simplexify(Kn_out)
+T_Γ,X_Γ = simplexify(Γk)
 
 n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
 
@@ -222,9 +227,12 @@ reflex_face_to_isconvex = get_convex_faces(stl)
 c_to_stlf = compute_cell_to_facets(grid,stl)
 
 T = Vector{Int}[]
+F = Vector{Int}[]
 X = empty(X)
+Xf = empty(X)
 k_to_io = Int8[]
 k_to_bgcell = Int[]
+f_to_bgcell = Int[]
 
 cell_facets = Int[]
 bgcell_to_ioc = fill(UNSET,num_cells(grid))
@@ -268,6 +276,7 @@ for cell in 1:num_cells(grid)
 
   Tin,Xin = simplexify(Kn_in)
   Tout,Xout = simplexify(Kn_out)
+  T_Γ,X_Γ = simplexify(Γk)
   
   n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
 
@@ -279,6 +288,10 @@ for cell in 1:num_cells(grid)
   append!(X,Xout)
   append!(k_to_io,fill(FACE_OUT,length(Tout)))
   append!(k_to_bgcell,fill(cell,length(Tout)))
+  append!(F, map(i->i.+length(Xf),T_Γ) ) 
+  append!(Xf,X_Γ)
+  append!(f_to_bgcell,fill(cell,length(T_Γ)))
+
   bgcell_to_ioc[cell] = FACE_CUT
   for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
     @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
@@ -319,10 +332,29 @@ for cell in 1:num_cells(grid)
 end
 
 submesh = compute_grid(Table(T),X,TET)
+facets = compute_grid(Table(F),Xf,TRI)
+
 writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
-num_cut_cells = count(isequal(FACE_CUT),bgcell_to_ioc)
-cell_vol = volume(get_cell(grid,1))
-@test volume(submesh) ≈ num_cut_cells * cell_vol 
+
+bgmesh_vols = volumes(grid)
+submesh_vols = volumes(submesh)
+
+bgmesh_in_vols = bgmesh_vols[findall(isequal(FACE_IN),bgcell_to_ioc)]
+bgmesh_out_vols = bgmesh_vols[findall(isequal(FACE_OUT),bgcell_to_ioc)]
+bgmesh_cut_vols = bgmesh_vols[findall(isequal(FACE_CUT),bgcell_to_ioc)]
+submesh_in_vols = submesh_vols[findall(isequal(FACE_IN),k_to_io)]
+submesh_out_vols = submesh_vols[findall(isequal(FACE_OUT),k_to_io)]
+
+in_volume = sum(bgmesh_in_vols) + sum(submesh_in_vols)
+out_volume = sum(bgmesh_out_vols) + sum(submesh_out_vols)
+cut_volume = sum(bgmesh_cut_vols)
+
+@test volume(submesh) ≈ cut_volume 
+@test surface(get_grid(stl)) ≈ surface(facets)
+@test in_volume + out_volume ≈ volume(grid)
+@show in_volume
+@show in_volume-74.12595970214333 # Glass
+@show in_volume-273280.03374196636 # Bunny
 
 end # module

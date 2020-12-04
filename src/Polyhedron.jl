@@ -238,6 +238,7 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces)
 end
 
 function simplexify(poly::Polyhedron{3})
+  !isopen(poly) || return simplexify_surface(poly)
   vstart = fill(UNSET,num_vertices(poly))
   stack = Int[]
   for v in 1:num_vertices(poly)
@@ -273,16 +274,37 @@ function simplexify(poly::Polyhedron{3})
         vcurrent = vnext
         vnext = get_graph(poly)[vnext][inext]
         if v ∉ (vstart[v],vcurrent,vnext)
-          parents = map(i->v_to_pv[i],(v,vstart[v],vcurrent,vnext))
-          zero_vol = false
-          for i in 1:length(parents), j in i+1:length(parents)
-            if parents[i] == parents[j]
-              zero_vol = true
-              break
-            end
-          end
-          !zero_vol || continue
           k = [vstart[v],v,vcurrent,vnext]
+          push!(T,k)
+        end
+      end
+    end
+  end
+  T,get_vertex_coordinates(poly)
+end
+
+function simplexify_surface(poly::Polyhedron{3})
+  stack = Int[]
+  v_to_pv = get_data(poly).vertex_to_parent_vertex
+  istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
+  T = Vector{Int}[]
+  for v in 1:num_vertices(poly)
+    isactive(poly,v) || continue
+    for i in 1:length(get_graph(poly)[v])
+      !istouch[v][i] || continue
+      istouch[v][i] = true
+      vcurrent = v
+      vnext = get_graph(poly)[v][i]
+      vnext ∉ (OPEN,UNSET) || continue
+      while vnext != v
+        inext = findfirst( isequal(vcurrent), get_graph(poly)[vnext] )
+        inext = ( inext % length( get_graph(poly)[vnext] ) ) + 1
+        istouch[vnext][inext] = true
+        vcurrent = vnext
+        vnext = get_graph(poly)[vnext][inext]
+        vnext ∉ (OPEN,UNSET) || break
+        if v ∉ (vcurrent,vnext)
+          k = [v,vcurrent,vnext]
           push!(T,k)
         end
       end
