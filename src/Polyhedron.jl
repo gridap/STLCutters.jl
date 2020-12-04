@@ -500,7 +500,7 @@ function polyhedron_data(num_vertices::Integer)
 end
 
 function polyhedron_data(p::Polytope)
-  v_to_Π = deepcopy( get_faces(p,0,num_dims(p)-1) )
+  v_to_Π = -get_faces(p,0,num_dims(p)-1)
   v_to_of = [ Int[] for _ in 1:num_vertices(p) ]
   v_to_v = collect(1:num_vertices(p))
   Π_to_v_to_d = Vector{Int}[]
@@ -1094,4 +1094,39 @@ function compute_distances!(poly::Polyhedron,Πn::Tuple,Πn_ids::Tuple)
   for (Π,Π_ids) in zip(Πn,Πn_ids)
     compute_distances!(poly,Π,Π_ids)
   end
+end
+
+function get_cell_nodes_to_inout(polys_in,polys_out,p::Polytope)
+  node_to_inout = fill(UNSET,num_vertices(p))
+  
+  complete_nodes_to_inout!(node_to_inout,polys_in,FACE_IN,p)
+  complete_nodes_to_inout!(node_to_inout,polys_out,FACE_OUT,p)
+  @assert UNSET ∉ node_to_inout
+  node_to_inout
+end
+
+
+function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
+  D = num_dims(p)
+  for poly in polys
+    v_to_Π = poly.data.vertex_to_planes
+    for v in 1:num_vertices(poly)
+      isactive(poly,v) || continue
+      if count(Π -> Π < 0,v_to_Π[v]) == D
+        i = 0
+        node = 0
+        for _ in 1:D
+          i = findnext(Π -> Π < 0,v_to_Π[v],i+1)
+          f = -v_to_Π[v][i]
+          d = D - ((f-1)>>1)
+          ud = iseven(f)
+          node |= ud<<(d-1)
+        end
+        node += 1
+        @assert  node_to_inout[node] ∈ (inout,UNSET)
+        node_to_inout[node] = inout
+      end
+    end
+  end
+  node_to_inout
 end

@@ -34,6 +34,7 @@ using STLCutters: filter_face_planes
 using STLCutters: refine 
 using STLCutters: FACE_CUT 
 using STLCutters: get_cell 
+using STLCutters: get_cell_nodes_to_inout 
 
 vertices = [
   Point(0.1,-0.2,0.5),
@@ -85,7 +86,11 @@ Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=fals
 T_in,X_in = simplexify(Kn_in)
 T_out,X_out = simplexify(Kn_out)
 
+n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
+
 # Test and Write
+
+@test n_to_io == [fill(FACE_OUT,num_vertices(HEX)÷2);fill(FACE_IN,num_vertices(HEX)÷2)]
 mesh_in = compute_grid(T_in,X_in,TET)
 mesh_out = compute_grid(T_out,X_out,TET)
 
@@ -157,7 +162,12 @@ Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=fals
 T_in,X_in = simplexify(Kn_in)
 T_out,X_out = simplexify(Kn_out)
 
+n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
+
 # Test and Write
+
+@test n_to_io == fill(FACE_IN,num_vertices(HEX))
+
 mesh_in = compute_grid(T_in,X_in,TET)
 mesh_out = compute_grid(T_out,X_out,TET)
 
@@ -217,7 +227,8 @@ k_to_io = Int8[]
 k_to_bgcell = Int[]
 
 cell_facets = Int[]
-bg_cell_to_inoutcut = fill(UNSET,num_cells(grid))
+bgcell_to_ioc = fill(UNSET,num_cells(grid))
+bgnode_to_io = fill(UNSET,num_nodes(grid))
 
 for cell in 1:num_cells(grid)
   !isempty(c_to_stlf[cell]) || continue
@@ -257,7 +268,8 @@ for cell in 1:num_cells(grid)
 
   Tin,Xin = simplexify(Kn_in)
   Tout,Xout = simplexify(Kn_out)
-
+  
+  n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
 
   append!(T, map(i->i.+length(X),Tin) )
   append!(X,Xin)
@@ -267,12 +279,49 @@ for cell in 1:num_cells(grid)
   append!(X,Xout)
   append!(k_to_io,fill(FACE_OUT,length(Tout)))
   append!(k_to_bgcell,fill(cell,length(Tout)))
-  bg_cell_to_inoutcut[cell] = FACE_CUT
+  bgcell_to_ioc[cell] = FACE_CUT
+  for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
+    @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
+    bgnode_to_io[bg_v] = n_to_io[i]
+  end
+end
+
+grid_topology = GridTopology(grid)
+stack = Int[]
+for cell in 1:num_cells(grid)
+  if bgcell_to_ioc[cell] == FACE_CUT
+    resize!(stack,0)
+    push!(stack,cell)
+    while length(stack) > 0
+      current_cell = pop!(stack)
+      for node in get_cell_nodes(grid)[current_cell]
+        if bgnode_to_io[node] == FACE_IN
+          for neig_cell in get_faces(grid_topology,0,num_dims(grid))[node]
+            if bgcell_to_ioc[neig_cell] == UNSET
+              bgcell_to_ioc[neig_cell] = FACE_IN
+              for neig_node in get_cell_nodes(grid)[neig_cell]
+                if bgnode_to_io[neig_node] == UNSET
+                  bgnode_to_io[neig_node] = FACE_IN
+                end
+                push!(stack,neig_cell)
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
+for cell in 1:num_cells(grid)
+  if bgcell_to_ioc[cell] == UNSET
+    bgcell_to_ioc[cell] = FACE_OUT
+  end
 end
 
 submesh = compute_grid(Table(T),X,TET)
 writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
-num_cut_cells = count(isequal(FACE_CUT),bg_cell_to_inoutcut)
+writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
+num_cut_cells = count(isequal(FACE_CUT),bgcell_to_ioc)
 cell_vol = volume(get_cell(grid,1))
 @test volume(submesh) ≈ num_cut_cells * cell_vol 
 
