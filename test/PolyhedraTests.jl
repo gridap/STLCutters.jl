@@ -35,6 +35,7 @@ using STLCutters: refine
 using STLCutters: FACE_CUT 
 using STLCutters: get_cell 
 using STLCutters: get_cell_nodes_to_inout 
+using STLCutters: compute_submesh 
 
 vertices = [
   Point(0.1,-0.2,0.5),
@@ -199,10 +200,8 @@ X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
 stl = compute_stl_model(T,X)
 stl = merge_nodes(stl)
-Γ0 = Polyhedron(stl)
 
 writevtk(get_grid(stl),"stl")
-
 
 p = HEX
 δ = 0.2
@@ -217,119 +216,8 @@ partition = (n,n,n)
 
 grid = CartesianGrid(pmin,pmax,partition)
 
-
-writevtk(grid,"bg_grid")
-Πr = get_reflex_planes(stl,bisector=true)
-Πf = get_facet_planes(stl)
-
-reflex_face_to_isconvex = get_convex_faces(stl)
-
-c_to_stlf = compute_cell_to_facets(grid,stl)
-
-T = Vector{Int}[]
-F = Vector{Int}[]
-X = empty(X)
-Xf = empty(X)
-k_to_io = Int8[]
-k_to_bgcell = Int[]
-f_to_bgcell = Int[]
-
-cell_facets = Int[]
-bgcell_to_ioc = fill(UNSET,num_cells(grid))
-bgnode_to_io = fill(UNSET,num_nodes(grid))
-
-for cell in 1:num_cells(grid)
-  !isempty(c_to_stlf[cell]) || continue
-
-  pmin = get_cell_coordinates(grid)[cell][1]
-  pmax = get_cell_coordinates(grid)[cell][end]
-
-  empty!(cell_facets)
-  for f in c_to_stlf[cell] 
-    for v in get_faces(get_grid_topology(stl),D-1,0)[f]
-      for _f in get_faces(get_grid_topology(stl),0,D-1)[v]
-        if _f ∉ cell_facets
-          push!(cell_facets,_f)
-        end
-      end
-    end
-  end
-
-  K = Polyhedron(p,get_cell_coordinates(grid)[cell])
-  Γk0 = restrict(Γ0,stl,cell_facets)
-
-
-  stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
-  stl_facets_k = c_to_stlf[cell].+get_offset(get_grid_topology(stl),num_dims(stl))
-
-  Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax)
-  Πkf,Πkf_ids = filter_face_planes(stl,Πr,stl_reflex_faces_k,Πf,stl_facets_k)
-
-  compute_distances!(Γk0,(Πk,Πkf),(Πk_ids,Πkf_ids))
-  compute_distances!(K,Πkf,Πkf_ids)
-
-  Γk = clip(Γk0,Πk_ids,inout=Πk_io)
-  !isnothing(Γk) || continue
-
-  Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
-  Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
-
-  Tin,Xin = simplexify(Kn_in)
-  Tout,Xout = simplexify(Kn_out)
-  T_Γ,X_Γ = simplexify(Γk)
-  
-  n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
-
-  append!(T, map(i->i.+length(X),Tin) )
-  append!(X,Xin)
-  append!(k_to_io,fill(FACE_IN,length(Tin)))
-  append!(k_to_bgcell,fill(cell,length(Tin)))
-  append!(T, map(i->i.+length(X),Tout) )
-  append!(X,Xout)
-  append!(k_to_io,fill(FACE_OUT,length(Tout)))
-  append!(k_to_bgcell,fill(cell,length(Tout)))
-  append!(F, map(i->i.+length(Xf),T_Γ) ) 
-  append!(Xf,X_Γ)
-  append!(f_to_bgcell,fill(cell,length(T_Γ)))
-
-  bgcell_to_ioc[cell] = FACE_CUT
-  for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
-    @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
-    bgnode_to_io[bg_v] = n_to_io[i]
-  end
-end
-
-grid_topology = GridTopology(grid)
-stack = Int[]
-for cell in 1:num_cells(grid)
-  if bgcell_to_ioc[cell] == FACE_CUT
-    resize!(stack,0)
-    push!(stack,cell)
-    while length(stack) > 0
-      current_cell = pop!(stack)
-      for node in get_cell_nodes(grid)[current_cell]
-        if bgnode_to_io[node] == FACE_IN
-          for neig_cell in get_faces(grid_topology,0,num_dims(grid))[node]
-            if bgcell_to_ioc[neig_cell] == UNSET
-              bgcell_to_ioc[neig_cell] = FACE_IN
-              for neig_node in get_cell_nodes(grid)[neig_cell]
-                if bgnode_to_io[neig_node] == UNSET
-                  bgnode_to_io[neig_node] = FACE_IN
-                end
-                push!(stack,neig_cell)
-              end
-            end
-          end
-        end
-      end
-    end
-  end
-end
-for cell in 1:num_cells(grid)
-  if bgcell_to_ioc[cell] == UNSET
-    bgcell_to_ioc[cell] = FACE_OUT
-  end
-end
+data = compute_submesh(grid,stl)
+T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,bgcell_to_ioc = data
 
 submesh = compute_grid(Table(T),X,TET)
 facets = compute_grid(Table(F),Xf,TRI)
