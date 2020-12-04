@@ -181,7 +181,7 @@ writevtk(mesh_out,"mesh_out")
 ## Real STL
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
-#X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
+X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
 stl = compute_stl_model(T,X)
 stl = merge_nodes(stl)
 Γ0 = Polyhedron(stl)
@@ -191,7 +191,7 @@ writevtk(get_grid(stl),"stl")
 
 p = HEX
 δ = 0.2
-n = 10
+n = 20
 D = 3
 
 pmin,pmax = get_bounding_box(stl)
@@ -252,7 +252,6 @@ for cell in 1:num_cells(grid)
   Γk = clip(Γk0,Πk_ids,inout=Πk_io)
   !isnothing(Γk) || continue
 
-
   Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
   Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
 
@@ -269,7 +268,6 @@ for cell in 1:num_cells(grid)
   append!(k_to_io,fill(FACE_OUT,length(Tout)))
   append!(k_to_bgcell,fill(cell,length(Tout)))
   bg_cell_to_inoutcut[cell] = FACE_CUT
-
 end
 
 submesh = compute_grid(Table(T),X,TET)

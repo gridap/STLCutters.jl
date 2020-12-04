@@ -214,8 +214,12 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces)
     k⁻,k⁺ = split(cell,rf)
     S = [s⁻,s⁺]
     K = [k⁻,k⁺]
-    if any(isnothing,S) || any(isnothing,K)
+    if any(isnothing,S)
       S,K = [surf],[cell]
+    end
+    if any(isnothing,K)
+      i = findfirst(!isnothing,K)
+      S,K = [S[i]],[K[i]]
     end
     if length(rfaces) == i
       R = S,K
@@ -318,6 +322,10 @@ get_vertex_to_planes(a::PolyhedronData) = a.vertex_to_planes
 
 function isactive(p::Polyhedron,vertex::Integer)
   !isempty( get_graph(p)[vertex] )
+end
+
+function writevtk(p::Polyhedron,filename;kwargs...)
+  writevtk(edge_mesh(p),filename;kwargs...)
 end
 
 function edge_mesh(p::Polyhedron)
@@ -789,7 +797,17 @@ function bisector_plane(stl::DiscreteModel{Dc,Dp},d::Integer,dface::Integer) whe
   e = get_dface(stl,dface,Val{Dc-1}())
   n1 = normal(f1)
   n2 = normal(f2)
-  n = (n1-n2)/2
+  n = n1-n2
+  if norm(n) < 1
+    v = e[2]-e[1]
+    v /= norm(v)
+    _n = n1+n2
+    @assert norm(_n) > 1
+    _n /= norm(_n)
+    n = _n × v
+    @assert norm(n) ≈ 1
+  end
+  n /= norm(n)
   c = center(e)
   Plane(c,n)
 end
@@ -1019,12 +1037,15 @@ function is_facet_in_facet(poly::Polyhedron,facet,plane;inside)
   smin = Inf
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
+    if facet ∈ v_to_f[v]
+    end
+
     if facet ∈ v_to_f[v] && plane ∉ v_to_f[v]
       smin = min(smin,distances[v])
       smax = max(smax,distances[v])
     end
   end
-  @assert smin ≠ smax
+  @assert !(smin == smax == 0)
   ( smin ≥ 0 && smax ≥ 0 ) && return !inside
   ( smin ≤ 0 && smax ≤ 0 ) && return inside
   false
