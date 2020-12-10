@@ -238,8 +238,8 @@ in_volume = sum(bgmesh_in_vols) + sum(submesh_in_vols)
 out_volume = sum(bgmesh_out_vols) + sum(submesh_out_vols)
 cut_volume = sum(bgmesh_cut_vols)
 
-@test volume(submesh) ≈ cut_volume 
 @test surface(get_grid(stl)) ≈ surface(facets)
+@test volume(submesh) ≈ cut_volume 
 @test in_volume + out_volume ≈ volume(grid)
 @show in_volume
 @show in_volume-74.12595970214333 # Glass

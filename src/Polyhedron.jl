@@ -149,7 +149,7 @@ function split(p::Polyhedron,Π)
     smin = min(smin,distances[v])
     smax = max(smax,distances[v])
   end
-  if smin ≥ 0
+  if smin > 0
     return nothing,p
   end
   if smax ≤ 0
@@ -214,7 +214,7 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces)
     k⁻,k⁺ = split(cell,rf)
     S = [s⁻,s⁺]
     K = [k⁻,k⁺]
-    if any(isnothing,S)
+    if any(isnothing,S) || any(!has_facets,S)
       S,K = [surf],[cell]
     end
     if any(isnothing,K)
@@ -269,6 +269,7 @@ function simplexify(poly::Polyhedron{3})
       vnext = get_graph(poly)[v][i]
       while vnext != v
         inext = findfirst( isequal(vcurrent), get_graph(poly)[vnext] )
+        !isnothing(inext) || break
         inext = ( inext % length( get_graph(poly)[vnext] ) ) + 1
         istouch[vnext][inext] = true
         vcurrent = vnext
@@ -313,9 +314,9 @@ function simplexify_surface(poly::Polyhedron{3})
   T,get_vertex_coordinates(poly)
 end
 
-function simplexify(polys::AbstractVector{<:Polyhedron})
+function simplexify(polys::AbstractVector{<:Polyhedron{Dp,Tp}}) where {Dp,Tp}
   T = Vector{Int}[]
-  X = empty(get_vertex_coordinates(first(polys)))
+  X = Point{Dp,Tp}[]
   for poly in polys
     Ti,Xi = simplexify(poly)
     append!(T, map(i->i.+length(X),Ti) )
@@ -440,12 +441,10 @@ function has_original_face(p::Polyhedron,face::Integer,::Val{2})
           num_v = 1
           vcurrent = v
           vnext = vneig
-          vertices = [vcurrent]
           while vnext ≠ v 
             if v_to_v[vnext] ∉ (v_to_v[v],v_to_v[vcurrent])
               num_v += 1
             end
-            push!(vertices,vnext)
             vcurrent,vnext = vnext,next_vertex(p,vcurrent,vnext)
             vnext ∉ (UNSET,OPEN) || break
             face ∈ v_to_f[vnext] || break
@@ -459,6 +458,58 @@ function has_original_face(p::Polyhedron,face::Integer,::Val{2})
   end
   false
 end
+
+function has_faces(p::Polyhedron,::Val{0})
+  for v in 1:num_vertices(p)
+    isactive(p,v) || continue
+    return true
+  end
+  false
+end
+
+function has_faces(p::Polyhedron,::Val{1})
+  for v in 1:num_vertices(p)
+    isactive(p,v) || continue
+    for vneig in get_graph(p)[v]
+      @assert isactive(p,vneig)
+      vneig ∉ (OPEN,UNSET) || continue
+      return true
+    end
+    @unreachable
+  end
+  false
+end
+
+function has_faces(p::Polyhedron,::Val{2})
+  d = 2
+  v_to_v = get_data(p).vertex_to_parent_vertex
+  for v in 1:num_vertices(p)
+    isactive(p,v) || continue
+    for vneig in get_graph(p)[v]
+      vneig ∉ (OPEN,UNSET) || continue
+      num_v = 1
+      vcurrent = v
+      vnext = vneig
+      while vnext ≠ v 
+        num_v += 1
+        @assert v_to_v[vnext] ∉ (v_to_v[v],v_to_v[vcurrent])
+        vcurrent,vnext = vnext,next_vertex(p,vcurrent,vnext)
+        vnext ∉ (UNSET,OPEN) || break
+        if vnext == v && num_v ≥ d+1
+          return true
+        end
+      end
+    end
+  end
+  false
+end
+
+has_vertices(p::Polyhedron) = has_faces(p,Val{0}())
+
+has_edges(p::Polyhedron) = has_faces(p,Val{1}())
+
+has_facets(p::Polyhedron{D}) where D = has_faces(p,Val{D-1}())
+
 
 ## Setup
 
@@ -1089,6 +1140,7 @@ function refine(
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
     part_to_facets = _get_disconnected_faces(Γi,stl,Dc)
     facets = get_original_facets(Γi,stl)
+    @assert !isempty(facets)
     group_to_facets = group_facing_facets(Γi,facets,part_to_facets;inside)
     for facets in group_to_facets
       Ki_clip = clip(Ki,facets;inside)
@@ -1123,7 +1175,7 @@ function get_cell_nodes_to_inout(polys_in,polys_out,p::Polytope)
   
   complete_nodes_to_inout!(node_to_inout,polys_in,FACE_IN,p)
   complete_nodes_to_inout!(node_to_inout,polys_out,FACE_OUT,p)
-  @assert UNSET ∉ node_to_inout
+ # @assert UNSET ∉ node_to_inout
   node_to_inout
 end
 
@@ -1153,8 +1205,22 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
   node_to_inout
 end
 
+function get_bounding_box(grid::CartesianGrid)
+  desc = get_cartesian_descriptor(grid)
+  pmin = desc.origin
+  pmax = desc.origin + VectorValue(desc.partition .* desc.sizes)
+  pmin,pmax
+end
+
+function Base.eps(grid::Grid)
+  pmin,pmax = get_bounding_box(grid)
+  vmax = max(abs.(Tuple(pmin))...,abs.(Tuple(pmax))...)
+  eps(float(vmax))
+end
+
 function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
   D = num_dims(grid)
+  tol = eps(grid)*1e3
 
   Γ0 = Polyhedron(stl)
 
@@ -1210,6 +1276,27 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
     Γk = clip(Γk0,Πk_ids,inout=Πk_io)
     !isnothing(Γk) || continue
 
+    v_to_Π = Γk.data.vertex_to_planes
+    for Π in Πk_ids
+      d = get_plane_distances(Γk.data,Π)
+      for v in 1:num_vertices(Γk)
+        isactive(Γk,v) || continue
+        if abs(d[v]) < 1e-13 && Π ∉ v_to_Π[v]
+          push!(v_to_Π[v],Π)
+        end
+      end
+    end
+    n_to_io = fill(UNSET,num_vertices(p))
+    complete_nodes_to_inout!(n_to_io,(Γk,),FACE_CUT,p)
+    for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
+      n_to_io[i] == FACE_CUT || continue
+      bgnode_to_io[bg_v] = FACE_CUT
+    end
+
+    if isempty(get_original_facets(Γk,stl))
+      continue
+    end
+
     Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
     Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
 
@@ -1217,7 +1304,11 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
     Tout,Xout = simplexify(Kn_out)
     T_Γ,X_Γ = simplexify(Γk)
     
-    n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
+    if length(Tin) == 0 || length(Tout) == 0
+      n_to_io = fill(UNSET,num_vertices(p))
+    else
+      n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
+    end
 
     append!(T, map(i->i.+length(X),Tin) )
     append!(X,Xin)
@@ -1231,8 +1322,11 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
     append!(Xf,X_Γ)
     append!(f_to_bgcell,fill(cell,length(T_Γ)))
 
+
     bgcell_to_ioc[cell] = FACE_CUT
     for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
+      n_to_io[i] ≠ UNSET || continue
+      bgnode_to_io[bg_v] ≠ FACE_CUT || continue
       @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
       bgnode_to_io[bg_v] = n_to_io[i]
     end
