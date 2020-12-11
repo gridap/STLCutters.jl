@@ -182,6 +182,8 @@ function split(p::Polyhedron,Π)
   end
   complete_graph!(in_graph,num_vertices(p))
   complete_graph!(out_graph,num_vertices(p))
+  correct_graph!(in_graph,num_vertices(p))
+  correct_graph!(out_graph,num_vertices(p))
   disconnect_graph!(in_graph,num_vertices(p),distances,true)
   disconnect_graph!(out_graph,num_vertices(p),distances,false)
   add_open_vertices!(in_graph,p)
@@ -274,6 +276,8 @@ function simplexify(poly::Polyhedron{3})
         istouch[vnext][inext] = true
         vcurrent = vnext
         vnext = get_graph(poly)[vnext][inext]
+        @assert vcurrent ≠ vnext
+        vcurrent ≠ vnext || break
         if v ∉ (vstart[v],vcurrent,vnext)
           k = [vstart[v],v,vcurrent,vnext]
           push!(T,k)
@@ -594,6 +598,29 @@ function complete_graph!(edge_graph,num_vertices::Integer)
   end
 end
 
+function correct_graph!(graph,num_vertices::Integer)
+  for v in num_vertices+1:length(graph)
+    i = 1
+    while i ≤ length(graph[v])
+      if graph[v][i] == v
+        deleteat!(graph[v],i)
+      else 
+        i += 1
+      end
+    end
+    i = 1
+    while i ≤ length(graph[v]) && length(graph[v]) > 1
+      _i = i == length(graph[v]) ? 1 : i+1
+      if graph[v][i] == graph[v][_i]
+        deleteat!(graph[v],i)
+      else 
+        i += 1
+      end
+    end
+  end
+end
+
+
 function add_open_vertices!(graph,poly::Polyhedron)
   if isopen(poly)
     for v in num_vertices(poly)+1:length(graph)
@@ -631,6 +658,8 @@ function merge_nodes!(graph,data)
       _pv ≠ pv || continue
       pv = _pv
     end
+    @assert pv ≠ v
+    @assert v_to_pv[pv] == v_to_pv[v]
     iv = findfirst(isequal(pv),graph[v])
     ipv = findfirst(isequal(v),graph[pv])
     @assert !isnothing(iv) && !isnothing(ipv)
@@ -659,14 +688,17 @@ function merge_nodes!(graph,data)
       end
     end
     i = 1
-    while i ≤ length(graph[pv])
+    while i ≤ length(graph[pv]) #&& length(graph[pv]) > 1
       _i = i < length(graph[pv]) ? i+1 : 1
-      if graph[pv][i] == graph[pv][_i] 
+      if graph[pv][i] == graph[pv][_i] && length(graph[pv]) > 1 
+        deleteat!(graph[pv],i)
+      elseif graph[pv][i] == pv
         deleteat!(graph[pv],i)
       else
         i += 1
       end
     end
+    @assert pv ∉ graph[pv]
     empty!(graph[v])
     # Merge data
     v_to_f = data.vertex_to_original_faces
@@ -1112,8 +1144,10 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
   D = num_dims(p)
   for poly in polys
     v_to_Π = poly.data.vertex_to_planes
+    v_to_v = poly.data.vertex_to_parent_vertex
     for v in 1:num_vertices(poly)
       isactive(poly,v) || continue
+      v = inout == FACE_CUT ? v : v_to_v[v]
       if count(Π -> Π < 0,v_to_Π[v]) == D
         i = 0
         node = 0
@@ -1125,8 +1159,12 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
           node |= ud<<(d-1)
         end
         node += 1
-        @assert  node_to_inout[node] ∈ (inout,UNSET)
-        node_to_inout[node] = inout
+     #   @assert  node_to_inout[node] ∈ (inout,UNSET)
+        _inout = inout
+        if node_to_inout[node] ∉ (inout,UNSET)
+          _inout = FACE_CUT
+        end
+        node_to_inout[node] = _inout
       end
     end
   end
@@ -1176,6 +1214,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
     pmin = get_cell_coordinates(grid)[cell][1]
     pmax = get_cell_coordinates(grid)[cell][end]
 
+
     empty!(cell_facets)
     for f in c_to_stlf[cell] 
       for v in get_faces(get_grid_topology(stl),D-1,0)[f]
@@ -1188,7 +1227,8 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
     end
 
     p = get_polytope(get_cell_reffes(grid)[cell])
-    K = Polyhedron(p,get_cell_coordinates(grid)[cell])
+    v = map(i->Point(float.(Tuple(i))),get_cell_coordinates(grid)[cell])
+    K = Polyhedron(p,v)
     Γk0 = restrict(Γ0,stl,cell_facets)
 
 
@@ -1232,11 +1272,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
     Tout,Xout = simplexify(Kn_out)
     T_Γ,X_Γ = simplexify(Γk)
     
-    if length(Tin) == 0 || length(Tout) == 0
-      n_to_io = fill(UNSET,num_vertices(p))
-    else
-      n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
-    end
+    n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
 
     append!(T, map(i->i.+length(X),Tin) )
     append!(X,Xin)
@@ -1250,12 +1286,12 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
     append!(Xf,X_Γ)
     append!(f_to_bgcell,fill(cell,length(T_Γ)))
 
-
     bgcell_to_ioc[cell] = FACE_CUT
     for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
       n_to_io[i] ≠ UNSET || continue
+      n_to_io[i] ≠ FACE_CUT || continue
       bgnode_to_io[bg_v] ≠ FACE_CUT || continue
-      @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
+     # @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
       bgnode_to_io[bg_v] = n_to_io[i]
     end
   end

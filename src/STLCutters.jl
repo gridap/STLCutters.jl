@@ -14,6 +14,7 @@ using FileIO
 
 import MeshIO
 
+import Gridap: writevtk
 import Gridap.ReferenceFEs: get_polytope
 import Gridap.ReferenceFEs: is_simplex 
 import Gridap.ReferenceFEs: is_n_cube 
