@@ -197,6 +197,51 @@ writevtk(mesh_out,"mesh_out")
 ## Real STL
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
+stl = compute_stl_model(T,X)
+stl = merge_nodes(stl)
+
+writevtk(get_grid(stl),"stl")
+
+p = HEX
+δ = 0.2
+n = 20
+D = 3
+
+pmin,pmax = get_bounding_box(stl)
+Δ = (pmax-pmin)*δ
+pmin = pmin - Δ
+pmax = pmax + Δ
+partition = (n,n,n)
+
+grid = CartesianGrid(pmin,pmax,partition)
+
+data = compute_submesh(grid,stl)
+T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,bgcell_to_ioc = data
+
+submesh = compute_grid(Table(T),X,TET)
+facets = compute_grid(Table(F),Xf,TRI)
+
+writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
+writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
+
+bgmesh_vols = volumes(grid)
+submesh_vols = volumes(submesh)
+
+bgmesh_in_vols = bgmesh_vols[findall(isequal(FACE_IN),bgcell_to_ioc)]
+bgmesh_out_vols = bgmesh_vols[findall(isequal(FACE_OUT),bgcell_to_ioc)]
+bgmesh_cut_vols = bgmesh_vols[findall(isequal(FACE_CUT),bgcell_to_ioc)]
+submesh_in_vols = submesh_vols[findall(isequal(FACE_IN),k_to_io)]
+submesh_out_vols = submesh_vols[findall(isequal(FACE_OUT),k_to_io)]
+
+in_volume = sum(bgmesh_in_vols) + sum(submesh_in_vols)
+out_volume = sum(bgmesh_out_vols) + sum(submesh_out_vols)
+cut_volume = sum(bgmesh_cut_vols)
+
+@test surface(get_grid(stl)) ≈ surface(facets)
+@test volume(submesh) ≈ cut_volume 
+@test in_volume + out_volume ≈ volume(grid)
+@test in_volume ≈ 273280.03374196636
+
 X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
 stl = compute_stl_model(T,X)
 stl = merge_nodes(stl)
@@ -241,8 +286,6 @@ cut_volume = sum(bgmesh_cut_vols)
 @test surface(get_grid(stl)) ≈ surface(facets)
 @test volume(submesh) ≈ cut_volume 
 @test in_volume + out_volume ≈ volume(grid)
-@show in_volume
-@show in_volume-74.12595970214333 # Glass
-@show in_volume-273280.03374196636 # Bunny
+@test in_volume ≈ 74.12595970214333 
 
 end # module

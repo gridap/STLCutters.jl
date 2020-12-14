@@ -14,6 +14,7 @@ struct PolyhedronData
   vertex_to_planes::Vector{Vector{Int}}
   vertex_to_original_faces::Vector{Vector{Int}}
   vertex_to_parent_vertex::Vector{Int}
+  vertex_to_parent_edge::Vector{Tuple{Int,Int}}
   plane_to_vertex_to_distances::Vector{Vector{Float64}}
   plane_to_ids::Vector{Int}
 end
@@ -182,8 +183,8 @@ function split(p::Polyhedron,Π)
   end
   complete_graph!(in_graph,num_vertices(p))
   complete_graph!(out_graph,num_vertices(p))
-  correct_graph!(in_graph,num_vertices(p))
-  correct_graph!(out_graph,num_vertices(p))
+  #correct_graph!(in_graph,num_vertices(p))
+  #correct_graph!(out_graph,num_vertices(p))
   disconnect_graph!(in_graph,num_vertices(p),distances,true)
   disconnect_graph!(out_graph,num_vertices(p),distances,false)
   add_open_vertices!(in_graph,p)
@@ -191,8 +192,10 @@ function split(p::Polyhedron,Π)
   vertices = [p.vertices;new_vertices]
   in_data = data
   out_data = deepcopy(data)
-  merge_nodes!(in_graph,in_data)
-  merge_nodes!(out_graph,out_data)
+  update_data!(in_data,in_graph,num_vertices(p))
+  update_data!(out_data,out_graph,num_vertices(p))
+  #merge_nodes!(in_graph,in_data)
+  #merge_nodes!(out_graph,out_data)
   Polyhedron(vertices,in_graph,isopen(p),in_data), 
   Polyhedron(vertices,out_graph,isopen(p),out_data)
 end
@@ -424,7 +427,7 @@ function has_original_face(p::Polyhedron,face::Integer,::Val{1})
     if isactive(p,v) && face ∈ v_to_f[v]
       for vneig in get_graph(p)[v]
         vneig ∉ (OPEN,UNSET) || continue
-        if face ∈ v_to_f[vneig] && v_to_v[v] ≠ v_to_v[vneig]
+        if face ∈ v_to_f[vneig]# && v_to_v[v] ≠ v_to_v[vneig]
           return true
         end
       end
@@ -477,6 +480,7 @@ function has_faces(p::Polyhedron,::Val{1})
     for vneig in get_graph(p)[v]
       @assert isactive(p,vneig)
       vneig ∉ (OPEN,UNSET) || continue
+      v_to_v[v] ≠ v_to_v[vneig] || continue
       return true
     end
     @unreachable
@@ -495,8 +499,9 @@ function has_faces(p::Polyhedron,::Val{2})
       vcurrent = v
       vnext = vneig
       while vnext ≠ v 
-        num_v += 1
-        @assert v_to_v[vnext] ∉ (v_to_v[v],v_to_v[vcurrent])
+        if v_to_v[vnext] ∉ (v_to_v[v],v_to_v[vcurrent])
+          num_v += 1
+        end
         vcurrent,vnext = vnext,next_vertex(p,vcurrent,vnext)
         vnext ∉ (UNSET,OPEN) || break
         if vnext == v && num_v ≥ d+1
@@ -571,18 +576,20 @@ function polyhedron_data(num_vertices::Integer)
   v_to_Π = [ Int[] for _ in 1:num_vertices ]
   v_to_of = [ Int[] for _ in 1:num_vertices ]
   v_to_v = collect(1:num_vertices)
+  v_to_e = Vector{Tuple{Int,Int}}(undef,num_vertices)
   Π_to_v_to_d = Vector{Int}[]
   Π_to_id = Int[]
-  PolyhedronData( v_to_Π, v_to_of, v_to_v, Π_to_v_to_d, Π_to_id  )
+  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_id  )
 end
 
 function polyhedron_data(p::Polytope)
   v_to_Π = -get_faces(p,0,num_dims(p)-1)
   v_to_of = [ Int[] for _ in 1:num_vertices(p) ]
   v_to_v = collect(1:num_vertices(p))
+  v_to_e = Vector{Tuple{Int,Int}}(undef,num_vertices(p))
   Π_to_v_to_d = Vector{Int}[]
   Π_to_id = Int[]
-  PolyhedronData( v_to_Π, v_to_of, v_to_v, Π_to_v_to_d, Π_to_id  )
+  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_id  )
 end
 
 function signed_distance(point::Point{D},Π::CartesianPlane{D}) where D
@@ -636,6 +643,20 @@ function disconnect_graph!(edge_graph,num_vertices,distances,mask::Bool)
   for i in 1:num_vertices
     if mask == ( distances[i] > 0 )
       edge_graph[i] = empty!( edge_graph[i] )
+    end
+  end
+end
+
+function update_data!(data,graph,num_vertices)
+  v_to_pv = data.vertex_to_parent_vertex
+  v_to_pe = data.vertex_to_parent_edge
+  for v in num_vertices+1:length(graph)
+    v_to_pv[v] == v || continue
+    for vnext in num_vertices+1:length(graph)
+      v_to_pv[vnext] == vnext || continue
+      if v_to_pe[v] == v_to_pe[vnext]
+        v_to_pv[vnext] = v
+      end
     end
   end
 end
@@ -737,11 +758,14 @@ function add_vertex!(data::PolyhedronData,v1::Integer,v2::Integer,Πid::Integer)
   v_to_Π = data.vertex_to_planes
   v_to_f = data.vertex_to_original_faces
   v_to_pv = data.vertex_to_parent_vertex
+  v_to_pe = data.vertex_to_parent_edge
   Πs = intersect( v_to_Π[v1], v_to_Π[v2] )
   fs = intersect( v_to_f[v1], v_to_f[v2] )
+  pe = (v_to_pv[v1],v_to_pv[v2])
   push!( Πs, Πid )
   push!( v_to_Π, Πs )
   push!( v_to_f, fs )
+  push!( v_to_pe, pe)
   Π_to_v_to_d = get_plane_distances(data)
   Π_to_id = get_plane_ids(data)
   i = findfirst(isequal(Πid),Π_to_id)
@@ -840,6 +864,7 @@ function restrict(poly::Polyhedron,stl::DiscreteModel,stl_facets)
       end
     end
   end
+  sort!(nodes)
   restrict(poly,nodes)
 end
 
@@ -857,9 +882,10 @@ function restrict(data::PolyhedronData,nodes)
   v_to_Π = data.vertex_to_planes[nodes]
   v_to_of = data.vertex_to_original_faces[nodes]
   v_to_v = collect(1:length(nodes))
+  v_to_e = Vector{Tuple{Int,Int}}(undef,length(nodes))
   Π_to_v_to_d = Vector{Int}[]
   Π_to_id = Int[]
-  PolyhedronData( v_to_Π, v_to_of, v_to_v, Π_to_v_to_d, Π_to_id  )
+  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_id  )
 end
 
 function next_vertex(p::Polyhedron,vprevious::Integer,vcurrent::Integer)
@@ -973,6 +999,50 @@ function get_convex_faces(stl::DiscreteModel)
   f_to_isconvex
 end
 
+function get_disconnected_parts(poly::Polyhedron)
+  v_to_part = fill(UNSET,num_vertices(poly))
+  stack = Int[]
+  num_parts = 0
+  for v in 1:num_vertices(poly)
+    isactive(poly,v) || continue
+    v_to_part[v] == UNSET || continue
+    num_parts += 1
+    empty!(stack)
+    push!(stack,v)
+    while !isempty(stack)
+      vcurrent = pop!(stack)
+      for vneig in get_graph(poly)[vcurrent]
+        if vneig ∉ (UNSET,OPEN) && v_to_part[vneig] == UNSET
+          v_to_part[vneig] = num_parts
+          push!(stack,vneig)
+        end
+      end
+    end
+  end
+  v_to_part,num_parts
+end
+
+function get_disconnected_faces(poly::Polyhedron,stl::DiscreteModel,d::Integer)
+  v_to_f = get_data(poly).vertex_to_original_faces
+  facedims = get_facedims(get_grid_topology(stl))
+  v_to_part,num_parts = get_disconnected_parts(poly)
+  part_to_faces = [ Int[] for _ in 1:num_parts ]
+  for v in 1:num_vertices(poly)
+    isactive(poly,v) || continue
+    part = v_to_part[v]
+    for f in v_to_f[v]
+      if facedims[f] == d && f ∉ part_to_faces[part]
+        push!(part_to_faces[part],f)
+      end
+    end
+  end
+  part_to_faces
+end
+
+function get_disconnected_facets(poly::Polyhedron,stl::DiscreteModel)
+  get_disconnected_faces(poly,stl,num_dims(poly)-1)
+end
+
 function disconnect_facets(facets,stl::DiscreteModel,reflex_face_to_isconvex;inside)
   Dc = num_dims(stl)
   offset = get_offset(get_grid_topology(stl),Dc)
@@ -1066,13 +1136,10 @@ end
 function is_facet_in_facet(poly::Polyhedron,facet,plane;inside)
   v_to_f = get_data(poly).vertex_to_original_faces
   distances = get_plane_distances(get_data(poly),plane)
-  smax = 0.0
+  smax = -Inf
   smin = Inf
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
-    if facet ∈ v_to_f[v]
-    end
-
     if facet ∈ v_to_f[v] && plane ∉ v_to_f[v]
       smin = min(smin,distances[v])
       smax = max(smax,distances[v])
@@ -1094,12 +1161,13 @@ function refine(
 
   Dc = num_dims(stl)
   o = get_offset(get_grid_topology(stl),Dc-1)
-  reflex_faces = filter(f->reflex_face_to_isconvex[f-o]≠inside,reflex_faces)
+#  reflex_faces = filter(f->reflex_face_to_isconvex[f-o]≠inside,reflex_faces)
   Γn,Kn = decompose(Γ,K,reflex_faces)
   Kn_clip = empty(Kn)
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
     facets = get_original_facets(Γi,stl)
-    part_to_facets = disconnect_facets(facets,stl,reflex_face_to_isconvex;inside)
+    #part_to_facets = disconnect_facets(facets,stl,reflex_face_to_isconvex;inside)
+    part_to_facets = get_disconnected_facets(Γi,stl)
     @assert !isempty(facets)
     group_to_facets = group_facing_facets(Γi,facets,part_to_facets;inside)
     for facets in group_to_facets
@@ -1213,7 +1281,6 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
 
     pmin = get_cell_coordinates(grid)[cell][1]
     pmax = get_cell_coordinates(grid)[cell][end]
-
 
     empty!(cell_facets)
     for f in c_to_stlf[cell] 

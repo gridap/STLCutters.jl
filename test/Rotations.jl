@@ -148,8 +148,7 @@ pmin = Point(rationalize.(Tuple(pmin)))
 pmax = Point(rationalize.(Tuple(pmax)))
 δ = rationalize(δ)
 
-#origins = [pmin, pmax, (pmin+pmax)/2 ]
-origins = [pmin, (pmin+pmax)/2 ]
+origins = [pmin, pmax, (pmin+pmax)/2 ]
 
 Δ = (pmax-pmin)*δ
 pmin = pmin - Δ
@@ -159,6 +158,12 @@ partition = (n,n,n)
 grid = CartesianGrid(pmin,pmax,partition)
 
 θs = [0;exp10.( -17:-1 )]
+
+O = origins[3]
+θ = 1e-16
+Xi = map(p-> O + R(θ)⋅(p-O),X0)
+stl = compute_stl_model(Table(T0),Xi)
+test_stl_cut(grid,stl,1)
 
 for O in origins
   for θ in θs
