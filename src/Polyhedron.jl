@@ -129,6 +129,10 @@ function get_plane_ids(data::PolyhedronData)
   data.plane_to_ids
 end
 
+function has_plane(data::PolyhedronData,Π)
+  Π ∈ get_plane_ids(data)
+end
+
 ## Polyhedra operations
 
 function clip(poly::Polyhedron,Π;inside=true,inout=trues(length(Π)))
@@ -1145,9 +1149,23 @@ function is_facet_in_facet(poly::Polyhedron,facet,plane;inside)
       smax = max(smax,distances[v])
     end
   end
-  @assert !(smin == smax == 0)
+ # @assert !(smin == smax == 0)
   ( smin ≥ 0 && smax ≥ 0 ) && return !inside
   ( smin ≤ 0 && smax ≤ 0 ) && return inside
+  false
+end
+
+function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside)
+  stl_topo = get_grid_topology(stl)
+  Dc = num_dims(stl)
+  rf = reflex_face - get_offset(stl_topo,Dc-1)
+  length(get_faces(stl_topo,Dc-1,Dc)[rf]) == 2 || return false
+  f1 = get_faces(stl_topo,Dc-1,Dc)[rf][1] + get_offset(stl_topo,Dc)
+  f2 = get_faces(stl_topo,Dc-1,Dc)[rf][2] + get_offset(stl_topo,Dc)
+  has_plane(poly.data,f1) || return false
+  has_plane(poly.data,f2) || return false
+  is_facet_in_facet(poly,f1,f2;inside) || return true
+  is_facet_in_facet(poly,f2,f1;inside) || return true
   false
 end
 
@@ -1159,14 +1177,11 @@ function refine(
   reflex_face_to_isconvex::AbstractVector
   ;inside::Bool)
 
-  Dc = num_dims(stl)
-  o = get_offset(get_grid_topology(stl),Dc-1)
-#  reflex_faces = filter(f->reflex_face_to_isconvex[f-o]≠inside,reflex_faces)
+  reflex_faces = filter( f -> is_reflex(Γ,stl,f;inside), reflex_faces )
   Γn,Kn = decompose(Γ,K,reflex_faces)
   Kn_clip = empty(Kn)
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
     facets = get_original_facets(Γi,stl)
-    #part_to_facets = disconnect_facets(facets,stl,reflex_face_to_isconvex;inside)
     part_to_facets = get_disconnected_facets(Γi,stl)
     @assert !isempty(facets)
     group_to_facets = group_facing_facets(Γi,facets,part_to_facets;inside)
