@@ -227,8 +227,8 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces)
       S,K = [surf],[cell]
     end
     if any(isnothing,K)
-      i = findfirst(!isnothing,K)
-      S,K = [S[i]],[K[i]]
+      j = findfirst(!isnothing,K)
+      S,K = [S[j]],[K[j]]
     end
     if length(rfaces) == i
       R = S,K
