@@ -219,6 +219,7 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces)
     R = [surf],[cell]
   else
     rf = rfaces[i]
+
     s⁻,s⁺ = split(surf,rf)
     k⁻,k⁺ = split(cell,rf)
     S = [s⁻,s⁺]
@@ -325,11 +326,65 @@ function simplexify_surface(poly::Polyhedron{3})
   T,get_vertex_coordinates(poly)
 end
 
+function simplexify_boundary(poly::Polyhedron{3},stl::DiscreteModel)
+  stack = Int[]
+  v_to_pv = get_data(poly).vertex_to_parent_vertex
+  v_to_Π = get_data(poly).vertex_to_planes
+  facedims = get_facedims(get_grid_topology(stl))
+  facet_list = Int[]
+  istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
+  T = Vector{Int}[]
+  for v in 1:num_vertices(poly)
+    isactive(poly,v) || continue
+    for i in 1:length(get_graph(poly)[v])
+      !istouch[v][i] || continue
+      istouch[v][i] = true
+      vcurrent = v
+      vnext = get_graph(poly)[v][i]
+      vnext ∉ (OPEN,UNSET) || continue
+      empty!(facet_list)
+      append!( facet_list, v_to_Π[v] )
+      filter!( i -> i > 0, facet_list)
+      filter!( i -> facedims[i] == num_dims(stl), facet_list)
+      filter!( i -> i ∈ v_to_Π[vnext], facet_list )
+      while vnext != v
+        inext = findfirst( isequal(vcurrent), get_graph(poly)[vnext] )
+        inext = ( inext % length( get_graph(poly)[vnext] ) ) + 1
+        istouch[vnext][inext] = true
+        vcurrent = vnext
+        vnext = get_graph(poly)[vnext][inext]
+        vnext ∉ (OPEN,UNSET) || break
+        filter!( i -> i ∈ v_to_Π[vnext], facet_list )
+        !isempty(facet_list) || break
+        if v ∉ (vcurrent,vnext)
+          k = [v,vcurrent,vnext]
+          push!(T,k)
+        end
+      end
+    end
+  end
+  T,get_vertex_coordinates(poly)
+end
+
 function simplexify(polys::AbstractVector{<:Polyhedron{Dp,Tp}}) where {Dp,Tp}
   T = Vector{Int}[]
   X = Point{Dp,Tp}[]
   for poly in polys
     Ti,Xi = simplexify(poly)
+    append!(T, map(i->i.+length(X),Ti) )
+    append!(X,Xi)
+  end
+  T,X
+end
+
+function simplexify_boundary(
+  polys::AbstractVector{<:Polyhedron{Dp,Tp}},
+  stl::DiscreteModel) where {Dp,Tp}
+
+  T = Vector{Int}[]
+  X = Point{Dp,Tp}[]
+  for poly in polys
+    Ti,Xi = simplexify_boundary(poly,stl)
     append!(T, map(i->i.+length(X),Ti) )
     append!(X,Xi)
   end
@@ -360,6 +415,12 @@ end
 
 function writevtk(p::Polyhedron,filename;kwargs...)
   writevtk(edge_mesh(p),filename;kwargs...)
+end
+
+function writevtk(ps::Array{<:Polyhedron},filename)
+  for (i,p) in enumerate(ps)
+    writevtk(p,filename*"$i")
+  end
 end
 
 function edge_mesh(p::Polyhedron)
@@ -1137,7 +1198,7 @@ function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
   group_to_facets
 end
 
-function is_facet_in_facet(poly::Polyhedron,facet,plane;inside)
+function is_facet_in_facet(poly::Polyhedron,facet,plane;inside,atol=0)
   v_to_f = get_data(poly).vertex_to_original_faces
   distances = get_plane_distances(get_data(poly),plane)
   smax = -Inf
@@ -1150,8 +1211,8 @@ function is_facet_in_facet(poly::Polyhedron,facet,plane;inside)
     end
   end
  # @assert !(smin == smax == 0)
-  ( smin ≥ 0 && smax ≥ 0 ) && return !inside
-  ( smin ≤ 0 && smax ≤ 0 ) && return inside
+  ( smin ≥ 0 && smax ≥ atol ) && return !inside
+  ( smin ≤ 0 && smax ≤ -atol ) && return inside
   false
 end
 
@@ -1164,8 +1225,8 @@ function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside)
   f2 = get_faces(stl_topo,Dc-1,Dc)[rf][2] + get_offset(stl_topo,Dc)
   has_plane(poly.data,f1) || return false
   has_plane(poly.data,f2) || return false
-  is_facet_in_facet(poly,f1,f2;inside) || return true
-  is_facet_in_facet(poly,f2,f1;inside) || return true
+  is_facet_in_facet(poly,f1,f2;inside,atol=100*eps()) || return true
+  is_facet_in_facet(poly,f2,f1;inside,atol=100*eps()) || return true
   false
 end
 
@@ -1218,7 +1279,7 @@ function get_cell_nodes_to_inout(polys_in,polys_out,p::Polytope)
   
   complete_nodes_to_inout!(node_to_inout,polys_in,FACE_IN,p)
   complete_nodes_to_inout!(node_to_inout,polys_out,FACE_OUT,p)
- # @assert UNSET ∉ node_to_inout
+#  @assert UNSET ∉ node_to_inout
   node_to_inout
 end
 
@@ -1230,7 +1291,7 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
     v_to_v = poly.data.vertex_to_parent_vertex
     for v in 1:num_vertices(poly)
       isactive(poly,v) || continue
-      v = inout == FACE_CUT ? v : v_to_v[v]
+    #  v = inout == FACE_CUT ? v : v_to_v[v]
       if count(Π -> Π < 0,v_to_Π[v]) == D
         i = 0
         node = 0
@@ -1269,7 +1330,7 @@ end
 
 function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
   D = num_dims(grid)
-  tol = eps(grid)*1e3
+  tol = eps(grid)*1e2
 
   Γ0 = Polyhedron(stl)
 
@@ -1293,9 +1354,9 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
 
   for cell in 1:num_cells(grid)
     !isempty(c_to_stlf[cell]) || continue
-
-    pmin = get_cell_coordinates(grid)[cell][1]
-    pmax = get_cell_coordinates(grid)[cell][end]
+    
+    pmin = get_cell_coordinates(grid)[cell][1]-tol
+    pmax = get_cell_coordinates(grid)[cell][end]+tol
 
     empty!(cell_facets)
     for f in c_to_stlf[cell] 
@@ -1313,7 +1374,6 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
     K = Polyhedron(p,v)
     Γk0 = restrict(Γ0,stl,cell_facets)
 
-
     stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
     stl_facets_k = c_to_stlf[cell].+get_offset(get_grid_topology(stl),num_dims(stl))
 
@@ -1326,23 +1386,6 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
     Γk = clip(Γk0,Πk_ids,inout=Πk_io)
     !isnothing(Γk) || continue
 
-    v_to_Π = Γk.data.vertex_to_planes
-    for Π in Πk_ids
-      d = get_plane_distances(Γk.data,Π)
-      for v in 1:num_vertices(Γk)
-        isactive(Γk,v) || continue
-        if abs(d[v]) < 1e-13 && Π ∉ v_to_Π[v]
-          push!(v_to_Π[v],Π)
-        end
-      end
-    end
-    n_to_io = fill(UNSET,num_vertices(p))
-    complete_nodes_to_inout!(n_to_io,(Γk,),FACE_CUT,p)
-    for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
-      n_to_io[i] == FACE_CUT || continue
-      bgnode_to_io[bg_v] = FACE_CUT
-    end
-
     if isempty(get_original_facets(Γk,stl))
       continue
     end
@@ -1352,8 +1395,9 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
 
     Tin,Xin = simplexify(Kn_in)
     Tout,Xout = simplexify(Kn_out)
-    T_Γ,X_Γ = simplexify(Γk)
-    
+    T_Γ,X_Γ = simplexify_boundary(Kn_in,stl)
+    T_Γk,X_Γk = simplexify(Γk)
+
     n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
 
     append!(T, map(i->i.+length(X),Tin) )
@@ -1373,7 +1417,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
       n_to_io[i] ≠ UNSET || continue
       n_to_io[i] ≠ FACE_CUT || continue
       bgnode_to_io[bg_v] ≠ FACE_CUT || continue
-     # @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
+   #  @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
       bgnode_to_io[bg_v] = n_to_io[i]
     end
   end

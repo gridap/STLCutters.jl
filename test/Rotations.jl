@@ -6,6 +6,7 @@ using Gridap
 using Gridap.ReferenceFEs
 using Gridap.Geometry
 using Gridap.Arrays
+using Gridap.Helpers
 using STLCutters
 
 using STLCutters: read_stl
@@ -107,6 +108,7 @@ for θ in θs
   Xi = map(p-> p + Δx,X0)
   Xi = map(p-> Oi + Rz(θ)⋅(p-Oi),Xi)
   stl = compute_stl_model(Table(T0),Xi)
+  #writevtk(stl.grid,"stl")
   test_stl_cut(grid,stl,1)
 end
 
@@ -136,6 +138,7 @@ for Δx in Δxs
   println("Testing Δx = $Δx ...")
   Xi = map(p-> p + Δx,X0)
   stl = compute_stl_model(Table(T0),Xi)
+  writevtk(stl.grid,"stl")
   test_stl_cut(grid,stl,1)
 end
 
