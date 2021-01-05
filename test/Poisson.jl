@@ -38,6 +38,7 @@ ud(x) = u(x)
 #test/data/Bunny-LowPoly.stl
 #
 X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
+X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
 stl = compute_stl_model(T,X)
 stl = merge_nodes(stl)
 writevtk(stl,"cube")
@@ -70,6 +71,13 @@ order = 1
 quad_Ω = CellQuadrature(trian_Ω,2*order)
 quad_Γ = CellQuadrature(trian_Γ,2*order)
 quad_Γg = CellQuadrature(trian_Γg,2*order)
+
+surf = sum(integrate(1,trian_Γ,quad_Γ))
+#@show surf
+
+vols = sum(integrate(1,trian_Ω,quad_Ω))
+#@show vols
+
 
 # Setup FESpace
 model = DiscreteModel(cutgeo)

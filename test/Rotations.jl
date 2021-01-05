@@ -20,7 +20,7 @@ using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 
 function test_stl_cut(grid,stl,vol)
   data = compute_submesh(grid,stl)
-  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,bgcell_to_ioc = data
+  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
   submesh = compute_grid(Table(T),X,TET)
   facets = compute_grid(Table(F),Xf,TRI)

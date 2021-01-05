@@ -14,15 +14,14 @@ using STLCutters: Polyhedron
 using STLCutters: compute_stl_model 
 using STLCutters: get_facet_planes 
 using STLCutters: get_reflex_planes 
-using STLCutters: restrict, clip, refine, decompose 
+using STLCutters: restrict, clip, refine, decompose, split 
 using STLCutters: get_original_reflex_faces 
+using STLCutters: get_original_facets 
 using STLCutters: get_cell_planes 
 using STLCutters: filter_face_planes 
 using STLCutters: compute_distances! 
 using STLCutters: volume
 using STLCutters: writevtk 
-
-
 
 
 vertices = [
@@ -80,6 +79,27 @@ mesh_out = compute_grid(T_out,X_out,TET)
 reflex_faces = filter(f->STLCutters.is_reflex(Γk,stl,f,inside=true),stl_reflex_faces_k)
 Γn,Kn = decompose(Γk,K,reflex_faces)
 
+poly = Γk0
+Γkn = typeof(poly)[]
+push!(Γkn,poly)
+for (i,Πid) in enumerate(Πk_ids)
+  global poly
+  poly0, poly1 = split(poly,Πid)
+  poly = Πk_io[i] ? poly0 : poly1
+  push!(Γkn,poly)
+end
+
+Knn = Vector{typeof(K)}[]
+for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
+  F = get_original_facets(Γi,stl)
+  poly = Ki
+  push!(Knn,[poly])
+  for f in F
+    poly0, poly1 = split(poly,f)
+    poly = poly0
+    push!(Knn[i],poly)
+  end
+end
 
 println("IN + OUT - 1 = $(volume(mesh_in)+volume(mesh_out)-1)")
 
@@ -90,8 +110,10 @@ writevtk(stl,joinpath(testdir,"stl"))
 writevtk(K,joinpath(testdir,"K"))
 
 writevtk(Γk0,joinpath(testdir,"Gk0"))
-## Illustrate clipping process
+
 writevtk(Γk,joinpath(testdir,"Gk"))
+
+writevtk(Γkn,joinpath(testdir,"Gk_"))
 
 
 for (i,Ki_in) in enumerate(Kn_in)
@@ -106,6 +128,11 @@ writevtk(mesh_in,joinpath(testdir,"mesh_in"))
 
 writevtk(mesh_out,joinpath(testdir,"mesh_out"))
 
+for (i,kni) in enumerate(Knn)
+  writevtk(kni,joinpath(testdir,"Knn_$(i)_"))
+end
+
+
 offsets = [ Point(0.0,0.0,0.0), Point(0.3,0.0,0.15), Point(0.0,0.0,-0.3) ]
 for (i,(Γi,Ki,Kin)) in enumerate(zip(Γn,Kn,Kn_in))
   map!(p->p+offsets[i], get_vertex_coordinates(Γi), get_vertex_coordinates(Γi) )
@@ -116,7 +143,6 @@ for (i,(Γi,Ki,Kin)) in enumerate(zip(Γn,Kn,Kn_in))
   ## Illustrate clipping process
 #  writevtk(Kin,joinpath(testdir,"Ki_$i"))
 end
-
 
 
 end # module

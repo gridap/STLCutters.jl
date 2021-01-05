@@ -269,7 +269,9 @@ function simplexify(poly::Polyhedron{3})
   end
   v_to_pv = get_data(poly).vertex_to_parent_vertex
   istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
+  vertex_coordinates = get_vertex_coordinates(poly)
   T = Vector{Int}[]
+  X = empty(vertex_coordinates)
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
     for i in 1:length(get_graph(poly)[v])
@@ -288,12 +290,16 @@ function simplexify(poly::Polyhedron{3})
         vcurrent ≠ vnext || break
         if v ∉ (vstart[v],vcurrent,vnext)
           k = [vstart[v],v,vcurrent,vnext]
-          push!(T,k)
+          kv = v_to_pv[k]
+          #length(unique(kv)) == length(k) || break
+          ki = length(X) .+ (1:length(k))
+          push!(X,vertex_coordinates[k]...)
+          push!(T,ki)
         end
       end
     end
   end
-  T,get_vertex_coordinates(poly)
+  T,X
 end
 
 function simplexify_surface(poly::Polyhedron{3})
@@ -333,7 +339,10 @@ function simplexify_boundary(poly::Polyhedron{3},stl::DiscreteModel)
   facedims = get_facedims(get_grid_topology(stl))
   facet_list = Int[]
   istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
+  vertex_coordinates = get_vertex_coordinates(poly)
   T = Vector{Int}[]
+  X = empty(vertex_coordinates)
+  f_to_stlf = Int[]
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
     for i in 1:length(get_graph(poly)[v])
@@ -357,13 +366,18 @@ function simplexify_boundary(poly::Polyhedron{3},stl::DiscreteModel)
         filter!( i -> i ∈ v_to_Π[vnext], facet_list )
         !isempty(facet_list) || break
         if v ∉ (vcurrent,vnext)
+          @assert length(facet_list) == 1
           k = [v,vcurrent,vnext]
-          push!(T,k)
+          kv = v_to_pv[k]
+          ki = length(X) .+ (1:length(k))
+          push!(X,vertex_coordinates[k]...)
+          push!(T,ki)
+          push!(f_to_stlf,first(facet_list))
         end
       end
     end
   end
-  T,get_vertex_coordinates(poly)
+  T,X,f_to_stlf
 end
 
 function simplexify(polys::AbstractVector{<:Polyhedron{Dp,Tp}}) where {Dp,Tp}
@@ -383,12 +397,14 @@ function simplexify_boundary(
 
   T = Vector{Int}[]
   X = Point{Dp,Tp}[]
+  f_to_stlf = Int[]
   for poly in polys
-    Ti,Xi = simplexify_boundary(poly,stl)
+    Ti,Xi,f_to_f_i = simplexify_boundary(poly,stl)
     append!(T, map(i->i.+length(X),Ti) )
     append!(X,Xi)
+    append!(f_to_stlf,f_to_f_i)
   end
-  T,X
+  T,X,f_to_stlf
 end
 
 ## Getters
@@ -1347,6 +1363,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
   k_to_io = Int8[]
   k_to_bgcell = Int[]
   f_to_bgcell = Int[]
+  f_to_stlf = Int[]
 
   cell_facets = Int[]
   bgcell_to_ioc = fill(UNSET,num_cells(grid))
@@ -1395,8 +1412,10 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
 
     Tin,Xin = simplexify(Kn_in)
     Tout,Xout = simplexify(Kn_out)
-    T_Γ,X_Γ = simplexify_boundary(Kn_in,stl)
+    T_Γ,X_Γ,f_to_f = simplexify_boundary(Kn_in,stl)
     T_Γk,X_Γk = simplexify(Γk)
+
+    bgcell_to_ioc[cell] = FACE_CUT
 
     n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
 
@@ -1411,8 +1430,8 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
     append!(F, map(i->i.+length(Xf),T_Γ) ) 
     append!(Xf,X_Γ)
     append!(f_to_bgcell,fill(cell,length(T_Γ)))
+    append!(f_to_stlf,f_to_f.-get_offset(get_grid_topology(stl),num_dims(stl)))
 
-    bgcell_to_ioc[cell] = FACE_CUT
     for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
       n_to_io[i] ≠ UNSET || continue
       n_to_io[i] ≠ FACE_CUT || continue
@@ -1452,5 +1471,5 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
       bgcell_to_ioc[cell] = FACE_OUT
     end
   end
-  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,bgcell_to_ioc
+  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc
 end
