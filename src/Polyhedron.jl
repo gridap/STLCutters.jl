@@ -110,6 +110,7 @@ function compute_distances!(p::Polyhedron,Π,faces)
         dist = 0.0
       else
         dist = signed_distance(p[v],Πi)
+        dist = abs(dist) < 10*eps() ? 0.0 : dist
       end
       v_to_d[v] = dist
     end
@@ -1295,7 +1296,7 @@ function get_cell_nodes_to_inout(polys_in,polys_out,p::Polytope)
   
   complete_nodes_to_inout!(node_to_inout,polys_in,FACE_IN,p)
   complete_nodes_to_inout!(node_to_inout,polys_out,FACE_OUT,p)
-#  @assert UNSET ∉ node_to_inout
+  @assert UNSET ∉ node_to_inout
   node_to_inout
 end
 
@@ -1319,7 +1320,7 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
           node |= ud<<(d-1)
         end
         node += 1
-     #   @assert  node_to_inout[node] ∈ (inout,UNSET)
+        @assert  node_to_inout[node] ∈ (inout,UNSET)
         _inout = inout
         if node_to_inout[node] ∉ (inout,UNSET)
           _inout = FACE_CUT
@@ -1436,7 +1437,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
       n_to_io[i] ≠ UNSET || continue
       n_to_io[i] ≠ FACE_CUT || continue
       bgnode_to_io[bg_v] ≠ FACE_CUT || continue
-   #  @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
+     @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
       bgnode_to_io[bg_v] = n_to_io[i]
     end
   end
@@ -1473,3 +1474,5 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
   end
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc
 end
+
+
