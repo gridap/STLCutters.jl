@@ -49,7 +49,6 @@ export compute_grid
 export initial_mesh
 
 export cut
-export surface
 export square
 
 include("CellMeshes.jl")

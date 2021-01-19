@@ -18,6 +18,8 @@ using STLCutters: compute_grid
 using STLCutters: volume, volumes 
 using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 
+const surf =  STLCutters.surface
+
 function test_stl_cut(grid,stl,vol)
   data = compute_submesh(grid,stl)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
@@ -43,14 +45,20 @@ function test_stl_cut(grid,stl,vol)
   cut_volume = sum(bgmesh_cut_vols)
 
   @test volume(submesh) ≈ cut_volume 
-  @test surface(get_grid(stl)) ≈ surface(facets)
+  @test surf(get_grid(stl)) ≈ surf(facets)
   @test in_volume + out_volume ≈ volume(grid)
   @test in_volume ≈ vol
   
-  println("\t εV = $(in_volume + out_volume - volume(grid))")
-  println("\t εVin = $(in_volume-vol)")
-  println("\t εΓ = $(surface(get_grid(stl)) - surface(facets))")
+  volume_error = (in_volume + out_volume - volume(grid)) / volume(grid)
+  in_volume_error = (in_volume - vol) / vol
+  surface_error = ( surf(get_grid(stl)) - surf(facets) ) / surf(get_grid(stl))
 
+  println("\t εV = $volume_error ")
+  println("\t εVin = $in_volume_error")
+  println("\t εΓ = $surface_error ")
+  
+
+  volume_error, in_volume_error, surface_error
 end
 
 Rx(ϕ) = TensorValue(
@@ -64,7 +72,7 @@ Ry(θ) = TensorValue(
   -sin(θ),0,cos(θ))
 
 Rz(ψ) = TensorValue(
-  cos(ψ),sin(ψ),0,
+  cos(ψ)  ,sin(ψ),0,
   -sin(ψ),cos(ψ),0,
   0,0,1)
 
@@ -74,7 +82,7 @@ R(θ) = R(θ,θ,θ)
 
 
 
-geometries = [ "cube", "Bunny-LowPoly", "wine_glass" ]
+geometries = [ "cube", "Bunny-LowPoly"] #, "wine_glass" ]
 size_factors = [1, 2] #, 4, 8 ]
 
 base_sizes = [ 5, 10, 20 ]
@@ -82,11 +90,13 @@ ref_volumes = [ 1, 273280.0337419614, 74.12595970063474 ]
 
 M = CartesianIndices( (length(geometries), length(size_factors) ) ) 
 
-θs = [0;exp10.( -17:-1 )]
-Δxs = [0;exp10.(-17:-1)]
+θs = exp10.( -17:-10 )
+Δxs = [] #[exp10.(-17:-5)]
 
 δ = 0.2
 
+displacement_errors = []
+rotation_errors = []
 for I in M
   geometry = geometries[ I[1] ]
   size_factor = size_factors[ I[2] ]
@@ -116,22 +126,57 @@ for I in M
 
   println("Testing `$geometry.stl` with `mesh = ($n×$n×$n)` :")
 
+  r_errors = []
   for θ in θs
-    println("Testing θz = $θ ...")
+    println("Testing θ = $θ ...")
     Xi = map(p-> O + R(θ)⋅(p-O),X0)
     stl = compute_stl_model(Table(T0),Xi)
     #writevtk(stl.grid,"stl")
-    test_stl_cut(grid,stl,ref_volumes[ I[1] ])
+    errors = test_stl_cut(grid,stl,ref_volumes[ I[1] ])
+    push!(r_errors,errors)
   end
 
+  d_errors = []
   for Δx in Δxs
     println("Testing Δx = $Δx ...")
     Xi = map(p-> p + Δx,X0)
     stl = compute_stl_model(Table(T0),Xi)
     #writevtk(stl.grid,"stl")
-    test_stl_cut(grid,stl,ref_volumes[ I[1] ])
+    errors = test_stl_cut(grid,stl,ref_volumes[ I[1] ])
+    push!(d_errors,errors)
   end
+
+  push!(rotation_errors,r_errors)
+  push!(displacement_errors,d_errors)
 
 end
 
+using Plots
+
+err_ids = [2,3]
+err_labels = [ "Domain volume variation (εᵥ)", "Domain surface variation (εₛ)" ]
+err_tags = [ "vol", "surf" ]
+
+for (err_id,err_label,err_tag) in zip(err_ids,err_labels,err_tags)
+
+  for (igeom,geom) in enumerate(geometries)
+    plot(markershape=:auto)
+    for (isf,sf) in enumerate(size_factors)
+      n = base_sizes[igeom]*sf
+      i = LinearIndices(M)[igeom,isf]
+      errors = [ e[error_id] for e in rotation_errors[i] ]
+      errors = abs.(errors .- errors[1])
+      scatter!(θs,errors,label="n = $n")
+    end
+    plot!(xscale=:log10)
+    plot!(xlabel="Rotation angle (θ) [rads]")
+    plot!(ylabel=err_label)
+    savefig("$(geom)_$(err_tag)_error_rotation.pdf")
+  end
+end
+
+
 end # module
+
+# TODO: save data and separate data generation from plotting, 
+# so we can recover it easily.
