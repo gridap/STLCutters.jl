@@ -43,13 +43,31 @@ facet_to_vertices = [
  [2,7,6],
  [5,8,7]]
 
-stl = compute_stl_model( Table(facet_to_vertices), vertices )
+stl1 = compute_stl_model( Table(facet_to_vertices), vertices )
+
+vertices = [
+  Point(-1.0,-0.2,0.1),
+  Point(0.2,-0.2,0.8),
+  Point(0.8,-0.2,0.2),
+  Point(2.0,-0.2,1.0),
+  Point(0.5,2.0,0.5) ]
+
+facet_to_vertices = [
+ [1,2,5],
+ [2,3,5],
+ [3,4,5] ]
+
+stl2 = compute_stl_model( Table(facet_to_vertices), vertices )
+
+ 
+stl = stl2
 
 Πr = get_reflex_planes(stl,bisector=true)
 Πf = get_facet_planes(stl)
 
 
 K = Polyhedron(HEX)
+
 stl_facets_k = 1:num_cells(stl)
 
 Γ0 = Polyhedron(stl)
