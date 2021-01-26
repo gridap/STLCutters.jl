@@ -215,7 +215,7 @@ partition = (n,n,n)
 
 grid = CartesianGrid(pmin,pmax,partition)
 
-data = compute_submesh(grid,stl)
+@time data = compute_submesh(grid,stl,kdtree=true)
 T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
 submesh = compute_grid(Table(T),X,TET)
@@ -237,6 +237,7 @@ in_volume = sum(bgmesh_in_vols) + sum(submesh_in_vols)
 out_volume = sum(bgmesh_out_vols) + sum(submesh_out_vols)
 cut_volume = sum(bgmesh_cut_vols)
 
+println("Num subcells: $(num_cells(submesh))")
 @test surface(get_grid(stl)) ≈ surface(facets)
 @test volume(submesh) ≈ cut_volume 
 @test in_volume + out_volume ≈ volume(grid)
@@ -261,7 +262,7 @@ partition = (n,n,n)
 
 grid = CartesianGrid(pmin,pmax,partition)
 
-data = compute_submesh(grid,stl)
+@time data = compute_submesh(grid,stl,kdtree=true)
 T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
 submesh = compute_grid(Table(T),X,TET)
@@ -283,6 +284,7 @@ in_volume = sum(bgmesh_in_vols) + sum(submesh_in_vols)
 out_volume = sum(bgmesh_out_vols) + sum(submesh_out_vols)
 cut_volume = sum(bgmesh_cut_vols)
 
+println("Num subcells: $(num_cells(submesh))")
 @test surface(get_grid(stl)) ≈ surface(facets)
 @test volume(submesh) ≈ cut_volume 
 @test in_volume + out_volume ≈ volume(grid)

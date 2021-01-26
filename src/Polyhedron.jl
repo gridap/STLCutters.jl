@@ -1309,7 +1309,7 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
     for v in 1:num_vertices(poly)
       isactive(poly,v) || continue
     #  v = inout == FACE_CUT ? v : v_to_v[v]
-      if count(Π -> Π < 0,v_to_Π[v]) == D
+      if count(Π -> -2*D ≤ Π < 0 ,v_to_Π[v]) == D
         i = 0
         node = 0
         for _ in 1:D
@@ -1345,7 +1345,7 @@ function Base.eps(grid::Grid)
   eps(float(vmax))
 end
 
-function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
+function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
   D = num_dims(grid)
   tol = eps(grid)*1e2
 
@@ -1408,8 +1408,21 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
       continue
     end
 
-    Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
-    Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
+
+    if kdtree
+      Γv,Kv = refine_by_vertices(Γk,K,tol)
+    else
+      Γv,Kv = [Γk],[K]
+    end
+
+    Kn_in = typeof(K)[]
+    Kn_out = typeof(K)[]
+    for (γk,k) in zip(Γv,Kv)
+      k_in = refine(k,γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
+      k_out = refine(k,γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
+      append!(Kn_in,k_in)
+      append!(Kn_out,k_out)
+    end
 
     Tin,Xin = simplexify(Kn_in)
     Tout,Xout = simplexify(Kn_out)
@@ -1476,3 +1489,79 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel)
 end
 
 
+function refine_by_vertices(Γ::Polyhedron,K::Polyhedron,tol=0)
+  refine_by_vertices(Γ,K,get_vertex_coordinates(Γ),tol)
+end
+
+function refine_by_vertices(Γ,K,vertices,tol)
+  i = findfirst( v -> has_intersection(K,v), vertices )
+  if isnothing(i)
+    R = [Γ],[K]
+  else
+    v = vertices[i]
+    d = get_direction(v,K)
+    Π,Π⁻,Π⁺ = get_planes(v,d,tol)
+    Πid,Πid⁻,Πid⁺ = get_new_plane_ids(Γ)
+    compute_distances!(Γ,[Π⁻,Π⁺],[Πid⁻,Πid⁺])
+    compute_distances!(K,[Π],[Πid])
+    _,γ⁻ = split(Γ,Πid⁺)
+    _,γ⁺ = split(Γ,Πid⁻)
+    k⁻,k⁺ = split(K,Πid)
+    Γn = [γ⁻,γ⁺]
+    Kn = [k⁻,k⁺]
+    if length(vertices) == i
+      R = Γn,Kn
+    else
+      Γr,Kr = empty(Γn),empty(Kn)
+      vertices = view(vertices,i+1:length(vertices))
+      for (γ,k) in zip(Γn,Kn)
+        Γi,Ki = refine_by_vertices(γ,k,vertices,tol)
+        append!(Γr,Γi)
+        append!(Kr,Ki)
+      end
+      R = Γr,Kr
+    end
+  end
+  R
+end
+
+function get_bounding_box(cell::Polyhedron)
+  i = findfirst(i->isactive(cell,i),1:num_vertices(cell))
+  pmin,pmax = cell[i],cell[i]
+  for i in 1:num_vertices(cell)
+    if isactive(cell,i)
+      pmin = Point( min.(Tuple(cell[i]),Tuple(pmin)) )
+      pmax = Point( max.(Tuple(cell[i]),Tuple(pmax)) )
+    end
+  end
+  pmin,pmax
+end
+
+function has_intersection(cell::Polyhedron,v::Point)
+  pmin,pmax = get_bounding_box(cell)
+  all( Tuple(pmin) .< Tuple(v) ) || return false
+  all( Tuple(pmax) .> Tuple(v) ) || return false
+  true
+end
+
+function get_direction(v,cell)
+  pmin,pmax = get_bounding_box(cell)
+  d0 = Tuple(v) .- Tuple(pmin)
+  d1 = Tuple(pmax) .- Tuple(v)
+  d = min.(d0,d1)
+  d_max = maximum(d)
+  findfirst(isequal(d_max),d)
+end
+
+function get_planes(v,d,tol)
+  δ = VectorValue(Base.setindex(Tuple(zero(v)),tol,d))
+  Π = CartesianPlane(v,d,+1)
+  Π⁻ = CartesianPlane(v-δ,d,+1)
+  Π⁺ = CartesianPlane(v+δ,d,-1)
+  Π,Π⁻,Π⁺
+end
+
+function get_new_plane_ids(poly)
+  id = minimum( get_plane_ids(poly.data) )
+  id-1,id-2,id-3
+end
