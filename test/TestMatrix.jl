@@ -1,7 +1,8 @@
 module TestMatrix
 
 using Test
-
+using CSV
+using DataFrames
 using Gridap
 using Gridap.ReferenceFEs
 using Gridap.Geometry
@@ -21,7 +22,7 @@ using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 const surf =  STLCutters.surface
 
 function test_stl_cut(grid,stl,vol)
-  data = compute_submesh(grid,stl)
+  t = @timed data = compute_submesh(grid,stl)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
   submesh = compute_grid(Table(T),X,TET)
@@ -57,8 +58,25 @@ function test_stl_cut(grid,stl,vol)
   println("\t εVin = $in_volume_error")
   println("\t εΓ = $surface_error ")
   
+  cut_bgcells = unique(k_to_bgcell)
+  num_k = [ count(isequal(bgcell),k_to_bgcell) for bgcell in cut_bgcells]
+  num_f = [ count(isequal(bgcell),f_to_bgcell) for bgcell in cut_bgcells]
 
-  volume_error, in_volume_error, surface_error
+
+  ( volume_error = volume_error,
+    domain_error = in_volume_error, 
+    surface_error = surface_error,
+    time = t.time,
+    num_cut_cells = length(cut_bgcells),
+    num_subcells = length(k_to_bgcell),
+    min_num_subcells = minimum(num_k),
+    max_num_subcells = maximum(num_k),
+    avg_num_subcells = length(k_to_bgcell) / length(cut_bgcells),
+    num_subfacets = length(f_to_bgcell),
+    min_num_subfacets = minimum(num_f),
+    max_num_subfacets = maximum(num_f),
+    avg_num_subfacets = length(f_to_bgcell) / length(cut_bgcells) )
+
 end
 
 Rx(ϕ) = TensorValue(
@@ -90,13 +108,13 @@ ref_volumes = [ 1, 273280.0337419614, 74.12595970063474 ]
 
 M = CartesianIndices( (length(geometries), length(size_factors) ) ) 
 
-θs = exp10.( -17:-10 )
+θs = [0,exp10.( -17:-10 )]
 Δxs = [] #[exp10.(-17:-5)]
 
 δ = 0.2
 
-displacement_errors = []
-rotation_errors = []
+data = DataFrame()
+
 for I in M
   geometry = geometries[ I[1] ]
   size_factor = size_factors[ I[2] ]
@@ -126,30 +144,40 @@ for I in M
 
   println("Testing `$geometry.stl` with `mesh = ($n×$n×$n)` :")
 
-  r_errors = []
+  heading = (geometry = geometry,n = n )
+
   for θ in θs
     println("Testing θ = $θ ...")
     Xi = map(p-> O + R(θ)⋅(p-O),X0)
     stl = compute_stl_model(Table(T0),Xi)
     #writevtk(stl.grid,"stl")
-    errors = test_stl_cut(grid,stl,ref_volumes[ I[1] ])
-    push!(r_errors,errors)
+    out = test_stl_cut(grid,stl,ref_volumes[ I[1] ])
+    row = (heading...,displacement=0.0,rotation=θ,out...)
+    push!(data,row)
   end
 
-  d_errors = []
   for Δx in Δxs
     println("Testing Δx = $Δx ...")
     Xi = map(p-> p + Δx,X0)
     stl = compute_stl_model(Table(T0),Xi)
     #writevtk(stl.grid,"stl")
-    errors = test_stl_cut(grid,stl,ref_volumes[ I[1] ])
-    push!(d_errors,errors)
+    out = test_stl_cut(grid,stl,ref_volumes[ I[1] ])
+    row = (heading...,displacement=Δx,rotation=0.0,out...)
+    push!(data,row)
   end
-
-  push!(rotation_errors,r_errors)
-  push!(displacement_errors,d_errors)
-
 end
+
+CSV.write("out_test_matrix.csv",data)
+
+
+## Read and plot in a different file:
+#
+# include("PlotTestMatrix.jl")
+#
+
+# data = CSV.read()
+# filter(x->x.n==5,data)
+
 
 using Plots
 
@@ -164,7 +192,7 @@ for (err_id,err_label,err_tag) in zip(err_ids,err_labels,err_tags)
     for (isf,sf) in enumerate(size_factors)
       n = base_sizes[igeom]*sf
       i = LinearIndices(M)[igeom,isf]
-      errors = [ e[error_id] for e in rotation_errors[i] ]
+      errors = [ e[err_id] for e in rotation_errors[i] ]
       errors = abs.(errors .- errors[1])
       scatter!(θs,errors,label="n = $n")
     end

@@ -4,6 +4,8 @@ authors = ["Pere Antoni Martorell", "Large Scale Scientific Computing"]
 version = "0.1.0"
 
 [deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 Gridap = "56d4f2e9-7ea1-5844-9cf6-b9c51ca7ce8e"
