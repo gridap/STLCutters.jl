@@ -21,8 +21,8 @@ using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 
 const surf =  STLCutters.surface
 
-function test_stl_cut(grid,stl,vol)
-  t = @timed data = compute_submesh(grid,stl)
+function test_stl_cut(grid,stl,vol;kdtree=false)
+  t = @timed data = compute_submesh(grid,stl;kdtree)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
   submesh = compute_grid(Table(T),X,TET)
@@ -75,7 +75,8 @@ function test_stl_cut(grid,stl,vol)
     num_subfacets = length(f_to_bgcell),
     min_num_subfacets = minimum(num_f),
     max_num_subfacets = maximum(num_f),
-    avg_num_subfacets = length(f_to_bgcell) / length(cut_bgcells) )
+    avg_num_subfacets = length(f_to_bgcell) / length(cut_bgcells),
+    kdtree = kdtree)
 
 end
 
@@ -108,7 +109,7 @@ ref_volumes = [ 1, 273280.0337419614, 74.12595970063474 ]
 
 M = CartesianIndices( (length(geometries), length(size_factors) ) ) 
 
-θs = [0,exp10.( -17:-10 )]
+θs = [0;exp10.( -17:-10 )]
 Δxs = [] #[exp10.(-17:-5)]
 
 δ = 0.2
@@ -165,6 +166,13 @@ for I in M
     row = (heading...,displacement=Δx,rotation=0.0,out...)
     push!(data,row)
   end
+
+  println("Testing K-d Tree ...")
+  stl = compute_stl_model(Table(T0),X0)
+  out = test_stl_cut(grid,stl,ref_volumes[ I[1] ],kdtree=true)
+  row = (heading...,displacement=0.0,rotation=0.0,out...)
+  push!(data,row)
+
 end
 
 CSV.write("out_test_matrix.csv",data)
@@ -175,36 +183,4 @@ CSV.write("out_test_matrix.csv",data)
 # include("PlotTestMatrix.jl")
 #
 
-# data = CSV.read()
-# filter(x->x.n==5,data)
-
-
-using Plots
-
-err_ids = [2,3]
-err_labels = [ "Domain volume variation (εᵥ)", "Domain surface variation (εₛ)" ]
-err_tags = [ "vol", "surf" ]
-
-for (err_id,err_label,err_tag) in zip(err_ids,err_labels,err_tags)
-
-  for (igeom,geom) in enumerate(geometries)
-    plot(markershape=:auto)
-    for (isf,sf) in enumerate(size_factors)
-      n = base_sizes[igeom]*sf
-      i = LinearIndices(M)[igeom,isf]
-      errors = [ e[err_id] for e in rotation_errors[i] ]
-      errors = abs.(errors .- errors[1])
-      scatter!(θs,errors,label="n = $n")
-    end
-    plot!(xscale=:log10)
-    plot!(xlabel="Rotation angle (θ) [rads]")
-    plot!(ylabel=err_label)
-    savefig("$(geom)_$(err_tag)_error_rotation.pdf")
-  end
 end
-
-
-end # module
-
-# TODO: save data and separate data generation from plotting, 
-# so we can recover it easily.
