@@ -172,12 +172,4 @@ for O in origins
   end
 end
 
-
-
-# TODO:
-#  * test exact matching with rational CartesianGrid
-#  * Test more displacements
-#  * rotate in more axis ϕ,θ,ψ (x,y,z) ( roll, pitch, yaw)
-#  * more geometries
-#  * more displacements
 end # module

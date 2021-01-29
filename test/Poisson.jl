@@ -39,10 +39,11 @@ ud(x) = u(x)
 #
 X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
-stl = compute_stl_model(T,X)
-stl = merge_nodes(stl)
+@time X,T,N = read_stl(joinpath(@__DIR__,"data/441708_sf.obj"))
+@time stl = compute_stl_model(T,X)
+@time stl = merge_nodes(stl)
 writevtk(stl,"cube")
-n = 10
+n = 100
 δ = 0.2
 pmin,pmax = get_bounding_box(stl)
 diagonal = pmax-pmin
@@ -55,7 +56,7 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
 
-cutgeo = cut(bgmodel,geo)
+@time cutgeo = cut(bgmodel,geo)
 
 # Setup integration meshes
 trian_Ω = Triangulation(cutgeo)
@@ -80,8 +81,8 @@ vols = sum(integrate(1,trian_Ω,quad_Ω))
 
 
 # Setup FESpace
-model = DiscreteModel(cutgeo)
-V = TestFESpace(model=model,valuetype=Float64,reffe=:Lagrangian,order=order,conformity=:H1)
+@time model = DiscreteModel(cutgeo)
+@time V = TestFESpace(model=model,valuetype=Float64,reffe=:Lagrangian,order=order,conformity=:H1)
 U = TrialFESpace(V)
 
 # Weak form
@@ -99,7 +100,7 @@ t_Ω = AffineFETerm(a_Ω,l_Ω,trian_Ω,quad_Ω)
 t_Γ = AffineFETerm(a_Γ,l_Γ,trian_Γ,quad_Γ)
 t_Γg = LinearFETerm(a_Γg,trian_Γg,quad_Γg)
 op = AffineFEOperator(U,V,t_Ω,t_Γ,t_Γg)
-uh = solve(op)
+@time uh = solve(op)
 
 # Postprocess
 uh_Ω = restrict(uh,trian_Ω)

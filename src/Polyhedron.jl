@@ -708,7 +708,6 @@ function correct_graph!(graph,num_vertices::Integer)
   end
 end
 
-
 function add_open_vertices!(graph,poly::Polyhedron)
   if isopen(poly)
     for v in num_vertices(poly)+1:length(graph)
