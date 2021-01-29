@@ -110,7 +110,6 @@ function compute_distances!(p::Polyhedron,Π,faces)
         dist = 0.0
       else
         dist = signed_distance(p[v],Πi)
-        dist = abs(dist) < 10*eps() ? 0.0 : dist
       end
       v_to_d[v] = dist
     end
@@ -1125,42 +1124,6 @@ function get_disconnected_facets(poly::Polyhedron,stl::DiscreteModel)
   get_disconnected_faces(poly,stl,num_dims(poly)-1)
 end
 
-function disconnect_facets(facets,stl::DiscreteModel,reflex_face_to_isconvex;inside)
-  Dc = num_dims(stl)
-  offset = get_offset(get_grid_topology(stl),Dc)
-  facet_to_part = fill(UNSET,length(facets))
-  stack = Int[]
-  num_parts = 0
-  f_to_r = get_faces(get_grid_topology(stl),Dc,Dc-1)
-  r_to_f = get_faces(get_grid_topology(stl),Dc-1,Dc)
-  for (i,f) in enumerate(facets)
-    facet_to_part[i] == UNSET || continue
-    num_parts += 1
-    facet_to_part[i] = num_parts
-    empty!(stack)
-    push!(stack,f-offset)
-    while !isempty(stack)
-      fcurrent = pop!(stack)
-      for r in f_to_r[fcurrent]
-        reflex_face_to_isconvex[r] == inside || continue
-        for fnext in r_to_f[r]
-          fnext ≠ fcurrent || continue
-          fnext+offset ∈ facets || continue
-          inext = findfirst(isequal(fnext+offset),facets)
-          facet_to_part[inext] == UNSET || continue
-          facet_to_part[inext] = num_parts
-          push!(stack,fnext)
-        end
-      end
-    end
-  end
-  part_to_facets = [ Int[] for _ in 1:num_parts ]
-  for (facet,part) in zip(facets,facet_to_part)
-    push!(part_to_facets[part],facet)
-  end
-  part_to_facets
-end
-
 function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
   length(part_to_facets) > 1 || return [facets]
   f_to_part = fill(UNSET,length(facets))
@@ -1233,7 +1196,7 @@ function is_facet_in_facet(poly::Polyhedron,facet,plane;inside,atol=0)
   false
 end
 
-function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside)
+function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside,atol=0)
   stl_topo = get_grid_topology(stl)
   Dc = num_dims(stl)
   rf = reflex_face - get_offset(stl_topo,Dc-1)
@@ -1242,8 +1205,8 @@ function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside)
   f2 = get_faces(stl_topo,Dc-1,Dc)[rf][2] + get_offset(stl_topo,Dc)
   has_plane(poly.data,f1) || return false
   has_plane(poly.data,f2) || return false
-  is_facet_in_facet(poly,f1,f2;inside,atol=100*eps()) || return true
-  is_facet_in_facet(poly,f2,f1;inside,atol=100*eps()) || return true
+  is_facet_in_facet(poly,f1,f2;inside,atol) || return true
+  is_facet_in_facet(poly,f2,f1;inside,atol) || return true
   false
 end
 
@@ -1253,9 +1216,10 @@ function refine(
   stl::DiscreteModel,
   reflex_faces::AbstractVector,
   reflex_face_to_isconvex::AbstractVector
-  ;inside::Bool)
+  ;inside::Bool,
+  atol::Real)
 
-  reflex_faces = filter( f -> is_reflex(Γ,stl,f;inside), reflex_faces )
+  reflex_faces = filter( f -> is_reflex(Γ,stl,f;inside,atol), reflex_faces )
   Γn,Kn = decompose(Γ,K,reflex_faces)
   Kn_clip = empty(Kn)
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
@@ -1296,7 +1260,7 @@ function get_cell_nodes_to_inout(polys_in,polys_out,p::Polytope)
   
   complete_nodes_to_inout!(node_to_inout,polys_in,FACE_IN,p)
   complete_nodes_to_inout!(node_to_inout,polys_out,FACE_OUT,p)
-  @assert UNSET ∉ node_to_inout
+  #@assert UNSET ∉ node_to_inout
   node_to_inout
 end
 
@@ -1320,7 +1284,7 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
           node |= ud<<(d-1)
         end
         node += 1
-        @assert  node_to_inout[node] ∈ (inout,UNSET)
+        #@assert  node_to_inout[node] ∈ (inout,UNSET)
         _inout = inout
         if node_to_inout[node] ∉ (inout,UNSET)
           _inout = FACE_CUT
@@ -1347,7 +1311,7 @@ end
 
 function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
   D = num_dims(grid)
-  tol = eps(grid)*1e2
+  atol = eps(grid)*1e2
 
   Γ0 = Polyhedron(stl)
 
@@ -1373,8 +1337,8 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
   for cell in 1:num_cells(grid)
     !isempty(c_to_stlf[cell]) || continue
     
-    pmin = get_cell_coordinates(grid)[cell][1]-tol
-    pmax = get_cell_coordinates(grid)[cell][end]+tol
+    pmin = get_cell_coordinates(grid)[cell][1]-atol
+    pmax = get_cell_coordinates(grid)[cell][end]+atol
 
     empty!(cell_facets)
     for f in c_to_stlf[cell] 
@@ -1418,8 +1382,8 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     Kn_in = typeof(K)[]
     Kn_out = typeof(K)[]
     for (γk,k) in zip(Γv,Kv)
-      k_in = refine(k,γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
-      k_out = refine(k,γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
+      k_in = refine(k,γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true;atol)
+      k_out = refine(k,γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false;atol)
       append!(Kn_in,k_in)
       append!(Kn_out,k_out)
     end
@@ -1450,7 +1414,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
       n_to_io[i] ≠ UNSET || continue
       n_to_io[i] ≠ FACE_CUT || continue
       bgnode_to_io[bg_v] ≠ FACE_CUT || continue
-     @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
+      # @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
       bgnode_to_io[bg_v] = n_to_io[i]
     end
   end
