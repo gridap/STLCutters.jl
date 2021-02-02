@@ -1216,7 +1216,7 @@ function refine(
   reflex_faces::AbstractVector,
   reflex_face_to_isconvex::AbstractVector
   ;inside::Bool,
-  atol::Real)
+  atol::Real=0)
 
   reflex_faces = filter( f -> is_reflex(Γ,stl,f;inside,atol), reflex_faces )
   Γn,Kn = decompose(Γ,K,reflex_faces)
@@ -1373,7 +1373,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
 
 
     if kdtree
-      Γv,Kv = refine_by_vertices(Γk,K,tol)
+      Γv,Kv = refine_by_vertices(Γk,K,atol)
     else
       Γv,Kv = [Γk],[K]
     end
@@ -1452,18 +1452,18 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
 end
 
 
-function refine_by_vertices(Γ::Polyhedron,K::Polyhedron,tol=0)
-  refine_by_vertices(Γ,K,get_vertex_coordinates(Γ),tol)
+function refine_by_vertices(Γ::Polyhedron,K::Polyhedron,atol=0)
+  refine_by_vertices(Γ,K,get_vertex_coordinates(Γ),atol)
 end
 
-function refine_by_vertices(Γ,K,vertices,tol)
+function refine_by_vertices(Γ,K,vertices,atol)
   i = findfirst( v -> has_intersection(K,v), vertices )
   if isnothing(i)
     R = [Γ],[K]
   else
     v = vertices[i]
     d = get_direction(v,K)
-    Π,Π⁻,Π⁺ = get_planes(v,d,tol)
+    Π,Π⁻,Π⁺ = get_planes(v,d,atol)
     Πid,Πid⁻,Πid⁺ = get_new_plane_ids(Γ)
     compute_distances!(Γ,[Π⁻,Π⁺],[Πid⁻,Πid⁺])
     compute_distances!(K,[Π],[Πid])
@@ -1478,7 +1478,7 @@ function refine_by_vertices(Γ,K,vertices,tol)
       Γr,Kr = empty(Γn),empty(Kn)
       vertices = view(vertices,i+1:length(vertices))
       for (γ,k) in zip(Γn,Kn)
-        Γi,Ki = refine_by_vertices(γ,k,vertices,tol)
+        Γi,Ki = refine_by_vertices(γ,k,vertices,atol)
         append!(Γr,Γi)
         append!(Kr,Ki)
       end
@@ -1516,8 +1516,8 @@ function get_direction(v,cell)
   findfirst(isequal(d_max),d)
 end
 
-function get_planes(v,d,tol)
-  δ = VectorValue(Base.setindex(Tuple(zero(v)),tol,d))
+function get_planes(v,d,atol)
+  δ = VectorValue(Base.setindex(Tuple(zero(v)),atol,d))
   Π = CartesianPlane(v,d,+1)
   Π⁻ = CartesianPlane(v-δ,d,+1)
   Π⁺ = CartesianPlane(v+δ,d,-1)

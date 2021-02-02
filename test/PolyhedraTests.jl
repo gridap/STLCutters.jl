@@ -28,7 +28,6 @@ using STLCutters: compute_distances!
 using STLCutters: flip
 using STLCutters: get_original_facets
 using STLCutters: get_original_reflex_faces
-using STLCutters: disconnect_facets 
 using STLCutters: group_facing_facets 
 using STLCutters: filter_face_planes 
 using STLCutters: refine 
