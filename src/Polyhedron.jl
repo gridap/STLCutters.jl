@@ -1081,6 +1081,7 @@ end
 
 function get_disconnected_parts(poly::Polyhedron)
   v_to_part = fill(UNSET,num_vertices(poly))
+  v_to_vp = poly.data.vertex_to_parent_vertex
   stack = Int[]
   num_parts = 0
   for v in 1:num_vertices(poly)
@@ -1092,7 +1093,10 @@ function get_disconnected_parts(poly::Polyhedron)
     while !isempty(stack)
       vcurrent = pop!(stack)
       for vneig in get_graph(poly)[vcurrent]
-        if vneig ∉ (UNSET,OPEN) && v_to_part[vneig] == UNSET
+        if vneig ∉ (UNSET,OPEN) && 
+           v_to_part[vneig] == UNSET &&  
+           v_to_vp[vcurrent] ≠ v_to_vp[vneig]
+
           v_to_part[vneig] = num_parts
           push!(stack,vneig)
         end
@@ -1110,6 +1114,7 @@ function get_disconnected_faces(poly::Polyhedron,stl::DiscreteModel,d::Integer)
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
     part = v_to_part[v]
+    part ≠ UNSET || continue
     for f in v_to_f[v]
       if facedims[f] == d && f ∉ part_to_faces[part]
         push!(part_to_faces[part],f)
@@ -1233,6 +1238,20 @@ function refine(
     end
   end
   Kn_clip
+end
+
+function check_convex_parts(poly::Polyhedron,facets,part_to_facets;inside)
+  for f in part_to_facets
+    for fi in f, fj in f
+      fi ≠ fj || continue
+      fi ∈ facets || continue
+      fj ∈ facets || continue
+      if !is_facet_in_facet(poly,fj,fi;inside,atol=0)
+        return false
+      end
+    end
+  end
+  true
 end
 
 function filter_face_planes(
