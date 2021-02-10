@@ -24,8 +24,8 @@ using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 #X,T,N = read_stl(joinpath(@__DIR__,"data/441708_sf.obj"))
 #X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny.stl"))
 #X,T,N = read_stl(joinpath(@__DIR__,"data/one_Bird.stl"))
-#X,T,N = read_stl(joinpath(@__DIR__,"data/chichen_itza.stl"))
-X,T,N = read_stl(joinpath(@__DIR__,"data/47076_sf.obj"))
+X,T,N = read_stl(joinpath(@__DIR__,"data/chichen_itza.stl"))
+#X,T,N = read_stl(joinpath(@__DIR__,"data/47076_sf.obj"))
 
 stl = compute_stl_model(T,X)
 stl = merge_nodes(stl)
@@ -72,6 +72,7 @@ cut_volume = sum(bgmesh_cut_vols)
  
 println("Time: $(t.time)")
 println("Domain volume:  $(in_volume)") 
+println("Domain surface:  $(surface(facets))") 
 @show surface(get_grid(stl)) - surface(facets)
 @show in_volume + out_volume - volume(grid)
 

@@ -16,6 +16,7 @@ struct PolyhedronData
   vertex_to_parent_vertex::Vector{Int}
   vertex_to_parent_edge::Vector{Tuple{Int,Int}}
   plane_to_vertex_to_distances::Vector{Vector{Float64}}
+  plane_to_ref_plane::Vector{Int}
   plane_to_ids::Vector{Int}
 end
 
@@ -100,8 +101,10 @@ function compute_distances!(p::Polyhedron,Π,faces)
   v_to_f = get_data(p).vertex_to_original_faces
   Π_to_v_to_d = get_plane_distances(data)
   Π_ids = get_plane_ids(data)
+  Π_to_rΠ = data.plane_to_ref_plane
   num_Π = length(Π_ids)
   append!(Π_ids,faces)
+  append!(Π_to_rΠ,fill(UNSET,length(faces)))
   append!(Π_to_v_to_d, [ zeros(num_vertices(p)) for _ in faces ] )
   for (i,(Πi,fi)) in enumerate(zip(Π,faces))
     v_to_d = Π_to_v_to_d[i+num_Π]
@@ -110,6 +113,7 @@ function compute_distances!(p::Polyhedron,Π,faces)
         dist = 0.0
       else
         dist = signed_distance(p[v],Πi)
+        dist = abs(dist) < 1000*eps() ? 0.0 : dist
       end
       v_to_d[v] = dist
     end
@@ -158,6 +162,9 @@ function split(p::Polyhedron,Π)
     return nothing,p
   end
   if smax ≤ 0
+    if has_coplanars(get_data(p),Π)
+      add_plane!(get_data(p),Π)
+    end
     return p,nothing
   end
   new_vertices = empty( get_vertex_coordinates(p) )
@@ -213,31 +220,52 @@ function flip_graph(graph)
   map( i -> reverse(i), graph )
 end
 
-function decompose(surf::Polyhedron,cell::Polyhedron,rfaces)
+function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,stl::DiscreteModel)
   i = findfirst(i->has_original_reflex_face(surf,i), rfaces )
   if i === nothing
     R = [surf],[cell]
   else
     rf = rfaces[i]
 
-    s⁻,s⁺ = split(surf,rf)
-    k⁻,k⁺ = split(cell,rf)
-    S = [s⁻,s⁺]
-    K = [k⁻,k⁺]
-    if any(isnothing,S) || any(!has_facets,S)
+    if has_coplanars(surf.data,rf) && contains_coplanars(surf.data,rf)
       S,K = [surf],[cell]
+    else
+      s⁻,s⁺ = split(surf,rf)
+      k⁻,k⁺ = split(cell,rf)
+      S = [s⁻,s⁺]
+      K = [k⁻,k⁺]
+      if any(isnothing,S) || any(!has_facets,S)
+        # We may encapsulate this
+        D = num_dims(stl)
+        stl_topo = get_grid_topology(stl)
+        o_reflex = get_offset(stl_topo,D-1)
+        o_facet = get_offset(stl_topo,D)
+        neig_facets = get_faces(stl_topo,D-1,D)[rf-o_reflex] 
+        if !any(i->has_original_facet(surf,i+o_facet),neig_facets) ||
+           !has_original_reflex_face(surf,rf,empty=false)
+          S,K = [surf],[cell]
+        else
+          j = findfirst(i->!has_original_facet(surf,i+o_facet),neig_facets)
+          missing_facet = neig_facets[j] + o_facet
+          _surf = one_face_polyhedron(surf,missing_facet)
+          j = findfirst(i->isnothing(i)||!has_facets(i),S)
+          S = [surf,surf]
+          S[j] = _surf
+        end
+      end
+      if any(isnothing,K)
+        j = findfirst(!isnothing,K)
+        S,K = [S[j]],[K[j]]
+      end
     end
-    if any(isnothing,K)
-      j = findfirst(!isnothing,K)
-      S,K = [S[j]],[K[j]]
-    end
+
     if length(rfaces) == i
       R = S,K
     else
       Sr,Kr = empty(S),empty(K)
       rfaces = view(rfaces,i+1:length(rfaces))
       for (s,k) in zip(S,K)
-        Si,Ki = decompose(s,k,rfaces)
+        Si,Ki = decompose(s,k,rfaces,stl)
         append!(Sr,Si)
         append!(Kr,Ki)
       end
@@ -245,6 +273,24 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces)
     end
   end
   R
+end
+
+
+function one_face_polyhedron(poly::Polyhedron,face::Integer)
+  v_to_f = get_data(poly).vertex_to_original_faces
+  nodes = Int[]
+  for v in 1:num_vertices(poly)
+    isactive(poly,v) || continue
+    if face ∈ v_to_f[v]
+      push!(nodes,v)
+    end
+  end
+  sort!(nodes)
+  r = restrict(poly,nodes)
+  for v in 1:num_vertices(r) 
+    r.data.vertex_to_original_faces[v] = [face]
+  end
+  r
 end
 
 function simplexify(poly::Polyhedron{3})
@@ -483,15 +529,15 @@ function collect_original_faces(p::Polyhedron,stl::DiscreteModel,d::Integer)
   faces
 end
 
-function has_original_reflex_face(p::Polyhedron{D},face::Integer) where D
-  has_original_face(p,face,Val{D-2}())
+function has_original_reflex_face(p::Polyhedron{D},face::Integer;empty=true) where D
+  has_original_face(p,face,Val{D-2}();empty)
 end
 
-function has_original_facet(p::Polyhedron{D},face::Integer) where D
-  has_original_face(p,face,Val{D-1}())
+function has_original_facet(p::Polyhedron{D},face::Integer;empty=false) where D
+  has_original_face(p,face,Val{D-1}();empty)
 end
 
-function has_original_face(p::Polyhedron,face::Integer,::Val{0})
+function has_original_face(p::Polyhedron,face::Integer,::Val{0};empty=false)
   v_to_f = get_data(p).vertex_to_original_faces
   for v in 1:num_vertices(p)
     if isactive(p,v) && face ∈ v_to_f[v]
@@ -501,14 +547,14 @@ function has_original_face(p::Polyhedron,face::Integer,::Val{0})
   false
 end
 
-function has_original_face(p::Polyhedron,face::Integer,::Val{1})
+function has_original_face(p::Polyhedron,face::Integer,::Val{1};empty=true)
   v_to_f = get_data(p).vertex_to_original_faces
   v_to_v = get_data(p).vertex_to_parent_vertex
   for v in 1:num_vertices(p)
     if isactive(p,v) && face ∈ v_to_f[v]
       for vneig in get_graph(p)[v]
         vneig ∉ (OPEN,UNSET) || continue
-        if face ∈ v_to_f[vneig]# && v_to_v[v] ≠ v_to_v[vneig]
+        if face ∈ v_to_f[vneig] && ( empty || v_to_v[v] ≠ v_to_v[vneig] )
           return true
         end
       end
@@ -517,7 +563,8 @@ function has_original_face(p::Polyhedron,face::Integer,::Val{1})
   false
 end
 
-function has_original_face(p::Polyhedron,face::Integer,::Val{2})
+function has_original_face(p::Polyhedron,face::Integer,::Val{2};empty=false)
+  @notimplementedif empty
   d = 2
   v_to_f = get_data(p).vertex_to_original_faces
   v_to_v = get_data(p).vertex_to_parent_vertex
@@ -659,8 +706,9 @@ function polyhedron_data(num_vertices::Integer)
   v_to_v = collect(1:num_vertices)
   v_to_e = Vector{Tuple{Int,Int}}(undef,num_vertices)
   Π_to_v_to_d = Vector{Int}[]
+  Π_to_rΠ = Int[]
   Π_to_id = Int[]
-  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_id  )
+  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id  )
 end
 
 function polyhedron_data(p::Polytope)
@@ -669,8 +717,9 @@ function polyhedron_data(p::Polytope)
   v_to_v = collect(1:num_vertices(p))
   v_to_e = Vector{Tuple{Int,Int}}(undef,num_vertices(p))
   Π_to_v_to_d = Vector{Int}[]
+  Π_to_rΠ = Int[]
   Π_to_id = Int[]
-  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_id  )
+  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id  )
 end
 
 function signed_distance(point::Point{D},Π::CartesianPlane{D}) where D
@@ -855,9 +904,20 @@ function add_vertex!(data::PolyhedronData,v1::Integer,v2::Integer,Πid::Integer)
   pv = iszero(d2) ? v_to_pv[v2] : pv 
   push!(v_to_pv,pv)
   @assert d1 ≠ d2
+  ref_i = data.plane_to_ref_plane[i]
   for i in 1:length(Π_to_v_to_d)
     v_to_d = Π_to_v_to_d[i] 
-    dist = Π_to_id[i] == Πid ? 0.0 : (d1*v_to_d[v2]-d2*v_to_d[v1])/(d1-d2)
+    if ref_i == UNSET || data.plane_to_ref_plane[i] ∈ (UNSET,i)
+      if Π_to_id[i] == Πid 
+        dist = 0.0
+      else
+        dist = (d1*v_to_d[v2]-d2*v_to_d[v1])/(d1-d2)
+      end
+    else
+      j = data.plane_to_ref_plane[i]
+      @assert abs(j) < i
+      dist = sign(j) * Π_to_v_to_d[abs(j)][end]
+    end
     push!(v_to_d,dist)
   end
   data
@@ -963,9 +1023,10 @@ function restrict(data::PolyhedronData,nodes)
   v_to_of = data.vertex_to_original_faces[nodes]
   v_to_v = collect(1:length(nodes))
   v_to_e = Vector{Tuple{Int,Int}}(undef,length(nodes))
-  Π_to_v_to_d = Vector{Int}[]
-  Π_to_id = Int[]
-  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_id  )
+  Π_to_rΠ = copy(data.plane_to_ref_plane)
+  Π_to_id = copy(data.plane_to_ids)
+  Π_to_v_to_d = [ data.plane_to_vertex_to_distances[i][nodes] for i in 1:length(Π_to_id) ]
+  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id  )
 end
 
 function next_vertex(p::Polyhedron,vprevious::Integer,vcurrent::Integer)
@@ -1209,8 +1270,8 @@ function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside,atol=0
   f2 = get_faces(stl_topo,Dc-1,Dc)[rf][2] + get_offset(stl_topo,Dc)
   has_plane(poly.data,f1) || return false
   has_plane(poly.data,f2) || return false
-  is_facet_in_facet(poly,f1,f2;inside,atol) || return true
-  is_facet_in_facet(poly,f2,f1;inside,atol) || return true
+  is_facet_in_facet(poly,f1,f2;inside,atol=Inf) || return true
+  is_facet_in_facet(poly,f2,f1;inside,atol=Inf) || return true
   false
 end
 
@@ -1224,7 +1285,7 @@ function refine(
   atol::Real=0)
 
   reflex_faces = filter( f -> is_reflex(Γ,stl,f;inside,atol), reflex_faces )
-  Γn,Kn = decompose(Γ,K,reflex_faces)
+  Γn,Kn = decompose(Γ,K,reflex_faces,stl)
   Kn_clip = empty(Kn)
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
     facets = get_original_facets(Γi,stl)
@@ -1329,7 +1390,7 @@ end
 
 function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
   D = num_dims(grid)
-  atol = eps(grid)*1e2
+  atol = eps(grid)*1e4
 
   Γ0 = Polyhedron(stl)
 
@@ -1374,7 +1435,20 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     K = Polyhedron(p,v)
     Γk0 = restrict(Γ0,stl,cell_facets)
 
-    stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
+    stl_reflex_faces_k = Int[]
+    f_to_r = get_faces(stl.grid_topology,D-1,D-2)
+    r_to_f = get_faces(stl.grid_topology,D-2,D-1)
+    for f in c_to_stlf[cell]
+      for r in f_to_r[f]
+        _r = r+get_offset(get_grid_topology(stl),D-2)
+        if _r ∉ stl_reflex_faces_k &&
+           all(i->i∈c_to_stlf[cell],r_to_f[r])
+
+          push!(stl_reflex_faces_k,_r)
+        end
+      end
+    end
+
     stl_facets_k = c_to_stlf[cell].+get_offset(get_grid_topology(stl),num_dims(stl))
 
     Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax)
@@ -1382,6 +1456,13 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
 
     compute_distances!(Γk0,(Πk,Πkf),(Πk_ids,Πkf_ids))
     compute_distances!(K,Πkf,Πkf_ids)
+
+    Π_to_refΠ,Πs = link_planes!(Γk0,stl;atol)
+
+    set_linked_planes!(Γk0,Π_to_refΠ,Πs)
+    set_linked_planes!(K,Π_to_refΠ,Πs)
+
+
 
     Γk = clip(Γk0,Πk_ids,inout=Πk_io)
     !isnothing(Γk) || continue
@@ -1427,7 +1508,32 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     append!(Xf,X_Γ)
     append!(f_to_bgcell,fill(cell,length(T_Γ)))
     append!(f_to_stlf,f_to_f.-get_offset(get_grid_topology(stl),num_dims(stl)))
+    
 
+ #   tets_in = compute_grid(Tin,Xin,TET)
+ #   tets_out = compute_grid(Tout,Xout,TET)
+
+ #  if volume(tets_in) + volume(tets_out) ≉ volume(get_cell(grid,cell))
+
+ #   @show volume(tets_in) + volume(tets_out) - volume(get_cell(grid,cell))
+ #   @show cell
+ #   writevtk(tets_in,"tets_in")
+ #   writevtk(tets_out,"tets_out")
+#    writevtk(Kn_in,"IN_")
+#    writevtk(Kn_out,"OUT_")
+#    writevtk(Γk0,"G")
+ #  end
+ #   @assert volume(tets_in) + volume(tets_out) ≈ volume(get_cell(grid,cell))
+
+ #   tris = compute_grid(T_Γ,X_Γ,TRI)
+ #   tris_k = compute_grid(T_Γk,X_Γk,TRI)
+
+ #   writevtk(tris,"tri_G")
+ #   if abs(surface(tris) - surface(tris_k)) > atol * 10
+ #     @show surface(tris) - surface(tris_k)
+ #     @show cell
+ #   end
+#    @assert false
     for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
       n_to_io[i] ≠ UNSET || continue
       n_to_io[i] ≠ FACE_CUT || continue
@@ -1547,3 +1653,227 @@ function get_new_plane_ids(poly)
   id = minimum( get_plane_ids(poly.data) )
   id-1,id-2,id-3
 end
+
+
+function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
+  planes = surf.data.plane_to_ids
+  v_to_f = surf.data.vertex_to_original_faces
+  stl_topo = get_grid_topology(stl)
+
+  vertices = Int[]
+  Π_to_faces = [ Int[] for _ in 1:length(planes) ]
+  for (i,Π) in enumerate(planes)
+    Π > 0 || continue
+    faces = Π_to_faces[i]
+    dists = get_plane_distances(surf.data,Π)
+    empty!(vertices)
+    for v in 1:num_vertices(surf)
+      @assert isactive(surf,v)
+      if abs(dists[v]) < atol/10
+        push!(vertices,v)
+      end
+    end
+    for v in vertices
+      for f in v_to_f[v]
+        Π ≠ f || continue
+        f ∉ faces || continue
+        f ∈ planes || continue
+        fv = get_face_vertices(stl_topo)[f]
+        face_on_plane = true
+        for _v in fv
+          if !any( i-> first(v_to_f[i]) == _v, vertices )
+            face_on_plane = false
+            break
+          end
+        end
+        if face_on_plane
+          push!(faces,f)
+        end
+      end
+    end
+  end
+
+  if maximum(length,Π_to_faces) == 0
+    return fill(UNSET,length(planes)), planes
+  end
+
+  ## Link coplanar planes
+  Π_to_coplanar_Π = [ Int[] for _ in 1:length(planes) ]
+  D = num_dims(stl)
+  for (i,Π) in enumerate(planes)
+    Π > 0 || continue
+    get_facedims(stl_topo)[Π] == D-1 || continue
+    faces = Π_to_faces[i]
+    for f in faces
+      d = get_facedims(stl_topo)[f]
+      if d == D-1
+        j = findfirst(isequal(f),planes)
+        if Π ∈ Π_to_faces[j] && distance_between_planes(surf,Π,f,abs) < atol
+          push!(Π_to_coplanar_Π[i],f)
+        end
+      elseif d == D
+        push!(Π_to_coplanar_Π[i],f)
+      end
+    end
+  end
+
+  ## Cross link coplanar planes
+  for (i,Πi) in enumerate(planes)
+    Πi > 0 || continue
+    for Πj in Π_to_coplanar_Π[i]
+      j = findfirst(isequal(Πj),planes)
+      if Πi ∉ Π_to_coplanar_Π[j]
+        push!(Π_to_coplanar_Π[j],Πi)
+      end
+    end
+  end
+
+  ## Join planes recursively
+  Π_to_ref_Π = collect(1:length(planes))
+  stack = Int[]
+  for (i,Πi) in enumerate(planes)
+    Πi > 0 || continue
+    Π_to_ref_Π[i] == i || continue
+    empty!(stack)
+    push!(stack,i)
+    while !isempty(stack)
+      j = pop!(stack)
+      for Πk in Π_to_coplanar_Π[j]
+        k = findfirst(isequal(Πk),planes)
+        i ≠ k || continue
+        Π_to_ref_Π[k] == k || continue
+        Π_to_ref_Π[k] = i
+        push!(stack,k)
+      end
+    end
+  end
+
+  ## Check coplanarity
+  for (i,Πi) in enumerate(planes)
+    Πi > 0 || continue
+    for Πj in Π_to_coplanar_Π[i]
+      Πi < Πj || continue
+      @assert distance_between_planes(surf,Πi,Πj,abs) < atol
+    end
+  end
+
+  ## Merge faces
+  for (i,Πi) in enumerate(planes)
+    Πi > 0 || continue
+    Π_to_ref_Π[i] ≠ i || continue
+    for f in Π_to_faces[i]
+      if f ∉ Π_to_faces[Π_to_ref_Π[i]]
+        push!(Π_to_faces[Π_to_ref_Π[i]],f)
+      end
+    end
+  end
+
+  ## Correct dists
+  for (i,Πi) in enumerate(planes)
+    Πi > 0 || continue
+    Π_to_ref_Π[i] == i || continue
+    !isempty(Π_to_coplanar_Π[i]) || continue
+    dists = get_plane_distances(surf.data,Πi)
+    for v in 1:num_vertices(surf)
+      dists[v] ≠ 0 || continue
+      if any( f-> f ∈ v_to_f[v], Π_to_faces )
+        @show dists[v]
+        dists[v] = 0
+      end
+    end
+  end
+
+  for i in reverse(1:length(Π_to_ref_Π))
+    if Π_to_ref_Π[i] > 0 && Π_to_ref_Π[i] ≠ i
+      Π_to_ref_Π[ Π_to_ref_Π[i] ] = -Π_to_ref_Π[i]  
+      Π_to_ref_Π[i] = -Π_to_ref_Π[i]
+    end
+  end
+  for i in 1:length(Π_to_ref_Π)
+    if Π_to_ref_Π[i] > 0
+      Π_to_ref_Π[i] = UNSET
+    else
+      Π_to_ref_Π[i] = -Π_to_ref_Π[i]
+    end
+  end
+  
+  ## Mark inverted planes
+  for i in 1:length(Π_to_ref_Π)
+    Π_to_ref_Π[i] ∉ (UNSET,i) || continue
+    Πi = planes[i]
+    Πj = planes[Π_to_ref_Π[i]]
+    if abs(distance_between_planes(surf,Πi,Πj,abs) 
+           -distance_between_planes(surf,Πi,Πj)) > atol
+      Π_to_ref_Π[i] = -Π_to_ref_Π[i]
+    end
+  end
+
+
+  # TODO: 
+  # reduce to cell plane (cartesian dist)
+  # keep the facet planes as far as possible
+  #
+  Π_to_ref_Π, planes
+end
+
+
+function distance_between_planes(poly::Polyhedron,Π1,Π2,f::Function=identity)
+  dist1 = get_plane_distances(poly.data,Π1)
+  dist2 = get_plane_distances(poly.data,Π2)
+  max_dist = 0.0
+  for v in 1:num_vertices(poly)
+    _d = abs(f(dist1[v]) - f(dist2[v]))
+    max_dist = max(max_dist,_d)
+  end
+  max_dist 
+end
+
+function set_linked_planes!(poly::Polyhedron,Π_to_ref_Π,planes)
+  _Π_to_ref_Π = poly.data.plane_to_ref_plane
+  _planes = poly.data.plane_to_ids
+  Π_to_v_to_dist = poly.data.plane_to_vertex_to_distances
+  for (i,Π) in enumerate(planes)
+    Π_to_ref_Π[i] ≠ UNSET || continue
+    ref_Π = planes[abs(Π_to_ref_Π[i])]
+    j = findfirst(isequal(Π),_planes)
+    ref_j = findfirst(isequal(ref_Π),_planes)
+    _Π_to_ref_Π[j] = ref_j * sign(Π_to_ref_Π[i])
+
+    for v in 1:length(Π_to_v_to_dist[j])
+      Π_to_v_to_dist[j][v] =  Π_to_v_to_dist[ref_j][v] * sign(Π_to_ref_Π[i])
+    end
+  end
+end
+
+function has_coplanars(data::PolyhedronData,Π)
+  i = findfirst(isequal(Π),get_plane_ids(data))
+  data.plane_to_ref_plane[i] ≠ UNSET
+end
+
+function add_plane!(data::PolyhedronData,Π)
+  i = findfirst(isequal(Π),get_plane_ids(data))
+  @assert data.plane_to_ref_plane[i] ≠ UNSET
+  _Π = get_plane_ids(data)[abs(data.plane_to_ref_plane[i])]
+  for v in 1:length(data.vertex_to_planes)
+    if _Π in data.vertex_to_planes[v]
+      push!(data.vertex_to_planes[v],Π)
+    end
+  end
+end
+
+function contains_coplanars(data::PolyhedronData,Π)
+  i = findfirst(isequal(Π),get_plane_ids(data))
+
+  for (j,Πj) in enumerate(get_plane_ids(data))
+    i ≠ j || continue
+    if abs(data.plane_to_ref_plane[i]) == abs(data.plane_to_ref_plane[j])
+      for (v,planes) in enumerate(data.vertex_to_planes)
+        if Πj ∈ planes
+          return true
+        end
+      end
+    end
+  end
+  false
+end
+

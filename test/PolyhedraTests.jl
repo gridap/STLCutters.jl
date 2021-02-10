@@ -214,7 +214,7 @@ partition = (n,n,n)
 
 grid = CartesianGrid(pmin,pmax,partition)
 
-@time data = compute_submesh(grid,stl,kdtree=true)
+@time data = compute_submesh(grid,stl,kdtree=false)
 T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
 submesh = compute_grid(Table(T),X,TET)
@@ -261,7 +261,7 @@ partition = (n,n,n)
 
 grid = CartesianGrid(pmin,pmax,partition)
 
-@time data = compute_submesh(grid,stl,kdtree=true)
+@time data = compute_submesh(grid,stl,kdtree=false)
 T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
 submesh = compute_grid(Table(T),X,TET)
