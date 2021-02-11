@@ -25,7 +25,6 @@ using STLCutters: get_bounding_box
 using STLCutters: FACE_IN, FACE_OUT
 using STLCutters: get_facet_planes
 using STLCutters: compute_distances! 
-using STLCutters: flip
 using STLCutters: get_original_facets
 using STLCutters: get_original_reflex_faces
 using STLCutters: group_facing_facets 
@@ -57,10 +56,8 @@ stl = compute_stl_model( Table(facet_to_vertices), vertices )
 stl_topo = get_grid_topology(stl)
 
 # Global setup
-Πr = get_reflex_planes(stl)#,bisector=true)
+Πr = get_reflex_planes(stl)
 Πf = get_facet_planes(stl)
-
-reflex_face_to_isconvex = get_convex_faces(stl)
 
 # Setup cell
 stl_facets_k = 1:num_cells(stl)
@@ -80,8 +77,8 @@ compute_distances!(K,Πf,Πf_ids)
 
 Γk = clip(Γk0,Πk_ids,inout=Πk_io)
 
-Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
-Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
+Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,inside=true)
+Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,inside=false)
 
 T_in,X_in = simplexify(Kn_in)
 T_out,X_out = simplexify(Kn_out)
@@ -137,10 +134,8 @@ stl = compute_stl_model( Table(facet_to_vertices), vertices )
 stl_topo = get_grid_topology(stl)
 
 # Global setup
-Πr = get_reflex_planes(stl)#,bisector=true)
+Πr = get_reflex_planes(stl)
 Πf = get_facet_planes(stl)
-
-reflex_face_to_isconvex = get_convex_faces(stl)
 
 # Setup cell
 stl_facets_k = 1:num_cells(stl)
@@ -160,8 +155,8 @@ compute_distances!(K,Πf,Πf_ids)
 
 Γk = clip(Γk0,Πk_ids,inout=Πk_io)
 
-Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true)
-Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false)
+Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,inside=true)
+Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,inside=false)
 
 T_in,X_in = simplexify(Kn_in)
 T_out,X_out = simplexify(Kn_out)
@@ -203,7 +198,7 @@ writevtk(get_grid(stl),"stl")
 
 p = HEX
 δ = 0.2
-n = 20
+n = 10
 D = 3
 
 pmin,pmax = get_bounding_box(stl)

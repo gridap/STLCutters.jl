@@ -193,8 +193,6 @@ function split(p::Polyhedron,Π)
   end
   complete_graph!(in_graph,num_vertices(p))
   complete_graph!(out_graph,num_vertices(p))
-  #correct_graph!(in_graph,num_vertices(p))
-  #correct_graph!(out_graph,num_vertices(p))
   disconnect_graph!(in_graph,num_vertices(p),distances,true)
   disconnect_graph!(out_graph,num_vertices(p),distances,false)
   add_open_vertices!(in_graph,p)
@@ -204,20 +202,10 @@ function split(p::Polyhedron,Π)
   out_data = deepcopy(data)
   update_data!(in_data,in_graph,num_vertices(p))
   update_data!(out_data,out_graph,num_vertices(p))
-  #merge_nodes!(in_graph,in_data)
-  #merge_nodes!(out_graph,out_data)
   Polyhedron(vertices,in_graph,isopen(p),in_data), 
   Polyhedron(vertices,out_graph,isopen(p),out_data)
 end
 
-function flip(p::Polyhedron)
-  graph = flip_graph(get_graph(p))
-  Polyhedron(get_vertex_coordinates(p),graph,get_data(p))
-end
-
-function flip_graph(graph)
-  map( i -> reverse(i), graph )
-end
 
 function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,stl::DiscreteModel)
   i = findfirst(i->has_original_reflex_face(surf,i), rfaces )
@@ -225,39 +213,21 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,stl::DiscreteModel)
     R = [surf],[cell]
   else
     rf = rfaces[i]
-
-    if has_coplanars(surf.data,rf) && contains_coplanars(surf.data,rf)
-      S,K = [surf],[cell]
-    else
+    if !has_coplanars(surf.data,rf) || !contains_coplanars(surf.data,rf) 
       s⁻,s⁺ = split(surf,rf)
       k⁻,k⁺ = split(cell,rf)
       S = [s⁻,s⁺]
       K = [k⁻,k⁺]
       if any(isnothing,S) || any(!has_facets,S)
-        # We may encapsulate this
-        D = num_dims(stl)
-        stl_topo = get_grid_topology(stl)
-        o_reflex = get_offset(stl_topo,D-1)
-        o_facet = get_offset(stl_topo,D)
-        neig_facets = get_faces(stl_topo,D-1,D)[rf-o_reflex] 
-        if !any(i->has_original_facet(surf,i+o_facet),neig_facets) ||
-           !has_original_reflex_face(surf,rf,empty=false)
-          S,K = [surf],[cell]
-        else
-          j = findfirst(i->!has_original_facet(surf,i+o_facet),neig_facets)
-          missing_facet = neig_facets[j] + o_facet
-          _surf = one_face_polyhedron(surf,missing_facet)
-          j = findfirst(i->isnothing(i)||!has_facets(i),S)
-          S = [surf,surf]
-          S[j] = _surf
-        end
+        S,K = split_reflex_face(S,K,surf,cell,stl,rf)
       end
       if any(isnothing,K)
         j = findfirst(!isnothing,K)
         S,K = [S[j]],[K[j]]
       end
+    else
+      S,K = [surf],[cell]
     end
-
     if length(rfaces) == i
       R = S,K
     else
@@ -272,24 +242,6 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,stl::DiscreteModel)
     end
   end
   R
-end
-
-
-function one_face_polyhedron(poly::Polyhedron,face::Integer)
-  v_to_f = get_data(poly).vertex_to_original_faces
-  nodes = Int[]
-  for v in 1:num_vertices(poly)
-    isactive(poly,v) || continue
-    if face ∈ v_to_f[v]
-      push!(nodes,v)
-    end
-  end
-  sort!(nodes)
-  r = restrict(poly,nodes)
-  for v in 1:num_vertices(r) 
-    r.data.vertex_to_original_faces[v] = [face]
-  end
-  r
 end
 
 function simplexify(poly::Polyhedron{3})
@@ -788,81 +740,6 @@ function update_data!(data,graph,num_vertices)
   end
 end
 
-function merge_nodes!(graph,data)
-  v_to_pv = data.vertex_to_parent_vertex
-  for v in 1:length(graph)
-    !isempty(graph[v]) || continue
-    v_to_pv[v] ≠ v || continue
-    pv = v_to_pv[v]
-    if isempty(graph[pv])
-      _pv = pv
-      for vneig in graph[v]
-        vneig ∉ (UNSET,OPEN) || continue
-        if v_to_pv[vneig] == pv
-          _pv = vneig
-          break
-        end
-      end
-      _pv ≠ pv || continue
-      pv = _pv
-    end
-    @assert pv ≠ v
-    @assert v_to_pv[pv] == v_to_pv[v]
-    iv = findfirst(isequal(pv),graph[v])
-    ipv = findfirst(isequal(v),graph[pv])
-    @assert !isnothing(iv) && !isnothing(ipv)
-    deleteat!(graph[pv],ipv)
-    len_pv = length(graph[pv])
-    resize!(graph[pv],(len_pv)+(length(graph[v])-1))
-    for i in reverse(ipv:len_pv)
-      graph[pv][end-(len_pv-i)] = graph[pv][i]
-    end
-    for i in iv+1:length(graph[v])
-      graph[pv][ipv+i-(iv+1)] = graph[v][i]
-    end
-    for i in 1:iv-1
-      graph[pv][ipv+i-(iv+1)+length(graph[v])] = graph[v][i]
-    end
-    for _v in graph[v]
-      _v ≠ pv || continue
-      _v ∉ (UNSET,OPEN) || continue
-      i = findfirst(isequal(v),graph[_v])
-      if pv ∈ graph[_v]
-        deleteat!(graph[_v],i)
-      else
-        graph[_v][i] = pv
-        _i = findfirst(isequal(_v),graph[pv])
-        graph[pv][_i] = _v
-      end
-    end
-    i = 1
-    while i ≤ length(graph[pv]) #&& length(graph[pv]) > 1
-      _i = i < length(graph[pv]) ? i+1 : 1
-      if graph[pv][i] == graph[pv][_i] && length(graph[pv]) > 1 
-        deleteat!(graph[pv],i)
-      elseif graph[pv][i] == pv
-        deleteat!(graph[pv],i)
-      else
-        i += 1
-      end
-    end
-    @assert pv ∉ graph[pv]
-    empty!(graph[v])
-    # Merge data
-    v_to_f = data.vertex_to_original_faces
-    for f in v_to_f[v]
-      if f ∉ v_to_f[pv]
-        push!(v_to_f[pv],f)
-      end
-    end
-    # TODO: merge data v in pv
-  end
-#  for v in 1:length(graph)
-#    !isempty(graph[v]) || continue
-#    @assert v_to_pv[v] == v
-#  end
-end
-
 function next_vertex(edge_graph::Vector,num_vertices::Integer,vstart::Integer)
   vcurrent = vstart
   vnext = first( edge_graph[vcurrent] )
@@ -1040,20 +917,6 @@ function get_cell_planes(p::Polytope,pmin::Point,pmax::Point)
   -(1:2*D),iseven.(1:2*D)
 end
 
-function is_convex(stl::DiscreteModel{Dc,Dp},d::Integer,dface::Integer) where {Dc,Dp}
-  @notimplementedif Dc ≠ Dp-1
-  @notimplementedif d ≠ Dc-1
-  facets = get_faces(get_grid_topology(stl),d,Dc)[dface]
-  length(facets) == 2 || return false
-  f1 = get_cell(stl,facets[1])
-  f2 = get_cell(stl,facets[2])
-  n1 = normal(f1)
-  c1 = center(f1)
-  Π1 = Plane(c1,n1)
-  c2 = center(f2)
-  signed_distance(c2,Π1) ≤ 0
-end
-
 function bisector_plane(stl::DiscreteModel{Dc,Dp},d::Integer,dface::Integer) where {Dc,Dp}
   @notimplementedif Dc ≠ Dp-1
   @notimplementedif d ≠ Dc-1
@@ -1082,38 +945,13 @@ function bisector_plane(stl::DiscreteModel{Dc,Dp},d::Integer,dface::Integer) whe
   Plane(c,n)
 end
 
-function vertical_plane(
-  stl::DiscreteModel{Dc,Dp},
-  d::Integer,
-  dface::Integer,
-  dx::Integer) where {Dc,Dp}
-
-  e = get_dface(stl,dface,Val{Dc-1}())
-  c = center(e)
-  o = tfill( 0, Val{Dp}() )
-  vx = VectorValue( Base.setindex(o,1,dx) )
-
-  # vectors = get_base(e)
-  # orthogonal( vectors...,vx )
-  @notimplementedif Dp ≠ 3
-  v = e[2]-e[1]
-  v /= norm(v)
-  n = v × vx
-  n /= norm(v)
-  Plane(c,n)
-end
-  
-function get_reflex_planes(stl::DiscreteModel;bisector=false) 
+function get_reflex_planes(stl::DiscreteModel) 
   Dc = num_dims(stl)
   Dp = num_point_dims(stl)
   T_Π = typeof( bisector_plane(stl,Dc-1,1) )
   Π_r = Vector{T_Π}(undef,num_faces(stl,Dc-1))
   for f in 1:num_faces(stl,Dc-1)
-    if !bisector
-      Π_r[f] = vertical_plane(stl,Dc-1,f,Dp)
-    else
-      Π_r[f] = bisector_plane(stl,Dc-1,f)
-    end
+    Π_r[f] = bisector_plane(stl,Dc-1,f)
   end
   Π_r
 end
@@ -1278,7 +1116,6 @@ function refine(
   Γ::Polyhedron,
   stl::DiscreteModel,
   reflex_faces::AbstractVector,
-  reflex_face_to_isconvex::AbstractVector
   ;inside::Bool,
   atol::Real=0)
 
@@ -1389,13 +1226,12 @@ end
 
 function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
   D = num_dims(grid)
-  atol = eps(grid)*1e2
+  atol = eps(grid)*1e3
 
   Γ0 = Polyhedron(stl)
 
-  Πr = get_reflex_planes(stl,bisector=true)
+  Πr = get_reflex_planes(stl)
   Πf = get_facet_planes(stl)
-  reflex_face_to_isconvex = get_convex_faces(stl)
 
   c_to_stlf = compute_cell_to_facets(grid,stl)
 
@@ -1457,11 +1293,8 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     compute_distances!(K,Πkf,Πkf_ids)
 
     Π_to_refΠ,Πs = link_planes!(Γk0,stl;atol)
-
     set_linked_planes!(Γk0,Π_to_refΠ,Πs)
     set_linked_planes!(K,Π_to_refΠ,Πs)
-
-
 
     Γk = clip(Γk0,Πk_ids,inout=Πk_io)
     !isnothing(Γk) || continue
@@ -1480,8 +1313,8 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     Kn_in = typeof(K)[]
     Kn_out = typeof(K)[]
     for (γk,k) in zip(Γv,Kv)
-      k_in = refine(k,γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=true;atol)
-      k_out = refine(k,γk,stl,stl_reflex_faces_k,reflex_face_to_isconvex,inside=false;atol)
+      k_in = refine(k,γk,stl,stl_reflex_faces_k,inside=true;atol)
+      k_out = refine(k,γk,stl,stl_reflex_faces_k,inside=false;atol)
       append!(Kn_in,k_in)
       append!(Kn_out,k_out)
     end
@@ -1507,10 +1340,6 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     append!(Xf,X_Γ)
     append!(f_to_bgcell,fill(cell,length(T_Γ)))
     append!(f_to_stlf,f_to_f.-get_offset(get_grid_topology(stl),num_dims(stl)))
-    
-
-    tets_in = compute_grid(Tin,Xin,TET)
-    tets_out = compute_grid(Tout,Xout,TET)
 
     for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
       n_to_io[i] ≠ UNSET || continue
@@ -1554,6 +1383,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc
 end
 
+## Kd Tree stuff
 
 function refine_by_vertices(Γ::Polyhedron,K::Polyhedron,atol=0)
   refine_by_vertices(Γ,K,get_vertex_coordinates(Γ),atol)
@@ -1632,11 +1462,13 @@ function get_new_plane_ids(poly)
   id-1,id-2,id-3
 end
 
+## Plane sharing stuff
 
 function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
   planes = surf.data.plane_to_ids
   v_to_f = surf.data.vertex_to_original_faces
   stl_topo = get_grid_topology(stl)
+  f_to_v = get_face_vertices(stl_topo)
 
   vertices = Int[]
   Π_to_faces = [ Int[] for _ in 1:length(planes) ]
@@ -1656,9 +1488,8 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
         Π ≠ f || continue
         f ∉ faces || continue
         f ∈ planes || continue
-        fv = get_face_vertices(stl_topo)[f]
         face_on_plane = true
-        for _v in fv
+        for _v in f_to_v[f]
           if !any( i-> first(v_to_f[i]) == _v, vertices )
             face_on_plane = false
             break
@@ -1789,8 +1620,8 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
 
   # TODO: 
   # reduce to cell plane (cartesian dist)
-  # keep the facet planes as far as possible
-  #
+  # keep the facet planes as far as possible (just the distances)
+  # All reflex coplanar planes must have the same relative orientation (modify)
   Π_to_ref_Π, planes
 end
 
@@ -1884,3 +1715,47 @@ function add_missing_facets(
   facets
 end
 
+function split_reflex_face(
+  S,K,
+  surf::Polyhedron,
+  cell::Polyhedron,
+  stl::DiscreteModel,
+  reflex_face::Integer)
+
+  # TODO: consider reflex faces sharing planes
+  D = num_dims(stl)
+  stl_topo = get_grid_topology(stl)
+  rface_offset = get_offset(stl_topo,D-1)
+  facet_offset = get_offset(stl_topo,D)
+  neig_facets = get_faces(stl_topo,D-1,D)[reflex_face-rface_offset]
+  if !any(i->has_original_facet(surf,i+facet_offset),neig_facets) ||
+     !has_original_reflex_face(surf,reflex_face,empty=false)
+
+    Sr,Kr = [surf],[cell]
+  else
+    j = findfirst(i->!has_original_facet(surf,i+facet_offset),neig_facets)
+    missing_facet = neig_facets[j] + facet_offset
+    _surf = one_face_polyhedron(surf,missing_facet)
+    j = findfirst(i->isnothing(i)||!has_facets(i),S)
+    Sr,Kr = [surf,surf],K
+    Sr[j] = _surf
+  end
+  Sr,Kr
+end
+
+function one_face_polyhedron(poly::Polyhedron,face::Integer)
+  v_to_f = get_data(poly).vertex_to_original_faces
+  nodes = Int[]
+  for v in 1:num_vertices(poly)
+    isactive(poly,v) || continue
+    if face ∈ v_to_f[v]
+      push!(nodes,v)
+    end
+  end
+  sort!(nodes)
+  r = restrict(poly,nodes)
+  for v in 1:num_vertices(r) 
+    r.data.vertex_to_original_faces[v] = [face]
+  end
+  r
+end
