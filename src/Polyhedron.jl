@@ -564,7 +564,6 @@ function has_original_face(p::Polyhedron,face::Integer,::Val{1};empty=true)
 end
 
 function has_original_face(p::Polyhedron,face::Integer,::Val{2};empty=false)
-  @notimplementedif empty
   d = 2
   v_to_f = get_data(p).vertex_to_original_faces
   v_to_v = get_data(p).vertex_to_parent_vertex
@@ -577,7 +576,7 @@ function has_original_face(p::Polyhedron,face::Integer,::Val{2};empty=false)
           vcurrent = v
           vnext = vneig
           while vnext ≠ v 
-            if v_to_v[vnext] ∉ (v_to_v[v],v_to_v[vcurrent])
+            if v_to_v[vnext] ∉ (v_to_v[v],v_to_v[vcurrent]) || empty
               num_v += 1
             end
             vcurrent,vnext = vnext,next_vertex(p,vcurrent,vnext)
@@ -1270,8 +1269,8 @@ function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside,atol=0
   f2 = get_faces(stl_topo,Dc-1,Dc)[rf][2] + get_offset(stl_topo,Dc)
   has_plane(poly.data,f1) || return false
   has_plane(poly.data,f2) || return false
-  is_facet_in_facet(poly,f1,f2;inside,atol=Inf) || return true
-  is_facet_in_facet(poly,f2,f1;inside,atol=Inf) || return true
+  is_facet_in_facet(poly,f1,f2;inside,atol) || return true
+  is_facet_in_facet(poly,f2,f1;inside,atol) || return true
   false
 end
 
@@ -1289,6 +1288,7 @@ function refine(
   Kn_clip = empty(Kn)
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
     facets = get_original_facets(Γi,stl)
+    facets = add_missing_facets(Γi,stl,facets,reflex_faces)
     part_to_facets = get_disconnected_facets(Γi,stl)
     @assert !isempty(facets)
     group_to_facets = group_facing_facets(Γi,facets,part_to_facets;inside)
@@ -1510,30 +1510,9 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     append!(f_to_stlf,f_to_f.-get_offset(get_grid_topology(stl),num_dims(stl)))
     
 
- #   tets_in = compute_grid(Tin,Xin,TET)
- #   tets_out = compute_grid(Tout,Xout,TET)
+    tets_in = compute_grid(Tin,Xin,TET)
+    tets_out = compute_grid(Tout,Xout,TET)
 
- #  if volume(tets_in) + volume(tets_out) ≉ volume(get_cell(grid,cell))
-
- #   @show volume(tets_in) + volume(tets_out) - volume(get_cell(grid,cell))
- #   @show cell
- #   writevtk(tets_in,"tets_in")
- #   writevtk(tets_out,"tets_out")
-#    writevtk(Kn_in,"IN_")
-#    writevtk(Kn_out,"OUT_")
-#    writevtk(Γk0,"G")
- #  end
- #   @assert volume(tets_in) + volume(tets_out) ≈ volume(get_cell(grid,cell))
-
- #   tris = compute_grid(T_Γ,X_Γ,TRI)
- #   tris_k = compute_grid(T_Γk,X_Γk,TRI)
-
- #   writevtk(tris,"tri_G")
- #   if abs(surface(tris) - surface(tris_k)) > atol * 10
- #     @show surface(tris) - surface(tris_k)
- #     @show cell
- #   end
-#    @assert false
     for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
       n_to_io[i] ≠ UNSET || continue
       n_to_io[i] ≠ FACE_CUT || continue
@@ -1875,5 +1854,34 @@ function contains_coplanars(data::PolyhedronData,Π)
     end
   end
   false
+end
+
+function add_missing_facets(
+  surf::Polyhedron,
+  stl::DiscreteModel,
+  facets,
+  reflex_faces)
+
+  D = num_dims(stl)
+  stl_topo = get_grid_topology(stl)
+  rf_offset = get_offset(stl_topo,D-1)
+  f_offset = get_offset(stl_topo,D)
+  for f in facets
+    has_coplanars(surf.data,f) || continue
+    contains_coplanars(surf.data,f) || continue
+    for rf in get_faces(stl_topo,D,D-1)[f-f_offset]
+      rf += rf_offset
+      rf ∉ reflex_faces || continue
+      has_original_reflex_face(surf,rf,empty=false) || continue
+      for neig_f in get_faces(stl_topo,D-1,D)[rf-rf_offset]
+        neig_f += f_offset
+        neig_f ∉ facets || continue
+        if has_original_facet(surf,neig_f,empty=true)
+          push!(facets,neig_f)
+        end
+      end
+    end
+  end
+  facets
 end
 
