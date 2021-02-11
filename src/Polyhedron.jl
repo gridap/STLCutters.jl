@@ -113,7 +113,6 @@ function compute_distances!(p::Polyhedron,Π,faces)
         dist = 0.0
       else
         dist = signed_distance(p[v],Πi)
-        dist = abs(dist) < 1000*eps() ? 0.0 : dist
       end
       v_to_d[v] = dist
     end
@@ -1390,7 +1389,7 @@ end
 
 function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
   D = num_dims(grid)
-  atol = eps(grid)*1e4
+  atol = eps(grid)*1e2
 
   Γ0 = Polyhedron(stl)
 
@@ -1755,13 +1754,13 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
     dists = get_plane_distances(surf.data,Πi)
     for v in 1:num_vertices(surf)
       dists[v] ≠ 0 || continue
-      if any( f-> f ∈ v_to_f[v], Π_to_faces )
-        @show dists[v]
+      if any( f-> f ∈ v_to_f[v], Π_to_faces[i] )
         dists[v] = 0
       end
     end
   end
 
+  ## Do mapping
   for i in reverse(1:length(Π_to_ref_Π))
     if Π_to_ref_Π[i] > 0 && Π_to_ref_Π[i] ≠ i
       Π_to_ref_Π[ Π_to_ref_Π[i] ] = -Π_to_ref_Π[i]  
