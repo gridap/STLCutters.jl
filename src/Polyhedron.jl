@@ -1498,12 +1498,13 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
   ## Link coplanar planes
   Π_to_coplanar_Π = [ Int[] for _ in 1:length(planes) ]
   D = num_dims(stl)
+  facedims = get_facedims(stl_topo)
   for (i,Π) in enumerate(planes)
     Π > 0 || continue
   #  get_facedims(stl_topo)[Π] == D-1 || continue
     faces = Π_to_faces[i]
     for f in faces
-      d = get_facedims(stl_topo)[f]
+      d = facedims[f]
       if d == D-1
         j = findfirst(isequal(f),planes)
         if Π ∈ Π_to_faces[j] && distance_between_planes(surf,Π,f,abs) < atol

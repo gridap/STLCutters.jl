@@ -1,6 +1,11 @@
 
 function read_stl(filename::String)
-  mesh = load(filename)
+  if !unknown(query(filename))
+    mesh = load(filename)
+  else
+    F = _file_format(filename)
+    mesh = load(File(F,filename))
+  end
   vertex_to_coordinates = MeshIO.decompose(MeshIO.Point{3,Float64}, mesh )
   facet_to_vertices = MeshIO.decompose(MeshIO.Face{3,Int},mesh)
   vertex_to_normals = MeshIO.decompose(MeshIO.Normal{3,Float64},mesh)
@@ -9,6 +14,26 @@ function read_stl(filename::String)
   vertex_to_normals = Vector{VectorValue{3,Float64}}( vertex_to_normals )
   facet_to_normals = vertex_to_normals[1:3:end]
   vertex_to_coordinates,facet_to_vertices,facet_to_normals
+end
+
+function _file_format(filename)
+  if endswith(filename,r".stl|.STL")
+    cmd = `file --mime-encoding $filename`
+    out = read(cmd,String)
+    if contains(out,"binary")
+      F = format"STL_BINARY"
+    elseif contains(out,"ascii")
+      F = format"STL_ASCII"
+    else
+      msg = "Invalid file encoding: $out"
+      @unreachable msg 
+    end
+  elseif  endswith(filename,r".obj")
+    F = format"OBJ"
+  else
+    msg = "Invalid file extension: $filename"
+    @unreachable msg
+  end
 end
 
 function Base.convert(::Type{Point{D,T}},x::MeshIO.Point{D}) where {D,T} 
