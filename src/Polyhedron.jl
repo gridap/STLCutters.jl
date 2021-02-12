@@ -363,7 +363,7 @@ function simplexify_boundary(poly::Polyhedron{3},stl::DiscreteModel)
         filter!( i -> i ∈ v_to_Π[vnext], facet_list )
         !isempty(facet_list) || break
         if v ∉ (vcurrent,vnext)
-          @assert length(facet_list) == 1
+          # @assert length(facet_list) == 1 # Can have more than one (coplanars)
           k = [v,vcurrent,vnext]
           kv = v_to_pv[k]
           ki = length(X) .+ (1:length(k))
@@ -1080,6 +1080,11 @@ function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
 end
 
 function is_facet_in_facet(poly::Polyhedron,facet,plane;inside,atol=0)
+  if has_coplanars(poly.data,plane)
+    if are_coplanar(poly.data,facet,plane)
+      return true
+    end
+  end
   v_to_f = get_data(poly).vertex_to_original_faces
   distances = get_plane_distances(get_data(poly),plane)
   smax = -Inf
@@ -1097,7 +1102,7 @@ function is_facet_in_facet(poly::Polyhedron,facet,plane;inside,atol=0)
   false
 end
 
-function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside,atol=0)
+function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside)
   stl_topo = get_grid_topology(stl)
   Dc = num_dims(stl)
   rf = reflex_face - get_offset(stl_topo,Dc-1)
@@ -1106,8 +1111,8 @@ function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside,atol=0
   f2 = get_faces(stl_topo,Dc-1,Dc)[rf][2] + get_offset(stl_topo,Dc)
   has_plane(poly.data,f1) || return false
   has_plane(poly.data,f2) || return false
-  is_facet_in_facet(poly,f1,f2;inside,atol) || return true
-  is_facet_in_facet(poly,f2,f1;inside,atol) || return true
+  is_facet_in_facet(poly,f1,f2;inside) || return true
+  is_facet_in_facet(poly,f2,f1;inside) || return true
   false
 end
 
@@ -1116,10 +1121,9 @@ function refine(
   Γ::Polyhedron,
   stl::DiscreteModel,
   reflex_faces::AbstractVector,
-  ;inside::Bool,
-  atol::Real=0)
+  ;inside::Bool)
 
-  reflex_faces = filter( f -> is_reflex(Γ,stl,f;inside,atol), reflex_faces )
+  reflex_faces = filter( f -> is_reflex(Γ,stl,f;inside), reflex_faces )
   Γn,Kn = decompose(Γ,K,reflex_faces,stl)
   Kn_clip = empty(Kn)
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
@@ -1135,20 +1139,6 @@ function refine(
     end
   end
   Kn_clip
-end
-
-function check_convex_parts(poly::Polyhedron,facets,part_to_facets;inside)
-  for f in part_to_facets
-    for fi in f, fj in f
-      fi ≠ fj || continue
-      fi ∈ facets || continue
-      fj ∈ facets || continue
-      if !is_facet_in_facet(poly,fj,fi;inside,atol=0)
-        return false
-      end
-    end
-  end
-  true
 end
 
 function filter_face_planes(
@@ -1303,7 +1293,6 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
       continue
     end
 
-
     if kdtree
       Γv,Kv = refine_by_vertices(Γk,K,atol)
     else
@@ -1313,8 +1302,8 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     Kn_in = typeof(K)[]
     Kn_out = typeof(K)[]
     for (γk,k) in zip(Γv,Kv)
-      k_in = refine(k,γk,stl,stl_reflex_faces_k,inside=true;atol)
-      k_out = refine(k,γk,stl,stl_reflex_faces_k,inside=false;atol)
+      k_in = refine(k,γk,stl,stl_reflex_faces_k,inside=true)
+      k_out = refine(k,γk,stl,stl_reflex_faces_k,inside=false)
       append!(Kn_in,k_in)
       append!(Kn_out,k_out)
     end
@@ -1511,7 +1500,7 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
   D = num_dims(stl)
   for (i,Π) in enumerate(planes)
     Π > 0 || continue
-    get_facedims(stl_topo)[Π] == D-1 || continue
+  #  get_facedims(stl_topo)[Π] == D-1 || continue
     faces = Π_to_faces[i]
     for f in faces
       d = get_facedims(stl_topo)[f]
@@ -1657,6 +1646,12 @@ end
 function has_coplanars(data::PolyhedronData,Π)
   i = findfirst(isequal(Π),get_plane_ids(data))
   data.plane_to_ref_plane[i] ≠ UNSET
+end
+
+function are_coplanar(data::PolyhedronData,Πi,Πj)
+  i = findfirst(isequal(Πi),get_plane_ids(data))
+  j = findfirst(isequal(Πj),get_plane_ids(data))
+  data.plane_to_ref_plane[i] == data.plane_to_ref_plane[j]
 end
 
 function add_plane!(data::PolyhedronData,Π)
