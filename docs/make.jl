@@ -12,6 +12,6 @@ makedocs(;
     assets=String[],
 )
 
-deploydocs(;
-    repo="github.com/pmartorell/STLCutters.jl",
-)
+# deploydocs(;
+#     repo="github.com/pmartorell/STLCutters.jl",
+# )
