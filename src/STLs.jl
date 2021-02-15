@@ -1,4 +1,4 @@
-
+#
 function read_stl(filename::String)
   if !unknown(query(filename))
     mesh = load(filename)
@@ -119,8 +119,20 @@ function delete_repeated_vertices(stl::Grid)
   vertices_map = m[vertices_map]
   X = get_node_coordinates(stl)[u]
   T = get_cell_nodes(stl)
-  T = Table( map( i -> vertices_map[i], T ) )
+  T = map( i -> vertices_map[i], T )
+  filter!(f->length(f)==_num_uniques(f),T)
+  T = Table(T)
   X,T
+end
+
+function _num_uniques(a::AbstractArray)
+  c = 0
+  for i in 1:length(a)
+    if a[i] ∉ view(a,1:i-1)
+      c += 1
+    end
+  end
+  c
 end
 
 function _group_vertices(stl::Grid{Dc,D}) where {Dc,D}
