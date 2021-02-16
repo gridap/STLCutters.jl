@@ -603,6 +603,8 @@ has_facets(p::Polyhedron{D}) where D = has_faces(p,Val{D-1}())
 
 function compute_cell_to_facets(grid::CartesianGrid,stl::DiscreteModel)
   desc = get_cartesian_descriptor(grid)
+  @assert length(get_reffes(grid)) == 1
+  p = get_polytope(get_cell_reffes(grid)[1])
   @notimplementedif desc.map !== identity
   cell_to_stl_facets = [ Int[] for _ in 1:num_cells(grid) ]
   δ = 0.1
@@ -616,7 +618,7 @@ function compute_cell_to_facets(grid::CartesianGrid,stl::DiscreteModel)
       Δ = (_pmax - _pmin) * δ
       _pmin = _pmin - Δ
       _pmax = _pmax + Δ
-      if fast_intersection(f,_pmin,_pmax)
+      if fast_intersection(f,_pmin,_pmax,p)
         push!(cell_to_stl_facets[cell],stl_facet)
       end
     end

@@ -99,6 +99,7 @@ get_polytope(::Tetrahedron) = TET
 function get_polytope(a::Cell)
   HEX.face_orientations[3] = 1
   HEX.face_orientations[4] = -1
+  TRI.face_orientations[3] = -1
   a.polytope
 end
 
@@ -106,6 +107,7 @@ get_polytope(a::CellFace{1}) = SEGMENT
 
 function get_polytope(a::CellFace{2})
   if is_simplex(a.cell)
+    TRI.face_orientations[3] = -1
     TRI
   elseif is_n_cube(a.cell)
     QUAD
@@ -127,6 +129,7 @@ end
 function get_polytope(a::GridCell)
   HEX.face_orientations[3] = 1
   HEX.face_orientations[4] = -1
+  TRI.face_orientations[3] = -1
   get_polytope(get_cell_reffes(a.grid)[a.cell])
 end
 
@@ -1012,6 +1015,15 @@ function fast_intersection(Π::Plane{D},pmin::Point{D},pmax::Point{D}) where D
 end
 
 
+function _compute_distances(Π::Plane{D},pmin::Point{D},pmax::Point{D},p::Polytope{D}) where D
+  @assert is_n_cube(p)
+  ntuple(i->signed_distance(_get_vertex(p,pmin,pmax,i),Π),Val{2^D}())
+end
+
+function _get_vertex(p::Polytope{D},pmin::Point{D},pmax::Point{D},i::Integer) where D
+  Point(ntuple(d-> (i-1) & (1<<(d-1)) == 0 ? pmin[d] : pmax[d], Val{D}()))
+end
+
 function fast_intersection(f::Face{2,3},pmin::Point{3},pmax::Point{3})
   D = 3
   n = normal(f)
@@ -1034,6 +1046,47 @@ function fast_intersection(f::Face{2,3},pmin::Point{3},pmax::Point{3})
   contains_projection(t,pmin) && return true
   contains_projection(t,pmax) && return true
   false
+end
+
+function fast_intersection(f::Face{2,3},pmin::Point{3},pmax::Point{3},p::Polytope{3})
+  D = 3
+  for i in 1:num_vertices(f)
+    v = f[i]
+    fast_intersection(v,pmin,pmax) && return true
+  end  
+  for i in 1:num_edges(f)
+    e = get_edge(f,i)
+    fast_intersection(e,pmin,pmax) && return true
+  end
+  n = normal(f)
+  c = center(f)
+  plane = Plane(c,n)
+  v_to_dists = _compute_distances(plane,pmin,pmax,p)
+  all( d -> d > 0, v_to_dists ) && return false
+  all( d -> d < 0, v_to_dists ) && return false
+  for e in 1:num_edges(p)
+    if _is_edge_cut(p,v_to_dists,e)
+      i = _intersection_point(p,pmin,pmax,v_to_dists,e)
+      if contains_projection(f,i)
+        return true
+      end
+    end
+  end
+  false
+end
+
+function _is_edge_cut(p::Polytope,v_to_dists::Tuple,e::Integer)
+  e_to_v = get_face_vertices(p,1)[e]
+  sign(v_to_dists[e_to_v[1]]) ≠ sign(v_to_dists[e_to_v[2]])
+end
+
+function _intersection_point(p::Polytope,pmin::Point,pmax::Point,v_to_dists::Tuple,e::Integer)
+  e_to_v = get_face_vertices(p,1)[e]
+  d1 = v_to_dists[e_to_v[1]]
+  d2 = v_to_dists[e_to_v[2]]
+  v1 = _get_vertex(p,pmin,pmax,e_to_v[1])
+  v2 = _get_vertex(p,pmin,pmax,e_to_v[2])
+  (v1*d2-v2*d1)/(d2-d1)
 end
 
 ## Generated funcs
