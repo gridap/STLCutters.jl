@@ -196,8 +196,8 @@ is_water_tight(model::DiscreteModel) = is_water_tight(get_grid_topology(model))
 is_open_surface(model::DiscreteModel) = is_open_surface(get_grid_topology(model))
 
 function is_water_tight(top::GridTopology{Dc}) where Dc
-  l = length.( get_faces(top,Dc-1,Dc) )
-  maximum(l) == minimum(l) == 2
+  c_to_f = get_faces(top,Dc-1,Dc)
+  maximum(length,c_to_f) == minimum(length,c_to_f) == 2
 end
 
 function is_surface(::GridTopology{Dc,Dp}) where {Dc,Dp}
@@ -285,6 +285,18 @@ function dispatch_face(
   Meta.parse(str)
 end
 )
+
+function get_bounding_box(grid::CartesianGrid)
+  desc = get_cartesian_descriptor(grid)
+  pmin = desc.origin
+  pmax = desc.origin + VectorValue(desc.partition .* desc.sizes)
+  pmin,pmax
+end
+
+function measure(a::CartesianGrid)
+  pmin,pmax = get_bounding_box(a)
+  measure(pmin,pmax)
+end
 
 function measure(a::Grid)
   m = 0.0

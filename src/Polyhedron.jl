@@ -1203,13 +1203,6 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
   node_to_inout
 end
 
-function get_bounding_box(grid::CartesianGrid)
-  desc = get_cartesian_descriptor(grid)
-  pmin = desc.origin
-  pmax = desc.origin + VectorValue(desc.partition .* desc.sizes)
-  pmin,pmax
-end
-
 function Base.eps(grid::Grid)
   pmin,pmax = get_bounding_box(grid)
   vmax = max(abs.(Tuple(pmin))...,abs.(Tuple(pmax))...)

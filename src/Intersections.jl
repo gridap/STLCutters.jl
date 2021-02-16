@@ -369,6 +369,16 @@ function measure(f::Face{1})
   norm( f[2] -f[1] )
 end
 
+function measure(c::GridCell{D,D,<:CartesianGrid}) where D
+  pmin,pmax = get_bounding_box(c)
+  measure(pmin,pmax)
+end
+
+function measure(pmin::Point,pmax::Point)
+  v = pmax - pmin
+  prod(Tuple(v))
+end
+
 function simplex_measure(f::Face{Df,Dp}) where {Df,Dp}
   @notimplementedif Df ≠ Dp-1
   @notimplementedif !is_simplex(f)
@@ -1300,6 +1310,10 @@ end
 function get_facet(K,X::Vector{<:Point},p::Polytope,i::Integer)
   c = Cell(K,X,p)
   get_facet(c,i)
+end
+
+function get_bounding_box(c::Cell{D,D,<:CartesianGrid}) where D
+  c[1],c[end]
 end
 
 ## Orthogonal
