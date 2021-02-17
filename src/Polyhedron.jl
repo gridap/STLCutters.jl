@@ -450,17 +450,17 @@ function edge_mesh(p::Polyhedron)
   UnstructuredGrid(X,T,[SEG2],fill(1,length(T)))
 end
 
-function get_original_reflex_faces(p::Polyhedron{D},stl::DiscreteModel) where D
-  get_original_faces(p,stl,Val{D-2}())
+function get_original_reflex_faces(p::Polyhedron{D},stl::DiscreteModel;empty=true) where D
+  get_original_faces(p,stl,Val{D-2}();empty)
 end
 
-function get_original_facets(p::Polyhedron{D},stl::DiscreteModel) where D
-  get_original_faces(p,stl,Val{D-1}())
+function get_original_facets(p::Polyhedron{D},stl::DiscreteModel;empty=false) where D
+  get_original_faces(p,stl,Val{D-1}();empty)
 end
 
-function get_original_faces(p::Polyhedron,stl::DiscreteModel,::Val{d}) where d
+function get_original_faces(p::Polyhedron,stl::DiscreteModel,::Val{d};empty) where d
   faces = collect_original_faces(p,stl,d)
-  filter!(f->has_original_face(p,f,Val{d}()),faces)
+  filter!(f->has_original_face(p,f,Val{d}();empty),faces)
   faces
 end
 
@@ -969,64 +969,6 @@ function get_facet_planes(stl::DiscreteModel)
   [ get_facet_plane(stl,i) for i in 1:num_cells(stl) ]
 end
 
-function get_convex_faces(stl::DiscreteModel)
-  Dc = num_dims(stl)
-  f_to_isconvex = zeros(Bool,num_faces(stl,Dc-1))
-  for f in 1:num_faces(stl,Dc-1)
-    f_to_isconvex[f] = is_convex(stl,Dc-1,f)
-  end
-  f_to_isconvex
-end
-
-function get_disconnected_parts(poly::Polyhedron)
-  v_to_part = fill(UNSET,num_vertices(poly))
-  v_to_vp = poly.data.vertex_to_parent_vertex
-  stack = Int[]
-  num_parts = 0
-  for v in 1:num_vertices(poly)
-    isactive(poly,v) || continue
-    v_to_part[v] == UNSET || continue
-    num_parts += 1
-    empty!(stack)
-    push!(stack,v)
-    while !isempty(stack)
-      vcurrent = pop!(stack)
-      for vneig in get_graph(poly)[vcurrent]
-        if vneig ∉ (UNSET,OPEN) && 
-           v_to_part[vneig] == UNSET &&  
-           v_to_vp[vcurrent] ≠ v_to_vp[vneig]
-
-          v_to_part[vneig] = num_parts
-          push!(stack,vneig)
-        end
-      end
-    end
-  end
-  v_to_part,num_parts
-end
-
-function get_disconnected_faces(poly::Polyhedron,stl::DiscreteModel,d::Integer)
-  v_to_f = get_data(poly).vertex_to_original_faces
-  facedims = get_facedims(get_grid_topology(stl))
-  v_to_part,num_parts = get_disconnected_parts(poly)
-  part_to_faces = [ Int[] for _ in 1:num_parts ]
-  for v in 1:num_vertices(poly)
-    isactive(poly,v) || continue
-    part = v_to_part[v]
-    part ≠ UNSET || continue
-    for f in v_to_f[v]
-      if facedims[f] == d && f ∉ part_to_faces[part]
-        push!(part_to_faces[part],f)
-      end
-    end
-  end
-  part_to_faces
-end
-
-function get_disconnected_facets(poly::Polyhedron,stl::DiscreteModel)
-  get_disconnected_faces(poly,stl,num_dims(poly)-1)
-end
-
 function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
   length(part_to_facets) > 1 || return [facets]
   f_to_part = fill(UNSET,length(facets))
@@ -1079,6 +1021,76 @@ function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
     push!(group_to_facets[g],f)
   end
   group_to_facets
+end
+
+
+function get_disconnected_facets(poly::Polyhedron,stl::DiscreteModel)
+  v_to_pv = poly.data.vertex_to_parent_vertex
+  v_to_f = poly.data.vertex_to_original_faces
+  facets = get_original_facets(poly,stl,empty=true)
+  facet_to_part = fill(UNSET,length(facets))
+  stack = Int[]
+  num_parts = 0
+  for (i,facet) in enumerate(facets)
+    facet_to_part[i] == UNSET || continue
+    num_parts += 1
+    facet_to_part[i] = num_parts
+    empty!(stack)
+    push!(stack,facet)
+    while !isempty(stack)
+      current_facet = pop!(stack)
+      v,vnext = get_facet_onset(poly,stl,current_facet) # reduce calls
+      vcurrent = v
+      while true
+        if v_to_pv[vcurrent] ≠ v_to_pv[vnext]
+          for fi in v_to_f[vcurrent]
+            fi ≠ current_facet || continue
+            for fj in v_to_f[vnext]
+              fj ≠ current_facet || continue
+              if fi == fj
+                fi ∈ facets || continue
+                _i = findfirst(isequal(fi),facets)
+                facet_to_part[_i] == UNSET || continue
+                facet_to_part[_i] = num_parts
+                push!(stack,fi)
+              end
+            end
+          end
+        end
+        vcurrent,vnext = vnext,next_vertex(poly,vcurrent,vnext)
+        vcurrent ≠ v || break
+      end
+    end
+  end
+  part_to_facets = [ Int[] for _ in 1:num_parts ]
+  for (i,facet) in enumerate(facets)
+    push!(part_to_facets[facet_to_part[i]],facet)
+  end
+  part_to_facets
+end
+
+function get_facet_onset(poly::Polyhedron,stl::DiscreteModel,facet::Integer)
+  v_to_pv = poly.data.vertex_to_parent_vertex
+  v_to_f = poly.data.vertex_to_original_faces
+  for v in 1:num_vertices(poly)
+    if isactive(poly,v) && facet ∈ v_to_f[v]
+      for vneig in get_graph(poly)[v]
+        vneig ∉ (OPEN,UNSET) || continue
+        if facet ∈ v_to_f[vneig]
+          vcurrent = v
+          vnext = vneig
+          while vnext ≠ v
+            vcurrent,vnext = vnext,next_vertex(poly,vcurrent,vnext)
+            vnext ∉ (UNSET,OPEN) || break
+            facet ∈ v_to_f[vnext] || break
+          end
+          if vnext == v
+            return v,vneig
+          end
+        end
+      end
+    end
+  end
 end
 
 function is_facet_in_facet(poly::Polyhedron,facet,plane;inside,atol=0)
