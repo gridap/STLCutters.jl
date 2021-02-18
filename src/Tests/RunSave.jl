@@ -21,6 +21,7 @@ R(θ) = R(θ,θ,θ)
 function download_thing(thing_id;path="",verbose::Bool=true)
   filename = nothing
   url = "https://www.thingiverse.com/download:$thing_id"
+  !verbose || println("---------------------------------------")
   try 
     link = HTTP.head(url).request.target
     _,ext = splitext(link)
@@ -161,8 +162,6 @@ function run_stl_cutter(
   Xi = map(p-> p + Δx,Xi)
   stl = compute_stl_model(Table(T0),Xi)
   
-  out = run_stl_cutter(grid,stl;kdtree,vtk,verbose,title)
-
   data = Dict{String,Any}()
   
   data["name"] = first(splitext(basename(filename)))
@@ -173,29 +172,44 @@ function run_stl_cutter(
   data["h"] = first(sizes)
   data["num_cells"] = num_cells(grid)
   data["num_stl_facets"] = num_cells(stl)
-  data["disp"] = Δx
-  data["rot"] = θ
+  data["displacement"] = Δx
+  data["rotation"] = θ
   data["kdtree"] = kdtree
+
+  if verbose
+    println("---------------------------------------")
+    println("Num stl facets:\t$(data["num_stl_facets"])")
+    println("Num background grid cells:\t$(data["num_cells"])")
+    println("Background grid partition:\t$(data["partition"])")
+    println("Background grid size:\t$(data["h"])")
+  end
+
+  out = run_stl_cutter(grid,stl;kdtree,vtk,verbose,title)
 
   merge!(out,data)
   safesave("$title.bson",out)
 end
 
-run_stl_cutter(::Nothing;kwargs...) = nothing
+run_and_save(::Nothing;kwargs...) = nothing
 
-function download_and_run(
-  things;
+function run_and_save(
+  filename;
   datapath=datadir(),
   verbose::Bool=true,
   vtk::Bool=false,
   params...)
 
+  name = first(splitext(basename(filename)))
+  title = savename(name,params,scientific=1)
+  !verbose || println("---------------------------------------")
+  !verbose || println("Running: $title ...")
+  title = joinpath(datapath,title)
+  run_stl_cutter(filename;title,verbose,vtk,params...)
+end
+
+function download_run_and_save(things;kwargs...)
   for thing in things
     filename = download_thing(thing,path=tmpdir())
-    title = savename("$thing",params,scientific=1)
-    !verbose || println("---------------------------------------")
-    !verbose || println("Running: $title ...")
-    title = joinpath(datapath,title)
-    run_stl_cutter(filename;title,verbose,vtk,params...)
+    run_and_save(filename;kwargs...)
   end
 end

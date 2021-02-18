@@ -17,7 +17,9 @@ export analysisdir
 export testdir
 export tmpdir
 
-export download_and_run
+export download_thing
+export download_run_and_save
+export run_and_save
 
 include("Paths.jl")
 include("RunSave.jl")
