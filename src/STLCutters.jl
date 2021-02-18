@@ -25,6 +25,7 @@ import Gridap.ReferenceFEs: num_edges
 import Gridap.ReferenceFEs: num_facets 
 import Gridap.ReferenceFEs: num_dims 
 import Gridap.ReferenceFEs: simplexify 
+import Gridap.ReferenceFEs: get_bounding_box 
 
 import GridapEmbedded.Interfaces: cut
 import GridapEmbedded.CSG: get_tree
@@ -51,6 +52,16 @@ export initial_mesh
 export cut
 export square
 
+export read_stl
+export compute_stl_model
+export merge_nodes
+export get_bounding_box
+export compute_grid
+export is_water_tight
+export compute_submesh
+export volume, volumes
+export surface, surfaces
+
 include("CellMeshes.jl")
 
 include("Intersections.jl")
@@ -58,15 +69,16 @@ include("STLs.jl")
 include("Polyhedron.jl")
 
 
+## Old
 include("CellRefinement.jl")
 include("FaceInsertion.jl")
 include("FaceDistribution.jl")
 include("GridRefinement.jl")
 include("SurfaceRefinement.jl")
 #include("HexahedraIntersection.jl")
+include("tables/LookupTables.jl")
 
 include("Embedded.jl")
 
-include("tables/LookupTables.jl")
-
+include("Tests/Tests.jl")
 end # module

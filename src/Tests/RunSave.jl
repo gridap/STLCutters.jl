@@ -1,69 +1,3 @@
-module drwatson
-
-using DrWatson
-
-using Test
-
-using Gridap
-using Gridap.ReferenceFEs
-using Gridap.Geometry
-using Gridap.Arrays
-using Gridap.Helpers
-using STLCutters
-
-using STLCutters: read_stl
-using STLCutters: compute_stl_model
-using STLCutters: merge_nodes 
-using STLCutters: get_bounding_box 
-using STLCutters: compute_submesh 
-using STLCutters: compute_grid 
-using STLCutters: is_water_tight
-using STLCutters: surface, volume, volumes 
-using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
-
-import HTTP
-
-include(joinpath(@__DIR__,"data/thingi10k_quality_filter.jl")) # file_ids=Int[]
-
-## Functions
-
-function download_thing(thing_id;path="")
-  filename = nothing
-  url = "https://www.thingiverse.com/download:$thing_id"
-  try 
-    link = HTTP.head(url).request.target
-    _,ext = splitext(link)
-    filename = "$thing_id$ext"
-    println("Downloading Thing $thing_id ...")
-    wget_command = `wget -q -O $filename --tries=10 $url`
-    run(wget_command)
-  catch
-    println("Thing $thing_id is no longer available on Thingiverse.")
-  end
-  filename
-end
-
-function download_things(thing_ids,path="")
-  for thing_id in thing_ids
-    download_thing(thing_id;path)
-  end
-end
-
-function compute_sizes(pmin::Point{D},pmax::Point{D};nmin=10,nmax=100) where D
-  s = pmax - pmin
-  s = Tuple(s)
-  h = maximum(s)/nmax
-  p = ( s./maximum(s) ) .* nmax
-  p = ceil.(p)
-  if minimum(p) < nmin
-    p = ( s./minimum(s) ) .* nmin
-    h = minimum(s) / nmin
-  end
-  origin = pmin
-  sizes = tfill(h,Val{D}())
-  partition = Int.(ceil.(p))
-  origin,sizes,partition
-end
 
 Rx(ϕ) = TensorValue(
   1,0,0,
@@ -84,7 +18,49 @@ R(ϕ,θ,ψ) = Rx(ϕ)⋅Ry(θ)⋅Rz(ψ)
 
 R(θ) = R(θ,θ,θ)
 
-function run_stl_cutter(grid,stl;kdtree=false,vtk=false,verbose=true)
+function download_thing(thing_id;path="",verbose::Bool=true)
+  filename = nothing
+  url = "https://www.thingiverse.com/download:$thing_id"
+  try 
+    link = HTTP.head(url).request.target
+    _,ext = splitext(link)
+    mkpath(path)
+    filename = joinpath(path,"$thing_id$ext")
+    !verbose || println("Downloading Thing $thing_id ...")
+    wget_command = `wget -q -O $filename --tries=10 $url`
+    run(wget_command)
+  catch
+    !verbose || println("Thing $thing_id is no longer available on Thingiverse.")
+  end
+  filename
+end
+
+function download_things(thing_ids,path="",verbose=true)
+  filenames = []
+  for thing_id in thing_ids
+    filename = download_thing(thing_id;path,quiet)
+    push!(filenames,filename)
+  end
+  filenames
+end
+
+function compute_sizes(pmin::Point{D},pmax::Point{D};nmin=10,nmax=100) where D
+  s = pmax - pmin
+  s = Tuple(s)
+  h = maximum(s)/nmax
+  p = ( s./maximum(s) ) .* nmax
+  p = ceil.(p)
+  if minimum(p) < nmin
+    p = ( s./minimum(s) ) .* nmin
+    h = minimum(s) / nmin
+  end
+  origin = pmin
+  sizes = tfill(h,Val{D}())
+  partition = Int.(ceil.(p))
+  origin,sizes,partition
+end
+
+function run_stl_cutter(grid,stl;kdtree=false,vtk=false,verbose=true,title="")
   t = @timed data = compute_submesh(grid,stl)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
@@ -92,9 +68,12 @@ function run_stl_cutter(grid,stl;kdtree=false,vtk=false,verbose=true)
   facets = compute_grid(Table(F),Xf,TRI)
 
   if vtk
-    writevtk(facets,"subfacets",cellfields=["bgcell"=>f_to_bgcell])
-    writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
-    writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
+    sf = title*"_subfacets"
+    sm = title*"_submesh"
+    bg = title*"_bgmesh"
+    writevtk(facets,sf,cellfields=["bgcell"=>f_to_bgcell])
+    writevtk(submesh,sm,cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
+    writevtk(grid,bg,cellfields=["inoutcut"=>bgcell_to_ioc])
   end
 
   bgmesh_vols = volumes(grid)
@@ -130,10 +109,25 @@ function run_stl_cutter(grid,stl;kdtree=false,vtk=false,verbose=true)
   out["box_volume"] = volume(grid)
   out["volume_error"] = volume_error
   out["surface_error"] = surface_error
-  out["heas_leak"] = has_leak
+  out["has_leak"] = has_leak
   out["min_subcells_x_cell"] = minimum(num_k)
-  out["max_subcells_x_cell"] = minimum(num_k)
+  out["max_subcells_x_cell"] = maximum(num_k)
   out["avg_subcells_x_cell"] = length(k_to_bgcell) / length(cut_bgcells)
+
+  if verbose
+    println("---------------------------------------")
+    println("TIME: \t $(out["time"]) s")
+    println("Domain volume:\t$(out["domain_volume"])")
+    println("Domain surface:\t$(out["domain_surface"])")
+    println("Box volume: \t $(out["box_volume"])")
+    println("Volume error: \t $(out["volume_error"])")
+    println("Surface error: \t $(out["surface_error"])")
+    !out["has_leak"] || println("Has a leak!")
+    println("MIN num subcells per cut cell: \t $(out["min_subcells_x_cell"])")
+    println("MAX num subcells per cut cell: \t $(out["max_subcells_x_cell"])")
+    println("AVG num subcells per cut cell: \t $(out["avg_subcells_x_cell"])")
+    println("---------------------------------------")
+  end
 
   out
 end
@@ -167,7 +161,7 @@ function run_stl_cutter(
   Xi = map(p-> p + Δx,Xi)
   stl = compute_stl_model(Table(T0),Xi)
   
-  out = run_stl_cutter(grid,stl;kdtree,vtk,verbose)
+  out = run_stl_cutter(grid,stl;kdtree,vtk,verbose,title)
 
   data = Dict{String,Any}()
   
@@ -189,24 +183,19 @@ end
 
 run_stl_cutter(::Nothing;kwargs...) = nothing
 
-function download_and_run(things;kwargs...)
+function download_and_run(
+  things;
+  datapath=datadir(),
+  verbose::Bool=true,
+  vtk::Bool=false,
+  params...)
+
   for thing in things
-    filename = download_thing(thing)
-    title = "$thing" #use DrWatson params 
-    run_stl_cutter(filename;title,kwargs...)
+    filename = download_thing(thing,path=tmpdir())
+    title = savename("$thing",params,scientific=1)
+    !verbose || println("---------------------------------------")
+    !verbose || println("Running: $title ...")
+    title = joinpath(datapath,title)
+    run_stl_cutter(filename;title,verbose,vtk,params...)
   end
 end
-
-download_and_run(file_ids[2:3])
-
-
-end
-## Depth test geometries:
-#  cube.stl
-#  wine_glass.stl
-#  standford_bunny.stl -> thing:  441708
-#  chichen_itza -> thing: 47076
-#  arc_de_triomph -> 551021
-#  earth -> 37266
-#  heart -> 65904
-#  strange thing -> 54725
