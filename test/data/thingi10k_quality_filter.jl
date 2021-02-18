@@ -1,3 +1,12 @@
+# # List of id's from the following filter of thingi10k:
+#
+# https://ten-thousand-models.appspot.com/results.html?q=is+closed%2C+is+oriented%2C+is+manifold%2C+is+not+degenerate%2C+without+self-intersection%2C+%23df%3D0
+#
+# Equivalent applying the quality filter:
+# is closed, is oriented, is manifold, is not degenerate, without self intersection, #df=0
+# to:
+# https://ten-thousand-models.appspot.com/
+
 file_ids=[
   32770,
   34785,
