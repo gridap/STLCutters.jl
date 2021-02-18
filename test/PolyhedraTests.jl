@@ -18,7 +18,6 @@ using STLCutters: compute_stl_model
 using STLCutters: compute_grid 
 using STLCutters: get_cell_planes 
 using STLCutters: get_reflex_planes 
-using STLCutters: get_convex_faces 
 using STLCutters: compute_cell_to_facets
 using STLCutters: read_stl, merge_nodes 
 using STLCutters: get_bounding_box 
