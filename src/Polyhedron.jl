@@ -1559,7 +1559,7 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
     Πi > 0 || continue
     for Πj in Π_to_coplanar_Π[i]
       Πi < Πj || continue
-      @assert distance_between_planes(surf,Πi,Πj,abs) < atol
+      @assert distance_between_planes(surf,Πi,Πj,abs) < atol*1e3
     end
   end
 
