@@ -1,9 +1,11 @@
+using Mustache
 using DrWatson
 
 @quickactivate "STLCutters"
 
 using STLCutters
 using STLCutters.Tests
+
 
 stl_list = [
   "cube",
@@ -20,13 +22,16 @@ stl_list = [
   "37266", # Extruded Earth
   "252119"] # Angel
 
-rots = [0;exp10.( -17:-1 )]
-disps = [0;exp10.( -17:-1 )]
-
 δ = 0.2
 nmin = 1
 nmax = 14 .* 2 .^ (0:5) # Matching bounding box with cells 1+2δ 
 
-i = 1
+i = 2
 filename = joinpath(testdir("data"),"$(stl_list[i]).stl")
-run_and_save(filename;nmin,nmax=nmax[1],Δx=disps[1],θ=rots[2])
+rotations_and_displacements(
+  filename,
+  nmax=28,
+  nmin=1,
+  displacements=exp10.(-17:-10),
+  angles=exp10.(-17:-10))
+

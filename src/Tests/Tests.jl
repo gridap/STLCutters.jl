@@ -20,6 +20,7 @@ export tmpdir
 export download_thing
 export download_run_and_save
 export run_and_save
+export rotations_and_displacements
 
 include("Paths.jl")
 include("RunSave.jl")

@@ -157,9 +157,11 @@ function run_stl_cutter(
 
   grid = CartesianGrid(origin,sizes,partition)
 
+  Δx_scaled = minimum(pmax-pmin) * Δx
+
   o = (pmin+pmax)/2
   Xi = map(p-> o + R(θ)⋅(p-o),X0)
-  Xi = map(p-> p + Δx,Xi)
+  Xi = map(p-> p + Δx_scaled,Xi)
   stl = compute_stl_model(Table(T0),Xi)
   
   data = Dict{String,Any}()
@@ -173,6 +175,7 @@ function run_stl_cutter(
   data["num_cells"] = num_cells(grid)
   data["num_stl_facets"] = num_cells(stl)
   data["displacement"] = Δx
+  data["scaled_displacement"] = Δx_scaled
   data["rotation"] = θ
   data["kdtree"] = kdtree
 
@@ -213,3 +216,22 @@ function download_run_and_save(things;kwargs...)
     run_and_save(filename;kwargs...)
   end
 end
+
+function rotations_and_displacements(
+  filename;
+  displacements=exp10.(-17:-1 ),
+  angles=exp10.(-17:-1 ),
+  verbose::Bool=true,
+  params...)
+
+  !verbose || println("BEGIN of rotations_and_displacements()")
+  run_and_save(filename;Δx=0,θ=0,params...)
+  for θ in angles
+    run_and_save(filename;Δx=0,θ,params...)
+  end
+  for Δx in displacements
+    run_and_save(filename;Δx,θ=0,params...)
+  end
+  !verbose || println("END of rotations_and_displacements()")
+end
+
