@@ -1477,6 +1477,7 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
       @assert isactive(surf,v)
       if abs(dists[v]) < atol/10
         push!(vertices,v)
+        dists[v] = 0
       end
     end
     for v in vertices
