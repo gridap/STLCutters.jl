@@ -207,6 +207,7 @@ function run_and_save(
   datapath=datadir(),
   verbose::Bool=true,
   vtk::Bool=false,
+  rerun::Bool=false,
   params...)
 
   name = first(splitext(basename(filename)))
@@ -214,6 +215,10 @@ function run_and_save(
   !verbose || println("---------------------------------------")
   !verbose || println("Running: $title ...")
   title = joinpath(datapath,title)
+  if !rerun && isfile("$title.bson")
+    !verbose || println("Skipping run: $title.bson is found")
+    return
+  end
   run_stl_cutter(filename;title,verbose,vtk,params...)
 end
 
