@@ -36,10 +36,10 @@ function download_thing(thing_id;path="",verbose::Bool=true)
   filename
 end
 
-function download_things(thing_ids,path="",verbose=true)
+function download_things(thing_ids;path="",verbose=true)
   filenames = []
   for thing_id in thing_ids
-    filename = download_thing(thing_id;path,quiet)
+    filename = download_thing(thing_id;path,verbose)
     push!(filenames,filename)
   end
   filenames
@@ -111,6 +111,12 @@ function run_stl_cutter(grid,stl;kdtree=false,vtk=false,verbose=true,title="")
   out["volume_error"] = volume_error
   out["surface_error"] = surface_error
   out["has_leak"] = has_leak
+  out["num_cells_in"] = count(isequal(FACE_IN),bgcell_to_ioc)
+  out["num_cells_out"] = count(isequal(FACE_OUT),bgcell_to_ioc)
+  out["num_cells_cut"] = count(isequal(FACE_CUT),bgcell_to_ioc)
+  out["num_subcells"] = length(k_to_io)
+  out["num_subcells_in"] = count(isequal(FACE_IN),k_to_io)
+  out["num_subcells_out"] = count(isequal(FACE_OUT),k_to_io)
   out["min_subcells_x_cell"] = minimum(num_k)
   out["max_subcells_x_cell"] = maximum(num_k)
   out["avg_subcells_x_cell"] = length(k_to_bgcell) / length(cut_bgcells)
@@ -124,6 +130,7 @@ function run_stl_cutter(grid,stl;kdtree=false,vtk=false,verbose=true,title="")
     println("Volume error: \t $(out["volume_error"])")
     println("Surface error: \t $(out["surface_error"])")
     !out["has_leak"] || println("Has a leak!")
+    println("Num subcells: \t $(out["num_subcells"])")
     println("MIN num subcells per cut cell: \t $(out["min_subcells_x_cell"])")
     println("MAX num subcells per cut cell: \t $(out["max_subcells_x_cell"])")
     println("AVG num subcells per cut cell: \t $(out["avg_subcells_x_cell"])")
@@ -190,7 +197,7 @@ function run_stl_cutter(
   out = run_stl_cutter(grid,stl;kdtree,vtk,verbose,title)
 
   merge!(out,data)
-  safesave("$title.bson",out)
+  @tagsave("$title.bson",out;safe=true)
 end
 
 run_and_save(::Nothing;kwargs...) = nothing
@@ -233,5 +240,14 @@ function rotations_and_displacements(
     run_and_save(filename;Δx,θ=0,params...)
   end
   !verbose || println("END of rotations_and_displacements()")
+end
+
+function run_geometry_list(ids,filenames;verbose::Bool=true,params...)
+  !verbose || println("BEGIN of run_geometry_list()")
+  for id in ids
+    !isnothing(filenames[id]) || continue
+    run_and_save(filenames[id];verbose,params...)
+  end
+  !verbose || println("END of run_geometry_list()")
 end
 

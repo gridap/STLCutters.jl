@@ -14,4 +14,5 @@ julia --project={{{projectdir}}} \
       -O3 --check-bounds=no -e\
       'using STLCutters;
        using STLCutters.Tests;
-       {{func}}("{{{filename}}}",nmin={{nmin}},nmax={{nmax}}{{params}})'
+       {{{includes}}}
+       {{func}}({{{args}}})'
