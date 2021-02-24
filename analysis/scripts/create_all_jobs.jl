@@ -5,11 +5,14 @@ using STLCutters.Tests: scriptsdir
 include( scriptsdir("generic","create_jobs_matrix.jl") )
 include( scriptsdir("generic","create_jobs_dataset.jl") )
 
-for hpc_id in (:gadi,:titani,:acuario)
+hpcs = (:gadi,:titani,:acuario)
+subsets = [ 3001:5052, 1001:3000, 1:1000 ]
+
+for (i,hpc_id) in enumerate(hpcs)
 
   create_jobs_matrix(hpc_id)
 
-  create_jobs_dataset(hpc_id)
+  create_jobs_dataset(hpc_id,subsets[i])
 
 end
 
