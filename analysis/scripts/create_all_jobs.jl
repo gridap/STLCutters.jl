@@ -5,14 +5,14 @@ using STLCutters.Tests: scriptsdir
 include( scriptsdir("generic","create_jobs_matrix.jl") )
 include( scriptsdir("generic","create_jobs_dataset.jl") )
 
-hpcs = (:gadi,:titani,:acuario)
-subsets = [ 3001:5052, 1001:3000, 1:1000 ]
+subsets = Dict(
+  :acuario => 1:1000,
+  :titani => 1001:3000,
+  :gadi => 3001:5052 )
 
-for (i,hpc_id) in enumerate(hpcs)
-
-  create_jobs_matrix(hpc_id)
-
-  create_jobs_dataset(hpc_id,subsets[i])
-
+function create_all_jobs(hpc::Symbol,subset=subsets[hpc];onlymatrix=false)
+  create_jobs_matrix(hpc)
+  onlymatrix || create_jobs_dataset(hpc,subset)
+  nothing
 end
 

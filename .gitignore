@@ -11,3 +11,4 @@
 .vscode
 *.bson
 *.sh
+*/tmp/*
