@@ -183,7 +183,7 @@ function _compute_min_length(mesh::Grid)
       vi = get_node_coordinates(mesh)[nodes[i]]
       vj = get_node_coordinates(mesh)[nodes[j]]
       dist = distance(vi,vj)
-      if dist < min_length
+      if dist < min_length && dist > TOL
         min_length = dist
       end
     end
@@ -347,3 +347,18 @@ function get_bounding_box(stl::DiscreteModel)
   end
   pmin,pmax
 end
+
+function min_height(grid::Grid)
+  min_h = Inf
+  for i in 1:num_cells(grid)
+    cell = get_cell(grid,i)
+    h = min_height(cell)
+    if h < min_h
+      min_h = h
+    end
+  end
+  min_h
+end
+
+min_height(model::DiscreteModel) = min_height(get_grid(model))
+
