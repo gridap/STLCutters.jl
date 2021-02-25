@@ -44,7 +44,7 @@ include( testdir("data","thingi10k_quality_filter.jl") ) # file_ids = Int[]
 
 include( scriptsdir("generic","hpc_dicts.jl") )
 
-function create_jobs_dataset(hpc_id)
+function create_jobs_dataset(hpc_id,subset)
 
   @unpack hpcname = hpc_dict[hpc_id]
 
@@ -58,7 +58,7 @@ function create_jobs_dataset(hpc_id)
     thing_to_path = load( thing_to_path_bson )
   end
 
-  things_ids = file_ids #[1:325]
+  things_ids = file_ids[ subset ]
   for thing in things_ids
     if !haskey(thing_to_path,thing) || isnothing(thing_to_path[thing])
       filename = download_thing(thing,path=tmpdir())
@@ -69,12 +69,13 @@ function create_jobs_dataset(hpc_id)
 
   chunk_size = 100
   num_chunks = ceil(Int,length(things_ids)/chunk_size)
-  starts = [ 1+(i-1)*100 for i in 1:num_chunks ]
-  ends = [ 100*i for i in 1:num_chunks ]
+  starts = [ 1+(i-1)*chunk_size for i in 1:num_chunks ]
+  ends = [ chunk_size*i for i in 1:num_chunks ]
   ends[end] = length(things_ids)
 
   for chunk in 1:num_chunks
     from,to = starts[chunk], ends[chunk]
+    from,to = subset[from], subset[to]
     range = @dict from to
     jobname = savename(range)
     jobname = replace(jobname,"="=>"_")

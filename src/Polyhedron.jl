@@ -1515,7 +1515,7 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
       d = facedims[f]
       if d == D-1
         j = findfirst(isequal(f),planes)
-        if Π ∈ Π_to_faces[j] && distance_between_planes(surf,Π,f,abs) < atol
+        if Π ∈ Π_to_faces[j] && distance_between_planes(surf,Π,f,abs,abs) < atol
           push!(Π_to_coplanar_Π[i],f)
         end
       elseif d == D
@@ -1560,7 +1560,7 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
     Πi > 0 || continue
     for Πj in Π_to_coplanar_Π[i]
       Πi < Πj || continue
-      @assert distance_between_planes(surf,Πi,Πj,abs) < atol*1e3
+    #  @assert distance_between_planes(surf,Πi,Πj,abs,abs) < atol*1e3
     end
   end
 
@@ -1609,8 +1609,8 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
     Π_to_ref_Π[i] ∉ (UNSET,i) || continue
     Πi = planes[i]
     Πj = planes[Π_to_ref_Π[i]]
-    if abs(distance_between_planes(surf,Πi,Πj,abs) 
-           -distance_between_planes(surf,Πi,Πj)) > atol
+    if distance_between_planes(surf,Πi,Πj,i->-i) < 
+       distance_between_planes(surf,Πi,Πj)
       Π_to_ref_Π[i] = -Π_to_ref_Π[i]
     end
   end
@@ -1624,12 +1624,12 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
 end
 
 
-function distance_between_planes(poly::Polyhedron,Π1,Π2,f::Function=identity)
+function distance_between_planes(poly::Polyhedron,Π1,Π2,f1::Function=identity,f2::Function=identity)
   dist1 = get_plane_distances(poly.data,Π1)
   dist2 = get_plane_distances(poly.data,Π2)
   max_dist = 0.0
   for v in 1:num_vertices(poly)
-    _d = abs(f(dist1[v]) - f(dist2[v]))
+    _d = abs(f1(dist1[v]) - f2(dist2[v]))
     max_dist = max(max_dist,_d)
   end
   max_dist 

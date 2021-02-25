@@ -4,7 +4,8 @@
 #SBATCH --error={{{e}}}
 #SBATCH --ntasks-per-core=1
 #SBATCH --ntasks=1
-##SBATCH --mem-per-cpu={{mem}} #MB
+##SBATCH --mem={{mem}}
+##SBATCH --mem-per-cpu={{mem}}
 
 ##SBATCH --time={{walltime}}
 
