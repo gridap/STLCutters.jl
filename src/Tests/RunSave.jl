@@ -155,6 +155,7 @@ function run_stl_cutter(
   X,T,N = read_stl(filename)
   stl0 = compute_stl_model(T,X)
   stl0 = merge_nodes(stl0)
+
   X0 = get_node_coordinates(get_grid(stl0))
   T0 = get_cell_nodes(stl0)
 
@@ -163,6 +164,8 @@ function run_stl_cutter(
   origin,sizes,partition = compute_sizes(pmin-Δ,pmax+Δ;nmin,nmax)
 
   grid = CartesianGrid(origin,sizes,partition)
+
+  min_h = min_height(stl0) * (eps()/eps(grid))
 
   Δx_scaled = minimum(pmax-pmin) * Δx
 
@@ -174,6 +177,7 @@ function run_stl_cutter(
   data = Dict{String,Any}()
   
   data["name"] = first(splitext(basename(filename)))
+  data["min_h"] = min_h
   data["delta"] = δ
   data["nmin"] = nmin
   data["nmax"] = nmax
@@ -189,6 +193,7 @@ function run_stl_cutter(
   if verbose
     println("---------------------------------------")
     println("Num stl facets:\t$(data["num_stl_facets"])")
+    println("Minimum stl facet height (scaled):\t$(data["min_h"])")
     println("Num background grid cells:\t$(data["num_cells"])")
     println("Background grid partition:\t$(data["partition"])")
     println("Background grid size:\t$(data["h"])")

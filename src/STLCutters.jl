@@ -61,6 +61,7 @@ export is_water_tight
 export compute_submesh
 export volume, volumes
 export surface, surfaces
+export min_height
 
 include("CellMeshes.jl")
 

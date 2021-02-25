@@ -19,56 +19,13 @@ using STLCutters: is_water_tight
 using STLCutters: surface, volume, volumes 
 using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 
-
-using Pkg; Pkg.add("HTTP")
-import HTTP
-
-include(joinpath(@__DIR__,"data/thingi10k_quality_filter.jl")) # file_ids=Int[]
-
-
-for file_id in file_ids
-
-#file_id = file_ids[i]
-url = "https://www.thingiverse.com/download:$file_id"
-stl_filename = nothing
-try 
-  link = HTTP.head(url).request.target
-  _,ext = splitext(link)
-  stl_filename = "$file_id$ext"
-  println("Downloading Thing $file_id ...")
-  wget_command = `wget -q -O $stl_filename --tries=10 $url`
-  run(wget_command)
-catch
-  println("Thing $file_id is no longer available on Thingiverse.")
-  continue
-end
-
-X,T,N = read_stl(stl_filename)
-stl = compute_stl_model(T,X)
-stl = merge_nodes(stl)
-
-println("\tnum facets:\t$(length(T))")
-println("\tnum vertices:\t$(length(X))")
-
-rm(stl_filename)
-
-end
-@unreachable
-
-# NOTE: For HPC, first download a fraction of the dataset and then run.
-# Only login node will have Internet access
-
-
-
-
-
 #X,T,N = read_stl(joinpath(@__DIR__,"data/37322_sf.obj"))
 #X,T,N = read_stl(joinpath(@__DIR__,"data/441708_sf.obj"))
 #X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny.stl"))
 #X,T,N = read_stl(joinpath(@__DIR__,"data/one_Bird.stl"))
-#X,T,N = read_stl(joinpath(@__DIR__,"data/chichen_itza.stl"))
+X,T,N = read_stl(joinpath(@__DIR__,"data/chichen_itza.stl"))
 #X,T,N = read_stl(joinpath(@__DIR__,"data/47076_sf.obj"))
-X,T,N = read_stl(joinpath(@__DIR__,"data/32770.stl"))
+#X,T,N = read_stl(joinpath(@__DIR__,"data/32770.stl"))
 #X,T,N = read_stl(joinpath(@__DIR__,"data/Octocat-v1.stl"))
 
 stl = compute_stl_model(T,X)
@@ -120,54 +77,6 @@ println("Domain volume:  $(in_volume)")
 println("Domain surface:  $(surface(facets))") 
 @show surface(get_grid(stl)) - surface(facets)
 @show in_volume + out_volume - volume(grid)
-@show bgmesh_in_vols > 0 && bgmesh_in_vols > 0
-
-## Data to be stored
-# - Id
-# - N
-# - N facets
-# - Domain Volume
-# - Surface error
-# - Diff vol error
-# - Num subcells
-# - Max subcells/cell
-# - Avg subcells/cell
-# - Min subcells/cell
-#
-# Save at each step
-#
-#  for ...
-#    ...
-#    push!(table,row)
-#    CSV.write("out.csv",table)
-#   end
-# Save .vtu's
-#
-# Input: 
-#  - Folder of .stl + .obj
-#  - List of id's
-#  - Output format (↑)
-#  - Loop script
-#    - Test few geometries
-#    - Launch on HPC
-
-
-## Script:
-#
-# Get geos list from (download py script and crete list in text file)
-#
-# https://ten-thousand-models.appspot.com/results.html?q=is+closed%2C+is+oriented%2C+is+manifold%2C+is+not+degenerate%2C+without+self-intersection%2C+%23df%3D0
-#
-# Based on py script:
-#  url = "https://www.thingiverse.com/download:$file_id"
-#  Check headers for extension and availability
-#  
-#  wget -q -O $out_file $link
-
-
-
-
-
-
+@show sum(bgmesh_in_vols) > 0 && sum(bgmesh_in_vols) > 0
 
 end # module
