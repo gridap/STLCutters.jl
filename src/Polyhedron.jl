@@ -1032,6 +1032,7 @@ function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
   end
   p_to_group = fill(UNSET,length(parts))
   group = Int[]
+  ids = Int[]
   num_groups = 0
   for p in 1:length(parts)
     p_to_group[p] == UNSET || continue
@@ -1043,14 +1044,16 @@ function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
         push!(group,i)
       end
     end
+    empty!(ids)
     for (i,p_i) in enumerate(group)
       for p_j in group
         if !p_to_p_to_facing[p_j][p_i]
-          deleteat!(group,i)
+          push!(ids,i)
           break
         end
       end
     end
+    deleteat!(group,ids)
     for p_i in group
       @assert p_to_group[p_i] == UNSET
       p_to_group[p_i] = num_groups
