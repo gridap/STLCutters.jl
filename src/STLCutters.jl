@@ -11,6 +11,8 @@ using GridapEmbedded.Interfaces
 using GridapEmbedded.LevelSetCutters
 using LinearAlgebra
 using FileIO
+using GraphRecipes
+using Plots
 
 import MeshIO
 
@@ -31,6 +33,8 @@ import GridapEmbedded.Interfaces: cut
 import GridapEmbedded.CSG: get_tree
 import GridapEmbedded.CSG: compatible_geometries
 import GridapEmbedded.CSG: similar_geometry
+
+import Plots: plot
 
 export Table
 export Point
