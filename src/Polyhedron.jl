@@ -784,7 +784,9 @@ function add_vertex!(data::PolyhedronData,v1::Integer,v2::Integer,Πid::Integer)
   ref_i = data.plane_to_ref_plane[i]
   for i in 1:length(Π_to_v_to_d)
     v_to_d = Π_to_v_to_d[i] 
-    if ref_i == UNSET || data.plane_to_ref_plane[i] ∈ (UNSET,i)
+    if pv ≠ length(v_to_pv)
+      dist = v_to_d[pv]
+    elseif ref_i == UNSET || data.plane_to_ref_plane[i] ∈ (UNSET,i)
       if Π_to_id[i] == Πid 
         dist = 0.0
       else
