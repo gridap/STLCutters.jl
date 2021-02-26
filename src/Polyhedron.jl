@@ -69,7 +69,7 @@ end
 
 function Polyhedron(p::Polytope{3},vertices::AbstractVector{<:Point})
   if p == TET
-    e_v_graph = [[2,4,3],[3,4,1],[1,4,2]]
+    e_v_graph = [[2,4,3],[3,4,1],[1,4,2],[1,2,3]]
   elseif p == HEX
     e_v_graph = [
       [5, 2, 3],
@@ -426,7 +426,7 @@ function isactive(p::Polyhedron,vertex::Integer)
   !isempty( get_graph(p)[vertex] )
 end
 
-function plot(p::Polyhedron,filename="graph",save=false)
+function plot(p::Polyhedron,filename=nothing)
   vertices = Int[]
   for i in 1:num_vertices(p)
     if isactive(p,i)
@@ -461,7 +461,7 @@ function plot(p::Polyhedron,filename="graph",save=false)
   end
   kwargs = (fontsize=10,node_size=0,line=(:dot,0.5,1),thickness_scaling=0.5)
   graphplot(g,names=names,curves=false;kwargs...)
-  !save || savefig(filename)
+  isnothing(filename) || savefig(filename)
   plot!()
 end
 
