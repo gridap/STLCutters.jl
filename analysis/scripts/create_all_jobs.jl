@@ -10,9 +10,9 @@ subsets = Dict(
   :titani => 1001:3000,
   :gadi => 3001:5052 )
 
-function create_all_jobs(hpc::Symbol,subset=subsets[hpc];onlymatrix=false)
-  create_jobs_matrix(hpc)
-  onlymatrix || create_jobs_dataset(hpc,subset)
+function create_all_jobs(hpc::Symbol,subset=subsets[hpc];onlymatrix=false;kwargs)
+  create_jobs_matrix(hpc;kwargs...)
+  onlymatrix || create_jobs_dataset(hpc,subset;kwargs...)
   nothing
 end
 

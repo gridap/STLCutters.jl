@@ -12,7 +12,7 @@ using STLCutters.Tests: download_things
 
 export create_jobs_dataset
 
-function jobdict(hpc_id,jobname,params)
+function jobdict(hpc_id,jobname,params,walltime,mem_gb)
   @unpack from, to = params
   @unpack hpcname,queue,memory,julia= hpc_dict[hpc_id]
   includes = 
@@ -28,9 +28,9 @@ function jobdict(hpc_id,jobname,params)
   "q" => queue,
   "o" => datadir(hpcname,jobname*".out"),
   "e" => datadir(hpcname,jobname*".err"),
-  "walltime" => "24:00:00",
+  "walltime" => walltime,
   "ncpus" => 1,
-  "mem" => memory(16),
+  "mem" => memory(mem_gb),
   "name" => jobname,
   "julia" => julia,
   "includes" => includes,
@@ -44,7 +44,7 @@ include( testdir("data","thingi10k_quality_filter.jl") ) # file_ids = Int[]
 
 include( scriptsdir("generic","hpc_dicts.jl") )
 
-function create_jobs_dataset(hpc_id,subset)
+function create_jobs_dataset(hpc_id,subset;walltime="24:00:00",memory=16)
 
   @unpack hpcname = hpc_dict[hpc_id]
 
@@ -81,7 +81,7 @@ function create_jobs_dataset(hpc_id,subset)
     jobname = replace(jobname,"="=>"_")
     jobfile = datadir(hpcname,jobname*".sh")
     open(jobfile,"w") do io
-      render(io,template,jobdict(hpc_id,jobname,range))
+      render(io,template,jobdict(hpc_id,jobname,range,walltime,memory))
     end
   end
 
