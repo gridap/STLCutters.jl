@@ -157,7 +157,7 @@ function run_stl_cutter(
   stl0 = merge_nodes(stl0)
 
   X0 = get_node_coordinates(get_grid(stl0))
-  T0 = get_cell_nodes(stl0)
+  T0 = get_cell_node_ids(stl0)
 
   pmin,pmax = get_bounding_box(stl0)
   Δ = (pmax-pmin)*δ

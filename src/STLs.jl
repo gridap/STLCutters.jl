@@ -118,7 +118,7 @@ function delete_repeated_vertices(stl::Grid)
   m = cumsum(m) .* m
   vertices_map = m[vertices_map]
   X = get_node_coordinates(stl)[u]
-  T = get_cell_nodes(stl)
+  T = get_cell_node_ids(stl)
   T = map( i -> vertices_map[i], T )
   filter!(f->length(f)==_num_uniques(f),T)
   T = Table(T)
@@ -178,7 +178,7 @@ end
 
 function _compute_min_length(mesh::Grid)
   min_length = Inf
-  for nodes in get_cell_nodes(mesh)
+  for nodes in get_cell_node_ids(mesh)
     for i in 1:length(nodes), j in i+1:length(nodes)
       vi = get_node_coordinates(mesh)[nodes[i]]
       vj = get_node_coordinates(mesh)[nodes[j]]

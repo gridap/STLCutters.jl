@@ -81,7 +81,7 @@ stl0 = compute_stl_model(T,X)
 stl0 = merge_nodes(stl0)
 
 X0 = get_node_coordinates(get_grid(stl0))
-T0 = get_cell_nodes(stl0)
+T0 = get_cell_node_ids(stl0)
 
 ## Coindident Grid-Cube
 δ = 0.2
