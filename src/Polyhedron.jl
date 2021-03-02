@@ -3,6 +3,10 @@
 
 const OPEN = -1
 
+const FACE_CUT = -1
+const FACE_IN = 1
+const FACE_OUT = 2
+
 struct Polyhedron{Dp,Tp,Td}
   vertices::Vector{Point{Dp,Tp}}
   edge_vertex_graph::Vector{Vector{Int}}
@@ -693,7 +697,7 @@ has_facets(p::Polyhedron{D}) where D = has_faces(p,Val{D-1}())
 function compute_cell_to_facets(grid::CartesianGrid,stl::DiscreteModel)
   desc = get_cartesian_descriptor(grid)
   @assert length(get_reffes(grid)) == 1
-  p = get_polytope(get_cell_reffes(grid)[1])
+  p = get_polytope(get_cell_reffe(grid)[1])
   @notimplementedif desc.map !== identity
   cell_to_stl_facets = [ Int[] for _ in 1:num_cells(grid) ]
   δ = 0.1
@@ -966,7 +970,7 @@ end
 function restrict(poly::Polyhedron,stl::DiscreteModel,stl_facets)
   nodes = Int[]
   for f in stl_facets
-    for n in get_cell_nodes(stl)[f]
+    for n in get_cell_node_ids(stl)[f]
       if n ∉ nodes
         push!(nodes,n)
       end
@@ -1356,7 +1360,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
       end
     end
 
-    p = get_polytope(get_cell_reffes(grid)[cell])
+    p = get_polytope(get_cell_reffe(grid)[cell])
     v = map(i->Point(float.(Tuple(i))),get_cell_coordinates(grid)[cell])
     K = Polyhedron(p,v)
     Γk0 = restrict(Γ0,stl,cell_facets)
@@ -1431,7 +1435,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     append!(f_to_bgcell,fill(cell,length(T_Γ)))
     append!(f_to_stlf,f_to_f.-get_offset(get_grid_topology(stl),num_dims(stl)))
 
-    for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
+    for (i,bg_v) in enumerate(get_cell_node_ids(grid)[cell])
       n_to_io[i] ≠ UNSET || continue
       n_to_io[i] ≠ FACE_CUT || continue
       bgnode_to_io[bg_v] ≠ FACE_CUT || continue
@@ -1447,12 +1451,12 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
       push!(stack,cell)
       while length(stack) > 0
         current_cell = pop!(stack)
-        for node in get_cell_nodes(grid)[current_cell]
+        for node in get_cell_node_ids(grid)[current_cell]
           if bgnode_to_io[node] == FACE_IN
             for neig_cell in get_faces(grid_topology,0,num_dims(grid))[node]
               if bgcell_to_ioc[neig_cell] == UNSET
                 bgcell_to_ioc[neig_cell] = FACE_IN
-                for neig_node in get_cell_nodes(grid)[neig_cell]
+                for neig_node in get_cell_node_ids(grid)[neig_cell]
                   if bgnode_to_io[neig_node] == UNSET
                     bgnode_to_io[neig_node] = FACE_IN
                   end
