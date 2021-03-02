@@ -17,32 +17,13 @@ f(x) = - Δu(x)
 ud(x) = u(x)
 ∇(::typeof(u)) = ∇u
 
-#n = 10
-#partition = (n,n)
-#
-#pmin,pmax = Point(0.0,0.0),Point(1.0,1.0)
-#
-#vertices = [ Point(0.15,0.15),
-#             Point(0.15,0.85),
-#             Point(0.85,0.85), 
-#             Point(0.85,0.15),
-#             Point(0.55,0.18) ]
-#faces = [[1,2],[2,3],[3,4],[4,5],[5,1]]
-#
-#stl = compute_stl_model(Table(faces),vertices)
-#
-#geo = STLGeometry(stl,name="wall")
-#
-#partition = (n,n,n)
-#geo = STLGeometry("test/data/Bunny-LowPoly.stl",name="wall")
-#test/data/Bunny-LowPoly.stl
-#
+
 #X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 #X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
 @time X,T,N = read_stl(joinpath(@__DIR__,"data/441708_sf.obj"))
 @time stl = compute_stl_model(T,X)
 @time stl = merge_nodes(stl)
-writevtk(stl,"cube")
+# writevtk(stl,"geo")
 n = 100
 δ = 0.2
 pmin,pmax = get_bounding_box(stl)
@@ -117,7 +98,7 @@ eh1 = h1(e)
 ul2 = l2(uh)
 uh1 = h1(uh)
 
-writevtk(Ω,"results",cellfields=["uh"=>uh])
+#writevtk(Ω,"results",cellfields=["uh"=>uh])
 
 @test el2/ul2 < 1.e-8
 @test eh1/uh1 < 1.e-7
