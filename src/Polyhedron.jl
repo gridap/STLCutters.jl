@@ -3,6 +3,10 @@
 
 const OPEN = -1
 
+const FACE_CUT = -1
+const FACE_IN = 1
+const FACE_OUT = 2
+
 struct Polyhedron{Dp,Tp,Td}
   vertices::Vector{Point{Dp,Tp}}
   edge_vertex_graph::Vector{Vector{Int}}

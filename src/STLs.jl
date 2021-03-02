@@ -17,24 +17,24 @@ function read_stl(filename::String)
 end
 
 function _file_format(filename)
-  if endswith(filename,r".stl|.STL")
-    cmd = `file --mime-encoding $filename`
-    out = read(cmd,String)
-    if contains(out,"binary")
-      F = format"STL_BINARY"
-    elseif contains(out,"ascii")
-      F = format"STL_ASCII"
-    else
-      msg = "Invalid file encoding: $out"
-      @unreachable msg 
-    end
-  elseif  endswith(filename,r".obj")
-    F = format"OBJ"
-  else
-    msg = "Invalid file extension: $filename"
-    @unreachable msg
-  end
+  ext =  lowercase(last(splitext(filename)))
+  stl,obj = ".stl",".obj"
+  ext == stl && _is_ascii(filename) && return format"STL_ASCII"
+  ext == stl && _is_binary(filename) && return format"STL_BINARY"
+  ext == obj && return format"OBJ"
+  msg = "Invalid file format: $filename"
+  @unreachable msg
 end
+
+function _get_encoding(filename)
+  cmd = `file --mime-encoding $filename`
+  read(cmd,String)
+end
+
+_is_binary(filename) = contains(_get_encoding(filename),"binary")
+
+_is_ascii(filename) = contains(_get_encoding(filename),"ascii")
+
 
 function Base.convert(::Type{Point{D,T}},x::MeshIO.Point{D}) where {D,T} 
   Point{D,T}(x.data)
@@ -61,6 +61,18 @@ function compute_model(
 
   grid = compute_grid(cell_to_vertices,vertex_to_coordinates,p)
   UnstructuredDiscreteModel(grid)
+end
+
+function compute_grid(
+  cell_to_nodes::AbstractArray,
+  node_to_coordinates::Vector{<:Point},
+  p::Polytope)
+
+  T = Table(cell_to_nodes)
+  X = node_to_coordinates
+  reffes = [LagrangianRefFE(p)]
+  cell_types = fill(1,length(T))
+  UnstructuredGrid(X,T,reffes,cell_types)
 end
 
 function get_dface(stl::DiscreteModel,iface::Integer,::Val{d}) where d
@@ -97,8 +109,8 @@ function merge_nodes(stl::DiscreteModel)
   compute_stl_model(T,X)
 end
 
-function delete_repeated_vertices(stl::Grid)
-  group_to_vertices =  _group_vertices(stl)
+function delete_repeated_vertices(stl::Grid;atol=1e6*eps(stl))
+  group_to_vertices =  _group_vertices(stl;atol)
   vertices_map = collect(1:num_nodes(stl))
   for _vertices in group_to_vertices
     for i in 1:length(_vertices), j in i+1:length(_vertices)
@@ -107,7 +119,7 @@ function delete_repeated_vertices(stl::Grid)
       if vertices_map[_vertices[i]] == _vertices[i] && 
          vertices_map[_vertices[j]] == _vertices[j]
 
-        if distance(vi,vj) < TOL
+        if distance(vi,vj) < atol
           vertices_map[_vertices[j]] = _vertices[i]
         end
       end
@@ -135,10 +147,10 @@ function _num_uniques(a::AbstractArray)
   c
 end
 
-function _group_vertices(stl::Grid{Dc,D}) where {Dc,D}
-  min_length = _compute_min_length(stl)
+function _group_vertices(stl::Grid{Dc,D};atol) where {Dc,D}
+  min_length = _compute_min_length(stl;atol)
   num_digits = -Int(floor(log10(min_length)))
-  pmin, pmax = get_bouding_box(stl)
+  pmin, pmax = get_bounding_box(stl)
   cells = Int[]
   vertices = Int[]
   ranks = ceil.(Tuple(pmax-pmin),digits=num_digits)
@@ -166,7 +178,7 @@ function _group_vertices(stl::Grid{Dc,D}) where {Dc,D}
   cell_to_vertices
 end
 
-function get_bouding_box(mesh::Grid)
+function get_bounding_box(mesh::Grid)
   pmin = get_node_coordinates(mesh)[1]
   pmax = get_node_coordinates(mesh)[1]
   for vertex in get_node_coordinates(mesh)
@@ -176,14 +188,14 @@ function get_bouding_box(mesh::Grid)
   pmin,pmax
 end
 
-function _compute_min_length(mesh::Grid)
+function _compute_min_length(mesh::Grid;atol)
   min_length = Inf
   for nodes in get_cell_node_ids(mesh)
     for i in 1:length(nodes), j in i+1:length(nodes)
       vi = get_node_coordinates(mesh)[nodes[i]]
       vj = get_node_coordinates(mesh)[nodes[j]]
       dist = distance(vi,vj)
-      if dist < min_length && dist > TOL
+      if dist < min_length && dist > atol
         min_length = dist
       end
     end

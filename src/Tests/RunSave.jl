@@ -153,6 +153,12 @@ function run_stl_cutter(
   kdtree::Bool=false)
 
   X,T,N = read_stl(filename)
+
+  if length(X) == 0 || length(T) == 0
+    !verbose || println("Skipping run: no facets or no vertices")
+    return 
+  end
+
   stl0 = compute_stl_model(T,X)
   stl0 = merge_nodes(stl0)
 

@@ -103,7 +103,7 @@ l(v) =
   ∫( (γd/h)*v*ud - (n_Γd⋅∇(v))*ud ) * dΓd
 
 # FE problem
-op = AffineFEOperator(a,l,U,V)
+@time op = AffineFEOperator(a,l,U,V)
 @time uh = solve(op)
 
 e = u - uh
