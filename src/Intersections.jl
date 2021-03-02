@@ -130,7 +130,7 @@ function get_polytope(a::GridCell)
   HEX.face_orientations[3] = 1
   HEX.face_orientations[4] = -1
   TRI.face_orientations[3] = -1
-  get_polytope(get_cell_reffes(a.grid)[a.cell])
+  get_polytope(get_cell_reffe(a.grid)[a.cell])
 end
 
 num_dims(::Face{Df,Dp}) where {Df,Dp} = Dp

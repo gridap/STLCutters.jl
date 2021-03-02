@@ -92,21 +92,21 @@ mesh_in = compute_grid(T_in,X_in,TET)
 mesh_out = compute_grid(T_out,X_out,TET)
 mesh_Γ = compute_grid(T_Γ,X_Γ,TRI)  
 
-writevtk(edge_mesh(Γk),"Gk")
-
-for (i,Ki_in) in enumerate(Kn_in)
-  writevtk(edge_mesh(Ki_in),"Kin_$i")
-end
-
-for (i,Ki_out) in enumerate(Kn_out)
-  writevtk(edge_mesh(Ki_out),"Kout_$i")
-end
-
-writevtk(mesh_in,"mesh_in")
-
-writevtk(mesh_out,"mesh_out")
-
-writevtk(mesh_Γ,"mesh_G")
+#writevtk(edge_mesh(Γk),"Gk")
+#
+#for (i,Ki_in) in enumerate(Kn_in)
+#  writevtk(edge_mesh(Ki_in),"Kin_$i")
+#end
+#
+#for (i,Ki_out) in enumerate(Kn_out)
+#  writevtk(edge_mesh(Ki_out),"Kout_$i")
+#end
+#
+#writevtk(mesh_in,"mesh_in")
+#
+#writevtk(mesh_out,"mesh_out")
+#
+#writevtk(mesh_Γ,"mesh_G")
 
 @test volume(mesh_in) + volume(mesh_out) ≈ 1
 
@@ -170,19 +170,19 @@ n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
 mesh_in = compute_grid(T_in,X_in,TET)
 mesh_out = compute_grid(T_out,X_out,TET)
 
-writevtk(edge_mesh(Γk),"Gk")
-
-for (i,Ki_in) in enumerate(Kn_in)
-  writevtk(edge_mesh(Ki_in),"Kin_$i")
-end
-
-for (i,Ki_out) in enumerate(Kn_out)
-  writevtk(edge_mesh(Ki_out),"Kout_$i")
-end
-
-writevtk(mesh_in,"mesh_in")
-
-writevtk(mesh_out,"mesh_out")
+#writevtk(edge_mesh(Γk),"Gk")
+#
+#for (i,Ki_in) in enumerate(Kn_in)
+#  writevtk(edge_mesh(Ki_in),"Kin_$i")
+#end
+#
+#for (i,Ki_out) in enumerate(Kn_out)
+#  writevtk(edge_mesh(Ki_out),"Kout_$i")
+#end
+#
+#writevtk(mesh_in,"mesh_in")
+#
+#writevtk(mesh_out,"mesh_out")
 
 
 @test volume(mesh_in) + volume(mesh_out) ≈ 1
@@ -193,7 +193,7 @@ X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 stl = compute_stl_model(T,X)
 stl = merge_nodes(stl)
 
-writevtk(get_grid(stl),"stl")
+#writevtk(get_grid(stl),"stl")
 
 p = HEX
 δ = 0.2
@@ -214,8 +214,8 @@ T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 submesh = compute_grid(Table(T),X,TET)
 facets = compute_grid(Table(F),Xf,TRI)
 
-writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
-writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
+#writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
+#writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
 
 bgmesh_vols = volumes(grid)
 submesh_vols = volumes(submesh)
@@ -240,7 +240,7 @@ X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
 stl = compute_stl_model(T,X)
 stl = merge_nodes(stl)
 
-writevtk(get_grid(stl),"stl")
+#writevtk(get_grid(stl),"stl")
 
 p = HEX
 δ = 0.2
@@ -261,8 +261,8 @@ T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 submesh = compute_grid(Table(T),X,TET)
 facets = compute_grid(Table(F),Xf,TRI)
 
-writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
-writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
+#writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
+#writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
 
 bgmesh_vols = volumes(grid)
 submesh_vols = volumes(submesh)

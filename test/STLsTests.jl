@@ -16,11 +16,11 @@ X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
 
 stl = compute_stl_model(T,X)
 @test !is_water_tight(stl)
-writevtk(stl.grid,"cube",cellfields=["normals"=>N])
+#writevtk(stl.grid,"cube",cellfields=["normals"=>N])
 
 
 stl = merge_nodes(stl)
 @test is_water_tight(stl)
-writevtk(stl.grid,"cube",cellfields=["normals"=>N])
+#writevtk(stl.grid,"cube",cellfields=["normals"=>N])
 
 end # module

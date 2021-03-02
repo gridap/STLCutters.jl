@@ -17,32 +17,13 @@ f(x) = - Δu(x)
 ud(x) = u(x)
 ∇(::typeof(u)) = ∇u
 
-#n = 10
-#partition = (n,n)
-#
-#pmin,pmax = Point(0.0,0.0),Point(1.0,1.0)
-#
-#vertices = [ Point(0.15,0.15),
-#             Point(0.15,0.85),
-#             Point(0.85,0.85), 
-#             Point(0.85,0.15),
-#             Point(0.55,0.18) ]
-#faces = [[1,2],[2,3],[3,4],[4,5],[5,1]]
-#
-#stl = compute_stl_model(Table(faces),vertices)
-#
-#geo = STLGeometry(stl,name="wall")
-#
-#partition = (n,n,n)
-#geo = STLGeometry("test/data/Bunny-LowPoly.stl",name="wall")
-#test/data/Bunny-LowPoly.stl
-#
-X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
-X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
+
+#X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
+#X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
 @time X,T,N = read_stl(joinpath(@__DIR__,"data/441708_sf.obj"))
 @time stl = compute_stl_model(T,X)
 @time stl = merge_nodes(stl)
-writevtk(stl,"cube")
+# writevtk(stl,"geo")
 n = 100
 δ = 0.2
 pmin,pmax = get_bounding_box(stl)
@@ -51,7 +32,7 @@ pmin = pmin - diagonal*δ
 pmax = pmax + diagonal*δ
 partition = (n,n,n)
 
-geo = STLGeometry(stl,name="wall")
+geo = STLGeometry(stl)
 bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
@@ -59,58 +40,67 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 @time cutgeo = cut(bgmodel,geo)
 
 # Setup integration meshes
-trian_Ω = Triangulation(cutgeo)
-trian_Γ = EmbeddedBoundary(cutgeo)
-trian_Γg = GhostSkeleton(cutgeo,"wall")
+Ω = Triangulation(cutgeo)
+Γd = EmbeddedBoundary(cutgeo)
+Γg = GhostSkeleton(cutgeo)
 
 # Setup normal vectors
-n_Γ = get_normal_vector(trian_Γ)
-n_Γg = get_normal_vector(trian_Γg)
+n_Γd = get_normal_vector(Γd)
+n_Γg = get_normal_vector(Γg)
 
-# Setup cuadratures
+#writevtk(Ω,"trian_O")
+#writevtk(Γd,"trian_Gd",cellfields=["normal"=>n_Γd])
+#writevtk(Γg,"trian_Gg",cellfields=["normal"=>n_Γg])
+#writevtk(Triangulation(bgmodel),"bgtrian")
+
+# Setup Lebesgue measures
 order = 1
-quad_Ω = CellQuadrature(trian_Ω,2*order)
-quad_Γ = CellQuadrature(trian_Γ,2*order)
-quad_Γg = CellQuadrature(trian_Γg,2*order)
+degree = 2*order
+dΩ = Measure(Ω,degree)
+dΓd = Measure(Γd,degree)
+dΓg = Measure(Γg,degree)
 
-surf = sum(integrate(1,trian_Γ,quad_Γ))
-#@show surf
-
-vols = sum(integrate(1,trian_Ω,quad_Ω))
-#@show vols
-
+vol = sum( ∫(1)*dΩ  )
+surf = sum( ∫(1)*dΓd )
+@show vol,surf
 
 # Setup FESpace
-@time model = DiscreteModel(cutgeo)
-@time V = TestFESpace(model=model,valuetype=Float64,reffe=:Lagrangian,order=order,conformity=:H1)
-U = TrialFESpace(V)
+model = DiscreteModel(cutgeo)
+V = TestFESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
+U = TrialFESpace(V) 
 
 # Weak form
-const γd = 10.0
-const γg = 0.1
+γd = 10.0
+γg = 0.1
 h = (pmax - pmin)[1] / partition[1]
-a_Ω(u,v) = ∇(v)⋅∇(u)
-l_Ω(v) = v*f
-a_Γ(u,v) = (γd/h)*v*u  - v*(n_Γ⋅∇(u)) - (n_Γ⋅∇(v))*u
-l_Γ(v) = (γd/h)*v*ud - (n_Γ⋅∇(v))*ud
-a_Γg(v,u) = (γg*h)*jump(n_Γg⋅∇(v))*jump(n_Γg⋅∇(u))
+
+a(u,v) =
+  ∫( ∇(v)⋅∇(u) ) * dΩ +
+  ∫( (γd/h)*v*u  - v*(n_Γd⋅∇(u)) - (n_Γd⋅∇(v))*u ) * dΓd +
+  ∫( (γg*h)*jump(n_Γg⋅∇(v))*jump(n_Γg⋅∇(u)) ) * dΓg
+
+l(v) =
+  ∫( v*f ) * dΩ +
+  ∫( (γd/h)*v*ud - (n_Γd⋅∇(v))*ud ) * dΓd
 
 # FE problem
-t_Ω = AffineFETerm(a_Ω,l_Ω,trian_Ω,quad_Ω)
-t_Γ = AffineFETerm(a_Γ,l_Γ,trian_Γ,quad_Γ)
-t_Γg = LinearFETerm(a_Γg,trian_Γg,quad_Γg)
-op = AffineFEOperator(U,V,t_Ω,t_Γ,t_Γg)
+@time op = AffineFEOperator(a,l,U,V)
 @time uh = solve(op)
 
-# Postprocess
-uh_Ω = restrict(uh,trian_Ω)
-writevtk(trian_Ω,"results",cellfields=["uh"=>uh_Ω])
+e = u - uh
 
-tol = 1e-9
-e = u - uh_Ω
-el2 = sqrt(sum(integrate(e*e,trian_Ω,quad_Ω)))
-@test el2 < tol
-eh1 = sqrt(sum(integrate(e*e+a_Ω(e,e),trian_Ω,quad_Ω)))
-@test eh1 < tol
+# Postprocess
+l2(u) = sqrt(sum( ∫( u*u )*dΩ ))
+h1(u) = sqrt(sum( ∫( u*u + ∇(u)⋅∇(u) )*dΩ ))
+
+el2 = l2(e)
+eh1 = h1(e)
+ul2 = l2(uh)
+uh1 = h1(uh)
+
+#writevtk(Ω,"results",cellfields=["uh"=>uh])
+
+@test el2/ul2 < 1.e-8
+@test eh1/uh1 < 1.e-7
 
 end # module

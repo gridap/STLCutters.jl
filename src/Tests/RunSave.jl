@@ -153,11 +153,17 @@ function run_stl_cutter(
   kdtree::Bool=false)
 
   X,T,N = read_stl(filename)
+
+  if length(X) == 0 || length(T) == 0
+    !verbose || println("Skipping run: no facets or no vertices")
+    return 
+  end
+
   stl0 = compute_stl_model(T,X)
   stl0 = merge_nodes(stl0)
 
   X0 = get_node_coordinates(get_grid(stl0))
-  T0 = get_cell_nodes(stl0)
+  T0 = get_cell_node_ids(stl0)
 
   pmin,pmax = get_bounding_box(stl0)
   Δ = (pmax-pmin)*δ
@@ -166,6 +172,10 @@ function run_stl_cutter(
   grid = CartesianGrid(origin,sizes,partition)
 
   min_h = min_height(stl0) * (eps()/eps(grid))
+  if min_h < eps()*1e3
+    !verbose || println("Skipping run: min facet height = $(min_h)")
+    return 
+  end
 
   Δx_scaled = minimum(pmax-pmin) * Δx
 

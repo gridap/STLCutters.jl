@@ -25,9 +25,9 @@ function test_stl_cut(grid,stl,vol)
   submesh = compute_grid(Table(T),X,TET)
   facets = compute_grid(Table(F),Xf,TRI)
 
-  writevtk(facets,"subfacets",cellfields=["bgcell"=>f_to_bgcell])
-  writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
-  writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
+  #writevtk(facets,"subfacets",cellfields=["bgcell"=>f_to_bgcell])
+  #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
+  #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
 
   bgmesh_vols = volumes(grid)
   submesh_vols = volumes(submesh)
@@ -81,7 +81,7 @@ stl0 = compute_stl_model(T,X)
 stl0 = merge_nodes(stl0)
 
 X0 = get_node_coordinates(get_grid(stl0))
-T0 = get_cell_nodes(stl0)
+T0 = get_cell_node_ids(stl0)
 
 ## Coindident Grid-Cube
 δ = 0.2
@@ -138,7 +138,7 @@ for Δx in Δxs
   println("Testing Δx = $Δx ...")
   Xi = map(p-> p + Δx,X0)
   stl = compute_stl_model(Table(T0),Xi)
-  writevtk(stl.grid,"stl")
+  #writevtk(stl.grid,"stl")
   test_stl_cut(grid,stl,1)
 end
 
@@ -167,7 +167,7 @@ for O in origins
     println("Testing θ = $θ over $O ...")
     Xi = map(p-> O + R(θ)⋅(p-O),X0)
     stl = compute_stl_model(Table(T0),Xi)
-    writevtk(stl,"stl")
+    #writevtk(stl,"stl")
     test_stl_cut(grid,stl,1)
   end
 end

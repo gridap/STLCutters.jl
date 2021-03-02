@@ -10,7 +10,7 @@ using STLCutters.Tests
 
 include( scriptsdir("generic","hpc_dicts.jl") )
 
-function jobdict(hpc_id,jobname,params)
+function jobdict(hpc_id,jobname,params,walltime,mem_gb)
   @unpack func,filename,nmin,nmax,kwargs = params
   @unpack hpcname,queue,memory,julia= hpc_dict[hpc_id]
   filename = testdir("data","$filename.stl")
@@ -23,9 +23,9 @@ function jobdict(hpc_id,jobname,params)
   "q" => queue,
   "o" => datadir(hpcname,jobname*".out"),
   "e" => datadir(hpcname,jobname*".err"),
-  "walltime" => "24:00:00",
+  "walltime" => walltime,
   "ncpus" => 1,
-  "mem" => memory(16),
+  "mem" => memory(mem_gb),
   "julia" => julia,
   "name" => jobname,
   "func" => func,
@@ -49,7 +49,7 @@ stl_list = [
   "37266", # Extruded Earth
   "252119"] # Angel
 
-function create_jobs_matrix(hpc_id)
+function create_jobs_matrix(hpc_id;walltime="24:00:00",memory=16)
 
   @unpack hpcname = hpc_dict[hpc_id]
 
@@ -78,7 +78,7 @@ function create_jobs_matrix(hpc_id)
     jobname = replace(jobname,"="=>"")
     jobfile = datadir(hpcname,jobname*".sh")
     open(jobfile,"w") do io
-      render(io,template,jobdict(hpc_id,jobname,params))
+      render(io,template,jobdict(hpc_id,jobname,params,walltime,memory))
     end
   end
 

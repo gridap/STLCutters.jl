@@ -44,21 +44,21 @@ function _cut_sm(model::DiscreteModel,geom::STLGeometry)
   out = compute_submesh(get_grid(model),get_stl(geom))
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = out
   bgcell_to_ioc = [ map( _convert_io, bgcell_to_ioc ) ]
-  cell_to_points = Table(T)
+  cell_to_points = Table( map(i->Int32.(i),T) )
   point_to_coords = X
   point_to_rcoords = send_to_ref_space(grid,k_to_bgcell,T,X)
   cell_to_io = [ map( _convert_io, k_to_io ) ]
   cell_to_bgcell = Int32.(k_to_bgcell)
   data = cell_to_points,cell_to_bgcell,point_to_coords,point_to_rcoords
-  subcells = SubTriangulation(data...)
+  subcells = SubCellData(data...)
 
-  f_to_points = Table(F)
+  f_to_points = Table( map(i->Int32.(i),F) )
   point_to_coords = Xf
   point_to_rcoords = send_to_ref_space(grid,f_to_bgcell,F,Xf)
   f_to_normal = [ normal(get_cell(get_stl(geom),facet)) for facet in f_to_stlf ]
   f_to_bgcell = Int32.(f_to_bgcell)
   data = f_to_points,f_to_normal,f_to_bgcell,point_to_coords,point_to_rcoords
-  subfacets = FacetSubTriangulation(data...) 
+  subfacets = SubFacetData(data...) 
   f_to_io = fill(Int8(INTERFACE),length(F))
   f_to_io = [ f_to_io ]
 

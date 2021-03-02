@@ -36,25 +36,7 @@ import GridapEmbedded.CSG: similar_geometry
 
 import Plots: plot
 
-export Table
-export Point
-export Segment
-export Triangle
 export STLGeometry
-
-export distance
-export projection
-export have_intersection
-export intersection_point
-export insert_vertices!
-export insert_edges!
-export insert_facets!
-export distribute_faces
-export compute_grid
-export initial_mesh
-
-export cut
-export square
 
 export read_stl
 export compute_stl_model
@@ -67,23 +49,13 @@ export volume, volumes
 export surface, surfaces
 export min_height
 
-include("CellMeshes.jl")
 
 include("Intersections.jl")
 include("STLs.jl")
 include("Polyhedron.jl")
 
-
-## Old
-include("CellRefinement.jl")
-include("FaceInsertion.jl")
-include("FaceDistribution.jl")
-include("GridRefinement.jl")
-include("SurfaceRefinement.jl")
-#include("HexahedraIntersection.jl")
-include("tables/LookupTables.jl")
-
 include("Embedded.jl")
 
 include("Tests/Tests.jl")
+
 end # module

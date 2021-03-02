@@ -3,6 +3,10 @@
 
 const OPEN = -1
 
+const FACE_CUT = -1
+const FACE_IN = 1
+const FACE_OUT = 2
+
 struct Polyhedron{Dp,Tp,Td}
   vertices::Vector{Point{Dp,Tp}}
   edge_vertex_graph::Vector{Vector{Int}}
@@ -94,6 +98,55 @@ end
 function CartesianPlane(p::Point{D,T},d::Integer,orientation::Integer) where {D,T}
   @notimplementedif abs( orientation ) ≠ 1
   CartesianPlane{D,T}(Int8(d),p[d],orientation>0)
+end
+
+function compact!(p::Polyhedron)
+  ids = findall(i->!isactive(p,i),1:num_vertices(p))
+  old_to_new = fill(UNSET,num_vertices(p))
+  new = 0
+  for i in 1:num_vertices(p)
+    isactive(p,i) || continue
+    new += 1
+    old = i
+    old_to_new[old] = new
+  end
+  vertices = get_vertex_coordinates(p)
+  graph = get_graph(p)
+  deleteat!(vertices,ids)
+  deleteat!(graph,ids)
+  f = i -> i ∈ (OPEN,UNSET) ? i : old_to_new[i]
+  map!(i->map!(f,i,i),graph,graph)
+  compact!(p.data,ids,old_to_new)
+  p
+end
+
+function compact!(data::PolyhedronData,ids,old_to_new)
+  v_to_Π = data.vertex_to_planes
+  v_to_of = data.vertex_to_original_faces
+  v_to_pv = data.vertex_to_parent_vertex
+  v_to_pe = data.vertex_to_parent_edge
+  Π_to_v_to_dist = data.plane_to_vertex_to_distances
+  Π_to_ref_Π = data.plane_to_ref_plane
+  Π_to_id = data.plane_to_ids
+
+  deleteat!(v_to_Π,ids)
+  deleteat!(v_to_of,ids)
+  deleteat!(v_to_pv,ids)
+  for (i,pv) in enumerate(v_to_pv)
+    if old_to_new[pv] == UNSET
+      old_to_new[pv] = i
+    end
+    v_to_pv[i] = old_to_new[pv]
+  end
+  deleteat!(v_to_pe,ids)
+  f = i -> i == UNSET ? i : old_to_new[i]
+  for (i,pe) in enumerate(v_to_pe)
+    v_to_pe[i] = (f(pe[1]),f(pe[2])) 
+  end
+  for v_to_dist in Π_to_v_to_dist
+    deleteat!(v_to_dist,ids)
+  end
+  data
 end
 
 function compute_distances!(p::Polyhedron,Π,faces)
@@ -197,13 +250,14 @@ function split(p::Polyhedron,Π)
   disconnect_graph!(out_graph,num_vertices(p),distances,false)
   add_open_vertices!(in_graph,p)
   add_open_vertices!(out_graph,p)
-  vertices = [p.vertices;new_vertices]
+  in_vertices = [p.vertices;new_vertices]
+  out_vertices = [p.vertices;new_vertices]
   in_data = data
   out_data = deepcopy(data)
   update_data!(in_data,in_graph,num_vertices(p))
   update_data!(out_data,out_graph,num_vertices(p))
-  Polyhedron(vertices,in_graph,isopen(p),in_data), 
-  Polyhedron(vertices,out_graph,isopen(p),out_data)
+  compact!(Polyhedron(in_vertices,in_graph,isopen(p),in_data)), 
+  compact!(Polyhedron(out_vertices,out_graph,isopen(p),out_data))
 end
 
 
@@ -643,7 +697,7 @@ has_facets(p::Polyhedron{D}) where D = has_faces(p,Val{D-1}())
 function compute_cell_to_facets(grid::CartesianGrid,stl::DiscreteModel)
   desc = get_cartesian_descriptor(grid)
   @assert length(get_reffes(grid)) == 1
-  p = get_polytope(get_cell_reffes(grid)[1])
+  p = get_polytope(get_cell_reffe(grid)[1])
   @notimplementedif desc.map !== identity
   cell_to_stl_facets = [ Int[] for _ in 1:num_cells(grid) ]
   δ = 0.1
@@ -695,7 +749,7 @@ function polyhedron_data(num_vertices::Integer)
   v_to_Π = [ Int[] for _ in 1:num_vertices ]
   v_to_of = [ Int[] for _ in 1:num_vertices ]
   v_to_v = collect(1:num_vertices)
-  v_to_e = Vector{Tuple{Int,Int}}(undef,num_vertices)
+  v_to_e = fill((UNSET,UNSET),num_vertices)
   Π_to_v_to_d = Vector{Int}[]
   Π_to_rΠ = Int[]
   Π_to_id = Int[]
@@ -706,7 +760,7 @@ function polyhedron_data(p::Polytope)
   v_to_Π = -get_faces(p,0,num_dims(p)-1)
   v_to_of = [ Int[] for _ in 1:num_vertices(p) ]
   v_to_v = collect(1:num_vertices(p))
-  v_to_e = Vector{Tuple{Int,Int}}(undef,num_vertices(p))
+  v_to_e = fill((UNSET,UNSET),num_vertices(p))
   Π_to_v_to_d = Vector{Int}[]
   Π_to_rΠ = Int[]
   Π_to_id = Int[]
@@ -774,7 +828,7 @@ function update_data!(data,graph,num_vertices)
     v_to_pv[v] == v || continue
     for vnext in num_vertices+1:length(graph)
       v_to_pv[vnext] == vnext || continue
-      if v_to_pe[v] == v_to_pe[vnext]
+      if v_to_pe[v] == v_to_pe[vnext] && v_to_pe[v] ≠ (UNSET,UNSET)
         v_to_pv[vnext] = v
       end
     end
@@ -916,7 +970,7 @@ end
 function restrict(poly::Polyhedron,stl::DiscreteModel,stl_facets)
   nodes = Int[]
   for f in stl_facets
-    for n in get_cell_nodes(stl)[f]
+    for n in get_cell_node_ids(stl)[f]
       if n ∉ nodes
         push!(nodes,n)
       end
@@ -940,7 +994,7 @@ function restrict(data::PolyhedronData,nodes)
   v_to_Π = data.vertex_to_planes[nodes]
   v_to_of = data.vertex_to_original_faces[nodes]
   v_to_v = collect(1:length(nodes))
-  v_to_e = Vector{Tuple{Int,Int}}(undef,length(nodes))
+  v_to_e = fill((UNSET,UNSET),length(nodes))
   Π_to_rΠ = copy(data.plane_to_ref_plane)
   Π_to_id = copy(data.plane_to_ids)
   Π_to_v_to_d = [ data.plane_to_vertex_to_distances[i][nodes] for i in 1:length(Π_to_id) ]
@@ -1306,7 +1360,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
       end
     end
 
-    p = get_polytope(get_cell_reffes(grid)[cell])
+    p = get_polytope(get_cell_reffe(grid)[cell])
     v = map(i->Point(float.(Tuple(i))),get_cell_coordinates(grid)[cell])
     K = Polyhedron(p,v)
     Γk0 = restrict(Γ0,stl,cell_facets)
@@ -1381,7 +1435,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     append!(f_to_bgcell,fill(cell,length(T_Γ)))
     append!(f_to_stlf,f_to_f.-get_offset(get_grid_topology(stl),num_dims(stl)))
 
-    for (i,bg_v) in enumerate(get_cell_nodes(grid)[cell])
+    for (i,bg_v) in enumerate(get_cell_node_ids(grid)[cell])
       n_to_io[i] ≠ UNSET || continue
       n_to_io[i] ≠ FACE_CUT || continue
       bgnode_to_io[bg_v] ≠ FACE_CUT || continue
@@ -1397,12 +1451,12 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
       push!(stack,cell)
       while length(stack) > 0
         current_cell = pop!(stack)
-        for node in get_cell_nodes(grid)[current_cell]
+        for node in get_cell_node_ids(grid)[current_cell]
           if bgnode_to_io[node] == FACE_IN
             for neig_cell in get_faces(grid_topology,0,num_dims(grid))[node]
               if bgcell_to_ioc[neig_cell] == UNSET
                 bgcell_to_ioc[neig_cell] = FACE_IN
-                for neig_node in get_cell_nodes(grid)[neig_cell]
+                for neig_node in get_cell_node_ids(grid)[neig_cell]
                   if bgnode_to_io[neig_node] == UNSET
                     bgnode_to_io[neig_node] = FACE_IN
                   end

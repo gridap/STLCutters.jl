@@ -10,7 +10,9 @@ using STLCutters: distance
 using STLCutters: projection
 using STLCutters: is_on_boundary 
 using STLCutters: contains_projection 
-using STLCutters: Cell, Triangle 
+using STLCutters: have_intersection 
+using STLCutters: intersection_point 
+using STLCutters: Cell, Triangle, Segment 
 
 p = QUAD
 K = collect(1:num_vertices(p))
