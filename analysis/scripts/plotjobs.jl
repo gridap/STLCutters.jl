@@ -21,15 +21,15 @@ function save_plot(name,data,xfield,yfield;relative=false,labels=Dict())
   !isempty(filter( i -> i[xfield] ≠ 0, data )) || return
   
   nmaxs = sort(unique(data.nmax))
-  plot(markershape=:auto)
-  for nmax in nmaxs
+  plot()
+  for (i,nmax) in enumerate(nmaxs)
     r = filter(i->i.nmax == nmax,data)
     r = filter( i -> i[xfield] ≠ 0, r )
     !isempty(r) || continue
     x = r[!,xfield]
     y = r[!,yfield]
     !relative || ( y = @. abs( y - y0) )
-    scatter!(x,y,label="N_max = $nmax")
+    scatter!(x,y,label="N_max = $nmax",markershape=:auto)
   end
   plot!(xscale=:log10)
   xlabel = haskey(labels,xfield) ? labels[xfield] : "$xfield"
@@ -50,9 +50,11 @@ labels = Dict(
   :displacement => "Displacement (Δx)",
   :volume_error => "Domain volume error (ϵ_V)",   
   :domain_volume => "Domain volume variation (Δv_Ω)",
-  :surface_error => "Domain volume error (ϵ_Γ)",   
-  :domain_surface => "Domain volume variation (ΔΓ_Ω)",
-  :time => "Trianglulation time (t) [secs]")
+  :surface_error => "Domain surface error (ϵ_Γ)",   
+  :domain_surface => "Domain surface variation (ΔΓ_Ω)",
+  :time => "Trianglulation time (t) [secs]",
+  :num_cells => "Num background cells",
+  :num_stl_facets => "Num STL facets" )
 
 all_params = Dict(
   :name => unique(raw[!,:name]),
@@ -75,3 +77,28 @@ for params in dict_list(all_params)
 
 end
 
+raw = collect_results(datadir("titani"))
+
+function save_plot(data,xfield,yfield)
+  markerkw = (markersize=2,markercolor=:black)
+
+  x = raw[!,xfield]
+  y = raw[!,yfield]
+  y = @. abs(y) + iszero(y)*eps()/2
+  
+  scatter(x,y;markerkw...)
+  plot!(legend=:none,xscale=:log10,yscale=:log10)
+  plot!(xlabel=labels[xfield])
+  plot!(ylabel=labels[yfield])
+  
+  savefig(plotsdir("$(xfield)_$(yfield).pdf"))
+end
+
+xfield = :num_stl_facets
+yfield = :surface_error
+save_plot(raw,xfield,yfield)
+
+
+xfield = :num_stl_facets
+yfield = :volume_error
+save_plot(raw,xfield,yfield)
