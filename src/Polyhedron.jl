@@ -1425,7 +1425,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     compute_distances!(Γk0,(Πk,Πkf),(Πk_ids,Πkf_ids))
     compute_distances!(K,Πkf,Πkf_ids)
 
-    Π_to_refΠ,Πs = link_planes!(Γk0,stl;atol)
+    Π_to_refΠ,Πs = link_planes!(Γk0,stl,Πr,Πf;atol)
     set_linked_planes!(Γk0,Π_to_refΠ,Πs)
     set_linked_planes!(K,Π_to_refΠ,Πs)
 
@@ -1596,7 +1596,7 @@ end
 
 ## Plane sharing stuff
 
-function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
+function link_planes!(surf::Polyhedron,stl::DiscreteModel,Πr,Πf;atol)
   planes = surf.data.plane_to_ids
   v_to_f = surf.data.vertex_to_original_faces
   stl_topo = get_grid_topology(stl)
@@ -1744,12 +1744,15 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
   end
   
   ## Mark inverted planes
+  rf_offset = get_offset(stl_topo,D-1)
+  f_offset = get_offset(stl_topo,D)
   for i in 1:length(Π_to_ref_Π)
     Π_to_ref_Π[i] ∉ (UNSET,i) || continue
-    Πi = planes[i]
-    Πj = planes[Π_to_ref_Π[i]]
-    if distance_between_planes(surf,Πi,Πj,i->-i) < 
-       distance_between_planes(surf,Πi,Πj)
+    fi = planes[i]
+    fj = planes[Π_to_ref_Π[i]]
+    Πi = facedims[fi] == D ? Πf[fi-f_offset] : Πr[fi-rf_offset]
+    Πj = facedims[fj] == D ? Πf[fj-f_offset] : Πr[fj-rf_offset]
+    if relative_orientation(Πi,Πj;atol) < 0
       Π_to_ref_Π[i] = -Π_to_ref_Π[i]
     end
   end
@@ -1761,6 +1764,11 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel;atol)
   Π_to_ref_Π, planes
 end
 
+function relative_orientation(Π1::Plane,Π2::Plane;atol)
+  d = normal(Π1) ⋅ normal(Π2)
+  @assert abs(d) > atol
+  sign(d)
+end
 
 function distance_between_planes(poly::Polyhedron,Π1,Π2,f1::Function=identity,f2::Function=identity)
   dist1 = get_plane_distances(poly.data,Π1)
