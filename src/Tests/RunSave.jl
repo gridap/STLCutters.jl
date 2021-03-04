@@ -262,7 +262,12 @@ function run_geometry_list(ids,filenames;verbose::Bool=true,params...)
   !verbose || println("BEGIN of run_geometry_list()")
   for id in ids
     !isnothing(filenames[id]) || continue
-    run_and_save(filenames[id];verbose,params...)
+    try
+      run_and_save(filenames[id];verbose,params...)
+    catch e
+      println(stderr,e)
+      !verbose || println("Failed run of geometry $id")
+    end
   end
   !verbose || println("END of run_geometry_list()")
 end
