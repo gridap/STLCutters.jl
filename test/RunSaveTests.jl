@@ -30,5 +30,25 @@ data = run_and_save(filename,rerun=true,nmax=20,nmin=5)
 @test data["surface_error"] < 1e-9
 @test data["volume_error"] < 1e-9
 @test !data["has_leak"]
-download_run_and_save(80084,nmax=20,nmin=5,rerun=true,vtk=true)
+
+filename = download_thing(65395)
+data = run_and_save(filename,rerun=true,nmax=20,nmin=5)
+@test data["surface_error"] < 1e-9
+@test data["volume_error"] < 1e-9
+@test !data["has_leak"]
+
+filename = download_thing(77343)
+data = run_and_save(filename,rerun=true,nmax=20,nmin=5)
+@test data["surface_error"] < 1e-9
+@test data["volume_error"] < 1e-9
+@test !data["has_leak"]
+
+
+filename = download_thing(95436)
+data = run_and_save(filename,rerun=true,nmax=20,nmin=5)
+@test data["surface_error"] < 1e-9
+@test data["volume_error"] < 1e-9
+@test !data["has_leak"]
+
+
 end # module
