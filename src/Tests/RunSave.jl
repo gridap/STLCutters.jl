@@ -172,10 +172,6 @@ function run_stl_cutter(
   grid = CartesianGrid(origin,sizes,partition)
 
   min_h = min_height(stl0) * (eps()/eps(grid))
-  if min_h < eps()*1e3
-    !verbose || println("Skipping run: min facet height = $(min_h)")
-    return 
-  end
 
   Δx_scaled = minimum(pmax-pmin) * Δx
 
