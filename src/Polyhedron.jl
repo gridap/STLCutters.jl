@@ -1347,15 +1347,39 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
   node_to_inout
 end
 
-function Base.eps(grid::Grid)
+function Base.eps(T::Type{<:AbstractFloat},grid::Grid)
   pmin,pmax = get_bounding_box(grid)
   vmax = max(abs.(Tuple(pmin))...,abs.(Tuple(pmax))...)
-  eps(float(vmax))
+  eps(T(vmax))
+end
+
+Base.eps(grid::Grid) = eps(Float64,grid)
+
+function collapse_small_facets!(stl::DiscreteModel;atol)
+  D = num_dims(stl)
+  stl_topo = get_grid_topology(stl)
+  for f in 1:num_cells(stl)
+    for v in get_faces(stl_topo,D,0)[f]
+      vertex = get_vertex_coordinates(stl_topo)[v]
+      for e in get_faces(stl_topo,D,D-1)[f]
+        v ∉ get_faces(stl_topo,D-1,0)[e] || continue
+        edge = get_facet(stl,e)
+        if distance(vertex,edge) < atol
+          _vertex = projection(vertex,edge)
+          get_vertex_coordinates(stl_topo)[v] = _vertex
+        end
+      end
+    end
+  end
+
 end
 
 function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
   D = num_dims(grid)
   atol = eps(grid)*1e3
+  atol_32 = eps(Float32,grid)*10
+
+  collapse_small_facets!(stl,atol=atol_32)
 
   f_to_isempty = get_facet_to_isempty(stl;atol)
   Πf = get_facet_planes(stl)

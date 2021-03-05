@@ -104,12 +104,12 @@ function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
   get_dface(stl,cell,Val{Dc}())
 end
 
-function merge_nodes(stl::DiscreteModel)
-  X,T = delete_repeated_vertices(get_grid(stl))
+function merge_nodes(stl::DiscreteModel;atol=10*eps(Float32,stl))
+  X,T = delete_repeated_vertices(get_grid(stl);atol)
   compute_stl_model(T,X)
 end
 
-function delete_repeated_vertices(stl::Grid;atol=1e6*eps(stl))
+function delete_repeated_vertices(stl::Grid;atol)
   group_to_vertices =  _group_vertices(stl;atol)
   vertices_map = collect(1:num_nodes(stl))
   for _vertices in group_to_vertices
