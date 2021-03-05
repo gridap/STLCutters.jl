@@ -41,6 +41,7 @@ export STLGeometry
 export read_stl
 export compute_stl_model
 export merge_nodes
+export merge_and_collapse
 export get_bounding_box
 export compute_grid
 export is_water_tight

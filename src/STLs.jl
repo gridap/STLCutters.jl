@@ -104,6 +104,31 @@ function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
   get_dface(stl,cell,Val{Dc}())
 end
 
+function merge_and_collapse(stl::DiscreteModel;atol=10*eps(Float32,stl))
+  stl = merge_nodes(stl;atol)
+  collapse_small_facets!(stl;atol)
+  merge_nodes(stl;atol)
+end
+
+function collapse_small_facets!(stl::DiscreteModel;atol)
+  D = num_dims(stl)
+  stl_topo = get_grid_topology(stl)
+  for f in 1:num_cells(stl)
+    for v in get_faces(stl_topo,D,0)[f]
+      vertex = get_vertex_coordinates(stl_topo)[v]
+      for e in get_faces(stl_topo,D,D-1)[f]
+        v ∉ get_faces(stl_topo,D-1,0)[e] || continue
+        edge = get_facet(stl,e)
+        if distance(vertex,edge) < atol
+          _vertex = projection(vertex,edge)
+          get_vertex_coordinates(stl_topo)[v] = _vertex
+        end
+      end
+    end
+  end
+  stl
+end
+
 function merge_nodes(stl::DiscreteModel;atol=10*eps(Float32,stl))
   X,T = delete_repeated_vertices(get_grid(stl);atol)
   compute_stl_model(T,X)

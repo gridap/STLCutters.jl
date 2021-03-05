@@ -752,17 +752,18 @@ end
 
 function min_height(f::Face{Df}) where Df
   @notimplementedif !is_simplex(f)
-  factor = 1/factorial(Df)
-  vol = measure(f)
-  max_surf = 0.0
-  for i in 1:num_facets(f)
-    facet = get_facet(f,i)
-    surf = measure(facet)
-    if surf > max_surf
-      max_surf = surf
+  min_dist = Inf
+  for i in 1:num_vertices(f)
+    max_dist = 0.0
+    vertex = f[i]
+    for j in 1:num_facets(f)
+      facet = get_facet(f,j)
+      dist = distance(facet,vertex)
+      max_dist = max(dist,max_dist)
     end
+    min_dist = min(max_dist,min_dist)
   end
-  vol / max_surf / factor
+  min_dist
 end
 
 function have_intersection(a::Face,fa::Integer,b::Face,fb::Integer;atol=nothing)

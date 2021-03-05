@@ -1355,31 +1355,10 @@ end
 
 Base.eps(grid::Grid) = eps(Float64,grid)
 
-function collapse_small_facets!(stl::DiscreteModel;atol)
-  D = num_dims(stl)
-  stl_topo = get_grid_topology(stl)
-  for f in 1:num_cells(stl)
-    for v in get_faces(stl_topo,D,0)[f]
-      vertex = get_vertex_coordinates(stl_topo)[v]
-      for e in get_faces(stl_topo,D,D-1)[f]
-        v ∉ get_faces(stl_topo,D-1,0)[e] || continue
-        edge = get_facet(stl,e)
-        if distance(vertex,edge) < atol
-          _vertex = projection(vertex,edge)
-          get_vertex_coordinates(stl_topo)[v] = _vertex
-        end
-      end
-    end
-  end
-
-end
 
 function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
   D = num_dims(grid)
   atol = eps(grid)*1e3
-  atol_32 = eps(Float32,grid)*10
-
-  collapse_small_facets!(stl,atol=atol_32)
 
   f_to_isempty = get_facet_to_isempty(stl;atol)
   Πf = get_facet_planes(stl)
@@ -1882,8 +1861,24 @@ function add_missing_facets(
         neig_f += f_offset
         neig_f ∉ facets || continue
         if has_original_facet(surf,neig_f,empty=true)
-          @assert neig_f ∉ empty_facets
-          push!(facets,neig_f)
+
+          if neig_f ∈ empty_facets
+            for e in get_faces(stl_topo,D,D-1)[neig_f-f_offset]
+              e += rf_offset
+              e ≠ rf || continue
+              for neig_neig_f in get_faces(stl_topo,D-1,D)[e-rf_offset]
+                neig_neig_f += f_offset
+                neig_neig_f ≠ neig_f || continue
+                neig_neig_f ∉ facets || continue
+                if has_original_facet(surf,neig_neig_f,empty=true)
+                  @notimplemented neig_neig_f ∈ empty_facets
+                  push!(facets,neig_neig_f)
+                end
+              end
+            end
+          else
+            push!(facets,neig_f)
+          end
         end
       end
     end
@@ -1910,11 +1905,14 @@ function split_reflex_face(
 
     Sr,Kr = [surf],[cell]
   else
-    @assert count(in(empty_facets),neig_facets) ≤ 1
+    @notimplementedif count(in(empty_facets),neig_facets) > 1
     cond = 
       f->!has_original_facet(surf,f+facet_offset) || 
-      f+facet_offset∈empty_facets
+        f+facet_offset∈empty_facets
     j = findfirst(cond,neig_facets)
+    !isnothing(j) || 
+      throw(
+        ErrorException("One of these facets may be degenerate: $neig_facets"))
     missing_facet = neig_facets[j] + facet_offset
     _surf = one_face_polyhedron(surf,missing_facet)
     j = findfirst(i->isnothing(i)||!has_facets(i),S)
