@@ -160,7 +160,7 @@ function run_stl_cutter(
   end
 
   stl0 = compute_stl_model(T,X)
-  stl0 = merge_nodes(stl0)
+  stl0 = merge_and_collapse(stl0)
 
   X0 = get_node_coordinates(get_grid(stl0))
   T0 = get_cell_node_ids(stl0)
