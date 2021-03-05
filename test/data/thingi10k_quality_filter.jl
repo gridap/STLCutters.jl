@@ -6,6 +6,12 @@
 # is closed, is oriented, is manifold, is not degenerate, without self intersection, #df=0
 # to:
 # https://ten-thousand-models.appspot.com/
+#
+# The items in the blacklist do not fulfil the algorithm's requisites
+
+blacklist_ids = [
+ 54229,
+ 48479 ]
 
 file_ids=[
   32770,
