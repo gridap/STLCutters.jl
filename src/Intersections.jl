@@ -279,7 +279,7 @@ end
 
 center(a::Point) = a
 
-center(a::Plane) = orgin(a)
+center(a::Plane) = origin(a)
 
 function normal(::Face)
   @notimplemented
