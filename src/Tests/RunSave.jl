@@ -222,7 +222,7 @@ function run_and_save(
   params...)
 
   name = first(splitext(basename(filename)))
-  title = savename(name,params,scientific=1)
+  title = savename(name,params,sigdigits=1)
   !verbose || println("---------------------------------------")
   !verbose || println("Running: $title ...")
   title = joinpath(datapath,title)
