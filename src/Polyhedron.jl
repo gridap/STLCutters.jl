@@ -1824,9 +1824,25 @@ end
 function add_plane!(data::PolyhedronData,Π)
   i = findfirst(isequal(Π),get_plane_ids(data))
   @assert data.plane_to_ref_plane[i] ≠ UNSET
-  _Π = get_plane_ids(data)[abs(data.plane_to_ref_plane[i])]
+  Πref = get_plane_ids(data)[abs(data.plane_to_ref_plane[i])]
+  Πlast = UNSET
+  for j in reverse(1:length(get_plane_ids(data)))
+    jref = abs(data.plane_to_ref_plane[j])
+    jref ≠ UNSET || continue
+    if Πref == get_plane_ids(data)[jref]
+      Πj = get_plane_ids(data)[j]
+      for v in 1:length(data.vertex_to_planes)
+        if Πj in data.vertex_to_planes[v]
+          Πlast = Πj
+          break
+        end
+      end
+      Πlast == UNSET || break
+    end
+  end
+  Πlast ≠ UNSET || return
   for v in 1:length(data.vertex_to_planes)
-    if _Π in data.vertex_to_planes[v]
+    if Πlast in data.vertex_to_planes[v]
       push!(data.vertex_to_planes[v],Π)
     end
   end

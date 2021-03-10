@@ -57,4 +57,11 @@ data = run_and_save(filename,rerun=true,nmax=20,nmin=5)
 @test data["volume_error"] < 1e-9
 @test !data["has_leak"]
 
+filename = download_thing(243015)
+data = run_and_save(filename,rerun=true,nmax=100,nmin=1)
+@test data["surface_error"] < 1e-9
+@test data["volume_error"] < 1e-9
+@test !data["has_leak"]
+
+
 end # module
