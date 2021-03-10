@@ -10,7 +10,7 @@ using STLCutters.Tests: scriptsdir
 
 using Plots
 
-function save_plot(name,data,xfield,yfield;relative=false,labels=Dict())
+function save_plot(name,data,xfield,yfield;relative=false,labels=Dict(),xlog=true,ylog=false)
 
   if relative
     r0 = filter( i -> i[xfield] == 0, data )
@@ -28,22 +28,35 @@ function save_plot(name,data,xfield,yfield;relative=false,labels=Dict())
     !isempty(r) || continue
     x = r[!,xfield]
     y = r[!,yfield]
-    !relative || ( y = @. abs( y - y0) )
+    !relative || ( y = @. abs( y - y0) / y0 )
     scatter!(x,y,label="N_max = $nmax",markershape=:auto)
   end
-  plot!(xscale=:log10)
+  !xlog || plot!(xscale=:log10)
+  !ylog || plot!(yscale=:log10)
+  plot!(legend=:outerbottomright)
   xlabel = haskey(labels,xfield) ? labels[xfield] : "$xfield"
   ylabel = haskey(labels,yfield) ? labels[yfield] : "$yfield"
   plot!(;xlabel,ylabel)
+  plot!(title=name)
 
   savefig(plotsdir("$name.pdf"))
 end
 
-raw = collect_results(datadir("gadi"))
+raw_gadi = collect_results(datadir("gadi"))
+raw_titani = collect_results(datadir("titani"))
+
+raw_matrix = filter(i->i.nmax ≠ 100,raw_gadi)
+
+raw_10k_gadi = filter(i->i.nmax == 100,raw_gadi)
+raw_10k_titani = raw_titani
+raw_10k = vcat( raw_10k_gadi,raw_10k_titani)
+
+raw_matrix = filter(i->i.name≠"96457"||i.rotation<0.1,raw_matrix)
 
 xfields = [:rotation,:displacement]
 yfields = [:surface_error,:volume_error,:min_subcells_x_cell,:max_subcells_x_cell,:avg_subcells_x_cell,:time] 
 relative_yfields = [:domain_volume,:domain_surface]
+log_yfields = [:min_subcells_x_cell,:max_subcells_x_cell,:avg_subcells_x_cell,:time]
 
 labels = Dict(
   :rotation => "Rotation angle (θ) [rads]", 
@@ -57,7 +70,7 @@ labels = Dict(
   :num_stl_facets => "Num STL facets" )
 
 all_params = Dict(
-  :name => unique(raw[!,:name]),
+  :name => unique(raw_matrix[!,:name]),
   :x => xfields,
   :y => [yfields;relative_yfields]  )
 
@@ -66,24 +79,31 @@ xfilter = Dict( :rotation => :displacement, :displacement => :rotation )
 for params in dict_list(all_params)
   @unpack name,x,y = params
 
-  r = raw
+  r = raw_matrix
   r = filter(i->i.name == name,r)
   r = filter(i->i[xfilter[x]] == 0,r)
 
   plotname = savename(params)
   plotname = replace(plotname,'='=>'_')
 
-  save_plot(plotname,r,x,y,relative=y∈relative_yfields;labels)
+  relative = y ∈ relative_yfields
+  ylog = y ∈ log_yfields
+
+  save_plot(plotname,r,x,y;relative,labels,ylog)
 
 end
 
-raw = collect_results(datadir("titani"))
+include(testdir("data","thingi10k_quality_filter.jl"))
+
+raw_10k = filter(i->parse(Int,i.name)∉blacklist_ids,raw_10k)
+raw_10k = filter(i->ismissing(i.min_h)||i.min_h>1e-5,raw_10k)
+
 
 function save_plot(data,xfield,yfield)
   markerkw = (markersize=2,markercolor=:black)
 
-  x = raw[!,xfield]
-  y = raw[!,yfield]
+  x = data[!,xfield]
+  y = data[!,yfield]
   y = @. abs(y) + iszero(y)*eps()/2
   
   scatter(x,y;markerkw...)
@@ -96,9 +116,9 @@ end
 
 xfield = :num_stl_facets
 yfield = :surface_error
-save_plot(raw,xfield,yfield)
+save_plot(raw_10k,xfield,yfield)
 
 
 xfield = :num_stl_facets
 yfield = :volume_error
-save_plot(raw,xfield,yfield)
+save_plot(raw_10k,xfield,yfield)
