@@ -56,11 +56,11 @@ However, real-world engineering applications consider often 3D CAD data for the 
 This makes challenging the usage of standard unfitted techniques, since there is not a general and accurate way to translate 3D CAD models into level-set functions.
 
 In this work, we explore a novel technique in order to generate integration grids in cut cells.
-In contrast to level-set methods, our methodology can be robustly feed from first order CAD models, e.g., STLs.
+In contrast to level-set methods, our methodology can be robustly fed from first order CAD models, e.g., STLs.
 The used approach is based on robust polyhedra clipping \cite{Powel}, exactly capturing non-convex geometries.
 Moreover, this method is extensible to high order geometries, higher dimensions and parallelizable at large scale.
 
-The technique is implemented in the framework of finite element package Gridap \cite{Gridap} with the AggFEM method \cite{AgFEM}. In such implementation, the robustness of the method is demonstrated by successfully handling more than 4k geometries, matching the quality requisites, from a 10k dataset \cite{10k}.
+The technique is implemented in the framework of finite element package Gridap \cite{Gridap} with the AggFEM method \cite{AgFEM}. In such implementation, the robustness of the method is demonstrated by successfully handling more than 4k geometries, matching the quality requisites, from the Thingi10K dataset \cite{10k}.
 
 
 \begin{thebibliography}{99}
