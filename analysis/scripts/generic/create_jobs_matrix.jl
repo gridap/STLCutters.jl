@@ -45,7 +45,7 @@ stl_list = [
   "441708", # Standford Bunny
   "35269", # Octocat
   "65904", # Heart 
-  "551021", # Art de Triomph
+  "551021", # Arc de Triomph
   "37266", # Extruded Earth
   "252119"] # Angel
 
