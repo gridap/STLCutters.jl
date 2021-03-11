@@ -1,0 +1,101 @@
+\documentclass{coupled2019_abstract}
+
+%\usepackage{graphicx}
+%\usepackage{amsmath}
+%\usepackage{amsfonts}
+%\usepackage{amssymb}
+
+\usepackage{hyperref}
+
+\hypersetup{
+    bookmarks=true,
+    breaklinks=true,
+    bookmarksopen=true,
+    pdftitle={Robust polyhedral ... real-world geometries ... the AggFEM method},    % title
+    pdfauthor={Francesc Verdugo},     % author
+    colorlinks=true,       % false: boxed links; true: colored links
+    linkcolor=black,          % color of internal links (change box color with linkbordercolor)
+    citecolor=black,        % color of links to bibliography
+    filecolor=black,      % color of file links
+    urlcolor=black           % color of external links
+}
+
+\title{ Robust polyhedral ... real-world geometries ... the AggFEM method }
+
+\author{Pere Antoni Martorell$^{*\dag}$, Santiago Badia$^{\dag\ddag}$ and Francesc Verdugo$^{\dag}$ }
+
+\address{
+$^{*}$ Department of Civil and Environmental Engineering \\
+Universitat Polit\`{e}cnica de Catalunya\\
+Building C1, Campus Nord UPC\\
+Jordi Girona, 1-3, 08034 Barcelona, Spain
+\and
+$^{\dag}$ Centre Internacional de Metodes Numerics en Enginyeria (CIMNE)\\
+Building C3, Parc Mediterrani de la Tecnologia \\
+Esteve Terradas, 5, 08860 Castelldefels, Spain\\
+e-mails: \{ pmartorell, fverdudo, sbadia \}@cimne.upc.edu
+\and
+$^{\ddag}$
+School of Mathematics\\
+Monash University\\
+Clayton, Victoria, 3800, Australia
+}
+
+
+\begin{document}
+%\maketitle
+\begin{center}
+\bf ABSTRACT
+\end{center}
+
+Unfitted finite element methods are useful techniques to simulate problems defined on 3D complex domains. 
+In this context, the conventional approach is to represent the problem geometry using level-set methods. 
+Geometrical data based on level-set functions allow efficient procedures (usually based on marching cubes algorithms) for the generation of integration cells in cut elements. 
+However, real-world engineering applications consider often 3D CAD data for the geometrical definitions. 
+This makes challenging the usage of standard unfitted techniques, since there is not a general and accurate way to translate 3D CAD models into level-set functions.
+
+In this work, we explore a novel technique in order to generate integration grids in cut cells.
+In contrast to level-set methods, our methodology can be robustly feed from first order CAD models, e.g., STLs.
+The used approach is based on robust polyhedral clipping \cite{Powel}, capturing the exacty even non-convex geometries.
+This method is extensible to high order geometries, higher dimensions and parallelizable at large scale.
+
+The techinque is implementated in the framework of finite element package Gridap \cite{Gridap} and it have been tested over a large subset of \cite{10k} with the AggFEM method \cite{AgFEM}.
+
+% cite julia lang (implicit on Gridap)?
+% cite high oder? high dims?
+
+\begin{thebibliography}{99}
+
+\bibitem{Powel}
+D. Powell and T. Abel. 
+An exact general remeshing scheme applied to physically conservative voxelization.
+\textit{Journal of Computational Physics}.
+(2015) \textbf{297}: 340-356. 
+\url{doi.org/10.1016/j.jcp.2015.05.022}
+
+\bibitem{Gridap} 
+S. Badia, F. Verdugo.
+Gridap: An extensible Finite Element toolbox in Julia.
+\textit{Journal of Open Source Software}. 
+(2020) \textbf{5}(52): 2520.
+\url{doi.org/10.21105/joss.02520}
+
+\bibitem{10k}
+Q. Zhou and A. Jacobson. 
+Thingi10K: A Dataset of 10,000 3D-Printing Models.
+(2016).
+\url{arxiv.org/abs/1605.04797}
+
+\bibitem{AgFEM} 
+S. Badia, F. Verdugo, A. F. Mart\'in.
+The aggregated unfitted finite element method for elliptic problems.
+\textit{Computer Methods in Applied Mechanics and Engineering}. 
+(2018) \textbf{336}: 533--553. 
+\url{doi.org/10.1016/j.cma.2018.03.022}
+
+
+\end{thebibliography}
+
+\end{document}
+
+
