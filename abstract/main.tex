@@ -96,4 +96,15 @@ Thingi10K: A Dataset of 10,000 3D-Printing Models.
 
 \end{document}
 
+% Keywords:
+% Unfitted methods; Embedded methods; STL; Polyhedron; Julia Language
+%
+% Contribution Summary:
+% 
+% Unfitted finite element methods are useful techniques to simulate problems defined on 3D complex domains. In this context, the conventional approach is to represent the problem geometry using level-set methods. Geometrical data based on level-set functions allow efficient procedures (usually based on marching cubes algorithms) for the generation of integration cells in cut elements. However, real-world engineering applications consider often 3D CAD data for the geometrical definitions. This makes challenging the usage of standard unfitted techniques, since there is not a general and accurate way to translate 3D CAD models into level-set functions.
+%
+% In this work, we explore a novel technique in order to generate integration grids in cut cells. In contrast to level-set methods, our methodology can be robustly fed from first order CAD models, e.g., STLs. The used approach is based on robust polyhedra clipping, exactly capturing non-convex geometries. Moreover, this method is extensible to high order geometries, higher dimensions and parallelizable at large scale.
+%
+% The technique is implemented in the framework of the finite element Julia package Gridap (https://github.com/gridap/Gridap.jl) with the embedded AgFEM method. In such implementation, the robustness of the method is demonstrated by successfully handling more than 4k geometries, matching the quality requisites, from the Thingi10K dataset (https://ten-thousand-models.appspot.com).
+
 
