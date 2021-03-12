@@ -67,7 +67,8 @@ labels = Dict(
   :domain_surface => "Domain surface variation (ΔΓ_Ω)",
   :time => "Trianglulation time (t) [secs]",
   :num_cells => "Num background cells",
-  :num_stl_facets => "Num STL facets" )
+  :num_stl_facets => "Num STL facets",
+  :nmax => "Relative cell size (h₀/h) " )
 
 all_params = Dict(
   :name => unique(raw_matrix[!,:name]),
@@ -89,17 +90,67 @@ for params in dict_list(all_params)
   relative = y ∈ relative_yfields
   ylog = y ∈ log_yfields
 
-  save_plot(plotname,r,x,y;relative,labels,ylog)
+#  save_plot(plotname,r,x,y;relative,labels,ylog)
 
+end
+
+function plot_all_geometries(raw,plotname,xfield,yfield)
+  data = copy(raw)
+  for field in test_fields
+    field ≠ xfield || continue
+    data = filter(i->i[field] == default_value[field],data)
+  end
+  names = sort(unique(data[!,:name]))
+  sort!(names)
+  plot()
+  for name in names
+    d = filter(i->i.name == name,data)
+    sort!(d,xfield)
+    x = d[!,xfield]
+    y = d[!,yfield]
+    x0,y0 = x[1],y[1]
+    (xfield == :nmax ) || ( x = x[2:end] )
+    (xfield == :nmax ) || ( y = y[2:end] )
+    y = yfield == :time ? y / y0 : @. abs( y - y0 ) / y0 
+    y = @. y + iszero(y)*eps()/2
+    (xfield == :nmax) && ( x = x ./ x0 ) 
+    plot!(x,y,label="$name",markershape=:auto)
+  end
+  plot!(xscale=:log10)
+  plot!(yscale=:log10)
+  plot!(legend=:outerbottomright)
+  plot!(xlabel=labels[xfield],ylabel=labels[yfield])
+  savefig(plotsdir("$plotname.pdf"))
+end
+
+test_fields = [:rotation,:displacement,:nmax]
+default_value = Dict(
+  :rotation => 0,
+  :displacement => 0,
+  :nmax => 112 )
+
+data = raw_matrix
+replace!(data.name,"wine_glass"=>"3201401")
+
+all_params = Dict(
+  :x => test_fields,
+  :y => [:domain_surface,:domain_volume,:time]
+)
+
+for params in dict_list(all_params)
+  plotname = savename(params)
+  plotname = replace(plotname,'='=>'_')
+
+  @unpack x,y = params
+  plot_all_geometries(data,plotname,x,y)
 end
 
 include(testdir("data","thingi10k_quality_filter.jl"))
 
 raw_10k = filter(i->parse(Int,i.name)∉blacklist_ids,raw_10k)
-raw_10k = filter(i->ismissing(i.min_h)||i.min_h>1e-5,raw_10k)
 
 
-function save_plot(data,xfield,yfield)
+function save_plot(data,xfield,yfield;prefix=nothing)
   markerkw = (markersize=2,markercolor=:black)
 
   x = data[!,xfield]
@@ -111,7 +162,32 @@ function save_plot(data,xfield,yfield)
   plot!(xlabel=labels[xfield])
   plot!(ylabel=labels[yfield])
   
-  savefig(plotsdir("$(xfield)_$(yfield).pdf"))
+  filename = "$(xfield)_$(yfield).pdf"
+  isnothing(prefix) || ( filename = "$(prefix)_$(filename)" )
+  savefig(plotsdir(filename))
+end
+
+function accumulated_frequency_histogram(data,field;range=exp10.(-17:0.1:0),prefix=nothing)
+  f = @. data[!,field]
+  x = []
+  counts = []
+  for lim in range
+    c = count(i->abs(i) > lim,f)
+    push!(counts,c)
+    push!(x,lim)
+    c > 0 || break
+  end
+  n = length(f)
+  y = @. ( 1 - counts / n ) * 100
+  plot()
+  plot(x,y,linecolor=:black)
+  plot!(legend=:none,xscale=:log10)
+  plot!(ylims=[0,100])
+  plot!(ylabel="Accumulated percentage [%]")
+  plot!(xlabel=labels[field])
+  filename = "histogram_$field.pdf"
+  isnothing(prefix) || ( filename = "$(prefix)_$(filename)" )
+  savefig(plotsdir(filename))
 end
 
 xfield = :num_stl_facets
@@ -122,3 +198,30 @@ save_plot(raw_10k,xfield,yfield)
 xfield = :num_stl_facets
 yfield = :volume_error
 save_plot(raw_10k,xfield,yfield)
+
+xfield = :num_stl_facets
+yfield = :time
+save_plot(raw_10k,xfield,yfield)
+
+accumulated_frequency_histogram(raw_10k,:volume_error)
+
+accumulated_frequency_histogram(raw_10k,:surface_error)
+
+accumulated_frequency_histogram(raw_10k,:time,range=exp10.(0:0.1:6))
+
+accumulated_frequency_histogram(raw_10k,:num_stl_facets,range=exp10.(0:0.1:6))
+
+raw_10k = filter(i->ismissing(i.min_h)||i.min_h>1e-5,raw_10k)
+
+xfield = :num_stl_facets
+yfield = :surface_error
+save_plot(raw_10k,xfield,yfield,prefix="filter")
+
+xfield = :num_stl_facets
+yfield = :volume_error
+save_plot(raw_10k,xfield,yfield,prefix="filter")
+
+accumulated_frequency_histogram(raw_10k,:volume_error,prefix="filter")
+
+accumulated_frequency_histogram(raw_10k,:surface_error,prefix="filter")
+
