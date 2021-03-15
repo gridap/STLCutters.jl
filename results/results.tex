@@ -188,7 +188,7 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/x_nmax_y_domain_volume}
 \end{frame}
 
-\begin{frame}{Robustness matrix}
+\begin{frame}{2.1. $h$-refinement - Robustness test}
 
   \begin{block}{CPU time with $h$-refinement}
   \begin{itemize}
@@ -205,7 +205,7 @@
 \end{frame}
 
 
-\begin{frame}{Large geometry dataset}
+\begin{frame}{3. Large geometry dataset}
   \begin{block}{Setup}
     \begin{itemize}
       \item
@@ -220,9 +220,9 @@
 
   \end{block}
 
-
 \end{frame}
-\begin{frame}{Thingi 10k dataset}
+
+\begin{frame}{3. Large geometry dataset}
   \begin{block}{Summary}
    \dirtree{%
      .1 \textbf{Total}: 5052  .
@@ -272,7 +272,9 @@
 \end{frame}
 
 
-\begin{frame}{Thingi 10k dataset}
+\begin{frame}{3. Large geometry dataset}
+
+
 
   \begin{block}{Volume error}
   \begin{itemize}
@@ -289,7 +291,7 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/histogram_volume_error}
 \end{frame}
 
-\begin{frame}{Thingi 10k dataset}
+\begin{frame}{3. Large geometry dataset}
 
   \begin{block}{Volume error}
   \begin{itemize}
@@ -306,7 +308,7 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/histogram_volume_error}
 \end{frame}
 
-\begin{frame}{Thingi 10k dataset}
+\begin{frame}{3. Large geometry dataset}
 
   \begin{block}{Volume error}
   \begin{itemize}
@@ -323,7 +325,7 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/histogram_volume_error}
 \end{frame}
 
-\begin{frame}{Thingi 10k dataset}
+\begin{frame}{3. Large geometry dataset}
 
   \begin{block}{Volume error [filtering STLs with small facets]}
   \begin{itemize}
@@ -340,7 +342,7 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_histogram_volume_error}
 \end{frame}
 
-\begin{frame}{Thingi 10k dataset}
+\begin{frame}{3. Large geometry dataset}
 
   \begin{block}{Surface error}
   \begin{itemize}
@@ -357,7 +359,7 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/histogram_surface_error}
 \end{frame}
 
-\begin{frame}{Thingi 10k dataset}
+\begin{frame}{3. Large geometry dataset}
 
   \begin{block}{Surface error [filtering STLs with small facets]}
   \begin{itemize}
@@ -374,7 +376,7 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_histogram_surface_error}
 \end{frame}
 
-\begin{frame}{Thingi 10k dataset}
+\begin{frame}{3. Large geometry dataset}
 
   \begin{block}{Surface error [filtering STLs with small facets]}
   \begin{itemize}
@@ -391,7 +393,7 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_histogram_surface_error}
 \end{frame}
 
-\begin{frame}{Thingi 10k dataset}
+\begin{frame}{3. Large geometry dataset}
 
   \begin{block}{CPU time}
   \begin{itemize}
@@ -407,35 +409,35 @@
 \end{frame}
 
 
-\begin{frame}{Robustness matrix}
-  \framesubtitle{Summary}
-
-  \textbf{100\%} of ended test have volume and surface error bounded 
-  ($\epsilon_{vol} < 10^{-14}$,$\epsilon_{surf} < 10^{-12}$) 
-
-  \begin{block}
-
-  The mesh sizes have $n_{max}$ multiple of 14 as the bounding box is expanded 
-  a factor $0.2$ in each direction, thus the domain is 1.4 times the 
-  bounding box per axis. The background cells will match the STL bounding box, 
-  stressing even more the algorithm.
-  \end{block}
-
-  \vfill{}
-  NOTE: Due to large computational requirements (time/memory),
-  some tests have not ended.
-  Those points are missing at the lowest and largest sizes.
-  \begin{itemize}
-    \item
-      Low $n_{max}$: large amount of STL facets per cell
-    \item
-      High $n_{max}$: large background mesh
-
-  \end{itemize}
- 
-
-\end{frame}
-
+%\begin{frame}{Robustness matrix}
+%  \framesubtitle{Summary}
+%
+%  \textbf{100\%} of ended test have volume and surface error bounded 
+%  ($\epsilon_{vol} < 10^{-14}$,$\epsilon_{surf} < 10^{-12}$) 
+%
+%  \begin{block}
+%
+%  The mesh sizes have $n_{max}$ multiple of 14 as the bounding box is expanded 
+%  a factor $0.2$ in each direction, thus the domain is 1.4 times the 
+%  bounding box per axis. The background cells will match the STL bounding box, 
+%  stressing even more the algorithm.
+%  \end{block}
+%
+%  \vfill{}
+%  NOTE: Due to large computational requirements (time/memory),
+%  some tests have not ended.
+%  Those points are missing at the lowest and largest sizes.
+%  \begin{itemize}
+%    \item
+%      Low $n_{max}$: large amount of STL facets per cell
+%    \item
+%      High $n_{max}$: large background mesh
+%
+%  \end{itemize}
+% 
+%
+%\end{frame}
+%
 
 %\begin{frame}{Robustness matrix}
 %  
