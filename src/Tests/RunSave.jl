@@ -61,8 +61,8 @@ function compute_sizes(pmin::Point{D},pmax::Point{D};nmin=10,nmax=100) where D
   origin,sizes,partition
 end
 
-function run_stl_cutter(grid,stl;kdtree=false,vtk=false,verbose=true,title="")
-  t = @timed data = compute_submesh(grid,stl)
+function run_stl_cutter(grid,stl;tolfactor=1e3,kdtree=false,vtk=false,verbose=true,title="")
+  t = @timed data = compute_submesh(grid,stl;tolfactor)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
   submesh = compute_grid(Table(T),X,TET)
@@ -150,7 +150,8 @@ function run_stl_cutter(
   nmax::Integer=100,
   Δx::Real=0,
   θ::Real=0,
-  kdtree::Bool=false)
+  kdtree::Bool=false,
+  tolfactor::Real=1e3)
 
   X,T,N = read_stl(filename)
 
@@ -205,7 +206,7 @@ function run_stl_cutter(
     println("Background grid size:\t$(data["h"])")
   end
 
-  out = run_stl_cutter(grid,stl;kdtree,vtk,verbose,title)
+  out = run_stl_cutter(grid,stl;tolfactor,kdtree,vtk,verbose,title)
 
   merge!(out,data)
   @tagsave("$title.bson",out;safe=true)

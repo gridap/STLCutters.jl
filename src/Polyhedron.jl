@@ -1363,9 +1363,9 @@ end
 Base.eps(grid::Grid) = eps(Float64,grid)
 
 
-function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
+function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false,tolfactor=1e3)
   D = num_dims(grid)
-  atol = eps(grid)*1e3
+  atol = eps(grid)*tolfactor
 
   f_to_isempty = get_facet_to_isempty(stl;atol)
   Πf = get_facet_planes(stl)
@@ -1482,7 +1482,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false)
     append!(Xf,X_Γ)
     append!(f_to_bgcell,fill(cell,length(T_Γ)))
     append!(f_to_stlf,f_to_f.-get_offset(get_grid_topology(stl),num_dims(stl)))
-    
+
     for (i,bg_v) in enumerate(get_cell_node_ids(grid)[cell])
       n_to_io[i] ≠ UNSET || continue
       n_to_io[i] ≠ FACE_CUT || continue
