@@ -225,15 +225,16 @@
 \begin{frame}{Thingi 10k dataset}
   \begin{block}{Summary}
    \dirtree{%
-     .1 Total = 5052  .
+     .1 \textbf{Total}: 5052  .
      .2 Not available: 312 .
      .2 Load error: 7 .
-     .2 Available: 4733 .
-     .3 Launched on HPC: 4072.
-     .4 Success: 3986 .
-     .4 Large volume error: 53 .
+     .2 \textbf{Available}: 4733 .
+     .3 Launched on HPC: 4169.
+     .4 \textbf{Success}: 4078 .
+     .4 Large volume error: 58 .
      .4 Not ended: 33 .
-     .3 Pending: 661 .
+     .3 Pending: 657 .
+     .3 Degenerate: 4 .
      }
 
   \end{block}
@@ -278,7 +279,7 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      98.7\% of 4039 is below $10^{-9}$
+      98.6\% of 4136 is below $10^{-9}$
     \item
       All STLs above $10^{-9}$ contain small facets
   \end{itemize}
@@ -295,7 +296,7 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      98.7\% of 4039 is below $10^{-9}$
+      98.6\% of 4136 is below $10^{-9}$
     \item
       All STLs above $10^{-9}$ contain small facets
   \end{itemize}
@@ -312,7 +313,7 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      98.7\% of 4039 is below $10^{-9}$
+      98.6\% of 4136 is below $10^{-9}$
     \item
       All STLs above $10^{-9}$ contain small facets
   \end{itemize}
@@ -346,9 +347,9 @@
     \item
       $\epsilon_\Gamma = \Gamma - V_{STL}$
     \item
-      99.0\% of 4039 is below $10^{-9}$
+      98.9\% of 4136 is below $10^{-9}$
     \item
-      (almost) All STLs above $10^{-9}$ contain small facets
+      (almost) all STLs above $10^{-9}$ contain small facets
   \end{itemize}
   \end{block}
 
