@@ -119,7 +119,9 @@ function plot_all_geometries(raw,plotname,xfield,yfield)
   plot!(xscale=:log10)
   plot!(yscale=:log10)
   plot!(legend=:outerbottomright)
+  (xfield == :nmax) && plot!(xticks=( 2 .^ (0:5), 2 .^ (0:5) ))
   plot!(xlabel=labels[xfield],ylabel=labels[yfield])
+  (yfield == :time) && plot!(ylabel="Relative time (t/t₀)")
   savefig(plotsdir("$plotname.pdf"))
 end
 
@@ -210,6 +212,14 @@ accumulated_frequency_histogram(raw_10k,:surface_error)
 accumulated_frequency_histogram(raw_10k,:time,range=exp10.(0:0.1:6))
 
 accumulated_frequency_histogram(raw_10k,:num_stl_facets,range=exp10.(0:0.1:6))
+
+
+tol = 1e-9
+c = count(i->abs(i) < tol,raw_10k.surface_error)
+println("$(c/size(raw_10k,1)*100)% of $(size(raw_10k,1)) has ϵ_Γ below $tol ($c out of $(size(raw_10k,1)))")
+
+c = count(i->abs(i) < tol,raw_10k.volume_error)
+println("$(c/size(raw_10k,1)*100)% of $(size(raw_10k,1)) has ϵ_V below $tol ($c out of $(size(raw_10k,1)))")
 
 raw_10k = filter(i->ismissing(i.min_h)||i.min_h>1e-5,raw_10k)
 
