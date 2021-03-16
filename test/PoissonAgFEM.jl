@@ -2,7 +2,6 @@ module PoisonAgFEMTests
 
 using STLCutters
 using Gridap
-import Gridap: ∇
 using GridapEmbedded
 using Test
 
@@ -11,11 +10,8 @@ using STLCutters: read_stl, merge_nodes, get_bounding_box
 
 # Manufactured solution
 u(x) = x[1] + x[2] - x[3]
-∇u(x) = VectorValue( 1, 1, -1)
-Δu(x) = 0
-f(x) = - Δu(x)
+f(x) = - Δ(u)(x)
 ud(x) = u(x)
-∇(::typeof(u)) = ∇u
 
 
 #X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
@@ -72,7 +68,7 @@ surf = sum( ∫(1)*dΓd )
 model = DiscreteModel(cutgeo)
 Vstd = FESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
 
-V = AgFEMSpace(Vstd,aggregates) #,Vser)
+@time V = AgFEMSpace(Vstd,aggregates) #,Vser)
 U = TrialFESpace(V)
 # Weak form
 γd = 10.0
