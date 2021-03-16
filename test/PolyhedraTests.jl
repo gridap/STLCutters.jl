@@ -206,9 +206,10 @@ pmin = pmin - Δ
 pmax = pmax + Δ
 partition = (n,n,n)
 
-grid = CartesianGrid(pmin,pmax,partition)
+model = CartesianDiscreteModel(pmin,pmax,partition)
+grid = get_grid(model)
 
-@time data = compute_submesh(grid,stl,kdtree=false)
+@time data = compute_submesh(model,stl,kdtree=false)
 T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
 submesh = compute_grid(Table(T),X,TET)
@@ -253,9 +254,10 @@ pmin = pmin - Δ
 pmax = pmax + Δ
 partition = (n,n,n)
 
-grid = CartesianGrid(pmin,pmax,partition)
+model = CartesianDiscreteModel(pmin,pmax,partition)
+grid = get_grid(model)
 
-@time data = compute_submesh(grid,stl,kdtree=false)
+@time data = compute_submesh(model,stl,kdtree=false)
 T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
 submesh = compute_grid(Table(T),X,TET)

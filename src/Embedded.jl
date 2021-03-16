@@ -28,8 +28,8 @@ end
 struct STLCutter <: Interfaces.Cutter end
 
 function cut(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
-  data = _cut_sm(background,geom)
-  EmbeddedDiscretization(background, data..., geom)
+  data,bgf_to_ioc = _cut_sm(background,geom)
+  EmbeddedDiscretization(background, data..., geom), bgf_to_ioc
 end
 
 function cut(background::DiscreteModel,geom::STLGeometry)
@@ -41,8 +41,8 @@ end
 function _cut_sm(model::DiscreteModel,geom::STLGeometry)
   grid = get_grid(model)
   stl = get_stl(geom)
-  out = compute_submesh(get_grid(model),get_stl(geom))
-  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = out
+  out = compute_submesh(model,get_stl(geom))
+  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc,bgfacet_to_ioc = out
   bgcell_to_ioc = [ map( _convert_io, bgcell_to_ioc ) ]
   cell_to_points = Table( map(i->Int32.(i),T) )
   point_to_coords = X
@@ -62,8 +62,10 @@ function _cut_sm(model::DiscreteModel,geom::STLGeometry)
   f_to_io = fill(Int8(INTERFACE),length(F))
   f_to_io = [ f_to_io ]
 
+  replace!( bgfacet_to_ioc, FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT )
+
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
-  bgcell_to_ioc,subcells,cell_to_io,subfacets,f_to_io,oid_to_ls
+  (bgcell_to_ioc,subcells,cell_to_io,subfacets,f_to_io,oid_to_ls),bgfacet_to_ioc
 end
 
 #function _cut_sm(model::DiscreteModel,geom::STLGeometry)
@@ -150,4 +152,28 @@ function _convert_io(ioc::Integer)
     #@unreachable
   end
 end
+
+using GridapEmbedded.CSG
+using GridapEmbedded.AgFEM
+using GridapEmbedded.AgFEM: _aggregate_by_threshold
+import GridapEmbedded.AgFEM: aggregate
+
+function aggregate(
+  strategy,
+  cut::EmbeddedDiscretization,
+  facet_to_inoutcut::AbstractVector)
+
+  aggregate(strategy,cut,cut.geo,IN,facet_to_inoutcut)
+end
+
+function aggregate(
+  strategy::AggregateCutCellsByThreshold,
+  cut::EmbeddedDiscretization,
+  geo::CSG.Geometry,
+  in_or_out,
+  facet_to_inoutcut::AbstractVector)
+
+  _aggregate_by_threshold(strategy.threshold,cut,geo,in_or_out,facet_to_inoutcut)
+end
+
 

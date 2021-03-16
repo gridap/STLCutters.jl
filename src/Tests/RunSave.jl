@@ -61,12 +61,14 @@ function compute_sizes(pmin::Point{D},pmax::Point{D};nmin=10,nmax=100) where D
   origin,sizes,partition
 end
 
-function run_stl_cutter(grid,stl;tolfactor=1e3,kdtree=false,vtk=false,verbose=true,title="")
-  t = @timed data = compute_submesh(grid,stl;tolfactor)
+function run_stl_cutter(model,stl;tolfactor=1e3,kdtree=false,vtk=false,verbose=true,title="")
+  t = @timed data = compute_submesh(model,stl;tolfactor)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
   submesh = compute_grid(Table(T),X,TET)
   facets = compute_grid(Table(F),Xf,TRI)
+
+  grid = get_grid(model)
 
   if vtk
     sf = title*"_subfacets"
@@ -175,9 +177,9 @@ function run_stl_cutter(
   Δ = (pmax-pmin)*δ
   origin,sizes,partition = compute_sizes(pmin-Δ,pmax+Δ;nmin,nmax)
 
-  grid = CartesianGrid(origin,sizes,partition)
+  model = CartesianDiscreteModel(origin,sizes,partition)
 
-  min_h = min_height(stl0) * (eps()/eps(grid))
+  min_h = min_height(stl0) * (eps()/eps(model))
 
   Δx_scaled = minimum(pmax-pmin) * Δx
 
@@ -195,7 +197,7 @@ function run_stl_cutter(
   data["nmax"] = nmax
   data["partition"] = partition
   data["h"] = first(sizes)
-  data["num_cells"] = num_cells(grid)
+  data["num_cells"] = num_cells(model)
   data["num_stl_facets"] = num_cells(stl)
   data["displacement"] = Δx
   data["scaled_displacement"] = Δx_scaled
@@ -211,7 +213,7 @@ function run_stl_cutter(
     println("Background grid size:\t$(data["h"])")
   end
 
-  out = run_stl_cutter(grid,stl;tolfactor,kdtree,vtk,verbose,title)
+  out = run_stl_cutter(model,stl;tolfactor,kdtree,vtk,verbose,title)
 
   merge!(out,data)
   @tagsave("$title.bson",out;safe=true)

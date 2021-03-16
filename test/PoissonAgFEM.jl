@@ -1,4 +1,4 @@
-module PoisonTests
+module PoisonAgFEMTests
 
 using STLCutters
 using Gridap
@@ -37,9 +37,13 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
 
-@time cutgeo, = cut(bgmodel,geo)
+@time cutgeo,facet_to_inoutcut = cut(bgmodel,geo)
+
+strategy = AggregateAllCutCells()
+aggregates = aggregate(strategy,cutgeo,facet_to_inoutcut)
 
 # Setup integration meshes
+Ω_bg = Triangulation(bgmodel)
 Ω = Triangulation(cutgeo)
 Γd = EmbeddedBoundary(cutgeo)
 Γg = GhostSkeleton(cutgeo)
@@ -66,9 +70,10 @@ surf = sum( ∫(1)*dΓd )
 
 # Setup FESpace
 model = DiscreteModel(cutgeo)
-V = TestFESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
-U = TrialFESpace(V) 
+Vstd = FESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
 
+V = AgFEMSpace(Vstd,aggregates) #,Vser)
+U = TrialFESpace(V)
 # Weak form
 γd = 10.0
 γg = 0.1
@@ -98,7 +103,9 @@ eh1 = h1(e)
 ul2 = l2(uh)
 uh1 = h1(uh)
 
-#writevtk(Ω,"results",cellfields=["uh"=>uh])
+colors = color_aggregates(aggregates,bgmodel)
+writevtk(Ω_bg,"trian",celldata=["aggregate"=>aggregates,"color"=>colors],cellfields=["uh"=>uh])
+writevtk(Ω,"results",cellfields=["uh"=>uh])
 
 @test el2/ul2 < 1.e-8
 @test eh1/uh1 < 1.e-7

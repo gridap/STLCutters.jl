@@ -1322,6 +1322,14 @@ function get_cell_nodes_to_inout(polys_in,polys_out,p::Polytope)
   node_to_inout
 end
 
+function get_cell_facets_to_inoutcut(polys_in,polys_out,p::Polytope)
+  facet_to_inoutcut = fill(UNSET,num_facets(p))
+  
+  complete_facets_to_inoutcut!(facet_to_inoutcut,polys_in,FACE_IN,p)
+  complete_facets_to_inoutcut!(facet_to_inoutcut,polys_out,FACE_OUT,p)
+  @assert UNSET ∉ facet_to_inoutcut
+  facet_to_inoutcut
+end
 
 function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
   D = num_dims(p)
@@ -1354,6 +1362,48 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
   node_to_inout
 end
 
+function complete_facets_to_inoutcut!(facet_to_inoutcut,polys,inout,p::Polytope)
+  facet_list = Int[]
+  for poly in polys
+    istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
+    v_to_Π = poly.data.vertex_to_planes
+    for v in 1:num_vertices(poly)
+      isactive(poly,v) || continue
+      for i in 1:length(get_graph(poly)[v])
+        !istouch[v][i] || continue
+        istouch[v][i] = true
+        vcurrent = v
+        vnext = get_graph(poly)[v][i]
+        vnext ∉ (OPEN,UNSET) || continue
+        any( i -> i < 0, v_to_Π[v] ) || continue
+        empty!(facet_list)
+        append!( facet_list, v_to_Π[v] )
+        filter!( i -> i < 0, facet_list)
+        filter!( i -> i ∈ v_to_Π[vnext], facet_list )
+        while vnext != v
+          inext = findfirst( isequal(vcurrent), get_graph(poly)[vnext] )
+          inext = ( inext % length( get_graph(poly)[vnext] ) ) + 1
+          istouch[vnext][inext] = true
+          vcurrent = vnext
+          vnext = get_graph(poly)[vnext][inext]
+          vnext ∉ (OPEN,UNSET) || break
+          filter!( i -> i ∈ v_to_Π[vnext], facet_list )
+          !isempty(facet_list) || break
+          if vnext == v
+            f = abs( only( facet_list) )
+            if facet_to_inoutcut[f] == UNSET
+              facet_to_inoutcut[f] = inout
+            elseif facet_to_inoutcut[f] ≠ inout
+              facet_to_inoutcut[f] = FACE_CUT
+            end
+          end
+        end
+      end
+    end
+  end
+  facet_to_inoutcut
+end
+
 function Base.eps(T::Type{<:AbstractFloat},grid::Grid)
   pmin,pmax = get_bounding_box(grid)
   vmax = max(abs.(Tuple(pmin))...,abs.(Tuple(pmax))...)
@@ -1362,8 +1412,17 @@ end
 
 Base.eps(grid::Grid) = eps(Float64,grid)
 
+Base.eps(model::DiscreteModel) = eps(get_grid(model))
 
-function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false,tolfactor=1e3)
+function compute_submesh(
+  bgmodel::CartesianDiscreteModel,
+  stl::DiscreteModel;
+  kdtree=false,
+  tolfactor=1e3)
+
+  grid = get_grid(bgmodel)
+  grid_topology = get_grid_topology(bgmodel)
+
   D = num_dims(grid)
   atol = eps(grid)*tolfactor
 
@@ -1386,8 +1445,9 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false,tol
   f_to_stlf = Int[]
 
   cell_facets = Int[]
-  bgcell_to_ioc = fill(UNSET,num_cells(grid))
-  bgnode_to_io = fill(UNSET,num_nodes(grid))
+  bgcell_to_ioc = fill(Int8(UNSET),num_cells(grid))
+  bgnode_to_io = fill(Int8(UNSET),num_nodes(grid))
+  bgfacet_to_ioc = fill(Int8(UNSET),num_facets(grid_topology))
 
   for cell in 1:num_cells(grid)
     !isempty(c_to_stlf[cell]) || continue
@@ -1469,6 +1529,7 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false,tol
     bgcell_to_ioc[cell] = FACE_CUT
 
     n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
+    f_to_ioc = get_cell_facets_to_inoutcut(Kn_in,Kn_out,p)
 
     append!(T, map(i->i.+length(X),Tin) )
     append!(X,Xin)
@@ -1490,8 +1551,13 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false,tol
       # @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
       bgnode_to_io[bg_v] = n_to_io[i]
     end
+    for (i,bg_f) in enumerate(get_faces(grid_topology,D,D-1)[cell])
+      if bgfacet_to_ioc[bg_f] ∉ (UNSET,f_to_ioc[i])
+        f_to_ioc[i] = FACE_CUT
+      end
+      bgfacet_to_ioc[bg_f] = f_to_ioc[i]
+    end
   end
-  grid_topology = GridTopology(grid)
   stack = Int[]
   for cell in 1:num_cells(grid)
     if bgcell_to_ioc[cell] == FACE_CUT
@@ -1517,12 +1583,14 @@ function compute_submesh(grid::CartesianGrid,stl::DiscreteModel;kdtree=false,tol
       end
     end
   end
+  replace!(bgcell_to_ioc, UNSET => FACE_OUT )
   for cell in 1:num_cells(grid)
-    if bgcell_to_ioc[cell] == UNSET
-      bgcell_to_ioc[cell] = FACE_OUT
+    bgcell_to_ioc[cell] ≠ FACE_CUT || continue
+    for facet in get_faces(grid_topology,D,D-1)[cell]
+      bgfacet_to_ioc[facet] = bgcell_to_ioc[cell]
     end
   end
-  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc
+  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc,bgfacet_to_ioc
 end
 
 ## Kd Tree stuff

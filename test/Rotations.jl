@@ -18,12 +18,14 @@ using STLCutters: compute_grid
 using STLCutters: surface, volume, volumes 
 using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 
-function test_stl_cut(grid,stl,vol)
-  data = compute_submesh(grid,stl)
+function test_stl_cut(model,stl,vol)
+  data = compute_submesh(model,stl)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
   submesh = compute_grid(Table(T),X,TET)
   facets = compute_grid(Table(F),Xf,TRI)
+
+  grid = get_grid(model)
 
   #writevtk(facets,"subfacets",cellfields=["bgcell"=>f_to_bgcell])
   #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
@@ -96,7 +98,7 @@ pmin = pmin - Δ
 pmax = pmax + Δ
 partition = (n,n,n)
 
-grid = CartesianGrid(pmin,pmax,partition)
+model = CartesianDiscreteModel(pmin,pmax,partition)
 
 
 θs = [0;exp10.( -17:0 )]
@@ -109,7 +111,7 @@ for θ in θs
   Xi = map(p-> Oi + Rz(θ)⋅(p-Oi),Xi)
   stl = compute_stl_model(Table(T0),Xi)
   #writevtk(stl.grid,"stl")
-  test_stl_cut(grid,stl,1)
+  test_stl_cut(model,stl,1)
 end
 
 ## Rational Grid
@@ -129,7 +131,7 @@ pmin = pmin - Δ
 pmax = pmax + Δ
 partition = (n,n,n)
 
-grid = CartesianGrid(pmin,pmax,partition)
+model = CartesianDiscreteModel(pmin,pmax,partition)
 
 δx = Point(0,0,1)
 Δxs = [0;exp10.(-17:-1)]
@@ -139,7 +141,7 @@ for Δx in Δxs
   Xi = map(p-> p + Δx,X0)
   stl = compute_stl_model(Table(T0),Xi)
   #writevtk(stl.grid,"stl")
-  test_stl_cut(grid,stl,1)
+  test_stl_cut(model,stl,1)
 end
 
 δ = 0.2
@@ -158,7 +160,7 @@ pmin = pmin - Δ
 pmax = pmax + Δ
 partition = (n,n,n)
 
-grid = CartesianGrid(pmin,pmax,partition)
+model = CartesianDiscreteModel(pmin,pmax,partition)
 
 θs = [0;exp10.( -17:-1 )]
 
@@ -168,7 +170,7 @@ for O in origins
     Xi = map(p-> O + R(θ)⋅(p-O),X0)
     stl = compute_stl_model(Table(T0),Xi)
     #writevtk(stl,"stl")
-    test_stl_cut(grid,stl,1)
+    test_stl_cut(model,stl,1)
   end
 end
 
