@@ -163,6 +163,11 @@ function run_stl_cutter(
   stl0 = compute_stl_model(T,X)
   stl0 = merge_and_collapse(stl0)
 
+  if num_cells(stl0) > 1e6
+    !verbose || println("Skipping run: $title is too large ($(num_cells(stl0)) facets)")
+    return
+  end
+
   X0 = get_node_coordinates(get_grid(stl0))
   T0 = get_cell_node_ids(stl0)
 
