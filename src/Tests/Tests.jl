@@ -7,6 +7,7 @@ using Gridap.ReferenceFEs
 using Gridap.Geometry
 using Gridap.Arrays
 using Gridap.Helpers
+using GridapEmbedded
 using STLCutters
 
 import HTTP

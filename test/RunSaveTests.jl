@@ -69,4 +69,8 @@ data = run_and_save(filename,rerun=true,nmax=100,nmin=1,tolfactor=1e4)
 @test data["volume_error"] < 1e-9
 @test !data["has_leak"]
 
+filename = joinpath(@__DIR__,"data/47076.stl")
+data = run_and_save(filename,rerun=true,nmax=50,poisson=true)
+@test data["error_l2"] < 1e-9
+@test data["error_h1"] < 1e-9
 end # module

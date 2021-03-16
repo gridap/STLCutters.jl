@@ -142,7 +142,7 @@ function run_stl_cutter(model,stl;tolfactor=1e3,kdtree=false,vtk=false,verbose=t
   out
 end
 
-function run_stl_cutter(
+function _run_and_save(
   filename::String;
   title::String="res",
   verbose::Bool=true,
@@ -153,7 +153,10 @@ function run_stl_cutter(
   Δx::Real=0,
   θ::Real=0,
   kdtree::Bool=false,
-  tolfactor::Real=1e3)
+  tolfactor::Real=1e3,
+  poisson::Bool=false,
+  solution_order::Integer=1,
+  agfem::Bool=true)
 
   X,T,N = read_stl(filename)
 
@@ -204,6 +207,8 @@ function run_stl_cutter(
   data["rotation"] = θ
   data["kdtree"] = kdtree
 
+  @pack! data = poisson, solution_order, agfem
+
   if verbose
     println("---------------------------------------")
     println("Num stl facets:\t$(data["num_stl_facets"])")
@@ -213,7 +218,18 @@ function run_stl_cutter(
     println("Background grid size:\t$(data["h"])")
   end
 
-  out = run_stl_cutter(model,stl;tolfactor,kdtree,vtk,verbose,title)
+  if !poisson
+    out = run_stl_cutter(model,stl;tolfactor,kdtree,vtk,verbose,title)
+  else
+    if solution_order == 1
+      u = x -> x[1] + x[2] - x[3]
+    elseif solution_order == 2
+      u = x -> x[1]^2 + x[2]^2 - x[3]^2
+    else
+      @notimplemented
+    end
+    out = run_poisson(model,stl,u;agfem,vtk,verbose,title)
+  end
 
   merge!(out,data)
   @tagsave("$title.bson",out;safe=true)
@@ -238,7 +254,7 @@ function run_and_save(
     !verbose || println("Skipping run: $title.bson is found")
     return
   end
-  run_stl_cutter(filename;title,verbose,vtk,params...)
+  _run_and_save(filename;title,verbose,vtk,params...)
 end
 
 function download_run_and_save(things;kwargs...)
@@ -280,3 +296,112 @@ function run_geometry_list(ids,filenames;verbose::Bool=true,params...)
   !verbose || println("END of run_geometry_list()")
 end
 
+function run_poisson(
+  bgmodel::CartesianDiscreteModel,
+  stl::DiscreteModel,
+  u::Function = x -> x[1] + x[2] - x[3];
+  agfem = true,
+  vtk=false,
+  verbose=true,
+  title="")
+
+  @notimplementedif !agfem
+
+  # Manufactured solution
+  f(x) = - Δ(u)(x)
+  ud(x) = u(x)
+  
+  # Cut the background model
+  geo = STLGeometry(stl)
+  cutter = @timed cutgeo,facet_to_inoutcut = cut(bgmodel,geo)
+
+  strategy = AggregateAllCutCells()
+  aggregates = aggregate(strategy,cutgeo,facet_to_inoutcut)
+
+  # Setup integration meshes
+  Ω_bg = Triangulation(bgmodel)
+  Ω = Triangulation(cutgeo)
+  Γd = EmbeddedBoundary(cutgeo)
+  Γg = GhostSkeleton(cutgeo)
+
+  # Setup normal vectors
+  n_Γd = get_normal_vector(Γd)
+  n_Γg = get_normal_vector(Γg)
+
+  # Setup Lebesgue measures
+  order = 1
+  degree = 2*order
+  dΩ = Measure(Ω,degree)
+  dΓd = Measure(Γd,degree)
+  dΓg = Measure(Γg,degree)
+
+  integration_volume = sum( ∫(1)*dΩ  )
+  integration_surface = sum( ∫(1)*dΓd )
+  
+  # Setup FESpace
+  model = DiscreteModel(cutgeo)
+  Vstd = FESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
+
+  V = AgFEMSpace(Vstd,aggregates)
+  U = TrialFESpace(V)
+  # Weak form
+  γd = 10.0
+  γg = 0.1
+  h = get_cartesian_descriptor(bgmodel).sizes[1]
+
+  a(u,v) =
+    ∫( ∇(v)⋅∇(u) ) * dΩ +
+    ∫( (γd/h)*v*u  - v*(n_Γd⋅∇(u)) - (n_Γd⋅∇(v))*u ) * dΓd +
+    ∫( (γg*h)*jump(n_Γg⋅∇(v))*jump(n_Γg⋅∇(u)) ) * dΓg
+
+  l(v) =
+    ∫( v*f ) * dΩ +
+    ∫( (γd/h)*v*ud - (n_Γd⋅∇(v))*ud ) * dΓd
+
+  # FE problem
+  operator = @timed op = AffineFEOperator(a,l,U,V)
+  system = @timed uh = solve(op)
+
+  e = u - uh
+
+  # Postprocess
+  l2(u) = sqrt(sum( ∫( u*u )*dΩ ))
+  h1(u) = sqrt(sum( ∫( u*u + ∇(u)⋅∇(u) )*dΩ ))
+
+  el2 = l2(e)
+  eh1 = h1(e)
+  ul2 = l2(uh)
+  uh1 = h1(uh)
+
+  error_l2 = el2/ul2
+  error_h1 = eh1/uh1
+
+  if vtk
+    r = title*"_results"
+    t = title*"_trian"
+    colors = color_aggregates(aggregates,bgmodel)
+    writevtk(Ω_bg,t,celldata=["aggregate"=>aggregates,"color"=>colors],cellfields=["uh"=>uh])
+    writevtk(Ω,r,cellfields=["uh"=>uh])
+  end
+
+  time_cutter = cutter.time
+  time_operator = operator.time
+  time_system = system.time
+
+  if verbose
+    println("---------------------------------------")
+    println("TIME CUTTER:  \t $time_cutter")
+    println("TIME OPERATOR:\t $time_operator")
+    println("TIME SYSTEM:  \t $time_system")
+    println("Integration volume:  \t $integration_volume")
+    println("Integration surface: \t $integration_surface")
+    println("Error L2: \t $error_l2")
+    println("Error H1: \t $error_h1")
+  end
+
+  out = Dict{String,Any}()
+  @pack! out = time_cutter, time_operator, time_system
+  @pack! out = integration_volume, integration_surface
+  @pack! out = error_l2, error_h1
+  out
+end
