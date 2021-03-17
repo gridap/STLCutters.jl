@@ -156,7 +156,7 @@ function _run_and_save(
   tolfactor::Real=1e3,
   poisson::Bool=false,
   solution_order::Integer=1,
-  agfem::Bool=true)
+  agfem_threshold::Real=1)
 
   X,T,N = read_stl(filename)
 
@@ -207,7 +207,7 @@ function _run_and_save(
   data["rotation"] = θ
   data["kdtree"] = kdtree
 
-  @pack! data = poisson, solution_order, agfem
+  @pack! data = poisson, solution_order, agfem_threshold
 
   if verbose
     println("---------------------------------------")
@@ -228,7 +228,7 @@ function _run_and_save(
     else
       @notimplemented
     end
-    out = run_poisson(model,stl,u;agfem,vtk,verbose,title)
+    out = run_poisson(model,stl,u;agfem_threshold,vtk,verbose,title)
   end
 
   merge!(out,data)
@@ -300,12 +300,10 @@ function run_poisson(
   bgmodel::CartesianDiscreteModel,
   stl::DiscreteModel,
   u::Function = x -> x[1] + x[2] - x[3];
-  agfem = true,
+  agfem_threshold = 1,
   vtk=false,
   verbose=true,
   title="")
-
-  @notimplementedif !agfem
 
   # Manufactured solution
   f(x) = - Δ(u)(x)
@@ -315,7 +313,7 @@ function run_poisson(
   geo = STLGeometry(stl)
   cutter = @timed cutgeo,facet_to_inoutcut = cut(bgmodel,geo)
 
-  strategy = AggregateAllCutCells()
+  strategy = AggregateCutCellsByThreshold(agfem_threshold)
   aggregates = aggregate(strategy,cutgeo,facet_to_inoutcut)
 
   # Setup integration meshes
