@@ -49,23 +49,54 @@ stl_list = [
   "37266", # Extruded Earth
   "252119"] # Angel
 
-function create_jobs_matrix(hpc_id;walltime="24:00:00",memory=16)
+function create_jobs_matrix(
+  hpc_id;
+  walltime="24:00:00",
+  memory=16,
+  nmaxs=14 .* 2 .^ (0:5),
+  displace=true,
+  poisson=false,
+  solution_order=1)
 
   @unpack hpcname = hpc_dict[hpc_id]
 
   template = read(scriptsdir(hpcname,"jobtemplate.sh"),String)
 
   kwargs = 
-         "displacements=exp10.(-17:-1 ),
-          angles=exp10.(-17:-1 ),
-          rerun=false,
+         "rerun=false,
           datapath = \"$(datadir(hpcname))\""
 
+  if displace
+    func = "rotations_and_displacements"
+    kwargs =
+         "$kwargs,
+          displacements=exp10.(-17:-1 ),
+          angles=exp10.(-17:-1 )"
+  else
+    func = "run_and_save"
+  end
+
+  if poisson
+    kwargs =
+         "$kwargs,
+          poisson=true,
+          solution_order=$solution_order,
+          agfem_threshold=0.5"
+  end
+
+  prefix = ""
+  if poisson
+    prefix = "poisson_"
+  end
+  if !displace
+    prefix = prefix*"single_"
+  end
+
   all_params = Dict(
-    :func => "rotations_and_displacements",
+    :func => func,
     :filename => stl_list,
     :nmin => 1,
-    :nmax => 14 .* 2 .^ (0:5),
+    :nmax => nmaxs,
     :kwargs => kwargs 
     )
 
@@ -74,7 +105,7 @@ function create_jobs_matrix(hpc_id;walltime="24:00:00",memory=16)
   end
 
   for params in dict_list(all_params)
-    jobname = savename(params[:filename],params,ignores=(:func,:filename,:kwargs))
+    jobname = savename(prefix*params[:filename],params,ignores=(:func,:filename,:kwargs))
     jobname = replace(jobname,"="=>"")
     jobfile = datadir(hpcname,jobname*".sh")
     open(jobfile,"w") do io
@@ -88,4 +119,4 @@ export create_jobs_matrix
 
 end # module
 
-using Main.CreateJobsMatrix 
+import Main.CreateJobsMatrix: create_jobs_matrix
