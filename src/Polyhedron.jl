@@ -1526,7 +1526,18 @@ function compute_submesh(
     T_Γ,X_Γ,f_to_f = simplexify_boundary(Kn_in,stl)
     T_Γk,X_Γk = simplexify(Γk)
 
-    bgcell_to_ioc[cell] = FACE_CUT
+    if length(T_Γ) > 0
+      bgcell_to_ioc[cell] = FACE_CUT
+    else
+      if length(Kn_in) > 0 && length(Kn_out) == 0
+        bgcell_to_ioc[cell] = FACE_IN
+      elseif length(Kn_in) == 0 && length(Kn_out) > 0
+        bgcell_to_ioc[cell] = FACE_OUT
+      else
+        bgcell_to_ioc[cell] = UNSET
+      end
+      continue
+    end
 
     n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
     f_to_ioc = get_cell_facets_to_inoutcut(Kn_in,Kn_out,p)
