@@ -210,10 +210,10 @@ function split(p::Polyhedron,Π)
     smin = min(smin,distances[v])
     smax = max(smax,distances[v])
   end
-  if smin > 0
+  if smin ≥ 0
     return nothing,p
   end
-  if smax ≤ 0
+  if smax < 0
     if has_coplanars(get_data(p),Π)
       add_plane!(get_data(p),Π)
     end
@@ -226,10 +226,10 @@ function split(p::Polyhedron,Π)
   D = num_dims(p)
   for v in 1:num_vertices(p)
     isactive(p,v) || continue
-    distances[v] > 0 && continue
+    distances[v] ≥ 0 && continue
     for (i,vneig) in enumerate( get_graph(p)[v] )
       vneig ∉ (UNSET,OPEN) || continue
-      distances[vneig] > 0 || continue
+      distances[vneig] ≥ 0 || continue
       vertex = compute_intersection(p[v],distances[v],p[vneig],distances[vneig])
       push!( new_vertices, vertex )
       add_vertex!(data,v,vneig,Π)
@@ -814,7 +814,7 @@ end
 
 function disconnect_graph!(edge_graph,num_vertices,distances,mask::Bool)
   for i in 1:num_vertices
-    if mask == ( distances[i] > 0 )
+    if mask == ( distances[i] ≥ 0 )
       edge_graph[i] = empty!( edge_graph[i] )
     end
   end

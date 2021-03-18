@@ -73,4 +73,10 @@ filename = joinpath(@__DIR__,"data/47076.stl")
 data = run_and_save(filename,rerun=true,nmax=50,poisson=true)
 @test data["error_l2"] < 1e-9
 @test data["error_h1"] < 1e-9
+
+filename = joinpath(@__DIR__,"data/cube.stl")
+data = run_and_save(filename,rerun=true,nmax=7,poisson=true)
+@test data["error_l2"] < 1e-9
+@test data["error_h1"] < 1e-9
+
 end # module
