@@ -15,4 +15,5 @@ function create_all_jobs(hpc::Symbol,subset=subsets[hpc];onlymatrix=false,kwargs
   onlymatrix || create_jobs_dataset(hpc,subset;kwargs...)
   nothing
 end
-
+# create_jobs_matrix(:gadi,memory=32,displace=true,nmaxs=112,poisson=true,solution_order=1)
+# create_jobs_matrix(:gadi,memory=32,displace=false,poisson=true,solution_order=2)
