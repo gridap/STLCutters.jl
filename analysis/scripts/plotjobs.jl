@@ -49,9 +49,13 @@ raw_matrix = filter(i->i.nmax ≠ 100,raw_gadi)
 
 raw_10k_gadi = filter(i->i.nmax == 100,raw_gadi)
 raw_10k_titani = raw_titani
-raw_10k = vcat( raw_10k_gadi,raw_10k_titani)
+
+raw_10k = vcat( raw_10k_gadi,raw_10k_titani,cols=:union)
 
 raw_matrix = filter(i->i.name≠"96457"||i.rotation<0.1,raw_matrix)
+
+raw_matrix_poisson = filter( i-> !ismissing(i.poisson) && i.poisson, raw_matrix )
+raw_matrix = filter( i -> ismissing(i.poisson) || !i.poisson, raw_matrix )
 
 xfields = [:rotation,:displacement]
 yfields = [:surface_error,:volume_error,:min_subcells_x_cell,:max_subcells_x_cell,:avg_subcells_x_cell,:time] 
@@ -68,7 +72,9 @@ labels = Dict(
   :time => "Trianglulation time (t) [secs]",
   :num_cells => "Num background cells",
   :num_stl_facets => "Num STL facets",
-  :nmax => "Relative cell size (h₀/h) " )
+  :nmax => "Relative cell size (h₀/h) ",
+  :error_h1 => "H1 error norm (ϵ_H¹)",
+  :error_l2 => "L2 error norm (ϵ_L²)" )
 
 all_params = Dict(
   :name => unique(raw_matrix[!,:name]),
@@ -95,12 +101,13 @@ for params in dict_list(all_params)
 end
 
 function plot_all_geometries(raw,plotname,xfield,yfield)
-  data = copy(raw)
+  data = filter(i->!ismissing(i[xfield]),raw)
   for field in test_fields
     field ≠ xfield || continue
     data = filter(i->i[field] == default_value[field],data)
   end
   names = sort(unique(data[!,:name]))
+  min_y0 = Inf
   sort!(names)
   plot()
   for name in names
@@ -109,9 +116,12 @@ function plot_all_geometries(raw,plotname,xfield,yfield)
     x = d[!,xfield]
     y = d[!,yfield]
     x0,y0 = x[1],y[1]
+    min_y0 = min(y0,min_y0)
     (xfield == :nmax ) || ( x = x[2:end] )
     (xfield == :nmax ) || ( y = y[2:end] )
-    y = yfield == :time ? y / y0 : @. abs( y - y0 ) / y0 
+    if yfield ∉ (:error_l2,:error_h1)
+      y = yfield == :time ? y / y0 : @. abs( y - y0 ) / y0 
+    end
     y = @. y + iszero(y)*eps()/2
     (xfield == :nmax) && ( x = x ./ x0 ) 
     plot!(x,y,label="$name",markershape=:auto)
@@ -122,6 +132,16 @@ function plot_all_geometries(raw,plotname,xfield,yfield)
   (xfield == :nmax) && plot!(xticks=( 2 .^ (0:5), 2 .^ (0:5) ))
   plot!(xlabel=labels[xfield],ylabel=labels[yfield])
   (yfield == :time) && plot!(ylabel="Relative time (t/t₀)")
+  if xfield == :nmax && yfield ∈ (:error_h1,:error_l2)
+    xlims = Plots.get_sp_lims(plot!()[1],:x)
+    ylims = Plots.get_sp_lims(plot!()[1],:y)
+    order = yfield == :error_h1 ? 1 : 2
+    x = [1,1e2]
+    y = @. (1/x)^order
+    plot!(x,y.*1e-1,color=:black,linestyle=:dash,label="slope = -$order")
+    plot!(x,y.*min_y0./2,color=:black,linestyle=:dash,label=:none)
+    plot!(;xlims,ylims)
+  end
   savefig(plotsdir("$plotname.pdf"))
 end
 
@@ -146,6 +166,38 @@ for params in dict_list(all_params)
   @unpack x,y = params
   plot_all_geometries(data,plotname,x,y)
 end
+
+data = filter(i->i.solution_order==1,raw_matrix_poisson)
+test_fields = [:rotation,:displacement]
+all_params = Dict(
+  :x => test_fields,
+  :y => [:error_h1,:error_l2]
+)
+
+for params in dict_list(all_params)
+  plotname = savename(params)
+  plotname = replace(plotname,'='=>'_')
+
+  @unpack x,y = params
+  plot_all_geometries(data,plotname,x,y)
+end
+
+
+data = filter(i->i.solution_order==2,raw_matrix_poisson)
+test_fields = [:nmax]
+all_params = Dict(
+  :x => test_fields,
+  :y => [:error_h1,:error_l2]
+)
+
+for params in dict_list(all_params)
+  plotname = savename(params)
+  plotname = replace(plotname,'='=>'_')
+
+  @unpack x,y = params
+  plot_all_geometries(data,plotname,x,y)
+end
+
 
 include(testdir("data","thingi10k_quality_filter.jl"))
 
