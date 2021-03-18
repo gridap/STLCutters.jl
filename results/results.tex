@@ -45,6 +45,12 @@
         \item
           17 rotation angles ($\theta$ = $10^{-17:-1}$)
       \end{itemize}
+    \item[1.2.]
+      Relative position - Poisson test
+      \begin{itemize}
+        \item
+          Idem as 1.1. w/ Poisson eq. manufactured solution $u(x) = x+y-z$
+      \end{itemize}
     \item[2.1.]
       $h$-refinement - robustness test
       \begin{itemize}
@@ -52,6 +58,12 @@
           1.1. geometries
         \item
           6 constant $h$-refinements
+      \end{itemize}
+    \item[2.2.]
+      $h$-refinement - Poisson test
+      \begin{itemize}
+        \item
+          Idem as 2.1. w/ Poisson eq. manufactured solution $u(x) = x^2+y^2-z^2$
       \end{itemize}
     \item[3.] Large geometry dataset
       \begin{itemize}
@@ -142,6 +154,59 @@
 \end{frame}
 
 
+\begin{frame}{1.2. Relative position - Poisson test}
+  \begin{block}{Setup}
+    \begin{itemize}
+      \item
+        Same configurations as 1.1.
+      \item
+        Poisson eq. w/ manufactured solution
+        \begin{align*}
+          -\Delta u &= f,\\
+          u(x) &= x+y-z
+        \end{align*}
+      \item
+        AgFEM w/ aggregate threshold 0.5
+    \end{itemize}
+  \end{block}
+  
+  \centering
+  \includegraphics[width=0.3\textwidth]{bunny_poisson}
+%  % add image of poisson e.g. bunny / heart when fixed
+%
+\end{frame}
+
+\begin{frame}{1.2. Relative position - Poisson test}
+
+  \begin{block}{H1 error norm}
+  \begin{itemize}
+    \item
+      Maximum H1 error norm $< 10^{-12}$
+    \item
+      Minor variations on rotation/displacement
+  \end{itemize}
+  \end{block}
+
+  \includegraphics[width=0.49\textwidth]{../analysis/plots/x_displacement_y_error_h1}
+  \includegraphics[width=0.49\textwidth]{../analysis/plots/x_rotation_y_error_h1}
+\end{frame}
+
+\begin{frame}{1.2. Relative position - Poisson test}
+
+  \begin{block}{L2 error norm}
+  \begin{itemize}
+    \item
+      Maximum L2 error norm $< 10^{-13}$
+    \item
+      Minor variations on rotation/displacement
+  \end{itemize}
+  \end{block}
+
+  \includegraphics[width=0.49\textwidth]{../analysis/plots/x_displacement_y_error_l2}
+  \includegraphics[width=0.49\textwidth]{../analysis/plots/x_rotation_y_error_l2}
+\end{frame}
+
+
 \begin{frame}{2.1. $h$-refinement - Robustness test}
   \begin{block}{Setup}
     \begin{itemize}
@@ -204,6 +269,40 @@
 
 \end{frame}
 
+\begin{frame}{2.2. $h$-refinement - Poisson test}
+  \begin{block}{Setup}
+    \begin{itemize}
+      \item
+        Same configurations as 2.1.
+      \item
+        Poisson eq. w/ manufactured solution
+        \begin{align*}
+          -\Delta u &= f,\\
+          u(x) &= x^2+y^2-z^2
+        \end{align*}
+      \item
+        AgFEM w/ aggregate threshold 0.5
+    \end{itemize}
+  \end{block}
+  \centering
+  \includegraphics[width=0.7\textwidth]{aggregates}
+
+  {\tiny Cell aggregation in thin walls}
+
+\end{frame}
+
+
+\begin{frame}{2.2. $h$-refinement - Poisson test}
+  \begin{block}{FE convergence with $h$}
+  \begin{itemize}
+    \item
+      H1 and L2 error norms tend to the convergence slope
+  \end{itemize}
+  \end{block}
+
+  \includegraphics[width=0.49\textwidth]{../analysis/plots/x_nmax_y_error_h1}
+  \includegraphics[width=0.49\textwidth]{../analysis/plots/x_nmax_y_error_l2}
+\end{frame}
 
 \begin{frame}{3. Large geometry dataset}
   \begin{block}{Setup}
@@ -220,6 +319,9 @@
 
   \end{block}
 
+  \centering
+  \includegraphics[width=.75\textwidth]{thingi10k_screenshot}
+  %% screenshot of thingi10k
 \end{frame}
 
 \begin{frame}{3. Large geometry dataset}
