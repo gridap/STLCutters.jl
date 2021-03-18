@@ -1571,13 +1571,13 @@ function compute_submesh(
   end
   stack = Int[]
   for cell in 1:num_cells(grid)
-    if bgcell_to_ioc[cell] == FACE_CUT
+    if bgcell_to_ioc[cell] ∈ (FACE_CUT,FACE_IN)
       resize!(stack,0)
       push!(stack,cell)
       while length(stack) > 0
         current_cell = pop!(stack)
         for node in get_cell_node_ids(grid)[current_cell]
-          if bgnode_to_io[node] == FACE_IN
+          if bgnode_to_io[node] == FACE_IN || bgcell_to_ioc[cell] == FACE_IN
             for neig_cell in get_faces(grid_topology,0,num_dims(grid))[node]
               if bgcell_to_ioc[neig_cell] == UNSET
                 bgcell_to_ioc[neig_cell] = FACE_IN
