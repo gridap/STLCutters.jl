@@ -1601,10 +1601,30 @@ function compute_submesh(
       bgfacet_to_ioc[facet] = bgcell_to_ioc[cell]
     end
   end
+  delete_small_subcells!(bgmodel,T,X,k_to_io,k_to_bgcell)
+  delete_small_subfacets!(bgmodel,F,Xf,f_to_bgcell,f_to_stlf)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc,bgfacet_to_ioc
 end
 
 ## Kd Tree stuff
+
+function delete_small_subcells!(bgmodel,T,X,arrays...)
+  delete_small_subfaces!(bgmodel,T,X,TET,arrays...)
+end
+
+function delete_small_subfacets!(bgmodel,T,X,arrays...)
+  delete_small_subfaces!(bgmodel,T,X,TRI,arrays...)
+end
+
+function delete_small_subfaces!(bgmodel,T,X,p::Polytope{D},arrays...) where D
+  h = get_cartesian_descriptor(bgmodel).sizes[1]
+  subfaces = compute_grid(Table(T),X,p)
+  ids = findall( i -> measure(get_cell(subfaces,i)) < eps(h^D), 1:length(T) )
+  deleteat!(T,ids)
+  for array in arrays
+    deleteat!(array,ids)
+  end
+end
 
 function refine_by_vertices(Γ::Polyhedron,K::Polyhedron,atol=0)
   refine_by_vertices(Γ,K,get_vertex_coordinates(Γ),atol)
