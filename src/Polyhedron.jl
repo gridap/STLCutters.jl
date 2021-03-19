@@ -1617,7 +1617,7 @@ function delete_small_subfacets!(bgmodel,T,X,arrays...)
 end
 
 function delete_small_subfaces!(bgmodel,T,X,p::Polytope{D},arrays...) where D
-  h = get_cartesian_descriptor(bgmodel).sizes[1]
+  h = float(get_cartesian_descriptor(bgmodel).sizes[1])
   subfaces = compute_grid(Table(T),X,p)
   ids = findall( i -> measure(get_cell(subfaces,i)) < eps(h^D), 1:length(T) )
   deleteat!(T,ids)

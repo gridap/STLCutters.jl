@@ -178,6 +178,9 @@ function _group_vertices(stl::Grid{Dc,D};atol) where {Dc,D}
   min_length = _compute_min_length(stl;atol)
   num_digits = -Int(floor(log10(min_length)))
   pmin, pmax = get_bounding_box(stl)
+  sigdigits = Int(floor(log10(maximum(pmax-pmin)))) + num_digits
+  max_sigdigits = Int(floor(log10(typemax(Int)^(1/D)))) - 1
+  num_digits -= max(sigdigits-max_sigdigits,0)
   cells = Int[]
   vertices = Int[]
   ranks = ceil.(Tuple(pmax-pmin),digits=num_digits)
@@ -449,7 +452,7 @@ end
 function save_as_stl(stl::DiscreteModel{Dc,Dp},filename) where {Dc,Dp}
   (Dc == 2 && Dp == 3 ) || error("Geometry incompatible with STL format")
   filename *= ".stl"
-  file = File(format"STL_BINARY",filename)
+  file = File{format"STL_BINARY"}(filename)
   facetype = MeshIO.GLTriangleFace
   pointtype = MeshIO.Point3f0
   normaltype = MeshIO.Vec3f0

@@ -33,6 +33,19 @@ using STLCutters: FACE_CUT
 using STLCutters: get_cell 
 using STLCutters: get_cell_nodes_to_inout 
 using STLCutters: compute_submesh 
+using STLCutters: plot
+
+
+## Unit testing
+
+p = Polyhedron(TRI)
+p = Polyhedron(QUAD)
+p = Polyhedron(TET)
+p = Polyhedron(HEX)
+
+plot(p)
+
+##
 
 vertices = [
   Point(0.1,-0.2,0.5),
