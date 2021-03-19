@@ -234,7 +234,8 @@ is_water_tight(model::DiscreteModel) = is_water_tight(get_grid_topology(model))
 
 is_open_surface(model::DiscreteModel) = is_open_surface(get_grid_topology(model))
 
-function is_water_tight(top::GridTopology{Dc}) where Dc
+function is_water_tight(top::GridTopology{Dc,Dp}) where {Dc,Dp}
+  Dc == Dp - 1 || error("The Geometry is not a surface")
   c_to_f = get_faces(top,Dc-1,Dc)
   maximum(length,c_to_f) == minimum(length,c_to_f) == 2
 end
@@ -368,9 +369,9 @@ function surface(a::Grid{Df,Dp}) where {Df,Dp}
   measure(a)
 end
 
-function surfaces(a::Grid{Df,Dp},num::Integer,map) where {Df,Dp}
+function surfaces(a::Grid{Df,Dp},args...) where {Df,Dp}
   @notimplementedif Df ≠ Dp-1
-  measures(a,num,map)
+  measures(a,args...)
 end
 
 surface(a::DiscreteModel) = surface(get_grid(a))
@@ -401,3 +402,81 @@ end
 
 min_height(model::DiscreteModel) = min_height(get_grid(model))
 
+function split_disconnected_parts(stl::DiscreteModel)
+  Dc = num_dims(stl)
+  f_to_v = get_faces(get_grid_topology(stl),Dc,0)
+  v_to_f = get_faces(get_grid_topology(stl),0,Dc)
+  v_to_part = fill(UNSET,num_vertices(stl))
+  f_to_part = fill(UNSET,num_cells(stl))
+  num_parts = 0
+  stack = Int[]
+  for f in 1:num_cells(stl)
+    f_to_part[f] == UNSET || continue
+    num_parts += 1
+    f_to_part[f] = num_parts
+    empty!(stack)
+    push!(stack,f)
+    while !isempty(stack)
+      f_curr = pop!(stack)
+      for v in f_to_v[f_curr]
+        v_to_part[v] = num_parts
+        for f_neig in v_to_f[v]
+          f_curr ≠ f_neig || continue
+          f_to_part[f_neig] == UNSET || continue
+          f_to_part[f_neig] = num_parts
+          push!(stack,f_neig)
+        end
+      end
+    end
+  end
+  @assert all(!isequal(UNSET),v_to_part)
+  @assert all(!isequal(UNSET),f_to_part)
+  coords = get_vertex_coordinates(get_grid_topology(stl))
+  stls = typeof(stl)[]
+  for part in 1:num_parts
+    faces = findall(isequal(part),f_to_part)
+    vertices = findall(isequal(part),v_to_part)
+    v_to_part_v = fill(UNSET,length(v_to_part))
+    v_to_part_v[vertices] = 1:length(vertices)
+    _f_to_v = Table(map(i->v_to_part_v[i],f_to_v[faces]))
+    _coords = coords[vertices]
+    _stl = compute_stl_model(_f_to_v,_coords)
+    push!(stls,_stl)
+  end
+  stls
+end
+
+function save_as_stl(stl::DiscreteModel{Dc,Dp},filename) where {Dc,Dp}
+  (Dc == 2 && Dp == 3 ) || error("Geometry incompatible with STL format")
+  filename *= ".stl"
+  file = File(format"STL_BINARY",filename)
+  facetype = MeshIO.GLTriangleFace
+  pointtype = MeshIO.Point3f0
+  normaltype = MeshIO.Vec3f0
+  faces = Array{facetype}(undef, num_cells(stl))
+  vertices = Array{pointtype}(undef, num_cells(stl) * 3)
+  normals = Array{normaltype}(undef, num_cells(stl) * 3)
+  for i in 1:num_cells(stl)
+    faces[i] = facetype( (i-1)*3+1,(i-1)*3+2, (i-1)*3+3 )
+    n = normal(get_cell(stl,i))
+    normals[ (i-1)*3+1 ] = normaltype(Tuple(n)...)
+    normals[ (i-1)*3+2 ] = normals[ (i-1)*3+1 ]
+    normals[ (i-1)*3+3 ] = normals[ (i-1)*3+1 ]
+    coords = get_cell_coordinates(stl)[i]
+    vertices[ (i-1)*3+1 ] = pointtype(Tuple(coords[1])...)
+    vertices[ (i-1)*3+2 ] = pointtype(Tuple(coords[2])...)
+    vertices[ (i-1)*3+3 ] = pointtype(Tuple(coords[3])...)
+  end
+  mesh = MeshIO.Mesh(MeshIO.meta(vertices; normals=normals), faces)
+  save(file,mesh)
+  filename
+end
+
+function save_as_stl(stls::Vector{<:DiscreteModel},filename)
+  files = []
+  for (i,stl) in enumerate(stls)
+    f = save_as_stl(stl,filename*"_$i")
+    push!(files,f)
+  end
+  files
+end
