@@ -6,9 +6,9 @@ function read_stl(filename::String)
     F = _file_format(filename)
     mesh = load(File(F,filename))
   end
-  vertex_to_coordinates = MeshIO.decompose(MeshIO.Point{3,Float64}, mesh )
-  facet_to_vertices = MeshIO.decompose(MeshIO.Face{3,Int},mesh)
-  vertex_to_normals = MeshIO.decompose(MeshIO.Normal{3,Float64},mesh)
+  vertex_to_coordinates = MeshIO.decompose(MeshIO.Point3,mesh)
+  facet_to_vertices = MeshIO.decompose(MeshIO.TriangleFace,mesh)
+  vertex_to_normals = MeshIO.decompose_normals(mesh)
   vertex_to_coordinates = Vector{Point{3,Float64}}( vertex_to_coordinates )
   facet_to_vertices = Table( Vector{Vector{Int}}( facet_to_vertices ) )
   vertex_to_normals = Vector{VectorValue{3,Float64}}( vertex_to_normals )
@@ -44,7 +44,9 @@ function Base.convert(::Type{VectorValue{D,T}},x::MeshIO.Normal{D})  where {D,T}
   VectorValue{D,T}(x.data)
 end
 
-Base.convert(::Type{Vector},x::MeshIO.Face) = collect(x.data)
+function Base.convert(::Type{Vector{T}},x::MeshIO.TriangleFace) where T
+  convert.(T,collect(x))
+end
 
 function compute_stl_model(
   cell_to_vertices::Table,
