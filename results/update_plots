@@ -1,7 +1,0 @@
-pdftk ../analysis/plots/*y_domain_volume.pdf cat output domain_volume.pdf
-pdftk ../analysis/plots/*y_domain_surface.pdf cat output domain_surface.pdf
-pdftk ../analysis/plots/*y_volume_error.pdf cat output volume_error.pdf
-pdftk ../analysis/plots/*y_surface_error.pdf cat output surface_error.pdf
-pdftk ../analysis/plots/*y_*_subcells_x_cell.pdf cat output subcells_x_cell.pdf
-pdftk ../analysis/plots/*y_time.pdf cat output time.pdf
-

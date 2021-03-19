@@ -336,12 +336,12 @@
      .2 Not available: 312 .
      .2 Load error: 7 .
      .2 \textbf{Available}: 4733 .
-     .3 Launched on HPC: 4169.
-     .4 \textbf{Success}: 4078 .
-     .4 Large volume error: 58 .
+     .3 Launched on HPC: 4308.
+     .4 \textbf{Success}: 4216 .
+     .4 Large volume error: 59 .
      .4 Not ended: 33 .
-     .3 Pending: 657 .
-     .3 Degenerate: 4 .
+     .3 Pending: 430 .
+     .3 Degenerate: 5 .
      }
 
   \end{block}
@@ -349,32 +349,6 @@
   \vfill{}
 
   \textbf{NOTE:} As shown in next slides large volume error is due to small facets.
-
-%  \framesubtitle{Few numbers}
-%
-%  Num geometries: 5052
-%
-%  Not available: 312 (6.2\% of total)
-%
-%  Load error: 7 (0.14\% of total)
-%
-%  Available: 5052-312-7=4733 (93.7\% of total)
-%
-%  \textbf{Success geometries:} 3817 (78.5\% of available, 97.4\% of launched)
-%
-%  Large volume error ($>$1e-14): 67 (1.8\% of success) (100\% due to small facets)
-%
-%  Found to be degenerated: 4
-%
-%  Failed: 34 (0.89\% of success)
-%
-%  Missing (running): 916 (19.4\% of total)
-%  \vfill{}
-%  \textbf{ONGOING:}
-%  Try to fix problems with small facets
-%  Indentify failed runs as degenerate or fix
-%
-%
 
 \end{frame}
 
@@ -515,60 +489,6 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/histogram_time}
 \end{frame}
 
-
-%\begin{frame}{Robustness matrix}
-%  \framesubtitle{Summary}
-%
-%  \textbf{100\%} of ended test have volume and surface error bounded 
-%  ($\epsilon_{vol} < 10^{-14}$,$\epsilon_{surf} < 10^{-12}$) 
-%
-%  \begin{block}
-%
-%  The mesh sizes have $n_{max}$ multiple of 14 as the bounding box is expanded 
-%  a factor $0.2$ in each direction, thus the domain is 1.4 times the 
-%  bounding box per axis. The background cells will match the STL bounding box, 
-%  stressing even more the algorithm.
-%  \end{block}
-%
-%  \vfill{}
-%  NOTE: Due to large computational requirements (time/memory),
-%  some tests have not ended.
-%  Those points are missing at the lowest and largest sizes.
-%  \begin{itemize}
-%    \item
-%      Low $n_{max}$: large amount of STL facets per cell
-%    \item
-%      High $n_{max}$: large background mesh
-%
-%  \end{itemize}
-% 
-%
-%\end{frame}
-%
-
-%\begin{frame}{Robustness matrix}
-%  
-%  \textbf{Collected results:}
-%
-%  \begin{itemize}
-%    \item  
-%      \href{run:domain_volume.pdf}{Domain Volume Variation}
-%    \item
-%      \href{run:domain_surface.pdf}{Domain Surface Variation}
-%    \item
-%      \href{run:volume_error.pdf}{Domain Volume Error}
-%    \item
-%      \href{run:surface_error.pdf}{Surface Error}
-%    \item
-%      \href{run:time.pdf}{CPU time (not accurate)}
-%    \item
-%      \href{run:subcells_x_cell.pdf}{\{Min,Max,Avg\} num subcells per cell }
-%  \end{itemize}
-%
-%
-%\end{frame}
-
-
 \begin{frame}{Conclusions and pending work}
 
   \textbf{Conclusion so far}
@@ -577,13 +497,13 @@
       Issues are depending on the geometry
     \item
       Most of problematic geometries can be found \textit{a priori}
+    \item
+      Optimal convergence with AgFEM
   \end{itemize}
   \textbf{Ongoing work}
   \begin{itemize}
     \item
       Detect true degenerated geometries
-    \item
-      Run Gridap
   \end{itemize}
 
 
