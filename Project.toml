@@ -23,6 +23,7 @@ WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 Gridap = "0.15"
 GridapEmbedded = "0.6"
 MeshIO = "0.4"
+Plots = "1.11"
 julia = "1.5"
 
 [extras]
