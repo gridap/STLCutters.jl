@@ -178,23 +178,18 @@ function _group_vertices(stl::Grid{Dc,D};atol) where {Dc,D}
   min_length = _compute_min_length(stl;atol)
   num_digits = -Int(floor(log10(min_length)))
   pmin, pmax = get_bounding_box(stl)
-  sigdigits = Int(floor(log10(maximum(pmax-pmin)))) + num_digits
-  max_sigdigits = Int(floor(log10(typemax(Int)^(1/D)))) - 1
-  num_digits -= max(sigdigits-max_sigdigits,0)
-  cells = Int[]
+  cells = NTuple{D,Int}[]
   vertices = Int[]
   ranks = ceil.(Tuple(pmax-pmin),digits=num_digits)
   ranks = Int.(round.(exp10(num_digits).*ranks)).+1
-  lids = LinearIndices( ranks )
   m = CartesianIndices( tfill(2,Val{D}()) )
   for (iv,v) in enumerate(get_node_coordinates(stl))
     p = v-pmin
     for i in m
       f = d -> i.I[d] == 1 ? floor(p[d],digits=num_digits) : ceil(p[d],digits=num_digits)
-      r = ntuple( f, Val{D}() )
-      r = Int.(round.(exp10(num_digits).*r)).+1
-      cell = lids[r...]
-      push!(cells,cell)
+      c = ntuple( f, Val{D}() )
+      c = Int.(round.(exp10(num_digits).*c)).+1
+      push!(cells,c)
       push!(vertices,iv)
     end
   end
