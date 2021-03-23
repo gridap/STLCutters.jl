@@ -34,14 +34,22 @@ using STLCutters: get_cell
 using STLCutters: get_cell_nodes_to_inout 
 using STLCutters: compute_submesh 
 using STLCutters: plot
+using STLCutters: check_graph
 
 
 ## Unit testing
 
 p = Polyhedron(TRI)
+@test check_graph(p)
+
 p = Polyhedron(QUAD)
+@test check_graph(p)
+
 p = Polyhedron(TET)
+@test check_graph(p)
+
 p = Polyhedron(HEX)
+@test check_graph(p)
 
 plot(p)
 

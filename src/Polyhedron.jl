@@ -100,6 +100,21 @@ function CartesianPlane(p::Point{D,T},d::Integer,orientation::Integer) where {D,
   CartesianPlane{D,T}(Int8(d),p[d],orientation>0)
 end
 
+function check_graph(p::Polyhedron)
+  check_graph(get_graph(p))
+end
+
+function check_graph(graph::AbstractVector{<:AbstractVector})
+  for v in 1:length(graph)
+    !isempty(graph[v]) || continue
+    for vneig in graph[v]
+      vneig ∉ (OPEN,UNSET) || continue
+      v ∈ graph[vneig] || return false
+    end
+  end
+  true
+end
+
 function compact!(p::Polyhedron)
   ids = findall(i->!isactive(p,i),1:num_vertices(p))
   old_to_new = fill(UNSET,num_vertices(p))
@@ -950,6 +965,7 @@ function compute_graph(stl::DiscreteModel{2})
       push!(graph[v],OPEN)
     end
   end
+  check_graph(graph) || error("Unable to build vertex-edge graph")
   graph
 end
 
