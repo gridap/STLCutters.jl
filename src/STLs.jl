@@ -1,11 +1,7 @@
 #
 function read_stl(filename::String)
-  if !unknown(query(filename))
-    mesh = load(filename)
-  else
-    F = _file_format(filename)
-    mesh = load(File(F,filename))
-  end
+  F = _file_format(filename)
+  mesh = load(File(F,filename))
   vertex_to_coordinates = MeshIO.decompose(MeshIO.Point3,mesh)
   facet_to_vertices = MeshIO.decompose(MeshIO.TriangleFace,mesh)
   vertex_to_normals = MeshIO.decompose_normals(mesh)
@@ -137,7 +133,7 @@ function merge_nodes(stl::DiscreteModel;atol=10*eps(Float32,stl))
 end
 
 function delete_repeated_vertices(stl::Grid;atol)
-  group_to_vertices =  _group_vertices(stl;atol)
+  group_to_vertices =  _group_vertices(stl;atol=atol*10)
   vertices_map = collect(1:num_nodes(stl))
   for _vertices in group_to_vertices
     for i in 1:length(_vertices), j in i+1:length(_vertices)
@@ -147,7 +143,7 @@ function delete_repeated_vertices(stl::Grid;atol)
          vertices_map[_vertices[j]] == _vertices[j]
 
         if distance(vi,vj) < atol
-          vertices_map[_vertices[j]] = _vertices[i]
+          vertices_map[_vertices[j]] = vertices_map[_vertices[i]]
         end
       end
     end
@@ -180,8 +176,6 @@ function _group_vertices(stl::Grid{Dc,D};atol) where {Dc,D}
   pmin, pmax = get_bounding_box(stl)
   cells = NTuple{D,Int}[]
   vertices = Int[]
-  ranks = ceil.(Tuple(pmax-pmin),digits=num_digits)
-  ranks = Int.(round.(exp10(num_digits).*ranks)).+1
   m = CartesianIndices( tfill(2,Val{D}()) )
   for (iv,v) in enumerate(get_node_coordinates(stl))
     p = v-pmin
