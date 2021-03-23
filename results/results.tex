@@ -125,6 +125,9 @@
 % thingiverse.com/thing:$id (wine glass)
 % cube: https://people.sc.fsu.edu/~jburkardt/data/stlb/stlb.html
 
+
+% Show cube ST, rotation and displacement side by side, e.g., 0,0.01,0.05,0.1
+
 \begin{frame}{1.1. Relative position - Robustness test}
 
   \begin{block}{Domain volume variation}
@@ -334,14 +337,14 @@
    \dirtree{%
      .1 \textbf{Total}: 5052  .
      .2 Not available: 312 .
-     .2 Load error: 7 .
-     .2 \textbf{Available}: 4733 .
-     .3 Launched on HPC: 4308.
-     .4 \textbf{Success}: 4216 .
-     .4 Large volume error: 59 .
-     .4 Not ended: 33 .
-     .3 Pending: 430 .
-     .3 Degenerate: 5 .
+     .2 Load error: 6 .
+     .2 \textbf{Available}: 4734 .
+     .3 Launched on HPC: 4544.
+     .4 \textbf{Success}: 4440 .
+     .4 Large volume error: 70 .
+     .4 Not ended: 34 .
+     .3 Pending: 170 .
+     .3 Degenerate: 20 .
      }
 
   \end{block}
@@ -362,7 +365,7 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      98.6\% of 4136 is below $10^{-9}$
+      98.4\% of 4510 is below $10^{-9}$
     \item
       All STLs above $10^{-9}$ contain small facets
   \end{itemize}
@@ -379,7 +382,7 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      98.6\% of 4136 is below $10^{-9}$
+      98.8\% of 4510 is below $10^{-9}$
     \item
       All STLs above $10^{-9}$ contain small facets
   \end{itemize}

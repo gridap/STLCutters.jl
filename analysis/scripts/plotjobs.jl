@@ -53,6 +53,7 @@ raw_10k_titani = raw_titani
 raw_10k = vcat( raw_10k_gadi,raw_10k_titani,cols=:union)
 
 raw_matrix = filter(i->i.name≠"96457"||i.rotation<0.1,raw_matrix)
+replace!(raw_matrix.name,"wine_glass"=>"3201401","65904_1"=>"65904")
 
 raw_matrix_poisson = filter( i-> !ismissing(i.poisson) && i.poisson, raw_matrix )
 raw_matrix = filter( i -> ismissing(i.poisson) || !i.poisson, raw_matrix )
