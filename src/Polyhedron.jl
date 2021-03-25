@@ -222,14 +222,21 @@ end
 function clip(poly::Polyhedron,Π;inside=true,inout=trues(length(Π)))
   p = poly
   for (i,Πi) in enumerate(Π)
-    p⁻,p⁺ = split(p,Πi)
-    p = inside == inout[i] ? p⁻ : p⁺
+    side = inside == inout[i] ? :left : :right
+    p = clip(p,Πi,side)
     !isnothing(p) || break
   end
   p
 end
 
-function split(p::Polyhedron,Π)
+function clip(p::Polyhedron,Π,side)
+  @assert side ∈ (:right,:left)
+  p⁻,p⁺ = split(p,Π,side)
+  side == :left ? p⁻ : p⁺ 
+end
+
+function split(p::Polyhedron,Π,side=:both)
+  @assert side ∈ (:both,:left,:right)
   distances = get_plane_distances(get_data(p),Π)
   smin = Inf
   smax = -Inf
@@ -249,43 +256,53 @@ function split(p::Polyhedron,Π)
   end
   new_vertices = empty( get_vertex_coordinates(p) )
   in_graph = _copy(get_graph(p))
-  out_graph = _copy(get_graph(p))
+  if side == :both
+    out_graph = _copy(get_graph(p))
+  end
+  ≶ = side ∈ (:both,:left) ? (≥) : (<)
   data = copy( get_data(p) )
   D = num_dims(p)
   for v in 1:num_vertices(p)
     isactive(p,v) || continue
-    distances[v] ≥ 0 && continue
+    distances[v] ≶ 0 && continue
     for (i,vneig) in enumerate( get_graph(p)[v] )
       vneig ∉ (UNSET,OPEN) || continue
-      distances[vneig] ≥ 0 || continue
+      distances[vneig] ≶ 0 || continue
       vertex = compute_intersection(p[v],distances[v],p[vneig],distances[vneig])
       push!( new_vertices, vertex )
       add_vertex!(data,v,vneig,Π)
-
       push!( in_graph, fill(UNSET,D) )
       in_graph[v][i] = num_vertices(p) + length(new_vertices)
       in_graph[end][1] = v
-      
-      push!( out_graph, fill(UNSET,D) )
-      ineig = findfirst( isequal(v), get_graph(p)[vneig] )
-      out_graph[vneig][ineig] = num_vertices(p) + length(new_vertices)
-      out_graph[end][1] = vneig
+      if side == :both
+        push!( out_graph, fill(UNSET,D) )
+        ineig = findfirst( isequal(v), get_graph(p)[vneig] )
+        out_graph[vneig][ineig] = num_vertices(p) + length(new_vertices)
+        out_graph[end][1] = vneig
+      end
     end
   end
+  if side == :both
+    complete_graph!(out_graph,num_vertices(p))
+    disconnect_graph!(out_graph,num_vertices(p),distances,(<))
+    add_open_vertices!(out_graph,p)
+    out_vertices = [p.vertices;new_vertices]
+    out_data = copy(data)
+    update_data!(out_data,out_graph,num_vertices(p))
+    p_out = compact!(Polyhedron(out_vertices,out_graph,isopen(p),out_data))
+  else
+    p_out = nothing
+  end
   complete_graph!(in_graph,num_vertices(p))
-  complete_graph!(out_graph,num_vertices(p))
-  disconnect_graph!(in_graph,num_vertices(p),distances,true)
-  disconnect_graph!(out_graph,num_vertices(p),distances,false)
+  disconnect_graph!(in_graph,num_vertices(p),distances,(≶))
   add_open_vertices!(in_graph,p)
-  add_open_vertices!(out_graph,p)
   in_vertices = [p.vertices;new_vertices]
-  out_vertices = [p.vertices;new_vertices]
   in_data = data
-  out_data = copy(data)
   update_data!(in_data,in_graph,num_vertices(p))
-  update_data!(out_data,out_graph,num_vertices(p))
-  compact!(Polyhedron(in_vertices,in_graph,isopen(p),in_data)), 
-  compact!(Polyhedron(out_vertices,out_graph,isopen(p),out_data))
+  p_in = compact!(Polyhedron(in_vertices,in_graph,isopen(p),in_data))
+  p⁻ = side ≠ :right ? p_in : p_out
+  p⁺ = side ≠ :right ? p_out : p_in
+  p⁻,p⁺
 end
 
 function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,empty_facets,stl::DiscreteModel)
@@ -843,9 +860,9 @@ function add_open_vertices!(graph,poly::Polyhedron)
   end
 end
 
-function disconnect_graph!(edge_graph,num_vertices,distances,mask::Bool)
+function disconnect_graph!(edge_graph,num_vertices,distances,(≶)::Function)
   for i in 1:num_vertices
-    if mask == ( distances[i] ≥ 0 )
+    if distances[i] ≶ 0
       edge_graph[i] = empty!( edge_graph[i] )
     end
   end
