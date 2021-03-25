@@ -9,19 +9,19 @@ const FACE_OUT = 2
 
 struct Polyhedron{Dp,Tp,Td}
   vertices::Vector{Point{Dp,Tp}}
-  edge_vertex_graph::Vector{Vector{Int}}
+  edge_vertex_graph::Vector{Vector{Int32}}
   isopen::Bool
   data::Td
 end
 
 struct PolyhedronData
-  vertex_to_planes::Vector{Vector{Int}}
-  vertex_to_original_faces::Vector{Vector{Int}}
-  vertex_to_parent_vertex::Vector{Int}
-  vertex_to_parent_edge::Vector{Tuple{Int,Int}}
+  vertex_to_planes::Vector{Vector{Int32}}
+  vertex_to_original_faces::Vector{Vector{Int32}}
+  vertex_to_parent_vertex::Vector{Int32}
+  vertex_to_parent_edge::Vector{Tuple{Int32,Int32}}
   plane_to_vertex_to_distances::Vector{Vector{Float64}}
-  plane_to_ref_plane::Vector{Int}
-  plane_to_ids::Vector{Int}
+  plane_to_ref_plane::Vector{Int32}
+  plane_to_ids::Vector{Int32}
 end
 
 struct CartesianPlane{D,T}
@@ -67,6 +67,7 @@ function Polyhedron(p::Polytope{2},vertices::AbstractVector{<:Point})
   else
     @unreachable
   end
+  e_v_graph = map(i->Int32.(i),e_v_graph)
   data = polyhedron_data(p)
   Polyhedron(vertices,e_v_graph,data)
 end
@@ -87,6 +88,7 @@ function Polyhedron(p::Polytope{3},vertices::AbstractVector{<:Point})
   else
     @unreachable
   end
+  e_v_graph = map(i->Int32.(i),e_v_graph)
   data = polyhedron_data(p)
   Polyhedron(vertices,e_v_graph,data)
 end
@@ -164,6 +166,17 @@ function compact!(data::PolyhedronData,ids,old_to_new)
   data
 end
 
+function Base.copy(data::PolyhedronData)
+  v_to_Π = copy(data.vertex_to_planes)
+  v_to_of = copy(data.vertex_to_original_faces)
+  v_to_pv = copy(data.vertex_to_parent_vertex)
+  v_to_pe = copy(data.vertex_to_parent_edge)
+  Π_to_v_to_dist = _copy(data.plane_to_vertex_to_distances)
+  Π_to_ref_Π = data.plane_to_ref_plane
+  Π_to_id = data.plane_to_ids
+  PolyhedronData( v_to_Π, v_to_of, v_to_pv, v_to_pe, Π_to_v_to_dist, Π_to_ref_Π, Π_to_id )
+end
+
 function compute_distances!(p::Polyhedron,Π,faces)
   data = get_data(p)
   v_to_f = get_data(p).vertex_to_original_faces
@@ -235,9 +248,9 @@ function split(p::Polyhedron,Π)
     return p,nothing
   end
   new_vertices = empty( get_vertex_coordinates(p) )
-  in_graph = deepcopy( get_graph(p) )
-  out_graph = deepcopy( get_graph(p) )
-  data = deepcopy( get_data(p) )
+  in_graph = _copy(get_graph(p))
+  out_graph = _copy(get_graph(p))
+  data = copy( get_data(p) )
   D = num_dims(p)
   for v in 1:num_vertices(p)
     isactive(p,v) || continue
@@ -268,7 +281,7 @@ function split(p::Polyhedron,Π)
   in_vertices = [p.vertices;new_vertices]
   out_vertices = [p.vertices;new_vertices]
   in_data = data
-  out_data = deepcopy(data)
+  out_data = copy(data)
   update_data!(in_data,in_graph,num_vertices(p))
   update_data!(out_data,out_graph,num_vertices(p))
   compact!(Polyhedron(in_vertices,in_graph,isopen(p),in_data)), 
@@ -315,7 +328,7 @@ end
 function simplexify(poly::Polyhedron{3})
   !isopen(poly) || return simplexify_surface(poly)
   vstart = fill(UNSET,num_vertices(poly))
-  stack = Int[]
+  stack = Int32[]
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
     vstart[v] == UNSET || continue
@@ -335,7 +348,7 @@ function simplexify(poly::Polyhedron{3})
   v_to_pv = get_data(poly).vertex_to_parent_vertex
   istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
   vertex_coordinates = get_vertex_coordinates(poly)
-  T = Vector{Int}[]
+  T = Vector{Int32}[]
   X = empty(vertex_coordinates)
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
@@ -355,7 +368,7 @@ function simplexify(poly::Polyhedron{3})
         vcurrent ≠ vnext || break
         if v ∉ (vstart[v],vcurrent,vnext)
           k = [vstart[v],v,vcurrent,vnext]
-          kv = v_to_pv[k]
+          # kv = v_to_pv[k]
           #length(unique(kv)) == length(k) || break
           ki = length(X) .+ (1:length(k))
           push!(X,vertex_coordinates[k]...)
@@ -368,10 +381,10 @@ function simplexify(poly::Polyhedron{3})
 end
 
 function simplexify_surface(poly::Polyhedron{3})
-  stack = Int[]
+  stack = Int32[]
   v_to_pv = get_data(poly).vertex_to_parent_vertex
   istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
-  T = Vector{Int}[]
+  T = Vector{Int32}[]
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
     for i in 1:length(get_graph(poly)[v])
@@ -398,16 +411,16 @@ function simplexify_surface(poly::Polyhedron{3})
 end
 
 function simplexify_boundary(poly::Polyhedron{3},stl::DiscreteModel)
-  stack = Int[]
+  stack = Int32[]
   v_to_pv = get_data(poly).vertex_to_parent_vertex
   v_to_Π = get_data(poly).vertex_to_planes
-  facedims = get_facedims(get_grid_topology(stl))
-  facet_list = Int[]
+  facedims = _get_facedims(get_grid_topology(stl))
+  facet_list = Int32[]
   istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
   vertex_coordinates = get_vertex_coordinates(poly)
-  T = Vector{Int}[]
+  T = Vector{Int32}[]
   X = empty(vertex_coordinates)
-  f_to_stlf = Int[]
+  f_to_stlf = Int32[]
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
     for i in 1:length(get_graph(poly)[v])
@@ -446,7 +459,7 @@ function simplexify_boundary(poly::Polyhedron{3},stl::DiscreteModel)
 end
 
 function simplexify(polys::AbstractVector{<:Polyhedron{Dp,Tp}}) where {Dp,Tp}
-  T = Vector{Int}[]
+  T = Vector{Int32}[]
   X = Point{Dp,Tp}[]
   for poly in polys
     Ti,Xi = simplexify(poly)
@@ -460,9 +473,9 @@ function simplexify_boundary(
   polys::AbstractVector{<:Polyhedron{Dp,Tp}},
   stl::DiscreteModel) where {Dp,Tp}
 
-  T = Vector{Int}[]
+  T = Vector{Int32}[]
   X = Point{Dp,Tp}[]
-  f_to_stlf = Int[]
+  f_to_stlf = Int32[]
   for poly in polys
     Ti,Xi,f_to_f_i = simplexify_boundary(poly,stl)
     append!(T, map(i->i.+length(X),Ti) )
@@ -495,7 +508,7 @@ function isactive(p::Polyhedron,vertex::Integer)
 end
 
 function plot(p::Polyhedron,filename=nothing)
-  vertices = Int[]
+  vertices = Int32[]
   for i in 1:num_vertices(p)
     if isactive(p,i)
       push!(vertices,i)
@@ -505,7 +518,7 @@ function plot(p::Polyhedron,filename=nothing)
   g = empty( get_graph(p) )
   for (i,vneigs) in enumerate( get_graph(p) )
     isactive(p,i) || continue
-    nodes = Int[]
+    nodes = Int32[]
     for (j,vneig) in enumerate(vneigs)
       if vneig ∈ (UNSET,OPEN)
         push!(vertices,UNSET)
@@ -544,7 +557,7 @@ function writevtk(ps::Array{<:Polyhedron},filename)
 end
 
 function edge_mesh(p::Polyhedron)
-  edge_to_vertices = Vector{Int}[]
+  edge_to_vertices = Vector{Int32}[]
   for v in 1:num_vertices(p)
     for vneig in get_graph(p)[v]
       if vneig > v
@@ -573,8 +586,8 @@ end
 
 function collect_original_faces(p::Polyhedron,stl::DiscreteModel,d::Integer)
   v_to_f = get_data(p).vertex_to_original_faces
-  facedims = get_facedims(get_grid_topology(stl))
-  faces = Int[]
+  facedims = _get_facedims(get_grid_topology(stl))
+  faces = Int32[]
   for v in 1:num_vertices(p)
     if isactive(p,v)
       for f ∈ v_to_f[v]
@@ -713,15 +726,18 @@ function compute_cell_to_facets(grid::CartesianGrid,stl::DiscreteModel)
   @assert length(get_reffes(grid)) == 1
   p = get_polytope(get_cell_reffe(grid)[1])
   @notimplementedif desc.map !== identity
-  cell_to_stl_facets = [ Int[] for _ in 1:num_cells(grid) ]
+  cell_to_stl_facets = [ Int32[] for _ in 1:num_cells(grid) ]
+  cell_to_coords = get_cell_coordinates(grid)
+  cache = array_cache(cell_to_coords)
   δ = 0.1
   for stl_facet in 1:num_cells(stl)
     f = get_cell(stl,stl_facet)
     pmin,pmax = get_bounding_box(f)
     for cid in get_cells_around(desc,pmin,pmax)
       cell = LinearIndices(desc.partition)[cid.I...]
-      _pmin = get_cell_coordinates(grid)[cell][1]
-      _pmax = get_cell_coordinates(grid)[cell][end]
+      cell_coords = getindex!(cache,cell_to_coords,cell)
+      _pmin = cell_coords[1]
+      _pmax = cell_coords[end]
       Δ = (_pmax - _pmin) * δ
       _pmin = _pmin - Δ
       _pmax = _pmax + Δ
@@ -760,24 +776,24 @@ end
 ## Helpers
 
 function polyhedron_data(num_vertices::Integer)
-  v_to_Π = [ Int[] for _ in 1:num_vertices ]
-  v_to_of = [ Int[] for _ in 1:num_vertices ]
+  v_to_Π = [ Int32[] for _ in 1:num_vertices ]
+  v_to_of = [ Int32[] for _ in 1:num_vertices ]
   v_to_v = collect(1:num_vertices)
   v_to_e = fill((UNSET,UNSET),num_vertices)
-  Π_to_v_to_d = Vector{Int}[]
-  Π_to_rΠ = Int[]
-  Π_to_id = Int[]
+  Π_to_v_to_d = Vector{Int32}[]
+  Π_to_rΠ = Int32[]
+  Π_to_id = Int32[]
   PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id  )
 end
 
 function polyhedron_data(p::Polytope)
-  v_to_Π = -get_faces(p,0,num_dims(p)-1)
-  v_to_of = [ Int[] for _ in 1:num_vertices(p) ]
-  v_to_v = collect(1:num_vertices(p))
-  v_to_e = fill((UNSET,UNSET),num_vertices(p))
-  Π_to_v_to_d = Vector{Int}[]
-  Π_to_rΠ = Int[]
-  Π_to_id = Int[]
+  v_to_Π = map( i-> Int32.(i), -get_faces(p,0,num_dims(p)-1) )
+  v_to_of = [ Int32[] for _ in 1:num_vertices(p) ]
+  v_to_v = Int32.(collect(1:num_vertices(p)))
+  v_to_e = fill((Int32(UNSET),Int32(UNSET)),num_vertices(p))
+  Π_to_v_to_d = Vector{Int32}[]
+  Π_to_rΠ = Int32[]
+  Π_to_id = Int32[]
   PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id  )
 end
 
@@ -871,13 +887,30 @@ end
 
 add_vertex!(data::Nothing,a...) = data 
 
+function _intersect(a::AbstractVector{T},b::AbstractVector{T}) where T
+  n = count(in(a),b)
+  r = Vector{T}(undef,n)
+  n = 0
+  for i in a
+    if i ∈ b
+      n += 1
+      r[n] = i
+    end
+  end
+  r
+end
+
+function _copy(a::AbstractVector{<:AbstractVector}) 
+  [ copy(i) for i in a ]
+end
+
 function add_vertex!(data::PolyhedronData,v1::Integer,v2::Integer,Πid::Integer)
   v_to_Π = data.vertex_to_planes
   v_to_f = data.vertex_to_original_faces
   v_to_pv = data.vertex_to_parent_vertex
   v_to_pe = data.vertex_to_parent_edge
-  Πs = intersect( v_to_Π[v1], v_to_Π[v2] )
-  fs = intersect( v_to_f[v1], v_to_f[v2] )
+  Πs = _intersect( v_to_Π[v1], v_to_Π[v2] )
+  fs = _intersect( v_to_f[v1], v_to_f[v2] )
   pe = (v_to_pv[v1],v_to_pv[v2])
   push!( Πs, Πid )
   push!( v_to_Π, Πs )
@@ -922,45 +955,39 @@ function compute_graph(stl::DiscreteModel{2})
   v_to_e = get_faces(topo,0,1)
   v_to_f = get_faces(topo,0,D)
   f_to_v = get_faces(topo,D,0)
-  graph = [ Int[] for _ in 1:num_vertices(stl) ]
+  ec = array_cache(v_to_e)
+  fc = array_cache(v_to_f)
+  vc = array_cache(f_to_v)
+  graph = [ Int32[] for _ in 1:num_vertices(stl) ]
   for v in 1:num_vertices(topo)
-    f0 = first(v_to_f[v])
+    f0 = first( getindex!(fc,v_to_f,v) )
     fnext = f0
     while true
-      i = findfirst(isequal(v),f_to_v[fnext])
+      i = findfirst(isequal(v), getindex!(vc,f_to_v,fnext) )
       inext = i == D+1 ? 1 : i+1
-      vnext = f_to_v[fnext][inext]
+      vnext = getindex!(vc,f_to_v,fnext)[inext]
       push!(graph[v],vnext)
-      _f = UNSET
-      for f in v_to_f[vnext]
-        if f ≠ fnext && v ∈ f_to_v[f]
-          _f = f
-          break
-        end
-      end
-      fnext = _f
+      faces = getindex!(fc,v_to_f,vnext)
+      i = findfirst( f -> f ≠ fnext && v ∈ getindex!(vc,f_to_v,f), faces )
+      fnext = isnothing(i) ? UNSET : faces[i]
       fnext ≠ UNSET || break
       fnext ≠ f0 || break
     end
     if fnext == UNSET
-      if length(graph[v]) < length(v_to_e[v])
+      n_edges = length( getindex!(ec,v_to_e,v) )
+      if length(graph[v]) < n_edges
         v0 = first(graph[v])
         fnext = f0
         while fnext ≠ UNSET
-          i = findfirst(isequal(v),f_to_v[fnext])
+          i = findfirst(isequal(v), getindex!(vc,f_to_v,fnext) )
           inext = i == 1 ? D+1 : i-1
-          vnext = f_to_v[fnext][inext]
+          vnext = getindex!(vc,f_to_v,fnext)[inext]
           pushfirst!(graph[v],vnext)
-          _f = UNSET
-          for f in v_to_f[vnext]
-            if f ≠ fnext && v ∈ f_to_v[f]
-              _f = f
-              break
-            end
-          end
-          fnext = _f
+          faces = getindex!(fc,v_to_f,vnext)
+          i = findfirst( f -> f ≠ fnext && v ∈ getindex!(vc,f_to_v,f), faces )
+          fnext = isnothing(i) ? UNSET : faces[i]
         end
-        @assert length(graph[v]) == length(v_to_e[v])
+        @assert length(graph[v]) == n_edges
       end
       push!(graph[v],OPEN)
     end
@@ -973,9 +1000,17 @@ function set_original_faces!(data::PolyhedronData,stl::DiscreteModel)
   Dc = num_dims(stl)
   topo = get_grid_topology(stl)
   v_to_f = data.vertex_to_original_faces
-  for v in 1:length(v_to_f)
-    for d in 0:Dc
-      append!( v_to_f[v], map(i->i.+get_offset(topo,d),get_faces(topo,0,d)[v]) )
+#  for v in 1:length(v_to_f)
+#    for d in 0:Dc
+#      append!( v_to_f[v], map(i->i.+get_offset(topo,d),get_faces(topo,0,d)[v]) )
+#    end
+#  end
+  for d in 0:Dc
+    offset = get_offset(topo,d)
+    _v_to_f = get_faces(topo,0,d)
+    c = array_cache(_v_to_f)
+    for v in 1:length(v_to_f)
+      append!( v_to_f[v], map( i -> i.+offset, getindex!(c,_v_to_f,v) ) )
     end
   end
   data
@@ -987,9 +1022,10 @@ function set_original_faces!(p::Polyhedron,a...)
 end
 
 function restrict(poly::Polyhedron,stl::DiscreteModel,stl_facets)
-  nodes = Int[]
+  cell_to_nodes = get_cell_node_ids(stl)
+  nodes = Int32[]
   for f in stl_facets
-    for n in get_cell_node_ids(stl)[f]
+    for n in cell_to_nodes[f]
       if n ∉ nodes
         push!(nodes,n)
       end
@@ -1001,7 +1037,7 @@ end
 
 function restrict(p::Polyhedron,nodes)
   graph = get_graph(p)[nodes]
-  f = i -> i ∈ nodes ? findfirst(isequal(i),nodes) : OPEN
+  f = i -> Int32( i ∈ nodes ? findfirst(isequal(i),nodes) : OPEN )
   graph = map(i->map(f,i),graph)
   data = restrict(get_data(p),nodes)
   vertices = get_vertex_coordinates(p)[nodes]
@@ -1135,8 +1171,8 @@ function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
     end
   end
   p_to_group = fill(UNSET,length(parts))
-  group = Int[]
-  ids = Int[]
+  group = Int32[]
+  ids = Int32[]
   num_groups = 0
   for p in 1:length(parts)
     p_to_group[p] == UNSET || continue
@@ -1163,7 +1199,7 @@ function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
       p_to_group[p_i] = num_groups
     end
   end
-  group_to_facets = [ Int[] for _ in 1:num_groups ]
+  group_to_facets = [ Int32[] for _ in 1:num_groups ]
   for (i,f) in enumerate(facets)
     g = p_to_group[f_to_part[i]]
     push!(group_to_facets[g],f)
@@ -1177,7 +1213,7 @@ function get_disconnected_facets(poly::Polyhedron,stl::DiscreteModel)
   v_to_f = poly.data.vertex_to_original_faces
   facets = get_original_facets(poly,stl,empty=true)
   facet_to_part = fill(UNSET,length(facets))
-  stack = Int[]
+  stack = Int32[]
   num_parts = 0
   for (i,facet) in enumerate(facets)
     facet_to_part[i] == UNSET || continue
@@ -1210,7 +1246,7 @@ function get_disconnected_facets(poly::Polyhedron,stl::DiscreteModel)
       end
     end
   end
-  part_to_facets = [ Int[] for _ in 1:num_parts ]
+  part_to_facets = [ Int32[] for _ in 1:num_parts ]
   for (i,facet) in enumerate(facets)
     push!(part_to_facets[facet_to_part[i]],facet)
   end
@@ -1379,7 +1415,7 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
 end
 
 function complete_facets_to_inoutcut!(facet_to_inoutcut,polys,inout,p::Polytope)
-  facet_list = Int[]
+  facet_list = Int32[]
   for poly in polys
     istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
     v_to_Π = poly.data.vertex_to_planes
@@ -1451,25 +1487,30 @@ function compute_submesh(
 
   Γ0 = Polyhedron(stl)
 
-  T = Vector{Int}[]
-  F = Vector{Int}[]
+  T = Vector{Int32}[]
+  F = Vector{Int32}[]
   X = empty(get_node_coordinates(stl))
   Xf = empty(get_node_coordinates(stl))
   k_to_io = Int8[]
-  k_to_bgcell = Int[]
-  f_to_bgcell = Int[]
-  f_to_stlf = Int[]
+  k_to_bgcell = Int32[]
+  f_to_bgcell = Int32[]
+  f_to_stlf = Int32[]
 
-  cell_facets = Int[]
+  cell_facets = Int32[]
   bgcell_to_ioc = fill(Int8(UNSET),num_cells(grid))
   bgnode_to_io = fill(Int8(UNSET),num_nodes(grid))
   bgfacet_to_ioc = fill(Int8(UNSET),num_facets(grid_topology))
 
+  cell_to_coords = get_cell_coordinates(grid)
+  cache = array_cache(cell_to_coords)
+
   for cell in 1:num_cells(grid)
     !isempty(c_to_stlf[cell]) || continue
+
+    cell_coords = getindex!(cache,cell_to_coords,cell)
     
-    pmin = get_cell_coordinates(grid)[cell][1]-atol
-    pmax = get_cell_coordinates(grid)[cell][end]+atol
+    pmin = cell_coords[1]-atol
+    pmax = cell_coords[end]+atol
 
     empty!(cell_facets)
     for f in c_to_stlf[cell] 
@@ -1483,11 +1524,11 @@ function compute_submesh(
     end
 
     p = get_polytope(get_cell_reffe(grid)[cell])
-    v = map(i->Point(float.(Tuple(i))),get_cell_coordinates(grid)[cell])
+    v = map(i->Point(float.(Tuple(i))),cell_coords)
     K = Polyhedron(p,v)
     Γk0 = restrict(Γ0,stl,cell_facets)
 
-    stl_reflex_faces_k = Int[]
+    stl_reflex_faces_k = Int32[]
     f_to_r = get_faces(stl.grid_topology,D-1,D-2)
     r_to_f = get_faces(stl.grid_topology,D-2,D-1)
     for f in c_to_stlf[cell]
@@ -1585,19 +1626,24 @@ function compute_submesh(
       bgfacet_to_ioc[bg_f] = f_to_ioc[i]
     end
   end
-  stack = Int[]
+  stack = Int32[]
+  n_to_c = get_faces(grid_topology,0,D)
+  c_to_n = get_faces(grid_topology,D,0)
+  node_cache = array_cache(c_to_n)
+  neig_node_cache = array_cache(c_to_n)
+  neig_cell_cache = array_cache(n_to_c)
   for cell in 1:num_cells(grid)
     if bgcell_to_ioc[cell] ∈ (FACE_CUT,FACE_IN)
       resize!(stack,0)
       push!(stack,cell)
-      while length(stack) > 0
+      while !isempty(stack)
         current_cell = pop!(stack)
-        for node in get_cell_node_ids(grid)[current_cell]
+        for node in getindex!(node_cache,c_to_n,cell)
           if bgnode_to_io[node] == FACE_IN || bgcell_to_ioc[cell] == FACE_IN
-            for neig_cell in get_faces(grid_topology,0,num_dims(grid))[node]
+            for neig_cell in getindex!(neig_cell_cache,n_to_c,node)
               if bgcell_to_ioc[neig_cell] == UNSET
                 bgcell_to_ioc[neig_cell] = FACE_IN
-                for neig_node in get_cell_node_ids(grid)[neig_cell]
+                for neig_node in getindex!(neig_node_cache,c_to_n,neig_cell)
                   if bgnode_to_io[neig_node] == UNSET
                     bgnode_to_io[neig_node] = FACE_IN
                   end
@@ -1611,9 +1657,11 @@ function compute_submesh(
     end
   end
   replace!(bgcell_to_ioc, UNSET => FACE_OUT )
+  c_to_f = get_faces(grid_topology,D,D-1)
+  cache = array_cache(c_to_f)
   for cell in 1:num_cells(grid)
     bgcell_to_ioc[cell] ≠ FACE_CUT || continue
-    for facet in get_faces(grid_topology,D,D-1)[cell]
+    for facet in getindex!(cache,c_to_f,cell)
       bgfacet_to_ioc[facet] = bgcell_to_ioc[cell]
     end
   end
@@ -1634,13 +1682,22 @@ end
 
 function delete_small_subfaces!(bgmodel,T,X,p::Polytope{D},arrays...) where D
   h = float(get_cartesian_descriptor(bgmodel).sizes[1])
-  subfaces = compute_grid(Table(T),X,p)
-  ids = findall( i -> measure(get_cell(subfaces,i)) < eps(h^D), 1:length(T) )
+  c = array_cache(T)
+  ids = findall( i -> measure(get_cell!(c,T,X,p,i)) < eps(h^D), 1:length(T) )
   deleteat!(T,ids)
   for array in arrays
     deleteat!(array,ids)
   end
 end
+
+function get_cell!(cache,T,X,p::Polytope{D},i::Integer) where D
+  @notimplementedif !is_simplex(p)
+  nodes = getindex!(cache,T,i)
+  vertices = ntuple( i -> X[nodes[i]], Val{D+1}() )
+  simplex_face( vertices )
+end
+
+
 
 function refine_by_vertices(Γ::Polyhedron,K::Polyhedron,atol=0)
   refine_by_vertices(Γ,K,get_vertex_coordinates(Γ),atol)
@@ -1721,14 +1778,37 @@ end
 
 ## Plane sharing stuff
 
+function _get_face_vertices(topo::GridTopology{D}) where D
+  @notimplementedif D ≤ 1
+  f_to_v = lazy_append(get_faces(topo,0,0),get_faces(topo,1,0))
+  for d in 2:D
+    f_to_v = lazy_append(f_to_v,get_faces(topo,d,0))
+  end
+  f_to_v
+end
+
+function _get_facedims(topo::GridTopology{D}) where D
+  function _get_facedim(f)
+    for d in reverse(0:D)
+      if f > offsets[d+1]
+        return d
+      end
+    end
+    @unreachable
+  end
+  offsets = get_offsets(topo)
+  lazy_map(_get_facedim,1:num_faces(topo))
+end
+
 function link_planes!(surf::Polyhedron,stl::DiscreteModel,Πr,Πf;atol)
   planes = surf.data.plane_to_ids
   v_to_f = surf.data.vertex_to_original_faces
   stl_topo = get_grid_topology(stl)
-  f_to_v = get_face_vertices(stl_topo)
+  f_to_v = _get_face_vertices(stl_topo)
+  c = array_cache(f_to_v)
 
-  vertices = Int[]
-  Π_to_faces = [ Int[] for _ in 1:length(planes) ]
+  vertices = Int32[]
+  Π_to_faces = [ Int32[] for _ in 1:length(planes) ]
   for (i,Π) in enumerate(planes)
     Π > 0 || continue
     faces = Π_to_faces[i]
@@ -1747,7 +1827,7 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel,Πr,Πf;atol)
         f ∉ faces || continue
         f ∈ planes || continue
         face_on_plane = true
-        for _v in f_to_v[f]
+        for _v in getindex!(c,f_to_v,f)
           if !any( i-> first(v_to_f[i]) == _v, vertices )
             face_on_plane = false
             break
@@ -1765,9 +1845,9 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel,Πr,Πf;atol)
   end
 
   ## Link coplanar planes
-  Π_to_coplanar_Π = [ Int[] for _ in 1:length(planes) ]
+  Π_to_coplanar_Π = [ Int32[] for _ in 1:length(planes) ]
   D = num_dims(stl)
-  facedims = get_facedims(stl_topo)
+  facedims = _get_facedims(stl_topo)
   rf_offset = get_offset(stl_topo,D-1)
   f_offset = get_offset(stl_topo,D)
   for (i,Π) in enumerate(planes)
@@ -1804,7 +1884,7 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel,Πr,Πf;atol)
 
   ## Join planes recursively
   Π_to_ref_Π = collect(1:length(planes))
-  stack = Int[]
+  stack = Int32[]
   for (i,Πi) in enumerate(planes)
     Πi > 0 || continue
     Π_to_ref_Π[i] == i || continue
@@ -2064,7 +2144,7 @@ end
 
 function one_face_polyhedron(poly::Polyhedron,face::Integer)
   v_to_f = get_data(poly).vertex_to_original_faces
-  nodes = Int[]
+  nodes = Int32[]
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
     if face ∈ v_to_f[v]
@@ -2095,8 +2175,8 @@ function correct_small_facets_planes!(stl::DiscreteModel,Πf,f_to_isempty;atol)
   stl_topo = get_grid_topology(stl)
   e_to_f = get_faces(stl_topo,D-1,D)
   f_to_e = get_faces(stl_topo,D,D-1)
-  full_facets = Int[]
-  queue = Int[]
+  full_facets = Int32[]
+  queue = Int32[]
   num_new_planes = 0
   Πnew = empty(Πf)
   f_to_new_plane = fill(UNSET,num_cells(stl))
