@@ -348,17 +348,22 @@ function measures(a::Grid,num::Integer,map)
   m
 end
 
+function measures(a::CartesianGrid{D,T,typeof(identity)}) where {D,T}
+  cell_vol = prod( get_cartesian_descriptor(a).sizes )
+  fill(cell_vol,num_cells(a))
+end
+
 function measures(a::Grid)
   measures(a,num_cells(a),1:num_cells(a))
 end
 
-volume(a::Grid{D,D}) where D = measure(a)
+volume(a::Grid{D,D},args...) where D = measure(a,args...)
 
 volumes(a::Grid{D,D},args...) where D = measures(a,args...)
 
-function surface(a::Grid{Df,Dp}) where {Df,Dp}
+function surface(a::Grid{Df,Dp},args...) where {Df,Dp}
   @notimplementedif Df ≠ Dp-1
-  measure(a)
+  measure(a,args...)
 end
 
 function surfaces(a::Grid{Df,Dp},args...) where {Df,Dp}
@@ -369,6 +374,34 @@ end
 surface(a::DiscreteModel) = surface(get_grid(a))
 
 surfaces(a::DiscreteModel,args...) = surfaces(get_grid(a),args...)
+
+function measure(a::Grid,mask)
+  m = 0.0
+  p = get_polytope(only(get_reffes(a)))
+  T = get_cell_node_ids(a)
+  X = get_node_coordinates(a)
+  c = array_cache(T)
+  for i in 1:num_cells(a)
+    if mask[i]
+      f = get_cell!(c,T,X,p,i)
+      m += measure(f)
+    end
+  end
+  m
+end
+ 
+function measure(a::CartesianGrid{D,T,typeof(identity)},mask) where {D,T}
+  cell_vol = prod( get_cartesian_descriptor(a).sizes )
+  cell_vol * count(mask)
+end
+
+function measure(a::Grid,cell_to_val,val)
+  measure(a,lazy_map(isequal(val),cell_to_val))
+end
+
+function measure(a::Grid)
+  measure(a,lazy_map(i->true,1:num_cells(a)))
+end
 
 function get_bounding_box(stl::DiscreteModel)
   vertices = get_vertex_coordinates(get_grid_topology(stl))

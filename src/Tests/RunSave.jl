@@ -78,25 +78,28 @@ function run_stl_cutter(model,stl;tolfactor=1e3,kdtree=false,vtk=false,verbose=t
     writevtk(submesh,sm,cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
     writevtk(grid,bg,cellfields=["inoutcut"=>bgcell_to_ioc])
   end
+  
+  bgmesh_in_vol = volume(grid,bgcell_to_ioc,FACE_IN)
+  bgmesh_out_vol  = volume(grid,bgcell_to_ioc,FACE_OUT)
+  bgmesh_cut_vol  = volume(grid,bgcell_to_ioc,FACE_CUT)
+  submesh_in_vol  = volume(submesh,k_to_io,FACE_IN)
+  submesh_out_vol = volume(submesh,k_to_io,FACE_OUT)
 
-  bgmesh_vols = volumes(grid)
-  submesh_vols = volumes(submesh)
+  has_leak = bgmesh_out_vol == 0 || bgmesh_in_vol == 0
 
-  bgmesh_in_vols = bgmesh_vols[findall(isequal(FACE_IN),bgcell_to_ioc)]
-  bgmesh_out_vols = bgmesh_vols[findall(isequal(FACE_OUT),bgcell_to_ioc)]
-  bgmesh_cut_vols = bgmesh_vols[findall(isequal(FACE_CUT),bgcell_to_ioc)]
-  submesh_in_vols = submesh_vols[findall(isequal(FACE_IN),k_to_io)]
-  submesh_out_vols = submesh_vols[findall(isequal(FACE_OUT),k_to_io)]
+  in_volume = bgmesh_in_vol + submesh_in_vol
+  out_volume = bgmesh_out_vol + submesh_out_vol
+  cut_volume = bgmesh_cut_vol
 
-  has_leak = sum(bgmesh_out_vols) == 0 || sum(bgmesh_in_vols) == 0
+  num_cut_bgcells = count(isequal(FACE_CUT),bgcell_to_ioc)
 
-  in_volume = sum(bgmesh_in_vols) + sum(submesh_in_vols)
-  out_volume = sum(bgmesh_out_vols) + sum(submesh_out_vols)
-  cut_volume = sum(bgmesh_cut_vols)
-
-  cut_bgcells = unique(k_to_bgcell)
-  num_k = [ count(isequal(bgcell),k_to_bgcell) for bgcell in cut_bgcells]
-  num_f = [ count(isequal(bgcell),f_to_bgcell) for bgcell in cut_bgcells]
+  num_k = zeros(Int32,num_cells(grid))
+  for bg_cell in k_to_bgcell
+    num_k[bg_cell] += 1
+  end
+  num_k = filter(!iszero,num_k)
+  max_num_k = maximum( num_k )
+  min_num_k = minimum( num_k )
 
   domain_surf = surface(facets)
   stl_surf = surface(get_grid(stl)) 
@@ -119,9 +122,9 @@ function run_stl_cutter(model,stl;tolfactor=1e3,kdtree=false,vtk=false,verbose=t
   out["num_subcells"] = length(k_to_io)
   out["num_subcells_in"] = count(isequal(FACE_IN),k_to_io)
   out["num_subcells_out"] = count(isequal(FACE_OUT),k_to_io)
-  out["min_subcells_x_cell"] = minimum(num_k)
-  out["max_subcells_x_cell"] = maximum(num_k)
-  out["avg_subcells_x_cell"] = length(k_to_bgcell) / length(cut_bgcells)
+  out["min_subcells_x_cell"] = min_num_k
+  out["max_subcells_x_cell"] = max_num_k
+  out["avg_subcells_x_cell"] = length(k_to_bgcell) / num_cut_bgcells
 
   if verbose
     println("---------------------------------------")

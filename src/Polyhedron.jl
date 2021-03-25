@@ -744,17 +744,18 @@ function compute_cell_to_facets(grid::CartesianGrid,stl::DiscreteModel)
   p = get_polytope(get_cell_reffe(grid)[1])
   @notimplementedif desc.map !== identity
   cell_to_stl_facets = [ Int32[] for _ in 1:num_cells(grid) ]
-  cell_to_coords = get_cell_coordinates(grid)
-  cache = array_cache(cell_to_coords)
+  coords = get_node_coordinates(grid)
+  cell_to_nodes = get_cell_node_ids(grid)
+  c = array_cache(cell_to_nodes)
   δ = 0.1
   for stl_facet in 1:num_cells(stl)
     f = get_cell(stl,stl_facet)
     pmin,pmax = get_bounding_box(f)
     for cid in get_cells_around(desc,pmin,pmax)
       cell = LinearIndices(desc.partition)[cid.I...]
-      cell_coords = getindex!(cache,cell_to_coords,cell)
-      _pmin = cell_coords[1]
-      _pmax = cell_coords[end]
+      nodes = getindex!(c,cell_to_nodes,cell)
+      _pmin = coords[nodes[1]]
+      _pmax = coords[nodes[end]]
       Δ = (_pmax - _pmin) * δ
       _pmin = _pmin - Δ
       _pmax = _pmax + Δ
@@ -1598,7 +1599,6 @@ function compute_submesh(
     Tin,Xin = simplexify(Kn_in)
     Tout,Xout = simplexify(Kn_out)
     T_Γ,X_Γ,f_to_f = simplexify_boundary(Kn_in,stl)
-    T_Γk,X_Γk = simplexify(Γk)
 
     if length(T_Γ) > 0
       bgcell_to_ioc[cell] = FACE_CUT
@@ -1713,8 +1713,6 @@ function get_cell!(cache,T,X,p::Polytope{D},i::Integer) where D
   vertices = ntuple( i -> X[nodes[i]], Val{D+1}() )
   simplex_face( vertices )
 end
-
-
 
 function refine_by_vertices(Γ::Polyhedron,K::Polyhedron,atol=0)
   refine_by_vertices(Γ,K,get_vertex_coordinates(Γ),atol)
