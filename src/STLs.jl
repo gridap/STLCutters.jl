@@ -1,3 +1,111 @@
+
+struct STL{Dc,Dp,T} # <: GridTopology
+  vertex_to_coordinates::Vector{Point{Dp,T}}
+  n_m_to_nface_to_mfaces::Matrix{Table{Int32,Vector{Int32},Vector{Int32}}}
+  polytope::Polytope{Dc}
+  facedims::Vector{Int8}
+  offsets::Vector{Int32}
+end
+
+
+function STL(model::DiscreteModel{Dc,Dp}) where {Dc,Dp}
+  Dc == Dp-1 || error("STL must be a surface")
+  topo = get_grid_topology(model)
+  v_coords = get_vertex_coordinates(topo)
+  polytope = only(get_polytopes(topo))
+  facedims = get_facedims(topo)
+  offsets = Int32.(get_offsets(topo)) 
+  T = Table{Int32,Vector{Int32},Vector{Int32}}
+  n_m_to_nf_to_mf = Matrix{T}(undef,Dc+1,Dc+1)
+  for n in 0:Dc, m in 0:Dc
+    n_m_to_nf_to_mf[n+1,m+1] = get_faces(topo,n,m)
+  end
+  STL(
+    v_coords,
+    n_m_to_nf_to_mf,
+    polytope,
+    facedims,
+    offsets)
+end
+
+num_dims(stl::STL{Dc}) where Dc = Dc
+
+num_point_dims(stl::STL{Dc,Dp}) where {Dc,Dp} = Dp
+
+get_faces(stl::STL,n,m) = stl.n_m_to_nface_to_mfaces[n+1,m+1]
+
+get_vertex_coordinates(stl::STL) = stl.vertex_to_coordinates
+
+get_polytope(stl::STL) = stl.polytope
+
+get_offsets(stl::STL) = stl.offsets
+
+get_offset(stl::STL,d::Integer) = get_offsets(stl)[d+1]
+
+get_facedims(stl::STL) = stl.facedims
+
+get_face_vertices(stl::STL,d::Integer) = get_faces(stl,d,0)
+
+get_cell_vertices(stl::STL{Dc}) where Dc = get_face_vertices(stl,Dc)
+
+num_faces(stl::STL,d::Integer) = length(get_faces(stl,d,d))
+
+num_faces(stl::STL) = length(get_facedims(stl))
+
+num_vertices(stl::STL) = num_faces(stl,0)
+
+num_cells(stl::STL{Dc}) where Dc = num_faces(stl,Dc)
+
+function get_face_vertices(stl::STL{D}) where D
+  @notimplementedif D ≤ 1
+  f_to_v = lazy_append(get_face_vertices(stl,0),get_face_vertices(stl,1))
+  for d in 2:D
+    f_to_v = lazy_append(f_to_v,get_face_vertices(stl,d))
+  end
+  f_to_v
+end
+
+
+function get_cell!(c,stl::STL{Dc},i::Integer) where Dc
+  get_dface!(c,stl,i,Val{Dc}())
+end
+
+function get_dface!(c,stl::STL,i::Integer,::Val{d}) where d
+  T = get_face_vertices(stl,d)
+  X = get_vertex_coordinates(stl)
+  p = get_polytope(stl)
+  get_dface!(c,T,X,p,i,Val{d}())
+end
+
+function get_cell(stl::STL,i::Integer)
+  c = get_cell_cache(stl)
+  get_cell!(c,stl,i)
+end
+
+function get_cell_cache(stl::STL{Dc}) where Dc
+  get_dface_cache(stl,Dc)
+end
+
+function get_dface_cache(stl::STL,d::Integer)
+  T = get_face_vertices(stl,d)
+  array_cache(T)
+end
+
+function get_cell!(cache,T,X,p::Polytope{D},i::Integer) where D
+  get_dface!(cache,T,X,p,i,Val{D}())
+end
+
+function get_dface!(cache,T,X,p::Polytope,i::Integer,::Val{d}) where d
+  @notimplementedif !is_simplex(p)
+  get_simplex_dface!(cache,T,X,i,Val{d}())
+end
+
+function get_simplex_dface!(cache,T,X,i::Integer,::Val{d}) where d
+  nodes = getindex!(cache,T,i)
+  vertices = ntuple( i -> X[nodes[i]], Val{d+1}() )
+  simplex_face( vertices )
+end
+
 #
 function read_stl(filename::String)
   F = _file_format(filename)
@@ -224,8 +332,6 @@ end
 
 is_water_tight(model::DiscreteModel) = is_water_tight(get_grid_topology(model))
 
-is_open_surface(model::DiscreteModel) = is_open_surface(get_grid_topology(model))
-
 function is_water_tight(top::GridTopology{Dc,Dp}) where {Dc,Dp}
   Dc == Dp - 1 || error("The Geometry is not a surface")
   c_to_f = get_faces(top,Dc-1,Dc)
@@ -236,10 +342,12 @@ function is_surface(::GridTopology{Dc,Dp}) where {Dc,Dp}
   Dc == Dp-1
 end
 
-function is_open_surface(top::GridTopology{Dc}) where Dc
-  is_surface(top) || return false
-  l = length.( get_faces(top,Dc-1,Dc) )
-  (1 ≤ maximum(l) ≤ 2) && (1 ≤ minimum(l) ≤ 2)
+function is_open_surface(stl::STL)
+  Dc = num_dims(stl)
+  e_to_f = get_faces(stl,Dc-1,Dc)
+  1 ≤ maximum(length,e_to_f) ≤ 2 || return false
+  1 ≤ minimum(length,e_to_f) ≤ 2 || return false
+  true
 end
 
 function have_intersection(
@@ -389,7 +497,7 @@ function measure(a::Grid,mask)
   end
   m
 end
- 
+
 function measure(a::CartesianGrid{D,T,typeof(identity)},mask) where {D,T}
   cell_vol = prod( get_cartesian_descriptor(a).sizes )
   cell_vol * count(mask)

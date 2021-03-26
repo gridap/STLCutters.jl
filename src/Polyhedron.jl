@@ -10,7 +10,7 @@ const FACE_OUT = 2
 struct Polyhedron{Dp,Tp,Td}
   vertices::Vector{Point{Dp,Tp}}
   edge_vertex_graph::Vector{Vector{Int32}}
-  isopen::Bool
+  isopen::Bool # TODO: revise, it may mean is_solid/is_surface
   data::Td
 end
 
@@ -32,14 +32,24 @@ end
 
 ## Constructors
 
-function Polyhedron(stl::DiscreteModel{Dc,Dp}) where {Dc,Dp}
+function Polyhedron(stl::STL)
   𝓖 = compute_graph(stl)
-  X = get_node_coordinates(stl)
+  X = get_vertex_coordinates(stl)
   isopen = is_open_surface(stl)
   p = Polyhedron(X,𝓖;isopen)
   set_original_faces!(p,stl)
   p
 end
+
+function Polyhedron(
+  vertices::AbstractVector{<:Point},
+  graph::Vector{<:Vector},
+  isopen,
+  data)
+
+  Polyhedron(collect(vertices),graph,isopen,data)
+end
+
 
 function Polyhedron(
   vertices::AbstractVector{<:Point},
@@ -305,7 +315,7 @@ function split(p::Polyhedron,Π,side=:both)
   p⁻,p⁺
 end
 
-function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,empty_facets,stl::DiscreteModel)
+function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,empty_facets,stl::STL)
   i = findfirst(i->has_original_reflex_face(surf,i), rfaces )
   if i === nothing
     R = [surf],[cell]
@@ -427,11 +437,11 @@ function simplexify_surface(poly::Polyhedron{3})
   T,get_vertex_coordinates(poly)
 end
 
-function simplexify_boundary(poly::Polyhedron{3},stl::DiscreteModel)
+function simplexify_boundary(poly::Polyhedron{3},stl::STL)
   stack = Int32[]
   v_to_pv = get_data(poly).vertex_to_parent_vertex
   v_to_Π = get_data(poly).vertex_to_planes
-  facedims = _get_facedims(get_grid_topology(stl))
+  facedims = get_facedims(stl)
   facet_list = Int32[]
   istouch = map( i -> zeros(Bool,length(i)), get_graph(poly) )
   vertex_coordinates = get_vertex_coordinates(poly)
@@ -488,7 +498,7 @@ end
 
 function simplexify_boundary(
   polys::AbstractVector{<:Polyhedron{Dp,Tp}},
-  stl::DiscreteModel) where {Dp,Tp}
+  stl::STL) where {Dp,Tp}
 
   T = Vector{Int32}[]
   X = Point{Dp,Tp}[]
@@ -587,23 +597,23 @@ function edge_mesh(p::Polyhedron)
   UnstructuredGrid(X,T,[SEG2],fill(1,length(T)))
 end
 
-function get_original_reflex_faces(p::Polyhedron{D},stl::DiscreteModel;empty=true) where D
+function get_original_reflex_faces(p::Polyhedron{D},stl::STL;empty=true) where D
   get_original_faces(p,stl,Val{D-2}();empty)
 end
 
-function get_original_facets(p::Polyhedron{D},stl::DiscreteModel;empty=false) where D
+function get_original_facets(p::Polyhedron{D},stl::STL;empty=false) where D
   get_original_faces(p,stl,Val{D-1}();empty)
 end
 
-function get_original_faces(p::Polyhedron,stl::DiscreteModel,::Val{d};empty) where d
+function get_original_faces(p::Polyhedron,stl::STL,::Val{d};empty) where d
   faces = collect_original_faces(p,stl,d)
   filter!(f->has_original_face(p,f,Val{d}();empty),faces)
   faces
 end
 
-function collect_original_faces(p::Polyhedron,stl::DiscreteModel,d::Integer)
+function collect_original_faces(p::Polyhedron,stl::STL,d::Integer)
   v_to_f = get_data(p).vertex_to_original_faces
-  facedims = _get_facedims(get_grid_topology(stl))
+  facedims = get_facedims(stl)
   faces = Int32[]
   for v in 1:num_vertices(p)
     if isactive(p,v)
@@ -738,7 +748,7 @@ has_facets(p::Polyhedron{D}) where D = has_faces(p,Val{D-1}())
 ## Setup
 
 
-function compute_cell_to_facets(grid::CartesianGrid,stl::DiscreteModel)
+function compute_cell_to_facets(grid::CartesianGrid,stl::STL)
   desc = get_cartesian_descriptor(grid)
   @assert length(get_reffes(grid)) == 1
   p = get_polytope(get_cell_reffe(grid)[1])
@@ -746,14 +756,15 @@ function compute_cell_to_facets(grid::CartesianGrid,stl::DiscreteModel)
   cell_to_stl_facets = [ Int32[] for _ in 1:num_cells(grid) ]
   coords = get_node_coordinates(grid)
   cell_to_nodes = get_cell_node_ids(grid)
-  c = array_cache(cell_to_nodes)
+  cc = get_cell_cache(stl)
+  nc = array_cache(cell_to_nodes)
   δ = 0.1
   for stl_facet in 1:num_cells(stl)
-    f = get_cell(stl,stl_facet)
+    f = get_cell!(cc,stl,stl_facet)
     pmin,pmax = get_bounding_box(f)
     for cid in get_cells_around(desc,pmin,pmax)
       cell = LinearIndices(desc.partition)[cid.I...]
-      nodes = getindex!(c,cell_to_nodes,cell)
+      nodes = getindex!(nc,cell_to_nodes,cell)
       _pmin = coords[nodes[1]]
       _pmax = coords[nodes[end]]
       Δ = (_pmax - _pmin) * δ
@@ -964,20 +975,17 @@ function add_vertex!(data::PolyhedronData,v1::Integer,v2::Integer,Πid::Integer)
   data
 end
 
-function compute_graph(stl::DiscreteModel{2})
-#  @notimplementedif !is_surface(stl)
-  @notimplementedif length(get_reffes(stl)) > 1
-  @notimplementedif get_polytope(first(get_reffes(stl))) ≠ TRI
+function compute_graph(stl::STL{2})
+  @notimplementedif get_polytope(stl) ≠ TRI
   D = 2
-  topo = get_grid_topology(stl)
-  v_to_e = get_faces(topo,0,1)
-  v_to_f = get_faces(topo,0,D)
-  f_to_v = get_faces(topo,D,0)
+  v_to_e = get_faces(stl,0,1)
+  v_to_f = get_faces(stl,0,D)
+  f_to_v = get_faces(stl,D,0)
   ec = array_cache(v_to_e)
   fc = array_cache(v_to_f)
   vc = array_cache(f_to_v)
   graph = [ Int32[] for _ in 1:num_vertices(stl) ]
-  for v in 1:num_vertices(topo)
+  for v in 1:num_vertices(stl)
     f0 = first( getindex!(fc,v_to_f,v) )
     fnext = f0
     while true
@@ -1014,18 +1022,12 @@ function compute_graph(stl::DiscreteModel{2})
   graph
 end
 
-function set_original_faces!(data::PolyhedronData,stl::DiscreteModel)
+function set_original_faces!(data::PolyhedronData,stl::STL)
   Dc = num_dims(stl)
-  topo = get_grid_topology(stl)
   v_to_f = data.vertex_to_original_faces
-#  for v in 1:length(v_to_f)
-#    for d in 0:Dc
-#      append!( v_to_f[v], map(i->i.+get_offset(topo,d),get_faces(topo,0,d)[v]) )
-#    end
-#  end
   for d in 0:Dc
-    offset = get_offset(topo,d)
-    _v_to_f = get_faces(topo,0,d)
+    offset = get_offset(stl,d)
+    _v_to_f = get_faces(stl,0,d)
     c = array_cache(_v_to_f)
     for v in 1:length(v_to_f)
       append!( v_to_f[v], map( i -> i.+offset, getindex!(c,_v_to_f,v) ) )
@@ -1039,11 +1041,12 @@ function set_original_faces!(p::Polyhedron,a...)
   p
 end
 
-function restrict(poly::Polyhedron,stl::DiscreteModel,stl_facets)
-  cell_to_nodes = get_cell_node_ids(stl)
+function restrict(poly::Polyhedron,stl::STL,stl_facets)
+  cell_to_nodes = get_cell_vertices(stl)
+  c = array_cache(cell_to_nodes)
   nodes = Int32[]
   for f in stl_facets
-    for n in cell_to_nodes[f]
+    for n in getindex!(c,cell_to_nodes,f)
       if n ∉ nodes
         push!(nodes,n)
       end
@@ -1101,20 +1104,41 @@ function bisector_plane(stl::DiscreteModel{Dc,Dp},d::Integer,dface::Integer) whe
   bisector_plane(e,Plane(f1),Plane(f2))
 end
 
-function bisector_plane(
-   stl::DiscreteModel{Dc,Dp},
+function bisector_plane!(
+   cache,
+   stl::STL{Dc,Dp},
    d::Integer,
    dface::Integer,
    Πf::AbstractArray) where {Dc,Dp}
 
   @notimplementedif Dc ≠ Dp-1
   @notimplementedif d ≠ Dc-1
-  facets = get_faces(get_grid_topology(stl),d,Dc)[dface]
+  c,fc = cache
+  e_to_f = get_faces(stl,d,Dc)
+  facets = getindex!(c,e_to_f,dface)
   length(facets) == 2 || return Πf[ only(facets) ]
-  edge = get_dface(stl,dface,Val{Dc-1}())
+  edge = get_dface!(fc,stl,dface,Val{Dc-1}())
   Π1 = Πf[ facets[1] ]
   Π2 = Πf[ facets[2] ]
   bisector_plane(edge,Π1,Π2)
+end
+
+function bisector_plane(
+   stl::STL,
+   d::Integer,
+   dface::Integer,
+   Πf::AbstractArray) 
+  
+  c = bisector_plane_cache(stl,d)
+  bisector_plane(c,stl,d,dface,Πf)
+end
+
+function bisector_plane_cache(stl::STL,d::Integer)
+  Dc = num_dims(stl)
+  e_to_f = get_faces(stl,d,Dc)
+  c = array_cache(e_to_f)
+  fc = get_dface_cache(stl,d)
+  c,fc
 end
 
 function bisector_plane(edge::Face{1,3},Π1::Plane,Π2::Plane)
@@ -1137,35 +1161,37 @@ function bisector_plane(edge::Face{1,3},Π1::Plane,Π2::Plane)
   Plane(c,n)
 end
 
-function get_reflex_planes(stl::DiscreteModel) 
+#function get_reflex_planes(stl::DiscreteModel) 
+#  Dc = num_dims(stl)
+#  Dp = num_point_dims(stl)
+#  T_Π = typeof( bisector_plane(stl,Dc-1,1) )
+#  Π_r = Vector{T_Π}(undef,num_faces(stl,Dc-1))
+#  for f in 1:num_faces(stl,Dc-1)
+#    Π_r[f] = bisector_plane(stl,Dc-1,f)
+#  end
+#  Π_r
+#end
+
+function get_reflex_planes(stl::STL,Πf) 
   Dc = num_dims(stl)
   Dp = num_point_dims(stl)
-  T_Π = typeof( bisector_plane(stl,Dc-1,1) )
+  c = bisector_plane_cache(stl,Dc-1)
+  T_Π = typeof( bisector_plane!(c,stl,Dc-1,1,Πf) )
   Π_r = Vector{T_Π}(undef,num_faces(stl,Dc-1))
   for f in 1:num_faces(stl,Dc-1)
-    Π_r[f] = bisector_plane(stl,Dc-1,f)
+    Π_r[f] = bisector_plane!(c,stl,Dc-1,f,Πf)
   end
   Π_r
 end
 
-function get_reflex_planes(stl::DiscreteModel,Πf) 
-  Dc = num_dims(stl)
-  Dp = num_point_dims(stl)
-  T_Π = typeof( bisector_plane(stl,Dc-1,1,Πf) )
-  Π_r = Vector{T_Π}(undef,num_faces(stl,Dc-1))
-  for f in 1:num_faces(stl,Dc-1)
-    Π_r[f] = bisector_plane(stl,Dc-1,f,Πf)
-  end
-  Π_r
-end
-
-function get_facet_plane(stl::DiscreteModel,i)
-  f = get_cell(stl,i)
+function get_facet_plane!(c,stl::STL,i)
+  f = get_cell!(c,stl,i)
   Plane(f)
 end
 
-function get_facet_planes(stl::DiscreteModel)
-  [ get_facet_plane(stl,i) for i in 1:num_cells(stl) ]
+function get_facet_planes(stl::STL)
+  c = get_cell_cache(stl)
+  [ get_facet_plane!(c,stl,i) for i in 1:num_cells(stl) ]
 end
 
 function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
@@ -1226,7 +1252,7 @@ function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
 end
 
 
-function get_disconnected_facets(poly::Polyhedron,stl::DiscreteModel)
+function get_disconnected_facets(poly::Polyhedron,stl::STL)
   v_to_pv = poly.data.vertex_to_parent_vertex
   v_to_f = poly.data.vertex_to_original_faces
   facets = get_original_facets(poly,stl,empty=true)
@@ -1241,7 +1267,7 @@ function get_disconnected_facets(poly::Polyhedron,stl::DiscreteModel)
     push!(stack,facet)
     while !isempty(stack)
       current_facet = pop!(stack)
-      v,vnext = get_facet_onset(poly,stl,current_facet) # reduce calls
+      v,vnext = get_facet_onset(poly,current_facet) # reduce calls
       vcurrent = v
       while true
         if v_to_pv[vcurrent] ≠ v_to_pv[vnext]
@@ -1271,7 +1297,7 @@ function get_disconnected_facets(poly::Polyhedron,stl::DiscreteModel)
   part_to_facets
 end
 
-function get_facet_onset(poly::Polyhedron,stl::DiscreteModel,facet::Integer)
+function get_facet_onset(poly::Polyhedron,facet::Integer)
   v_to_pv = poly.data.vertex_to_parent_vertex
   v_to_f = poly.data.vertex_to_original_faces
   for v in 1:num_vertices(poly)
@@ -1318,13 +1344,12 @@ function is_facet_in_facet(poly::Polyhedron,facet,plane;inside,atol=0)
   false
 end
 
-function is_reflex(poly::Polyhedron,stl::DiscreteModel,reflex_face;inside)
-  stl_topo = get_grid_topology(stl)
+function is_reflex(poly::Polyhedron,stl::STL,reflex_face;inside)
   Dc = num_dims(stl)
-  rf = reflex_face - get_offset(stl_topo,Dc-1)
-  length(get_faces(stl_topo,Dc-1,Dc)[rf]) == 2 || return false
-  f1 = get_faces(stl_topo,Dc-1,Dc)[rf][1] + get_offset(stl_topo,Dc)
-  f2 = get_faces(stl_topo,Dc-1,Dc)[rf][2] + get_offset(stl_topo,Dc)
+  rf = reflex_face - get_offset(stl,Dc-1)
+  length(get_faces(stl,Dc-1,Dc)[rf]) == 2 || return false
+  f1 = get_faces(stl,Dc-1,Dc)[rf][1] + get_offset(stl,Dc)
+  f2 = get_faces(stl,Dc-1,Dc)[rf][2] + get_offset(stl,Dc)
   has_plane(poly.data,f1) || return false
   has_plane(poly.data,f2) || return false
   is_facet_in_facet(poly,f1,f2;inside) || return true
@@ -1335,7 +1360,7 @@ end
 function refine(
   K::Polyhedron,
   Γ::Polyhedron,
-  stl::DiscreteModel,
+  stl::STL,
   reflex_faces::AbstractVector,
   empty_facets::AbstractVector=[],
   ;inside::Bool)
@@ -1365,23 +1390,18 @@ function refine(
 end
 
 function filter_face_planes(
-  stl::DiscreteModel,
+  stl::STL,
   reflex_planes::AbstractVector,
   reflex_faces::AbstractVector{<:Integer},
   facet_planes::AbstractVector,
   facets::AbstractVector{<:Integer})
   
   Dc = num_dims(stl)
-  Πr = view(reflex_planes,reflex_faces.-get_offset(get_grid_topology(stl),Dc-1))
-  Πf = view(facet_planes,facets.-get_offset(get_grid_topology(stl),Dc))
-  (Πr,Πf),(reflex_faces,facets)
+  Πr = view(reflex_planes,lazy_map(i->i-get_offset(stl,Dc-1),reflex_faces))
+  Πf = view(facet_planes,lazy_map(i->i-get_offset(stl,Dc),facets))
+  lazy_append(Πr,Πf),lazy_append(reflex_faces,facets)
 end
 
-function compute_distances!(poly::Polyhedron,Πn::Tuple,Πn_ids::Tuple)
-  for (Π,Π_ids) in zip(Πn,Πn_ids)
-    compute_distances!(poly,Π,Π_ids)
-  end
-end
 
 function get_cell_nodes_to_inout(polys_in,polys_out,p::Polytope)
   node_to_inout = fill(UNSET,num_vertices(p))
@@ -1486,12 +1506,15 @@ Base.eps(model::DiscreteModel) = eps(get_grid(model))
 
 function compute_submesh(
   bgmodel::CartesianDiscreteModel,
-  stl::DiscreteModel;
+  stlmodel::DiscreteModel;
   kdtree=false,
   tolfactor=1e3)
 
   grid = get_grid(bgmodel)
   grid_topology = get_grid_topology(bgmodel)
+  p = get_polytope(only(get_reffes(bgmodel)))
+
+  stl = STL(stlmodel)
 
   D = num_dims(grid)
   atol = eps(grid)*tolfactor
@@ -1507,67 +1530,54 @@ function compute_submesh(
 
   T = Vector{Int32}[]
   F = Vector{Int32}[]
-  X = empty(get_node_coordinates(stl))
-  Xf = empty(get_node_coordinates(stl))
+  X = empty(get_vertex_coordinates(stl))
+  Xf = empty(get_vertex_coordinates(stl))
   k_to_io = Int8[]
   k_to_bgcell = Int32[]
   f_to_bgcell = Int32[]
   f_to_stlf = Int32[]
 
-  cell_facets = Int32[]
+  facets = Int32[]
+  expanded_facets = Int32[]
+  empty_facets = Int32[]
+  reflex_faces = Int32[]
+
   bgcell_to_ioc = fill(Int8(UNSET),num_cells(grid))
   bgnode_to_io = fill(Int8(UNSET),num_nodes(grid))
   bgfacet_to_ioc = fill(Int8(UNSET),num_facets(grid_topology))
 
-  cell_to_coords = get_cell_coordinates(grid)
-  cache = array_cache(cell_to_coords)
+  coords = get_node_coordinates(grid)
+  cell_to_nodes = get_cell_node_ids(grid)
+  nc = array_cache(cell_to_nodes)
 
   for cell in 1:num_cells(grid)
     !isempty(c_to_stlf[cell]) || continue
 
-    cell_coords = getindex!(cache,cell_to_coords,cell)
+    cell_nodes = getindex!(nc,cell_to_nodes,cell)
+    cell_coords = view(coords,cell_nodes)
+
+    pmin = cell_coords[1] - atol
+    pmax = cell_coords[end] + atol
+
+    #encapsulate
+    get_expanded_facets!(expanded_facets,stl,c_to_stlf,cell)
+    get_reflex_faces!(reflex_faces,stl,c_to_stlf,cell)
+    copy!(facets,c_to_stlf[cell]) # lazy_map
+    copy!(empty_facets,c_to_stlf[cell])
+    filter!(f->f_to_isempty[f],empty_facets)
+    map!(i->i+get_offset(stl,D-1),facets,facets)
+    map!(i->i+get_offset(stl,D-1),empty_facets,empty_facets)
+    map!(i->i+get_offset(stl,D-2),reflex_faces,reflex_faces)
+
+    Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax) # plane cache
+    Πkf,Πkf_ids = filter_face_planes(stl,Πr,reflex_faces,Πf,facets) # plane cache, appended arrays
     
-    pmin = cell_coords[1]-atol
-    pmax = cell_coords[end]+atol
-
-    empty!(cell_facets)
-    for f in c_to_stlf[cell] 
-      for v in get_faces(get_grid_topology(stl),D-1,0)[f]
-        for _f in get_faces(get_grid_topology(stl),0,D-1)[v]
-          if _f ∉ cell_facets
-            push!(cell_facets,_f)
-          end
-        end
-      end
-    end
-
-    p = get_polytope(get_cell_reffe(grid)[cell])
     v = map(i->Point(float.(Tuple(i))),cell_coords)
     K = Polyhedron(p,v)
-    Γk0 = restrict(Γ0,stl,cell_facets)
+    
+    Γk0 = restrict(Γ0,stl,expanded_facets)
 
-    stl_reflex_faces_k = Int32[]
-    f_to_r = get_faces(stl.grid_topology,D-1,D-2)
-    r_to_f = get_faces(stl.grid_topology,D-2,D-1)
-    for f in c_to_stlf[cell]
-      for r in f_to_r[f]
-        _r = r+get_offset(get_grid_topology(stl),D-2)
-        if _r ∉ stl_reflex_faces_k &&
-           all(i->i∈c_to_stlf[cell],r_to_f[r])
-
-          push!(stl_reflex_faces_k,_r)
-        end
-      end
-    end
-
-    stl_facets_k = c_to_stlf[cell].+get_offset(get_grid_topology(stl),num_dims(stl))
-
-    empty_facets = filter(f->f_to_isempty[f-get_offset(get_grid_topology(stl),num_dims(stl))],stl_facets_k)
-
-    Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax)
-    Πkf,Πkf_ids = filter_face_planes(stl,Πr,stl_reflex_faces_k,Πf,stl_facets_k)
-
-    compute_distances!(Γk0,(Πk,Πkf),(Πk_ids,Πkf_ids))
+    compute_distances!(Γk0,lazy_append(Πk,Πkf),lazy_append(Πk_ids,Πkf_ids))
     compute_distances!(K,Πkf,Πkf_ids)
 
     Π_to_refΠ,Πs = link_planes!(Γk0,stl,Πr,Πf;atol)
@@ -1590,8 +1600,8 @@ function compute_submesh(
     Kn_in = typeof(K)[]
     Kn_out = typeof(K)[]
     for (γk,k) in zip(Γv,Kv)
-      k_in = refine(k,γk,stl,stl_reflex_faces_k,empty_facets,inside=true)
-      k_out = refine(k,γk,stl,stl_reflex_faces_k,empty_facets,inside=false)
+      k_in = refine(k,γk,stl,reflex_faces,empty_facets,inside=true)
+      k_out = refine(k,γk,stl,reflex_faces,empty_facets,inside=false)
       append!(Kn_in,k_in)
       append!(Kn_out,k_out)
     end
@@ -1627,7 +1637,7 @@ function compute_submesh(
     append!(F, map(i->i.+length(Xf),T_Γ) ) 
     append!(Xf,X_Γ)
     append!(f_to_bgcell,fill(cell,length(T_Γ)))
-    append!(f_to_stlf,f_to_f.-get_offset(get_grid_topology(stl),num_dims(stl)))
+    append!(f_to_stlf,f_to_f.-get_offset(stl,D-1))
 
     for (i,bg_v) in enumerate(get_cell_node_ids(grid)[cell])
       n_to_io[i] ≠ UNSET || continue
@@ -1687,6 +1697,44 @@ function compute_submesh(
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc,bgfacet_to_ioc
 end
 
+function get_expanded_facets!(facets,stl,c_to_stlf,cell)
+  D = num_dims(stl)
+  f_to_v = get_faces(stl,D,0)
+  v_to_f = get_faces(stl,0,D)
+  nv = array_cache(f_to_v)
+  nf = array_cache(v_to_f)
+  empty!(facets)
+  for f in c_to_stlf[cell] 
+    for v in getindex!(nv,f_to_v,f)
+      for _f in getindex!(nf,v_to_f,v)
+        if _f ∉ facets
+          push!(facets,_f)
+        end
+      end
+    end
+  end
+  facets
+end
+
+function get_reflex_faces!(rfaces,stl,c_to_stlf,cell)
+  D = num_dims(stl)
+  f_to_r = get_faces(stl,D,D-1)
+  r_to_f = get_faces(stl,D-1,D)
+  rc = array_cache(f_to_r)
+  fc = array_cache(r_to_f)
+  empty!(rfaces)
+  for f in c_to_stlf[cell]
+    for r in getindex!(rc,f_to_r,f)
+      facets = getindex!(fc,r_to_f,r)
+      r += get_offset(stl,D-2)
+      if r ∉ rfaces && all( i -> i ∈ c_to_stlf[cell], facets )
+        push!(rfaces,r)
+      end
+    end
+  end
+  rfaces
+end
+
 ## Kd Tree stuff
 
 function delete_small_subcells!(bgmodel,T,X,arrays...)
@@ -1705,13 +1753,6 @@ function delete_small_subfaces!(bgmodel,T,X,p::Polytope{D},arrays...) where D
   for array in arrays
     deleteat!(array,ids)
   end
-end
-
-function get_cell!(cache,T,X,p::Polytope{D},i::Integer) where D
-  @notimplementedif !is_simplex(p)
-  nodes = getindex!(cache,T,i)
-  vertices = ntuple( i -> X[nodes[i]], Val{D+1}() )
-  simplex_face( vertices )
 end
 
 function refine_by_vertices(Γ::Polyhedron,K::Polyhedron,atol=0)
@@ -1793,33 +1834,10 @@ end
 
 ## Plane sharing stuff
 
-function _get_face_vertices(topo::GridTopology{D}) where D
-  @notimplementedif D ≤ 1
-  f_to_v = lazy_append(get_faces(topo,0,0),get_faces(topo,1,0))
-  for d in 2:D
-    f_to_v = lazy_append(f_to_v,get_faces(topo,d,0))
-  end
-  f_to_v
-end
-
-function _get_facedims(topo::GridTopology{D}) where D
-  function _get_facedim(f)
-    for d in reverse(0:D)
-      if f > offsets[d+1]
-        return d
-      end
-    end
-    @unreachable
-  end
-  offsets = get_offsets(topo)
-  lazy_map(_get_facedim,1:num_faces(topo))
-end
-
-function link_planes!(surf::Polyhedron,stl::DiscreteModel,Πr,Πf;atol)
+function link_planes!(surf::Polyhedron,stl::STL,Πr,Πf;atol)
   planes = surf.data.plane_to_ids
   v_to_f = surf.data.vertex_to_original_faces
-  stl_topo = get_grid_topology(stl)
-  f_to_v = _get_face_vertices(stl_topo)
+  f_to_v = get_face_vertices(stl)
   c = array_cache(f_to_v)
 
   vertices = Int32[]
@@ -1862,9 +1880,9 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel,Πr,Πf;atol)
   ## Link coplanar planes
   Π_to_coplanar_Π = [ Int32[] for _ in 1:length(planes) ]
   D = num_dims(stl)
-  facedims = _get_facedims(stl_topo)
-  rf_offset = get_offset(stl_topo,D-1)
-  f_offset = get_offset(stl_topo,D)
+  facedims = get_facedims(stl)
+  rf_offset = get_offset(stl,D-1)
+  f_offset = get_offset(stl,D)
   for (i,Π) in enumerate(planes)
     Π > 0 || continue
   #  get_facedims(stl_topo)[Π] == D-1 || continue
@@ -1877,7 +1895,7 @@ function link_planes!(surf::Polyhedron,stl::DiscreteModel,Πr,Πf;atol)
           push!(Π_to_coplanar_Π[i],f)
         end
       elseif d == D
-        facet = get_cell(stl,f-get_offset(stl_topo,D))
+        facet = get_cell(stl,f-get_offset(stl,D))
         if distance_between_planes(surf,Π,f,abs,abs) < atol
           push!(Π_to_coplanar_Π[i],f)
         end
@@ -2076,31 +2094,30 @@ end
 
 function add_missing_facets(
   surf::Polyhedron,
-  stl::DiscreteModel,
+  stl::STL,
   facets,
   reflex_faces,
   empty_facets)
 
   D = num_dims(stl)
-  stl_topo = get_grid_topology(stl)
-  rf_offset = get_offset(stl_topo,D-1)
-  f_offset = get_offset(stl_topo,D)
+  rf_offset = get_offset(stl,D-1)
+  f_offset = get_offset(stl,D)
   for f in facets
     has_coplanars(surf.data,f) || continue
     contains_coplanars(surf.data,f) || continue
-    for rf in get_faces(stl_topo,D,D-1)[f-f_offset]
+    for rf in get_faces(stl,D,D-1)[f-f_offset]
       rf += rf_offset
       rf ∉ reflex_faces || continue
       has_original_reflex_face(surf,rf,empty=false) || continue
-      for neig_f in get_faces(stl_topo,D-1,D)[rf-rf_offset]
+      for neig_f in get_faces(stl,D-1,D)[rf-rf_offset]
         neig_f += f_offset
         neig_f ∉ facets || continue
         if has_original_facet(surf,neig_f,empty=true)
           if neig_f ∈ empty_facets
-            for e in get_faces(stl_topo,D,D-1)[neig_f-f_offset]
+            for e in get_faces(stl,D,D-1)[neig_f-f_offset]
               e += rf_offset
               e ≠ rf || continue
-              for neig_neig_f in get_faces(stl_topo,D-1,D)[e-rf_offset]
+              for neig_neig_f in get_faces(stl,D-1,D)[e-rf_offset]
                 neig_neig_f += f_offset
                 neig_neig_f ≠ neig_f || continue
                 neig_neig_f ∉ facets || continue
@@ -2124,16 +2141,15 @@ function split_reflex_face(
   S,K,
   surf::Polyhedron,
   cell::Polyhedron,
-  stl::DiscreteModel,
+  stl::STL,
   reflex_face::Integer,
   empty_facets::AbstractVector)
 
   # TODO: consider reflex faces sharing planes
   D = num_dims(stl)
-  stl_topo = get_grid_topology(stl)
-  rface_offset = get_offset(stl_topo,D-1)
-  facet_offset = get_offset(stl_topo,D)
-  neig_facets = get_faces(stl_topo,D-1,D)[reflex_face-rface_offset]
+  rface_offset = get_offset(stl,D-1)
+  facet_offset = get_offset(stl,D)
+  neig_facets = get_faces(stl,D-1,D)[reflex_face-rface_offset]
   if !any(i->has_original_facet(surf,i+facet_offset),neig_facets) ||
      !has_original_reflex_face(surf,reflex_face,empty=false)
 
@@ -2174,10 +2190,11 @@ function one_face_polyhedron(poly::Polyhedron,face::Integer)
   r
 end
 
-function get_facet_to_isempty(stl::DiscreteModel;atol)
+function get_facet_to_isempty(stl::STL;atol)
   f_to_isempty = falses(num_cells(stl))
+  c = get_cell_cache(stl)
   for f in 1:num_cells(stl)
-    facet = get_cell(stl,f)
+    facet = get_cell!(c,stl,f)
     if min_height(facet) < atol
       f_to_isempty[f] = true
     end
@@ -2185,16 +2202,17 @@ function get_facet_to_isempty(stl::DiscreteModel;atol)
   f_to_isempty
 end
 
-function correct_small_facets_planes!(stl::DiscreteModel,Πf,f_to_isempty;atol)
+function correct_small_facets_planes!(stl::STL,Πf,f_to_isempty;atol)
   D = num_dims(stl)
-  stl_topo = get_grid_topology(stl)
-  e_to_f = get_faces(stl_topo,D-1,D)
-  f_to_e = get_faces(stl_topo,D,D-1)
+  e_to_f = get_faces(stl,D-1,D)
+  f_to_e = get_faces(stl,D,D-1)
   full_facets = Int32[]
   queue = Int32[]
   num_new_planes = 0
   Πnew = empty(Πf)
   f_to_new_plane = fill(UNSET,num_cells(stl))
+  ec = array_cache(f_to_e)
+  fc = array_cache(e_to_f)
   for f in 1:num_cells(stl)
     f_to_isempty[f] || continue
     f_to_new_plane[f] == UNSET || continue 
@@ -2207,8 +2225,8 @@ function correct_small_facets_planes!(stl::DiscreteModel,Πf,f_to_isempty;atol)
     while length(queue) ≥ head 
       f_curr = queue[head]
       head += 1
-      for e in f_to_e[f_curr]
-        for f_neig in e_to_f[e]
+      for e in getindex!(ec,f_to_e,f_curr)
+        for f_neig in getindex!(fc,e_to_f,e)
           f_neig ≠ f_curr || continue
           if f_to_isempty[f_neig]
             f_to_new_plane[f_neig] == UNSET || continue
@@ -2234,11 +2252,14 @@ function correct_small_facets_planes!(stl::DiscreteModel,Πf,f_to_isempty;atol)
     Π = Plane(c,n)
     push!(Πnew,Π)
   end
+  v_coords = get_vertex_coordinates(stl)
+  f_to_v = get_face_vertices(stl,D)
+  c = array_cache(f_to_v)
   for f in 1:num_cells(stl)
     f_to_isempty[f] || continue
     Πf[f] = Πnew[ f_to_new_plane[f] ]
-    for i in get_face_nodes(stl,D)[f]
-      v = get_node_coordinates(stl)[i]
+    for i in getindex!(c,f_to_v,f)
+      v = v_coords[i]
       @assert abs(signed_distance(v,Πf[f])) < atol
     end
   end

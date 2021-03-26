@@ -9,6 +9,7 @@ using Gridap.Arrays
 using STLCutters
 
 using STLCutters: Polyhedron 
+using STLCutters: STL 
 using STLCutters: restrict 
 using STLCutters: clip 
 using STLCutters: decompose 
@@ -35,6 +36,7 @@ using STLCutters: get_cell_nodes_to_inout
 using STLCutters: compute_submesh 
 using STLCutters: plot
 using STLCutters: check_graph
+using STLCutters: get_offset
 
 
 ## Unit testing
@@ -72,12 +74,12 @@ facet_to_vertices =
  [3,5,6],
  [6,7,2] ]
 
-stl = compute_stl_model( Table(facet_to_vertices), vertices )
-stl_topo = get_grid_topology(stl)
+stlmodel = compute_stl_model( Table(facet_to_vertices), vertices )
+stl = STL(stlmodel)
 
 # Global setup
-Πr = get_reflex_planes(stl)
 Πf = get_facet_planes(stl)
+Πr = get_reflex_planes(stl,Πf)
 
 # Setup cell
 stl_facets_k = 1:num_cells(stl)
@@ -87,12 +89,12 @@ K = Polyhedron(HEX)
 Γk0 = restrict(Γ0,stl,stl_facets_k)
 
 stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
-stl_facets_k = stl_facets_k.+get_offset(get_grid_topology(stl),num_dims(stl))
+stl_facets_k = stl_facets_k.+get_offset(stl,num_dims(stl))
 
 Πk,Πk_ids,Πk_io = get_cell_planes(HEX,Point(0,0,0),Point(1,1,1))
 Πf,Πf_ids = filter_face_planes(stl,Πr,stl_reflex_faces_k,Πf,stl_facets_k)
 
-compute_distances!(Γk0,(Πk,Πf),(Πk_ids,Πf_ids))
+compute_distances!(Γk0,lazy_append(Πk,Πf),lazy_append(Πk_ids,Πf_ids))
 compute_distances!(K,Πf,Πf_ids)
 
 Γk = clip(Γk0,Πk_ids,inout=Πk_io)
@@ -150,12 +152,12 @@ facet_to_vertices =
  [3,5,6],
  [6,7,2] ]
 
-stl = compute_stl_model( Table(facet_to_vertices), vertices )
-stl_topo = get_grid_topology(stl)
+stlmodel = compute_stl_model( Table(facet_to_vertices), vertices )
+stl = STL(stlmodel)
 
 # Global setup
-Πr = get_reflex_planes(stl)
 Πf = get_facet_planes(stl)
+Πr = get_reflex_planes(stl,Πf)
 
 # Setup cell
 stl_facets_k = 1:num_cells(stl)
@@ -165,12 +167,12 @@ K = Polyhedron(HEX)
 Γk0 = restrict(Γ0,stl,stl_facets_k)
 
 stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
-stl_facets_k = stl_facets_k.+get_offset(get_grid_topology(stl),num_dims(stl))
+stl_facets_k = stl_facets_k.+get_offset(stl,num_dims(stl))
 
 Πk,Πk_ids,Πk_io = get_cell_planes(HEX,Point(0,0,0),Point(1,1,1))
 Πf,Πf_ids = filter_face_planes(stl,Πr,stl_reflex_faces_k,Πf,stl_facets_k)
 
-compute_distances!(Γk0,(Πk,Πf),(Πk_ids,Πf_ids))
+compute_distances!(Γk0,lazy_append(Πk,Πf),lazy_append(Πk_ids,Πf_ids))
 compute_distances!(K,Πf,Πf_ids)
 
 Γk = clip(Γk0,Πk_ids,inout=Πk_io)

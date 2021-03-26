@@ -54,6 +54,10 @@ end
 
 origin(a::Plane) = a.origin
 
+function Base.zero(::Type{<:Plane{D,T}}) where {D,T}
+  Plane(zero(Point{D,T}),zero(Point{D,T}))
+end
+
 function Base.getindex(::Face)
   @abstractmethod
 end
