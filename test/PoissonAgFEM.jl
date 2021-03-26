@@ -1,5 +1,8 @@
 module PoisonAgFEMTests
 
+using IterativeSolvers: cg
+using Preconditioners: AMGPreconditioner, SmoothedAggregation
+
 using STLCutters
 using Gridap
 using GridapEmbedded
@@ -88,8 +91,17 @@ l(v) =
 @time op = AffineFEOperator(a,l,U,V)
 @time uh = solve(op)
 
-e = u - uh
+A = get_matrix(op)
+b = get_vector(op)
+  
+@time p = AMGPreconditioner{SmoothedAggregation}(A)
 
+@time  x = cg(A,b,verbose=true,Pl=p,reltol=1e-10)
+
+@time uh = FEFunction(U,x)
+  
+@time e = u - uh
+  
 # Postprocess
 l2(u) = sqrt(sum( ∫( u*u )*dΩ ))
 h1(u) = sqrt(sum( ∫( u*u + ∇(u)⋅∇(u) )*dΩ ))
@@ -103,7 +115,7 @@ colors = color_aggregates(aggregates,bgmodel)
 writevtk(Ω_bg,"trian",celldata=["aggregate"=>aggregates,"color"=>colors],cellfields=["uh"=>uh])
 writevtk(Ω,"results",cellfields=["uh"=>uh])
 
-@test el2/ul2 < 1.e-8
-@test eh1/uh1 < 1.e-7
+@test el2/ul2 < 1.e-9
+@test eh1/uh1 < 1.e-9
 
 end # module
