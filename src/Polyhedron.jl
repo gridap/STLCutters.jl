@@ -1513,6 +1513,8 @@ function compute_submesh(
   grid = get_grid(bgmodel)
   grid_topology = get_grid_topology(bgmodel)
   p = get_polytope(only(get_reffes(bgmodel)))
+  node_to_coords = get_node_coordinates(grid)
+  cell_to_nodes = get_cell_node_ids(grid)
 
   stl = STL(stlmodel)
 
@@ -1528,55 +1530,44 @@ function compute_submesh(
 
   Γ0 = Polyhedron(stl)
 
-  T = Vector{Int32}[]
-  F = Vector{Int32}[]
-  X = empty(get_vertex_coordinates(stl))
-  Xf = empty(get_vertex_coordinates(stl))
-  k_to_io = Int8[]
-  k_to_bgcell = Int32[]
-  f_to_bgcell = Int32[]
-  f_to_stlf = Int32[]
+#  T = Vector{Int32}[]
+#  F = Vector{Int32}[]
+#  X = empty(get_vertex_coordinates(stl))
+#  Xf = empty(get_vertex_coordinates(stl))
+#  k_to_io = Int8[]
+#  k_to_bgcell = Int32[]
+#  f_to_bgcell = Int32[]
+#  f_to_stlf = Int32[]
 
-  facets = Int32[]
-  expanded_facets = Int32[]
-  empty_facets = Int32[]
-  reflex_faces = Int32[]
+  submesh_arrays = _get_threaded_empty_arrays(stl)
 
-  bgcell_to_ioc = fill(Int8(UNSET),num_cells(grid))
-  bgnode_to_io = fill(Int8(UNSET),num_nodes(grid))
-  bgfacet_to_ioc = fill(Int8(UNSET),num_facets(grid_topology))
+  io_arrays = _init_io_arrays(bgmodel,p)
+  bgcell_to_ioc, bgcell_node_to_io, bgcell_facet_to_ioc = io_arrays
 
-  coords = get_node_coordinates(grid)
-  cell_to_nodes = get_cell_node_ids(grid)
-  nc = array_cache(cell_to_nodes)
 
-  for cell in 1:num_cells(grid)
-    !isempty(c_to_stlf[cell]) || continue
+  caches = _get_threaded_caches(cell_to_nodes)
 
-    cell_nodes = getindex!(nc,cell_to_nodes,cell)
-    cell_coords = view(coords,cell_nodes)
+  _cut_cells = filter(i->!isempty(c_to_stlf[i]),1:num_cells(grid))
+
+  Threads.@threads for cell in _cut_cells #1:num_cells(grid)
+ #   !isempty(c_to_stlf[cell]) || continue
+    
+    cell_coords = _get_cell_coordinates!(caches,node_to_coords,cell_to_nodes,cell)
 
     pmin = cell_coords[1] - atol
     pmax = cell_coords[end] + atol
-
-    #encapsulate
-    get_expanded_facets!(expanded_facets,stl,c_to_stlf,cell)
-    get_reflex_faces!(reflex_faces,stl,c_to_stlf,cell)
-    copy!(facets,c_to_stlf[cell]) # lazy_map
-    copy!(empty_facets,c_to_stlf[cell])
-    filter!(f->f_to_isempty[f],empty_facets)
-    map!(i->i+get_offset(stl,D-1),facets,facets)
-    map!(i->i+get_offset(stl,D-1),empty_facets,empty_facets)
-    map!(i->i+get_offset(stl,D-2),reflex_faces,reflex_faces)
+    
+    _faces = _get_cell_faces!(caches,stl,c_to_stlf,cell,f_to_isempty)
+    facets,expanded_facets,empty_facets,reflex_faces = _faces
 
     Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax) # plane cache
     Πkf,Πkf_ids = filter_face_planes(stl,Πr,reflex_faces,Πf,facets) # plane cache, appended arrays
     
-    v = map(i->Point(float.(Tuple(i))),cell_coords)
-    K = Polyhedron(p,v)
+    K = Polyhedron(p,cell_coords)
     
     Γk0 = restrict(Γ0,stl,expanded_facets)
 
+    # Compute_distances...
     compute_distances!(Γk0,lazy_append(Πk,Πkf),lazy_append(Πk_ids,Πkf_ids))
     compute_distances!(K,Πkf,Πkf_ids)
 
@@ -1606,53 +1597,37 @@ function compute_submesh(
       append!(Kn_out,k_out)
     end
 
+    ## save_cell_submesh!()
     Tin,Xin = simplexify(Kn_in)
     Tout,Xout = simplexify(Kn_out)
     T_Γ,X_Γ,f_to_f = simplexify_boundary(Kn_in,stl)
 
-    if length(T_Γ) > 0
-      bgcell_to_ioc[cell] = FACE_CUT
-    else
-      if length(Kn_in) > 0 && length(Kn_out) == 0
-        bgcell_to_ioc[cell] = FACE_IN
-      elseif length(Kn_in) == 0 && length(Kn_out) > 0
-        bgcell_to_ioc[cell] = FACE_OUT
-      else
-        bgcell_to_ioc[cell] = UNSET
-      end
-      continue
-    end
+    bgcell_to_ioc[cell] = _get_cell_io(T_Γ,Kn_in,Kn_out)
+    bgcell_to_ioc[cell] == FACE_CUT || continue
+    
+    f_to_f .-= get_offset(stl,D-1)
 
     n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
     f_to_ioc = get_cell_facets_to_inoutcut(Kn_in,Kn_out,p)
 
-    append!(T, map(i->i.+length(X),Tin) )
-    append!(X,Xin)
-    append!(k_to_io,fill(FACE_IN,length(Tin)))
-    append!(k_to_bgcell,fill(cell,length(Tin)))
-    append!(T, map(i->i.+length(X),Tout) )
-    append!(X,Xout)
-    append!(k_to_io,fill(FACE_OUT,length(Tout)))
-    append!(k_to_bgcell,fill(cell,length(Tout)))
-    append!(F, map(i->i.+length(Xf),T_Γ) ) 
-    append!(Xf,X_Γ)
-    append!(f_to_bgcell,fill(cell,length(T_Γ)))
-    append!(f_to_stlf,f_to_f.-get_offset(stl,D-1))
+    _append_submesh!(submesh_arrays,Xin,Tin,Xout,Tout,X_Γ,T_Γ,f_to_f,cell)
 
-    for (i,bg_v) in enumerate(get_cell_node_ids(grid)[cell])
-      n_to_io[i] ≠ UNSET || continue
-      n_to_io[i] ≠ FACE_CUT || continue
-      bgnode_to_io[bg_v] ≠ FACE_CUT || continue
-      # @assert bgnode_to_io[bg_v] ∈ (UNSET,n_to_io[i])
-      bgnode_to_io[bg_v] = n_to_io[i]
+    for i in 1:num_vertices(p)
+      bgcell_node_to_io[i,cell] = n_to_io[i]
     end
-    for (i,bg_f) in enumerate(get_faces(grid_topology,D,D-1)[cell])
-      if bgfacet_to_ioc[bg_f] ∉ (UNSET,f_to_ioc[i])
-        f_to_ioc[i] = FACE_CUT
-      end
-      bgfacet_to_ioc[bg_f] = f_to_ioc[i]
+
+    for i in 1:num_facets(p)
+      bgcell_facet_to_ioc[i,cell] = f_to_ioc[i]
     end
+
   end
+
+  submesh_arrays = _append_threaded_submesh!(submesh_arrays)
+  io_arrays = _reduce_io_arrays(bgmodel,io_arrays)
+  bgcell_to_iox, bgnode_to_io, bgfacet_to_ioc = io_arrays
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf = submesh_arrays
+
+  ## Propagate INOUT
   stack = Int32[]
   n_to_c = get_faces(grid_topology,0,D)
   c_to_n = get_faces(grid_topology,D,0)
@@ -1684,6 +1659,7 @@ function compute_submesh(
     end
   end
   replace!(bgcell_to_ioc, UNSET => FACE_OUT )
+  # Set FACETS in out
   c_to_f = get_faces(grid_topology,D,D-1)
   cache = array_cache(c_to_f)
   for cell in 1:num_cells(grid)
@@ -1696,6 +1672,171 @@ function compute_submesh(
   delete_small_subfacets!(bgmodel,F,Xf,f_to_bgcell,f_to_stlf)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc,bgfacet_to_ioc
 end
+
+function _get_empty_arrays(stl::STL)
+  P = eltype( get_vertex_coordinates(stl) )
+  T = Vector{Int32}[]
+  F = Vector{Int32}[]
+  X = P[]
+  Xf = P[] 
+  k_to_io = Int8[]
+  k_to_bgcell = Int32[]
+  f_to_bgcell = Int32[]
+  f_to_stlf = Int32[]
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf
+end
+
+function _get_threaded_empty_arrays(stl::STL)
+  n = Threads.nthreads()
+  [ _get_empty_arrays(stl::STL) for _ in 1:n ]
+end
+
+function _threaded_empty_array(::Type{T}) where T
+  n = Threads.nthreads()
+  [ T[] for i in 1:n ]
+end
+
+function _init_io_arrays(model::DiscreteModel,p::Polytope)
+  D = num_dims(model)
+  ncells = num_cells(model)
+  nnodes_x_cell = num_vertices(p)
+  nfacets_x_cell = num_facets(p)
+
+  bgcell_to_ioc = fill(Int8(UNSET),ncells)
+  bgcell_node_to_io = fill(Int8(UNSET),nnodes_x_cell,ncells)
+  bgcell_facet_to_ioc = fill(Int8(UNSET),nfacets_x_cell,ncells)
+  bgcell_to_ioc, bgcell_node_to_io, bgcell_facet_to_ioc
+end
+
+function _get_caches(c_to_n)
+  nc = array_cache(c_to_n)
+  facets = Int32[]
+  expanded_facets = Int32[]
+  empty_facets = Int32[]
+  reflex_faces = Int32[]
+  nc,facets,expanded_facets,empty_facets,reflex_faces
+end
+
+function _get_threaded_caches(c_to_n)
+  n = Threads.nthreads()
+  [ _get_caches(c_to_n) for _ in 1:n ]
+end
+
+function _get_cell_coordinates!(caches,node_to_coords,cell_to_nodes,cell)
+  i = Threads.threadid()
+  nc, = caches[i]
+  cell_nodes = getindex!(nc,cell_to_nodes,cell)
+  cell_coords = view(node_to_coords,cell_nodes)
+  map(i->Point(float.(Tuple(i))),cell_coords)
+end
+
+function _get_cell_faces!(caches,stl,c_to_stlf,cell,f_to_isempty)
+  i = Threads.threadid()
+  _,facets,expanded_facets,empty_facets,reflex_faces = caches[i]
+  D = num_dims(stl)
+  get_expanded_facets!(expanded_facets,stl,c_to_stlf,cell)
+  get_reflex_faces!(reflex_faces,stl,c_to_stlf,cell)
+  copy!(facets,c_to_stlf[cell])
+  copy!(empty_facets,c_to_stlf[cell])
+  filter!(f->f_to_isempty[f],empty_facets)
+  map!(i->i+get_offset(stl,D),facets,facets)
+  map!(i->i+get_offset(stl,D),empty_facets,empty_facets)
+  map!(i->i+get_offset(stl,D-1),reflex_faces,reflex_faces)
+  facets,expanded_facets,empty_facets,reflex_faces
+end
+
+function _get_cell_io(T_Γ,Kn_in,Kn_out)
+  if length(T_Γ) > 0
+    FACE_CUT
+  else
+    if length(Kn_in) > 0 && length(Kn_out) == 0
+      FACE_IN
+    elseif length(Kn_in) == 0 && length(Kn_out) > 0
+      FACE_OUT
+    else
+      UNSET
+    end
+  end
+end
+
+function _append_submesh!(submesh,Xin,Tin,Xout,Tout,Xfn,Tfn,fn_to_f,bgcell)
+  i = Threads.threadid()
+  _submesh = submesh[i]
+  _append_subcells!(_submesh,Xin,Tin,FACE_IN,bgcell)
+  _append_subcells!(_submesh,Xout,Tout,FACE_OUT,bgcell)
+  _append_subfacets!(_submesh,Xfn,Tfn,fn_to_f,bgcell)
+end
+
+function _append_subcells!(submesh_arrays,Xn,Tn,io,bgcell)
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf = submesh_arrays
+  append!(T, map(i->i.+length(X),Tn) )
+  append!(X,Xn)
+  append!(k_to_io,fill(io,length(Tn)))
+  append!(k_to_bgcell,fill(bgcell,length(Tn)))
+  submesh_arrays
+end
+
+function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,bgcell)
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf = submesh_arrays
+  append!(F, map(i->i.+length(Xf),Tfn) ) 
+  append!(Xf,Xfn)
+  append!(f_to_bgcell,fill(bgcell,length(Tfn)))
+  append!(f_to_stlf,fn_to_f)
+  submesh_arrays
+end
+
+function _append_threaded_submesh!(submesh)
+  n = Threads.nthreads()
+  for i in 2:n
+    _append!(submesh[1],submesh[i])
+  end
+  submesh[1]
+end
+
+function _append!(submesh_a,submesh_b)
+  T,F,X,Xf, = submesh_a
+  T,F, = submesh_b
+  nnodes_cells_a = length(X)
+  nnodes_facets_a = length(Xf)
+  map!(i->map!(j->j+nnodes_cells_a,i,i),T,T)
+  map!(i->map!(j->j+nnodes_facets_a,i,i),F,F)
+  for (a,b) in zip(submesh_a,submesh_b)
+    append!(a,b)
+  end
+  submesh_a
+end
+
+function _reduce_io_arrays(model::DiscreteModel,io_arrays)
+  bgcell_to_io, bgcell_node_to_io, bgcell_facet_to_io = io_arrays
+  D = num_dims(model)
+  topo = get_grid_topology(model)
+  bgnode_to_io = fill(Int8(UNSET),num_vertices(topo) )
+  bgfacet_to_io = fill(Int8(UNSET),num_facets(topo) )
+  c_to_n = get_cell_vertices(topo)
+  c_to_f = get_faces(topo,D,D-1)
+  nc = array_cache(c_to_n)
+  nf = array_cache(c_to_f)
+  for cell in 1:num_cells(model)
+    for (i,bg_n) in enumerate( getindex!(nc,c_to_n,cell) )
+      io = bgcell_node_to_io[i,cell]
+      io ≠ UNSET || continue
+      bgnode_to_io[bg_n] ≠ FACE_CUT || continue
+      if bgnode_to_io[bg_n] ∉ (UNSET,io)
+        io = FACE_CUT
+      end
+      bgnode_to_io[bg_n] = io
+    end
+    for (i,bg_f) in enumerate( getindex!(nf,c_to_f,cell) )
+      io = bgcell_facet_to_io[i,cell]
+      if bgfacet_to_io[bg_f] ∉ (UNSET,io)
+        io = FACE_CUT
+      end
+      bgfacet_to_io[bg_f] = io
+    end
+  end
+  bgcell_to_io, bgnode_to_io, bgfacet_to_io
+end
+
 
 function get_expanded_facets!(facets,stl,c_to_stlf,cell)
   D = num_dims(stl)

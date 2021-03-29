@@ -106,10 +106,45 @@ function get_simplex_dface!(cache,T,X,i::Integer,::Val{d}) where d
   simplex_face( vertices )
 end
 
+function get_cell_cache(grid::Grid)
+  T = get_cell_node_ids(grid)
+  array_cache(T)
+end
+
+function get_cell!(c,grid::Grid,i)
+  T = get_cell_node_ids(grid)
+  X = get_node_coordinates(grid)
+  p = get_polytope( only(get_reffes(grid)) )
+  get_cell!(c,T,X,p,i)
+end
+
+function get_facet_cache(model::DiscreteModel)
+  Dc = num_dims(model)
+  get_dface_cache(model,Dc-1)
+end
+
+function get_dface_cache(model::DiscreteModel,d)
+  topo = get_grid_topology(model) 
+  T = get_face_vertices(topo,d)
+  array_cache(T)
+end
+
+function get_facet!(c,model::DiscreteModel{Dc},i) where Dc
+  get_dface!(c,model,i,Val{Dc-1}())
+end
+
+function get_dface!(c,model::DiscreteModel,i,::Val{d}) where d
+  topo = get_grid_topology(model) 
+  T = get_face_vertices(topo,d)
+  X = get_vertex_coordinates(topo)
+  p = get_polytope( only(get_reffes(model)) )
+  get_dface!(c,T,X,p,i,Val{d}())
+end
+
 #
 function read_stl(filename::String)
   F = _file_format(filename)
-  mesh = load(File(F,filename))
+  mesh = load(File{F}(filename))
   vertex_to_coordinates = MeshIO.decompose(MeshIO.Point3,mesh)
   facet_to_vertices = MeshIO.decompose(MeshIO.TriangleFace,mesh)
   vertex_to_normals = MeshIO.decompose_normals(mesh)
@@ -219,15 +254,24 @@ end
 function collapse_small_facets!(stl::DiscreteModel;atol)
   D = num_dims(stl)
   stl_topo = get_grid_topology(stl)
+  coords = get_vertex_coordinates(stl_topo)
+  f_to_v = get_faces(stl_topo,D,0)
+  f_to_e = get_faces(stl_topo,D,D-1)
+  e_to_v = get_faces(stl_topo,D-1,0)
+  fv_c = array_cache(f_to_v)
+  fe_c = array_cache(f_to_e)
+  ev_c = array_cache(e_to_v)
+  c = get_facet_cache(stl)
   for f in 1:num_cells(stl)
-    for v in get_faces(stl_topo,D,0)[f]
-      vertex = get_vertex_coordinates(stl_topo)[v]
-      for e in get_faces(stl_topo,D,D-1)[f]
-        v ∉ get_faces(stl_topo,D-1,0)[e] || continue
-        edge = get_facet(stl,e)
+    for v in getindex!(fv_c,f_to_v,f)
+      vertex = coords[v]
+      for e in getindex!(fe_c,f_to_e,f)
+        vertices = getindex!(ev_c,e_to_v,e)
+        v ∉ vertices || continue
+        edge = get_facet!(c,stl,e)
         if distance(vertex,edge) < atol
           _vertex = projection(vertex,edge)
-          get_vertex_coordinates(stl_topo)[v] = _vertex
+          coords[v] = _vertex
         end
       end
     end
@@ -523,8 +567,9 @@ end
 
 function min_height(grid::Grid)
   min_h = Inf
+  c = get_cell_cache(grid)
   for i in 1:num_cells(grid)
-    cell = get_cell(grid,i)
+    cell = get_cell!(c,grid,i)
     h = min_height(cell)
     if h < min_h
       min_h = h
