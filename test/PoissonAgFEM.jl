@@ -17,13 +17,14 @@ f(x) = - Δ(u)(x)
 ud(x) = u(x)
 
 
-@time X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
+#@time X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 #X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
 #@time X,T,N = read_stl(joinpath(@__DIR__,"data/441708_sf.obj"))
+@time X,T,N = read_stl(joinpath(@__DIR__,"data/441708.stl"))
 @time stl = compute_stl_model(T,X)
 @time stl = merge_nodes(stl)
 # writevtk(stl,"geo")
-n = 20
+n = 100
 δ = 0.2
 pmin,pmax = get_bounding_box(stl)
 diagonal = pmax-pmin

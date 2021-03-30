@@ -31,27 +31,27 @@ function test_stl_cut(model,stl,vol)
   #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
   #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
 
-  bgmesh_vols = volumes(grid)
-  submesh_vols = volumes(submesh)
+  bgmesh_in_vol = volume(grid,bgcell_to_ioc,FACE_IN)
+  bgmesh_out_vol  = volume(grid,bgcell_to_ioc,FACE_OUT)
+  bgmesh_cut_vol  = volume(grid,bgcell_to_ioc,FACE_CUT)
+  submesh_in_vol  = volume(submesh,k_to_io,FACE_IN)
+  submesh_out_vol = volume(submesh,k_to_io,FACE_OUT)
+  
+  in_volume = bgmesh_in_vol + submesh_in_vol
+  out_volume = bgmesh_out_vol + submesh_out_vol
+  cut_volume = bgmesh_cut_vol
 
-  bgmesh_in_vols = bgmesh_vols[findall(isequal(FACE_IN),bgcell_to_ioc)]
-  bgmesh_out_vols = bgmesh_vols[findall(isequal(FACE_OUT),bgcell_to_ioc)]
-  bgmesh_cut_vols = bgmesh_vols[findall(isequal(FACE_CUT),bgcell_to_ioc)]
-  submesh_in_vols = submesh_vols[findall(isequal(FACE_IN),k_to_io)]
-  submesh_out_vols = submesh_vols[findall(isequal(FACE_OUT),k_to_io)]
+  domain_surf = surface(facets)
+  stl_surf = surface(get_grid(stl)) 
 
-  in_volume = sum(bgmesh_in_vols) + sum(submesh_in_vols)
-  out_volume = sum(bgmesh_out_vols) + sum(submesh_out_vols)
-  cut_volume = sum(bgmesh_cut_vols)
-
-  @test volume(submesh) ≈ cut_volume 
-  @test surface(get_grid(stl)) ≈ surface(facets)
+  @test submesh_in_vol + submesh_out_vol ≈ cut_volume 
+  @test stl_surf ≈ domain_surf
   @test in_volume + out_volume ≈ volume(grid)
   @test in_volume ≈ vol
   
   println("\t εV = $(in_volume + out_volume - volume(grid))")
   println("\t εVin = $(in_volume-vol)")
-  println("\t εΓ = $(surface(get_grid(stl)) - surface(facets))")
+  println("\t εΓ = $(stl_surf - domain_surf))")
 
 end
 
