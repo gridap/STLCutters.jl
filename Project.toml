@@ -23,8 +23,10 @@ GraphRecipes = "0.5"
 Gridap = "0.15"
 GridapEmbedded = "0.6"
 HTTP = "0.9"
+IterativeSolvers = "0.9"
 MeshIO = "0.4"
 Plots = "1.11"
+Preconditioners = "0.3"
 julia = "1.5"
 
 [extras]
