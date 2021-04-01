@@ -285,14 +285,6 @@ function merge_nodes(stl::DiscreteModel;atol=10*eps(Float32,stl))
 end
   
 function delete_repeated_vertices(stl::DiscreteModel;atol)
-  if is_water_tight(stl)
-    delete_repeated_vertices_water_tight
-  else
-    delete_repeated_vertices_from_cloud
-  end
-end
-
-function delete_repeated_vertices(stl::DiscreteModel;atol)
   vertex_to_equal = _map_equal_vertices(stl;atol)
   topo = get_grid_topology(stl)
   X = get_vertex_coordinates(topo)
@@ -536,15 +528,6 @@ end
 function measure(a::CartesianGrid)
   pmin,pmax = get_bounding_box(a)
   measure(pmin,pmax)
-end
-
-function measure(a::Grid)
-  m = 0.0
-  for i in 1:num_cells(a)
-    c = get_cell(a,i)
-    m += measure(c)
-  end
-  m
 end
 
 function measures(a::Grid,num::Integer,map)

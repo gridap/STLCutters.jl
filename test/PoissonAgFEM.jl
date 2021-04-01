@@ -24,7 +24,7 @@ ud(x) = u(x)
 @time stl = compute_stl_model(T,X)
 @time stl = merge_nodes(stl)
 # writevtk(stl,"geo")
-n = 100
+n = 20
 δ = 0.2
 pmin,pmax = get_bounding_box(stl)
 diagonal = pmax-pmin
@@ -93,7 +93,7 @@ l(v) =
 
 A = get_matrix(op)
 b = get_vector(op)
-  
+
 @time p = AMGPreconditioner{SmoothedAggregation}(A)
 
 @time  x = cg(A,b,verbose=true,Pl=p,reltol=1e-10)

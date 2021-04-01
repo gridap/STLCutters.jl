@@ -69,7 +69,7 @@ data = run_and_save(filename,rerun=true,nmax=100,nmin=1,tolfactor=1e4)
 @test data["volume_error"] < 1e-9
 @test !data["has_leak"]
 
-filename = 1452677
+filename = download_thing(1452677)
 data = run_and_save(filename,rerun=true,nmax=20,nmin=1)
 @test data["surface_error"] < 1e-9
 @test data["volume_error"] < 1e-9
