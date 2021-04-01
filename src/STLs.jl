@@ -65,7 +65,6 @@ function get_face_vertices(stl::STL{D}) where D
   f_to_v
 end
 
-
 function get_cell!(c,stl::STL{Dc},i::Integer) where Dc
   get_dface!(c,stl,i,Val{Dc}())
 end
@@ -158,7 +157,7 @@ end
 function _file_format(filename)
   ext =  lowercase(last(splitext(filename)))
   stl,obj = ".stl",".obj"
-  ext == stl && _is_ascii(filename) && return format"STL_ASCII"
+  ext == stl && !_is_binary(filename) && return format"STL_ASCII"
   ext == stl && _is_binary(filename) && return format"STL_BINARY"
   ext == obj && return format"OBJ"
   msg = "Invalid file format: $filename"
