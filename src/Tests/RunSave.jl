@@ -19,19 +19,18 @@ R(ϕ,θ,ψ) = Rx(ϕ)⋅Ry(θ)⋅Rz(ψ)
 R(θ) = R(θ,θ,θ)
 
 function download_thing(thing_id;path="",verbose::Bool=true)
-  filename = nothing
   url = "https://www.thingiverse.com/download:$thing_id"
   !verbose || println("---------------------------------------")
-  try 
-    link = HTTP.head(url).request.target
-    _,ext = splitext(link)
+  r = Downloads.request(url)
+  if 200 ≤ r.status ≤ 399
+    _,ext = splitext(r.url)
     mkpath(path)
     filename = joinpath(path,"$thing_id$ext")
     !verbose || println("Downloading Thing $thing_id ...")
-    wget_command = `wget -q -O $filename --tries=10 $url`
-    run(wget_command)
-  catch
+    Downloads.download(url,filename)
+  else
     !verbose || println("Thing $thing_id is no longer available on Thingiverse.")
+    filename = nothing
   end
   filename
 end

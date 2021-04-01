@@ -10,7 +10,7 @@ using Gridap.Helpers
 using GridapEmbedded
 using STLCutters
 
-import HTTP
+import Downloads
 
 using STLCutters: FACE_IN, FACE_OUT, FACE_CUT
 
