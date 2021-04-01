@@ -11,7 +11,7 @@
 module load julia/1.5.3
 
 {{{julia}}} --project={{{projectdir}}} \
-      -O3 --check-bounds=no -e\
+      -O3 --check-bounds=no --threads {{ncpus}} -e\
       'using STLCutters;
        using STLCutters.Tests;
        {{{includes}}}

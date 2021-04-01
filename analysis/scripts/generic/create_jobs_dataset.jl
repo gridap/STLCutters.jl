@@ -12,12 +12,12 @@ using STLCutters.Tests: download_things
 
 export create_jobs_dataset
 
-function jobdict(hpc_id,jobname,params,walltime,mem_gb)
+function jobdict(hpc_id,jobname,params,walltime,mem_gb,ncpus)
   @unpack from, to = params
   @unpack hpcname,queue,memory,julia= hpc_dict[hpc_id]
   includes = 
       "using STLCutters.Tests: run_geometry_list; using FileIO;
-       include(\"$(testdir("data","thingi10k_quality_filter.jl"))\");"
+       include(\"$(testdir("data","thingi10k_solid_manifold.jl"))\");"
   func = "run_geometry_list"
   args = "
         file_ids[$from:$to],
@@ -29,7 +29,7 @@ function jobdict(hpc_id,jobname,params,walltime,mem_gb)
   "o" => datadir(hpcname,jobname*".out"),
   "e" => datadir(hpcname,jobname*".err"),
   "walltime" => walltime,
-  "ncpus" => 1,
+  "ncpus" => ncpus,
   "mem" => memory(mem_gb),
   "name" => jobname,
   "julia" => julia,
@@ -40,11 +40,11 @@ function jobdict(hpc_id,jobname,params,walltime,mem_gb)
   )
 end
 
-include( testdir("data","thingi10k_quality_filter.jl") ) # file_ids = Int[]
+include( testdir("data","thingi10k_solid_manifold.jl") ) # file_ids = Int[]
 
 include( scriptsdir("generic","hpc_dicts.jl") )
 
-function create_jobs_dataset(hpc_id,subset;walltime="24:00:00",memory=16)
+function create_jobs_dataset(hpc_id,subset;walltime="24:00:00",memory=16,ncpus=memory÷4)
 
   @unpack hpcname = hpc_dict[hpc_id]
 
@@ -81,7 +81,7 @@ function create_jobs_dataset(hpc_id,subset;walltime="24:00:00",memory=16)
     jobname = replace(jobname,"="=>"_")
     jobfile = datadir(hpcname,jobname*".sh")
     open(jobfile,"w") do io
-      render(io,template,jobdict(hpc_id,jobname,range,walltime,memory))
+      render(io,template,jobdict(hpc_id,jobname,range,walltime,memory,ncpus))
     end
   end
 

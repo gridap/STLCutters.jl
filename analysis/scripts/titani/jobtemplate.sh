@@ -5,12 +5,12 @@
 #SBATCH --output={{{o}}}
 #SBATCH --error={{{e}}}
 #SBATCH --mem={{mem}} #MB
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task={{ncpus}}
 #SBATCH --nodes=1 
 #SBATCH --ntasks-per-node=1
 
 {{{julia}}} --project={{{projectdir}}} \
-      -O3 --check-bounds=no -e\
+      -O3 --check-bounds=no --threads {{ncpus}} -e\
       'using STLCutters;
        using STLCutters.Tests;
        {{{includes}}}

@@ -12,6 +12,9 @@ using STLCutters
 
 import Downloads
 
+using IterativeSolvers: cg
+using Preconditioners: AMGPreconditioner
+using Preconditioners: SmoothedAggregation
 using STLCutters: FACE_IN, FACE_OUT, FACE_CUT
 
 export analysisdir

@@ -274,6 +274,7 @@ println("$(c/size(raw_10k,1)*100)% of $(size(raw_10k,1)) has ϵ_Γ below $tol ($
 c = count(i->abs(i) < tol,raw_10k.volume_error)
 println("$(c/size(raw_10k,1)*100)% of $(size(raw_10k,1)) has ϵ_V below $tol ($c out of $(size(raw_10k,1)))")
 
+@assert false
 raw_10k = filter(i->ismissing(i.min_h)||i.min_h>1e-5,raw_10k)
 
 xfield = :num_stl_facets

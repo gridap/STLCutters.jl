@@ -158,7 +158,8 @@ function _run_and_save(
   tolfactor::Real=1e3,
   poisson::Bool=false,
   solution_order::Integer=1,
-  agfem_threshold::Real=1)
+  agfem_threshold::Real=1,
+  solver::Symbol=:direct)
 
   X,T,N = read_stl(filename)
 
@@ -169,11 +170,6 @@ function _run_and_save(
 
   stl0 = compute_stl_model(T,X)
   stl0 = merge_and_collapse(stl0)
-
-  if num_cells(stl0) > 1e6
-    !verbose || println("Skipping run: $title is too large ($(num_cells(stl0)) facets)")
-    return
-  end
 
   X0 = get_node_coordinates(get_grid(stl0))
   T0 = get_cell_node_ids(stl0)
@@ -209,7 +205,7 @@ function _run_and_save(
   data["rotation"] = θ
   data["kdtree"] = kdtree
 
-  @pack! data = poisson, solution_order, agfem_threshold
+  @pack! data = poisson, solution_order, agfem_threshold, solver
 
   if verbose
     println("---------------------------------------")
@@ -223,14 +219,9 @@ function _run_and_save(
   if !poisson
     out = run_stl_cutter(model,stl;tolfactor,kdtree,vtk,verbose,title)
   else
-    if solution_order == 1
-      u = x -> x[1] + x[2] - x[3]
-    elseif solution_order == 2
-      u = x -> x[1]^2 + x[2]^2 - x[3]^2
-    else
-      @notimplemented
-    end
-    out = run_poisson(model,stl,u;agfem_threshold,vtk,verbose,title)
+    d = solution_order
+    u = x -> x[1]^d + x[2]^d - x[3]^d
+    out = run_poisson(model,stl,u;agfem_threshold,solver,vtk,verbose,title)
   end
 
   merge!(out,data)
@@ -291,7 +282,7 @@ function run_geometry_list(ids,filenames;verbose::Bool=true,params...)
     try
       run_and_save(filenames[id];verbose,params...)
     catch e
-      println(stderr,e)
+      println(stdout,e)
       !verbose || println("Failed run of geometry $id")
     end
   end
@@ -303,6 +294,7 @@ function run_poisson(
   stl::DiscreteModel,
   u::Function = x -> x[1] + x[2] - x[3];
   agfem_threshold = 1,
+  solver=:direct,
   vtk=false,
   verbose=true,
   title="")
@@ -360,7 +352,18 @@ function run_poisson(
 
   # FE problem
   operator = @timed op = AffineFEOperator(a,l,U,V)
-  system = @timed uh = solve(op)
+
+  system = @timed if solver == :direct
+    uh = solve(op)
+  elseif solver == :amg
+    A = get_matrix(op)
+    b = get_vector(op)
+    p = AMGPreconditioner{SmoothedAggregation}(A)
+    x = cg(A,b,verbose=true,Pl=p,reltol=1e-10)
+    uh = FEFunction(U,x)
+  else
+    @unreachable
+  end
 
   e = u - uh
 
