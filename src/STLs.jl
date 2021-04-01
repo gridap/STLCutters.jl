@@ -247,7 +247,8 @@ end
 function merge_and_collapse(stl::DiscreteModel;atol=10*eps(Float32,stl))
   stl = merge_nodes(stl;atol)
   collapse_small_facets!(stl;atol)
-  merge_nodes(stl;atol)
+  stl = merge_nodes(stl;atol)
+  preprocess_small_facets(stl;atol)
 end
 
 function collapse_small_facets!(stl::DiscreteModel;atol)
@@ -279,11 +280,62 @@ function collapse_small_facets!(stl::DiscreteModel;atol)
 end
 
 function merge_nodes(stl::DiscreteModel;atol=10*eps(Float32,stl))
-  X,T = delete_repeated_vertices(get_grid(stl);atol)
+  X,T = delete_repeated_vertices(stl;atol)
   compute_stl_model(T,X)
 end
+  
+function delete_repeated_vertices(stl::DiscreteModel;atol)
+  if is_water_tight(stl)
+    delete_repeated_vertices_water_tight
+  else
+    delete_repeated_vertices_from_cloud
+  end
+end
 
-function delete_repeated_vertices(stl::Grid;atol)
+function delete_repeated_vertices(stl::DiscreteModel;atol)
+  vertex_to_equal = _map_equal_vertices(stl;atol)
+  topo = get_grid_topology(stl)
+  X = get_vertex_coordinates(topo)
+  T = get_cell_vertices(topo) 
+  X,T = _delete_vertices(X,T,vertex_to_equal)
+  _delete_empty_cells!(T)
+  T = Table(T)
+  X,T
+end
+
+function _map_equal_vertices(stl::DiscreteModel;atol)
+  if is_water_tight(stl)
+    _map_equal_vertices_water_tight(stl;atol)
+  else
+    _map_equal_vertices_from_cloud(stl;atol)
+  end
+end
+
+function _map_equal_vertices_water_tight(stl::DiscreteModel;atol)
+  @notimplementedif !is_water_tight(stl)
+  topo = get_grid_topology(stl)
+  vertex_coordinates = get_vertex_coordinates(topo)
+  e_to_v = get_faces(topo,1,0)
+  c = array_cache(e_to_v)
+  vertices_map = collect(1:num_nodes(stl))
+  for e in 1:length(e_to_v)
+    vertices = getindex!(c,e_to_v,e)
+    a,b = vertices[1],vertices[2]
+    va = vertex_coordinates[a]
+    vb = vertex_coordinates[b]
+    if distance(va,vb) < atol
+      if a < b
+        vertices_map[a] = vertices_map[b]
+      else
+        vertices_map[b] = vertices_map[b]
+      end
+    end
+  end
+  vertices_map
+end
+
+function _map_equal_vertices_from_cloud(stlmodel::DiscreteModel;atol)
+  stl = get_grid(stlmodel)
   group_to_vertices =  _group_vertices(stl;atol=atol*10)
   vertices_map = collect(1:num_nodes(stl))
   for _vertices in group_to_vertices
@@ -299,19 +351,24 @@ function delete_repeated_vertices(stl::Grid;atol)
       end
     end
   end
-  u = unique(vertices_map)
-  m = vertices_map .== 1:length(vertices_map)
+  vertices_map
+end
+
+function _delete_vertices(X,T,vertex_to_equal_vertex)
+  u = unique(vertex_to_equal_vertex)
+  m = vertex_to_equal_vertex .== 1:length(vertex_to_equal_vertex)
   m = cumsum(m) .* m
-  vertices_map = m[vertices_map]
-  X = get_node_coordinates(stl)[u]
-  T = get_cell_node_ids(stl)
+  vertices_map = m[vertex_to_equal_vertex]
+  X = X[u]
   T = map( i -> vertices_map[i], T )
-  filter!(f->length(f)==_num_uniques(f),T)
-  T = Table(T)
   X,T
 end
 
-function _num_uniques(a::AbstractArray)
+function _delete_empty_cells!(T)  
+  filter!( f -> length(f) == _num_uniques(f) , T )
+end
+
+function _num_uniques(a::AbstractVector)
   c = 0
   for i in 1:length(a)
     if a[i] ∉ view(a,1:i-1)
@@ -578,6 +635,105 @@ function min_height(grid::Grid)
 end
 
 min_height(model::DiscreteModel) = min_height(get_grid(model))
+
+function preprocess_small_facets(stl::DiscreteModel;atol)
+  @notimplementedif !is_water_tight(stl)
+  max_iters = 20
+  for i in 1:max_iters
+    stl,incomplete = _preprocess_small_facets(stl;atol)
+    incomplete || return stl
+  end
+  @warn "Unable to fix small facets in $max_iters iterations"
+  stl
+end
+
+function _preprocess_small_facets(stl::DiscreteModel{Dc};atol) where Dc
+  @notimplementedif Dc ≠ 2
+  hang_v,cut_e = get_hanging_vertices_and_edges(stl;atol)
+  incomplete = false
+  if !isempty(hang_v)
+    touched = falses(num_cells(stl))
+    topo = get_grid_topology(stl)
+    f_to_v = get_faces(topo,Dc,0)
+    e_to_v = get_faces(topo,Dc-1,0)
+    e_to_f = get_faces(topo,Dc-1,Dc)
+    fv = array_cache(f_to_v)
+    ev = array_cache(e_to_v)
+    ef = array_cache(e_to_f)
+    c = get_facet_cache(stl)
+    X = get_vertex_coordinates(topo)
+    T = Vector( f_to_v )
+    Tnew = Vector{Int32}[]
+    for (v,e) in zip(hang_v,cut_e)
+      edge = get_facet!(c,stl,e)
+      p = projection(X[v],edge)
+      X[v] = p
+      faces_around = getindex!(ef,e_to_f,e)
+      if any(f->touched[f],faces_around)
+        incomplete = true
+        continue
+      end
+      for f in faces_around
+        touched[f] = true
+        ks = split_face!(fv,ev,f_to_v,e_to_v,f,e,v)
+        push!(Tnew,ks...)
+      end
+    end
+    deleteat!(T,touched)
+    append!(T,Tnew)
+    _delete_empty_cells!(T)
+    stl = compute_stl_model(Table(T),X)
+    stl = merge_nodes(stl;atol)
+    @assert is_water_tight(stl)
+  end
+  stl,incomplete
+end
+
+function split_face!(fv,ev,f_to_v,e_to_v,f,e,v)
+  facet = getindex!(fv,f_to_v,f)
+  edge = getindex!(ev,e_to_v,e)
+  replace( facet, edge[1] => v ),
+  replace( facet, edge[2] => v )
+end
+
+function get_hanging_vertices_and_edges(stl::DiscreteModel{Dc};atol) where Dc
+  @notimplementedif Dc ≠ 2
+  topo = get_grid_topology(stl)
+  vertex_coordinates = get_vertex_coordinates(topo)
+  f_to_e = get_faces(topo,Dc,Dc-1)
+  f_to_v = get_faces(topo,Dc,0)
+  e_to_v = get_faces(topo,Dc-1,0)
+  ce = array_cache(f_to_e)
+  cv = array_cache(f_to_v)
+  _cv = array_cache(e_to_v)
+  c = get_facet_cache(stl)
+  hanging_vertices = Int32[]
+  cut_edges = Int32[]
+  for f in 1:num_cells(stl)
+    min_dist = Inf
+    hang_v = UNSET
+    cut_e = UNSET
+    for e in getindex!(ce,f_to_e,f)
+      for v in getindex!(cv,f_to_v,f)
+        _vertices = getindex!(_cv,e_to_v,e)
+        v ∉ _vertices || continue
+        edge = get_facet!(c,stl,e)
+        point = vertex_coordinates[v]
+        dist = distance(edge,point)
+        if dist < min_dist
+          min_dist = dist
+          hang_v = v
+          cut_e = e
+        end
+      end
+    end
+    if min_dist < atol
+      push!(hanging_vertices,hang_v)
+      push!(cut_edges,cut_e)
+    end
+  end
+  hanging_vertices,cut_edges
+end
 
 function split_disconnected_parts(stl::DiscreteModel)
   Dc = num_dims(stl)
