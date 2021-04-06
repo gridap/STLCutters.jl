@@ -1541,10 +1541,10 @@ function compute_submesh(
   caches = _get_threaded_caches(cell_to_nodes)
 
   cut_cells = filter(i->!isempty(c_to_stlf[i]),1:num_cells(grid))
-  Threads.@threads for cell in cut_cells
-    Kn_in, Kn_out = compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
-      c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)
-    save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out)
+  @sync for cell in cut_cells
+    Threads.@spawn save_cell_submesh!(submesh,io_arrays,stl,p,cell,
+      compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
+        c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)... )
   end
 
   submesh = _append_threaded_submesh!(submesh)
