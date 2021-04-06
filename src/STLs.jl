@@ -332,16 +332,29 @@ function _map_equal_vertices_from_cloud(stlmodel::DiscreteModel;atol)
   vertices_map = collect(1:num_nodes(stl))
   for _vertices in group_to_vertices
     for i in 1:length(_vertices), j in i+1:length(_vertices)
-      vi = get_node_coordinates(stl)[_vertices[i]]
-      vj = get_node_coordinates(stl)[_vertices[j]]
-      if vertices_map[_vertices[i]] == _vertices[i] && 
-         vertices_map[_vertices[j]] == _vertices[j]
+      if _vertices[i] != _vertices[j]
+        vi = get_node_coordinates(stl)[_vertices[i]]
+        vj = get_node_coordinates(stl)[_vertices[j]]
+        if vertices_map[_vertices[i]] == _vertices[i] &&
+           vertices_map[_vertices[j]] == _vertices[j]
 
-        if distance(vi,vj) < atol
-          vertices_map[_vertices[j]] = vertices_map[_vertices[i]]
+          if distance(vi,vj) < atol
+            vertices_map[_vertices[j]] = vertices_map[_vertices[i]]
+          end
         end
       end
     end
+  end
+  for i in 1:length(vertices_map)
+    nmax = 10
+    n = 0
+    v = i
+    while vertices_map[v] != v
+      v = vertices_map[v]
+      n += 1
+      @assert n < nmax
+    end
+    vertices_map[i] = v
   end
   vertices_map
 end
@@ -351,6 +364,7 @@ function _delete_vertices(X,T,vertex_to_equal_vertex)
   m = vertex_to_equal_vertex .== 1:length(vertex_to_equal_vertex)
   m = cumsum(m) .* m
   vertices_map = m[vertex_to_equal_vertex]
+  @assert count(iszero,vertices_map) == 0
   X = X[u]
   T = map( i -> vertices_map[i], T )
   X,T
