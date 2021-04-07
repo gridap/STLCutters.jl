@@ -244,7 +244,7 @@ function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
   get_dface(stl,cell,Val{Dc}())
 end
 
-function merge_and_collapse(stl::DiscreteModel;atol=10*eps(Float32,stl))
+function merge_and_collapse(stl::DiscreteModel;atol=100*eps(Float32,stl))
   stl = merge_nodes(stl;atol)
   collapse_small_facets!(stl;atol)
   stl = merge_nodes(stl;atol)
@@ -354,7 +354,9 @@ function _map_equal_vertices_from_cloud(stlmodel::DiscreteModel;atol)
       n += 1
       @assert n < nmax
     end
-    vertices_map[i] = v
+    if vertices_map[i] != v
+      vertices_map[i] = v
+    end
   end
   vertices_map
 end
@@ -635,7 +637,7 @@ min_height(model::DiscreteModel) = min_height(get_grid(model))
 
 function preprocess_small_facets(stl::DiscreteModel;atol)
   @notimplementedif !is_water_tight(stl)
-  max_iters = 20
+  max_iters = 100
   for i in 1:max_iters
     stl,incomplete = _preprocess_small_facets(stl;atol)
     incomplete || return stl
@@ -649,6 +651,7 @@ function _preprocess_small_facets(stl::DiscreteModel{Dc};atol) where Dc
   hang_v,cut_e = get_hanging_vertices_and_edges(stl;atol)
   incomplete = false
   if !isempty(hang_v)
+    incomplete = true
     touched = falses(num_cells(stl))
     topo = get_grid_topology(stl)
     f_to_v = get_faces(topo,Dc,0)
@@ -667,7 +670,6 @@ function _preprocess_small_facets(stl::DiscreteModel{Dc};atol) where Dc
       X[v] = p
       faces_around = getindex!(ef,e_to_f,e)
       if any(f->touched[f],faces_around)
-        incomplete = true
         continue
       end
       for f in faces_around
