@@ -17,3 +17,5 @@ function create_all_jobs(hpc::Symbol,subset=subsets[hpc];onlymatrix=false,kwargs
 end
 # create_jobs_matrix(:gadi,memory=32,displace=true,nmaxs=112,poisson=true,solution_order=1)
 # create_jobs_matrix(:gadi,memory=32,displace=false,poisson=true,solution_order=2)
+
+# create_jobs_matrix(:gadi,walltime="1:00:00",memory=64,ncpus=16,displace=false,poisson=true,solution_order=2,solver=:amg)

@@ -10,7 +10,7 @@ using STLCutters.Tests
 
 include( scriptsdir("generic","hpc_dicts.jl") )
 
-function jobdict(hpc_id,jobname,params,walltime,mem_gb)
+function jobdict(hpc_id,jobname,params,walltime,mem_gb,ncpus)
   @unpack func,filename,nmin,nmax,kwargs = params
   @unpack hpcname,queue,memory,julia= hpc_dict[hpc_id]
   filename = testdir("data","$filename.stl")
@@ -24,7 +24,7 @@ function jobdict(hpc_id,jobname,params,walltime,mem_gb)
   "o" => datadir(hpcname,jobname*".out"),
   "e" => datadir(hpcname,jobname*".err"),
   "walltime" => walltime,
-  "ncpus" => 1,
+  "ncpus" => ncpus,
   "mem" => memory(mem_gb),
   "julia" => julia,
   "name" => jobname,
@@ -42,7 +42,7 @@ stl_list = [
   "96457", # NightHawk
   "550964", # Eiffel Tower
   "293137", # Bunny low-poly
-  "441708", # Standford Bunny
+  "441708_1", # Standford Bunny
   "35269", # Octocat
   "65904", # Heart 
   "551021", # Arc de Triomph
@@ -53,10 +53,12 @@ function create_jobs_matrix(
   hpc_id;
   walltime="24:00:00",
   memory=16,
+  ncpus=4,
   nmaxs=14 .* 2 .^ (0:5),
   displace=true,
   poisson=false,
-  solution_order=1)
+  solution_order=1,
+  solver=:direct)
 
   @unpack hpcname = hpc_dict[hpc_id]
 
@@ -81,7 +83,8 @@ function create_jobs_matrix(
          "$kwargs,
           poisson=true,
           solution_order=$solution_order,
-          agfem_threshold=0.5"
+          agfem_threshold=0.5,
+          solver=$solver"
   end
 
   prefix = ""
@@ -109,7 +112,7 @@ function create_jobs_matrix(
     jobname = replace(jobname,"="=>"")
     jobfile = datadir(hpcname,jobname*".sh")
     open(jobfile,"w") do io
-      render(io,template,jobdict(hpc_id,jobname,params,walltime,memory))
+      render(io,template,jobdict(hpc_id,jobname,params,walltime,memory,ncpus))
     end
   end
 
