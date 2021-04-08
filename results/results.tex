@@ -37,7 +37,7 @@
       Relative position - robustness test
       \begin{itemize}
         \item
-          Set of 13 geometries
+          Set of 12 geometries
         \item
           Constant background mesh $h$-refinement% (112 divisions)
         \item
@@ -68,7 +68,8 @@
     \item[3.] Large geometry dataset
       \begin{itemize}
         \item   
-          \href{https://ten-thousand-models.appspot.com/results.html?q=is+closed\%2C+is+oriented\%2C+is+manifold\%2C+is+not+degenerate\%2C+without+self-intersection\%2C+\%23df\%3D0}{\underline{5k geometries}}
+          \href{https://ten-thousand-models.appspot.com/results.html?q=is+solid\%2C+is+manifold}
+          {\underline{4963 geometries}}
           filtered from \href{https://ten-thousand-models.appspot.com}{Thingi10k}
         \item
           Unique criterion for background mesh refinement: maximum of 100 divisions per direccion
@@ -110,14 +111,14 @@
 
 \begin{frame}{1.1. Relative position - Robustness test}
   \begin{block}{Setup}
-    13 STLs; 17 relative positions; 17 rotation angles;  $\{\Delta x, \theta\} = 10^{-17:-1}$
+    12 STLs; 17 relative positions; 17 rotation angles;  $\{\Delta x, \theta\} = 10^{-17:-1}$
   \end{block}
   \includegraphics[width=0.95\textwidth]{matrix.pdf}
 \end{frame}
 
 \begin{frame}{1.1. Relative position - Robustness test}
   \begin{block}{Setup}
-    13 STLs; 17 relative positions; 17 rotation angles;  $\{\Delta x, \theta\} = 10^{-17:-1}$
+    12 STLs; 17 relative positions; 17 rotation angles;  $\{\Delta x, \theta\} = 10^{-17:-1}$
   \end{block}
   \includegraphics[width=0.95\textwidth]{matrix_ids.pdf}
 \end{frame}
@@ -219,7 +220,7 @@
   \begin{block}{Setup}
     \begin{itemize}
       \item
-        13 geometries from 1.1.
+        12 geometries from 1.1.
       \item
         6 refinement sizes: $N_{max} = 14 \cdot 2^{0:5}$
     \end{itemize}
@@ -234,7 +235,7 @@
   \begin{block}{Setup}
     \begin{itemize}
       \item
-        13 geometries from 1.1.
+        12 geometries from 1.1.
       \item
         6 refinement sizes: $N_{max} = 14 \cdot 2^{0:5}$
     \end{itemize}
@@ -292,10 +293,10 @@
         AgFEM w/ aggregate threshold 0.5
     \end{itemize}
   \end{block}
-  \centering
-  \includegraphics[width=0.7\textwidth]{aggregates}
-
-  {\tiny Cell aggregation in thin walls}
+%  \centering
+%  \includegraphics[width=0.7\textwidth]{aggregates}
+%
+%  {\tiny Cell aggregation in thin walls}
 
 \end{frame}
 
@@ -316,11 +317,10 @@
   \begin{block}{Setup}
     \begin{itemize}
       \item
-  
-        \href{https://ten-thousand-models.appspot.com/results.html?q=is+closed\%2C+is+oriented\%2C+is+manifold\%2C+is+not+degenerate\%2C+without+self-intersection\%2C+\%23df\%3D0}{\underline{5052 geometries}}
+        \href{https://ten-thousand-models.appspot.com/results.html?q=is+solid\%2C+is+manifold}
+        {\underline{4963 geometries}}
         filtered from \href{https://ten-thousand-models.appspot.com}{Thingi10k}
-
-        
+        (solid and manifold)
       \item
         $N_{max} = 100 $ (unique $h$-refinement criterion)
     \end{itemize}
@@ -335,23 +335,20 @@
 \begin{frame}{3. Large geometry dataset}
   \begin{block}{Summary}
    \dirtree{%
-     .1 \textbf{Total}: 5052  .
-     .2 Not available: 312 .
-     .2 Load error: 6 .
-     .2 \textbf{Available}: 4734 .
-     .3 Launched on HPC: 4544.
-     .4 \textbf{Success}: 4440 .
-     .4 Large volume error: 70 .
-     .4 Not ended: 34 .
-     .3 Pending: 170 .
-     .3 Degenerate: 20 .
+     .1 \textbf{Total}: 4963  .
+     .2 Not available: 193 .
+     .2 \textbf{Available}: 4770 .
+     .3 Ended: 4646.
+     .4 \textbf{Success}: 4641.
+     .4 Fail: 5.
+     .3 Not ended: 124.
+     .4 Load error: 5.
+     .4 Degenerate 62.
+     .4 Too fine: 30.
+     .4 Other: 27.
      }
 
   \end{block}
-
-  \vfill{}
-
-  \textbf{NOTE:} As shown in next slides large volume error is due to small facets.
 
 \end{frame}
 
@@ -365,9 +362,9 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      98.4\% of 4510 is below $10^{-9}$
+      99.9\% of 4641 is below $10^{-10}$
     \item
-      All STLs above $10^{-9}$ contain small facets
+      Errors related with to deleting small facets properly
   \end{itemize}
   \end{block}
 
@@ -382,9 +379,9 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      98.8\% of 4510 is below $10^{-9}$
+      99.9\% of 4641 is below $10^{-10}$
     \item
-      All STLs above $10^{-9}$ contain small facets
+      Errors related with to deleting small facets properly
   \end{itemize}
   \end{block}
 
@@ -399,9 +396,9 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      98.6\% of 4136 is below $10^{-9}$
+      99.9\% of 4641 is below $10^{-10}$
     \item
-      All STLs above $10^{-9}$ contain small facets
+      Errors related with to deleting small facets properly
   \end{itemize}
   \end{block}
 
@@ -409,22 +406,22 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/histogram_volume_error}
 \end{frame}
 
-\begin{frame}{3. Large geometry dataset}
-
-  \begin{block}{Volume error [filtering STLs with small facets]}
-  \begin{itemize}
-    \item
-      $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
-    \item
-      100\% is below $10^{-14}$
-   % \item
-   %   All STLs above $10^{-9}$ contain small facets
-  \end{itemize}
-  \end{block}
-
-  \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_num_stl_facets_volume_error}
-  \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_histogram_volume_error}
-\end{frame}
+%\begin{frame}{3. Large geometry dataset}
+%
+%  \begin{block}{Volume error [filtering STLs with small facets]}
+%  \begin{itemize}
+%    \item
+%      $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
+%    \item
+%      100\% is below $10^{-14}$
+%   % \item
+%   %   All STLs above $10^{-9}$ contain small facets
+%  \end{itemize}
+%  \end{block}
+%
+%  \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_num_stl_facets_volume_error}
+%  \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_histogram_volume_error}
+%\end{frame}
 
 \begin{frame}{3. Large geometry dataset}
 
@@ -433,9 +430,7 @@
     \item
       $\epsilon_\Gamma = \Gamma - V_{STL}$
     \item
-      98.9\% of 4136 is below $10^{-9}$
-    \item
-      (almost) all STLs above $10^{-9}$ contain small facets
+      99.9\% of 4641 is below $10^{-9}$
   \end{itemize}
   \end{block}
 
@@ -443,48 +438,50 @@
   \includegraphics[width=0.49\textwidth]{../analysis/plots/histogram_surface_error}
 \end{frame}
 
-\begin{frame}{3. Large geometry dataset}
-
-  \begin{block}{Surface error [filtering STLs with small facets]}
-  \begin{itemize}
-    \item
-      $\epsilon_\Gamma = \Gamma - V_{STL}$
-    \item
-      99.9\% is below $10^{-9}$
-    \item
-      One outlier can be moved by increasing the tolerance
-  \end{itemize}
-  \end{block}
-
-  \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_num_stl_facets_surface_error}
-  \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_histogram_surface_error}
-\end{frame}
-
-\begin{frame}{3. Large geometry dataset}
-
-  \begin{block}{Surface error [filtering STLs with small facets]}
-  \begin{itemize}
-    \item
-      $\epsilon_\Gamma = \Gamma - V_{STL}$
-    \item
-      99.9\% is below $10^{-9}$
-    \item
-      One outlier can be moved by increasing the tolerance
-  \end{itemize}
-  \end{block}
-
-  \includegraphics[width=0.49\textwidth]{moving_filter_num_stl_facets_surface_error}
-  \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_histogram_surface_error}
-\end{frame}
+%\begin{frame}{3. Large geometry dataset}
+%
+%  \begin{block}{Surface error [filtering STLs with small facets]}
+%  \begin{itemize}
+%    \item
+%      $\epsilon_\Gamma = \Gamma - V_{STL}$
+%    \item
+%      99.9\% is below $10^{-9}$
+%    \item
+%      One outlier can be moved by increasing the tolerance
+%  \end{itemize}
+%  \end{block}
+%
+%  \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_num_stl_facets_surface_error}
+%  \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_histogram_surface_error}
+%\end{frame}
+%
+%\begin{frame}{3. Large geometry dataset}
+%
+%  \begin{block}{Surface error [filtering STLs with small facets]}
+%  \begin{itemize}
+%    \item
+%      $\epsilon_\Gamma = \Gamma - V_{STL}$
+%    \item
+%      99.9\% is below $10^{-9}$
+%    \item
+%      One outlier can be moved by increasing the tolerance
+%  \end{itemize}
+%  \end{block}
+%
+%  \includegraphics[width=0.49\textwidth]{moving_filter_num_stl_facets_surface_error}
+%  \includegraphics[width=0.49\textwidth]{../analysis/plots/filter_histogram_surface_error}
+%\end{frame}
 
 \begin{frame}{3. Large geometry dataset}
 
   \begin{block}{CPU time}
   \begin{itemize}
     \item
-      Not precise measure (different machines, single runs)
+      Not precise measure (different machines, single runs, single cpu)
     \item
       Increasing with the number of STL facets
+    \item
+      Some geometries have been run with multi-threading and optimized code but discarted in this plot to avoid noise
   \end{itemize}
   \end{block}
 

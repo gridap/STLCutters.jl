@@ -52,8 +52,11 @@ raw_10k_titani = raw_titani
 
 raw_10k = vcat( raw_10k_gadi,raw_10k_titani,cols=:union)
 
+raw_10k = filter( i->!contains(i.path,"#"), raw_10k)
+
 raw_matrix = filter(i->i.name≠"96457"||i.rotation<0.1,raw_matrix)
-replace!(raw_matrix.name,"wine_glass"=>"3201401","65904_1"=>"65904")
+replace!(raw_matrix.name,"65904_1"=>"65904")
+filter!(i->i.name≠"wine_glass",raw_matrix)
 
 raw_matrix_poisson = filter( i-> !ismissing(i.poisson) && i.poisson, raw_matrix )
 raw_matrix = filter( i -> ismissing(i.poisson) || !i.poisson, raw_matrix )
@@ -118,8 +121,13 @@ function plot_all_geometries(raw,plotname,xfield,yfield)
     y = d[!,yfield]
     x0,y0 = x[1],y[1]
     min_y0 = min(y0,min_y0)
-    (xfield == :nmax ) || ( x = x[2:end] )
-    (xfield == :nmax ) || ( y = y[2:end] )
+    if xfield != :nmax || yfield ∉ (:time,:error_l2,:error_h1) 
+      x = x[2:end]
+      y = y[2:end]
+    end
+    if  xfield == :nmax && yfield ∈ (:error_h1,:error_l2)
+      x .*= 2
+    end
     if yfield ∉ (:error_l2,:error_h1)
       y = yfield == :time ? y / y0 : @. abs( y - y0 ) / y0 
     end
@@ -130,7 +138,7 @@ function plot_all_geometries(raw,plotname,xfield,yfield)
   plot!(xscale=:log10)
   plot!(yscale=:log10)
   plot!(legend=:outerbottomright)
-  (xfield == :nmax) && plot!(xticks=( 2 .^ (0:5), 2 .^ (0:5) ))
+  (xfield == :nmax) && plot!(xticks=( 2 .^ (1:5), 2 .^ (1:5) ))
   plot!(xlabel=labels[xfield],ylabel=labels[yfield])
   (yfield == :time) && plot!(ylabel="Relative time (t/t₀)")
   if xfield == :nmax && yfield ∈ (:error_h1,:error_l2)
@@ -140,7 +148,7 @@ function plot_all_geometries(raw,plotname,xfield,yfield)
     x = [1,1e2]
     y = @. (1/x)^order
     plot!(x,y.*1e-1,color=:black,linestyle=:dash,label="slope = -$order")
-    plot!(x,y.*min_y0./2,color=:black,linestyle=:dash,label=:none)
+    plot!(x,y.*min_y0 .* 2. ^ (order-2),color=:black,linestyle=:dash,label=:none)
     plot!(;xlims,ylims)
   end
   savefig(plotsdir("$plotname.pdf"))
@@ -153,7 +161,6 @@ default_value = Dict(
   :nmax => 112 )
 
 data = raw_matrix
-replace!(data.name,"wine_glass"=>"3201401")
 
 all_params = Dict(
   :x => test_fields,
@@ -185,6 +192,9 @@ end
 
 
 data = filter(i->i.solution_order==2,raw_matrix_poisson)
+data = filter(i-> !ismissing(i.solver) && i.solver==:amg, data)
+data = filter(i-> i.nmax > 14, data)
+
 test_fields = [:nmax]
 all_params = Dict(
   :x => test_fields,
@@ -200,9 +210,10 @@ for params in dict_list(all_params)
 end
 
 
-include(testdir("data","thingi10k_quality_filter.jl"))
+include(testdir("data","thingi10k_solid_manifold.jl"))
 
-raw_10k = filter(i->parse(Int,i.name)∉blacklist_ids,raw_10k)
+#raw_10k = filter(i->parse(Int,i.name)∉degenerate_file_ids,raw_10k)
+raw_10k = filter(i->parse(Int,i.name)∈file_ids,raw_10k)
 
 
 function save_plot(data,xfield,yfield;prefix=nothing)
@@ -254,15 +265,16 @@ xfield = :num_stl_facets
 yfield = :volume_error
 save_plot(raw_10k,xfield,yfield)
 
+raw_10k_t = filter(i->ismissing(i.solver),raw_10k)
 xfield = :num_stl_facets
 yfield = :time
-save_plot(raw_10k,xfield,yfield)
+save_plot(raw_10k_t,xfield,yfield)
 
 accumulated_frequency_histogram(raw_10k,:volume_error)
 
 accumulated_frequency_histogram(raw_10k,:surface_error)
 
-accumulated_frequency_histogram(raw_10k,:time,range=exp10.(0:0.1:6))
+accumulated_frequency_histogram(raw_10k_t,:time,range=exp10.(0:0.1:6))
 
 accumulated_frequency_histogram(raw_10k,:num_stl_facets,range=exp10.(0:0.1:6))
 
@@ -274,18 +286,17 @@ println("$(c/size(raw_10k,1)*100)% of $(size(raw_10k,1)) has ϵ_Γ below $tol ($
 c = count(i->abs(i) < tol,raw_10k.volume_error)
 println("$(c/size(raw_10k,1)*100)% of $(size(raw_10k,1)) has ϵ_V below $tol ($c out of $(size(raw_10k,1)))")
 
-@assert false
-raw_10k = filter(i->ismissing(i.min_h)||i.min_h>1e-5,raw_10k)
-
-xfield = :num_stl_facets
-yfield = :surface_error
-save_plot(raw_10k,xfield,yfield,prefix="filter")
-
-xfield = :num_stl_facets
-yfield = :volume_error
-save_plot(raw_10k,xfield,yfield,prefix="filter")
-
-accumulated_frequency_histogram(raw_10k,:volume_error,prefix="filter")
-
-accumulated_frequency_histogram(raw_10k,:surface_error,prefix="filter")
+#raw_10k = filter(i->ismissing(i.min_h)||i.min_h>1e-5,raw_10k)
+#
+#xfield = :num_stl_facets
+#yfield = :surface_error
+#save_plot(raw_10k,xfield,yfield,prefix="filter")
+#
+#xfield = :num_stl_facets
+#yfield = :volume_error
+#save_plot(raw_10k,xfield,yfield,prefix="filter")
+#
+#accumulated_frequency_histogram(raw_10k,:volume_error,prefix="filter")
+#
+#accumulated_frequency_histogram(raw_10k,:surface_error,prefix="filter")
 
