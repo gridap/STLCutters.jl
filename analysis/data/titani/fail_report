@@ -7,6 +7,12 @@ from_1001_to_1100.out:Failed run of geometry 73154
 from_1301_to_1400.out-AssertionError("count(iszero, vertices_map) == 0")
 from_1301_to_1400.out:Failed run of geometry 82536
 --
+from_1401_to_1500.out-ErrorException("Edge too sharp")
+from_1401_to_1500.out:Failed run of geometry 84915
+--
+from_1401_to_1500.out-AssertionError("count(iszero, vertices_map) == 0")
+from_1401_to_1500.out:Failed run of geometry 89266
+--
 from_1501_to_1600.out-AssertionError("is_water_tight(stl)")
 from_1501_to_1600.out:Failed run of geometry 91474
 --
