@@ -11,10 +11,10 @@ using GridapEmbedded.Interfaces
 using GridapEmbedded.LevelSetCutters
 using LinearAlgebra
 using FileIO
-using GraphRecipes
-using Plots
 
 import MeshIO
+import Plots
+import GraphRecipes
 
 import Gridap: writevtk
 import Gridap.ReferenceFEs: get_polytope
