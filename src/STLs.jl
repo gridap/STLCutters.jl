@@ -244,7 +244,7 @@ function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
   get_dface(stl,cell,Val{Dc}())
 end
 
-function merge_and_collapse(stl::DiscreteModel;atol=100*eps(Float32,stl))
+function merge_and_collapse(stl::DiscreteModel;atol=10*eps(Float32,stl))
   stl = merge_nodes(stl;atol)
   collapse_small_facets!(stl;atol)
   stl = merge_nodes(stl;atol)

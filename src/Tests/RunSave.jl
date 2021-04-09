@@ -60,8 +60,8 @@ function compute_sizes(pmin::Point{D},pmax::Point{D};nmin=10,nmax=100) where D
   origin,sizes,partition
 end
 
-function run_stl_cutter(model,stl;tolfactor=1e3,kdtree=false,vtk=false,verbose=true,title="")
-  t = @timed data = compute_submesh(model,stl;tolfactor)
+function run_stl_cutter(model,stl;tolfactor=1e3,kdtree=false,vtk=false,threading=:spawn,verbose=true,title="")
+  t = @timed data = compute_submesh(model,stl;tolfactor,threading,kdtree)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
 
   submesh = compute_grid(Table(T),X,TET)
@@ -159,7 +159,10 @@ function _run_and_save(
   poisson::Bool=false,
   solution_order::Integer=1,
   agfem_threshold::Real=1,
-  solver::Symbol=:direct)
+  solver::Symbol=:direct,
+  threading::Symbol=:none,
+  nruns::Integer=1,
+  nthreads::Integer=Threads.nthreads())
 
   X,T,N = read_stl(filename)
 
@@ -188,7 +191,7 @@ function _run_and_save(
   Xi = map(p-> o + R(θ)⋅(p-o),X0)
   Xi = map(p-> p + Δx_scaled,Xi)
   stl = compute_stl_model(Table(T0),Xi)
-  
+
   data = Dict{String,Any}()
   
   data["name"] = first(splitext(basename(filename)))
@@ -205,6 +208,7 @@ function _run_and_save(
   data["rotation"] = θ
   data["kdtree"] = kdtree
 
+  @pack! data = threading, nruns, nthreads
   @pack! data = poisson, solution_order, agfem_threshold, solver
 
   if verbose
@@ -216,16 +220,24 @@ function _run_and_save(
     println("Background grid size:\t$(data["h"])")
   end
 
-  if !poisson
-    out = run_stl_cutter(model,stl;tolfactor,kdtree,vtk,verbose,title)
-  else
-    d = solution_order
-    u = x -> x[1]^d + x[2]^d - x[3]^d
-    out = run_poisson(model,stl,u;agfem_threshold,solver,vtk,verbose,title)
-  end
+  @assert nthreads == Threads.nthreads()
 
-  merge!(out,data)
-  @tagsave("$title.bson",out;safe=true)
+  for it in 1:nruns
+    _title = title
+    if nruns > 1
+      _title *= "_it=$it"
+    end
+    if !poisson
+      out = run_stl_cutter(model,stl;tolfactor,kdtree,threading,vtk,verbose,title)
+    else
+      d = solution_order
+      u = x -> x[1]^d + x[2]^d - x[3]^d
+      out = run_poisson(model,stl,u;agfem_threshold,solver,vtk,verbose,title)
+    end
+    @pack! out = it
+    merge!(out,data)
+    @tagsave("$_title.bson",out;safe=true)
+  end
 end
 
 run_and_save(::Nothing;kwargs...) = nothing

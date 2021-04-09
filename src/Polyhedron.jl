@@ -1515,6 +1515,7 @@ Base.eps(model::DiscreteModel) = eps(get_grid(model))
 function compute_submesh(
   bgmodel::CartesianDiscreteModel,
   stlmodel::DiscreteModel;
+  threading=:spawn,
   kdtree=false,
   tolfactor=1e3)
 
@@ -1541,10 +1542,20 @@ function compute_submesh(
   caches = _get_threaded_caches(cell_to_nodes)
 
   cut_cells = filter(i->!isempty(c_to_stlf[i]),1:num_cells(grid))
-  @sync for cell in cut_cells
-    Threads.@spawn save_cell_submesh!(submesh,io_arrays,stl,p,cell,
-      compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
-        c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)... )
+  if threading == :threads
+    Threads.@threads for cell in cut_cells
+      save_cell_submesh!(submesh,io_arrays,stl,p,cell,
+        compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
+          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)... )
+    end
+  elseif threading == :spawn
+    @sync for cell in cut_cells
+      Threads.@spawn save_cell_submesh!(submesh,io_arrays,stl,p,cell,
+        compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
+          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)... )
+    end
+  else
+    @unreachable
   end
 
   submesh = _append_threaded_submesh!(submesh)
