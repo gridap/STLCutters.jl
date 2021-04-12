@@ -567,7 +567,7 @@ function plot(p::Polyhedron,filename=nothing)
   kwargs = (fontsize=10,node_size=0,line=(:dot,0.5,1),thickness_scaling=0.5)
   GraphRecipes.graphplot(g,names=names,curves=false;kwargs...)
   isnothing(filename) || Plots.savefig(filename)
-  plot!()
+  Plots.plot!()
 end
 
 function writevtk(p::Polyhedron,filename;kwargs...)

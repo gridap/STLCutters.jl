@@ -244,10 +244,11 @@ function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
   get_dface(stl,cell,Val{Dc}())
 end
 
-function merge_and_collapse(stl::DiscreteModel;atol=10*eps(Float32,stl))
+function merge_and_collapse(stl::DiscreteModel;atol=eps(Float32,stl))
   stl = merge_nodes(stl;atol)
   collapse_small_facets!(stl;atol)
   stl = merge_nodes(stl;atol)
+  stl = delete_duplicated_faces(stl)
   preprocess_small_facets(stl;atol)
 end
 
@@ -296,11 +297,11 @@ function delete_repeated_vertices(stl::DiscreteModel;atol)
 end
 
 function _map_equal_vertices(stl::DiscreteModel;atol)
-  if is_water_tight(stl)
-    _map_equal_vertices_water_tight(stl;atol)
-  else
+#  if is_water_tight(stl)
+#    _map_equal_vertices_water_tight(stl;atol)
+#  else
     _map_equal_vertices_from_cloud(stl;atol)
-  end
+#  end
 end
 
 function _map_equal_vertices_water_tight(stl::DiscreteModel;atol)
@@ -683,9 +684,38 @@ function _preprocess_small_facets(stl::DiscreteModel{Dc};atol) where Dc
     _delete_empty_cells!(T)
     stl = compute_stl_model(Table(T),X)
     stl = merge_nodes(stl;atol)
+    stl = delete_duplicated_faces(stl)
     @assert is_water_tight(stl)
   end
   stl,incomplete
+end
+
+function delete_duplicated_faces(stl::DiscreteModel)
+  topo = get_grid_topology(stl)
+  D = num_dims(stl)
+  v_to_f = get_faces(topo,0,D)
+  f_to_v = get_faces(topo,D,0)
+  vf = array_cache(v_to_f)
+  fvi = array_cache(f_to_v)
+  fvj = array_cache(f_to_v)
+  is_duplicated = falses(num_cells(stl))
+  for v in 1:num_vertices(topo)
+    facets = getindex!(vf,v_to_f,v)
+    for i in 1:length(facets), j in i+1:length(facets) 
+      fi = facets[i]
+      fj = facets[j]
+      fi ≠ fj || continue
+      vi = getindex!(fvi,f_to_v,fi)
+      vj = getindex!(fvj,f_to_v,fj)
+      if vi ⊆ vj
+        is_duplicated[fi] = is_duplicated[fj] = true
+      end
+    end
+  end
+  facets = findall(d->!d,is_duplicated)
+  T = f_to_v[facets]
+  X = get_vertex_coordinates(topo)
+  compute_stl_model(T,X)
 end
 
 function split_face!(fv,ev,f_to_v,e_to_v,f,e,v)

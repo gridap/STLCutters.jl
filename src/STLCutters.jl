@@ -1,5 +1,9 @@
 module STLCutters
 
+import MeshIO
+import Plots
+import GraphRecipes
+
 using Gridap
 using Gridap.Geometry
 using Gridap.ReferenceFEs
@@ -11,10 +15,6 @@ using GridapEmbedded.Interfaces
 using GridapEmbedded.LevelSetCutters
 using LinearAlgebra
 using FileIO
-
-import MeshIO
-import Plots
-import GraphRecipes
 
 import Gridap: writevtk
 import Gridap.ReferenceFEs: get_polytope

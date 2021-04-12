@@ -221,6 +221,8 @@ function _run_and_save(
   end
 
   @assert nthreads == Threads.nthreads()
+  threading = threading == :none ? :spawn : threading
+  out = data
 
   for it in 1:nruns
     _title = title
@@ -238,6 +240,7 @@ function _run_and_save(
     merge!(out,data)
     @tagsave("$_title.bson",out;safe=true)
   end
+  out
 end
 
 run_and_save(::Nothing;kwargs...) = nothing
