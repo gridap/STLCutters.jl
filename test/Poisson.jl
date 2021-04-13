@@ -42,15 +42,12 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 # Setup integration meshes
 Ω = Triangulation(cutgeo)
 Γd = EmbeddedBoundary(cutgeo)
-Γg = GhostSkeleton(cutgeo)
 
 # Setup normal vectors
 n_Γd = get_normal_vector(Γd)
-n_Γg = get_normal_vector(Γg)
 
 #writevtk(Ω,"trian_O")
 #writevtk(Γd,"trian_Gd",cellfields=["normal"=>n_Γd])
-#writevtk(Γg,"trian_Gg",cellfields=["normal"=>n_Γg])
 #writevtk(Triangulation(bgmodel),"bgtrian")
 
 # Setup Lebesgue measures
@@ -58,7 +55,6 @@ order = 1
 degree = 2*order
 dΩ = Measure(Ω,degree)
 dΓd = Measure(Γd,degree)
-dΓg = Measure(Γg,degree)
 
 vol = sum( ∫(1)*dΩ  )
 surf = sum( ∫(1)*dΓd )
@@ -76,8 +72,7 @@ h = (pmax - pmin)[1] / partition[1]
 
 a(u,v) =
   ∫( ∇(v)⋅∇(u) ) * dΩ +
-  ∫( (γd/h)*v*u  - v*(n_Γd⋅∇(u)) - (n_Γd⋅∇(v))*u ) * dΓd +
-  ∫( (γg*h)*jump(n_Γg⋅∇(v))*jump(n_Γg⋅∇(u)) ) * dΓg
+  ∫( (γd/h)*v*u  - v*(n_Γd⋅∇(u)) - (n_Γd⋅∇(v))*u ) * dΓd 
 
 l(v) =
   ∫( v*f ) * dΩ +
