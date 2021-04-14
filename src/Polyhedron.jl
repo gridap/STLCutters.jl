@@ -994,7 +994,9 @@ function compute_graph(stl::STL{2})
   vc = array_cache(f_to_v)
   graph = [ Int32[] for _ in 1:num_vertices(stl) ]
   for v in 1:num_vertices(stl)
-    f0 = first( getindex!(fc,v_to_f,v) )
+    vfacets = getindex!(fc,v_to_f,v)
+    !isempty(vfacets) || continue
+    f0 = first(vfacets)
     fnext = f0
     while true
       i = findfirst(isequal(v), getindex!(vc,f_to_v,fnext) )

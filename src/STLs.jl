@@ -892,11 +892,11 @@ function is_vertex_manifold(stlmodel::DiscreteModel{2,3})
   v_to_e = get_faces(stl,0,1)
   v_to_f = get_faces(stl,0,D)
   f_to_v = get_faces(stl,D,0)
-  ec = array_cache(v_to_e)
   fc = array_cache(v_to_f)
   vc = array_cache(f_to_v)
   for v in 1:num_vertices(stl)
     vfacets = getindex!(fc,v_to_f,v)
+    !isempty(vfacets) || continue
     f0 = vfacets[1]
     fnext = f0
     nf = 0
