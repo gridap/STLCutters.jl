@@ -447,6 +447,8 @@ function is_water_tight(top::GridTopology{Dc,Dp}) where {Dc,Dp}
   maximum(length,c_to_f) == minimum(length,c_to_f) == 2
 end
 
+is_surface(model::DiscreteModel) = is_surface(get_grid_topology(model))
+
 function is_surface(::GridTopology{Dc,Dp}) where {Dc,Dp}
   Dc == Dp-1
 end
@@ -644,6 +646,7 @@ function preprocess_small_facets(stl::DiscreteModel;atol)
     incomplete || return stl
   end
   @warn "Unable to fix small facets in $max_iters iterations"
+  println("@warn: Unable to fix small facets in $max_iters iterations")
   stl
 end
 
@@ -842,3 +845,114 @@ function save_as_stl(stls::Vector{<:DiscreteModel},filename)
   end
   files
 end
+
+function check_requisites(stl::DiscreteModel,bgmodel::DiscreteModel;
+  verbose=true,max_num_facets=2000)
+
+  !verbose || println("---------------------------------------")
+  fulfill = true
+  if !is_surface(stl)
+    !verbose || println("Is not a surface")
+    fulfill = false
+  end
+  if !is_vertex_manifold(stl)
+    !verbose || println("Is not vertex manifold")
+    fulfill = false
+  end
+  if !is_edge_manifold(stl)
+    !verbose || println("Is not edge manifold")
+    fulfill = false
+  end
+  if !is_water_tight(stl)
+    !verbose || println("Is not water tight")
+    fulfill = false
+  end
+  if has_sharp_edges(stl)
+    !verbose || println("Has sharp edges")
+    fulfill = false
+  end
+  max_fv = max_num_facets_per_vertex(stl)
+  max_fbc = max_num_facets_per_bgcell(stl,bgmodel)
+  println("Maximum num facets per vertex: $max_fv")
+  println("Maximum num facets per bgcell: $max_fbc")
+  if max_fbc > max_num_facets
+    fulfill = false
+    if max_fv > max_num_facets
+      !verbose || println("Unable to run geometry $max_num_facets")
+    else
+      !verbose || println("Please refine your mesh")
+    end
+  end
+  fulfill
+end
+
+function is_vertex_manifold(stlmodel::DiscreteModel{2,3})
+  stl = get_grid_topology(stlmodel)
+  D = num_dims(stl)
+  v_to_e = get_faces(stl,0,1)
+  v_to_f = get_faces(stl,0,D)
+  f_to_v = get_faces(stl,D,0)
+  ec = array_cache(v_to_e)
+  fc = array_cache(v_to_f)
+  vc = array_cache(f_to_v)
+  for v in 1:num_vertices(stl)
+    vfacets = getindex!(fc,v_to_f,v)
+    f0 = vfacets[1]
+    fnext = f0
+    nf = 0
+    while true
+      nf += 1
+      i = findfirst(isequal(v), getindex!(vc,f_to_v,fnext) )
+      inext = i == D+1 ? 1 : i+1
+      vnext = getindex!(vc,f_to_v,fnext)[inext]
+      faces = getindex!(fc,v_to_f,vnext)
+      i = findfirst( f -> f ≠ fnext && v ∈ getindex!(vc,f_to_v,f), faces )
+      fnext = isnothing(i) ? UNSET : faces[i]
+      fnext ≠ UNSET || break
+      fnext ≠ f0 || break
+    end
+    if nf ≠ length(vfacets)
+      return false
+    end
+  end
+  true
+end
+
+function is_edge_manifold(stlmodel::DiscreteModel{2,3})
+  stl = get_grid_topology(stlmodel)
+  e_to_f = get_faces(stl,1,2)
+  c = array_cache(e_to_f)
+  maximum(e->length(getindex!(c,e_to_f,e)),1:length(e_to_f)) ≤ 2
+end
+
+
+function max_num_facets_per_bgcell(stlmodel,bgmodel)
+  stl = STL(stlmodel)
+  grid = get_grid(bgmodel)
+  c_to_stlf =compute_cell_to_facets(grid,stl)
+  maximum(length,c_to_stlf)
+end
+
+function max_num_facets_per_vertex(stlmodel)
+  stl = get_grid_topology(stlmodel)
+  v_to_f = get_faces(stl,0,2)
+  c = array_cache(v_to_f)
+  maximum(v->length(getindex!(c,v_to_f,v)),1:length(v_to_f))
+end
+
+function has_sharp_edges(stlmodel)
+  stl = STL(stlmodel)
+  Π = get_facet_planes(stl)
+  e_to_f = get_faces(stl,1,2)
+  c = array_cache(e_to_f)
+  for e in 1:length(e_to_f)
+    facets = getindex!(c,e_to_f,e)
+    Π1 = Π[facets[1]]
+    Π2 = Π[facets[2]]
+    n1 = normal(Π1)
+    n2 = normal(Π2)
+    n1 ⋅ n2 ≉ -1 || return true
+  end
+  false
+end
+

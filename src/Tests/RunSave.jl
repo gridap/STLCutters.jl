@@ -162,7 +162,8 @@ function _run_and_save(
   solver::Symbol=:direct,
   threading::Symbol=:none,
   nruns::Integer=1,
-  nthreads::Integer=Threads.nthreads())
+  nthreads::Integer=Threads.nthreads(),
+  max_num_facets::Integer=2000)
 
   X,T,N = read_stl(filename)
 
@@ -182,6 +183,10 @@ function _run_and_save(
   origin,sizes,partition = compute_sizes(pmin-Δ,pmax+Δ;nmin,nmax)
 
   model = CartesianDiscreteModel(origin,sizes,partition)
+
+  if !check_requisites(stl0,model;verbose,max_num_facets)
+    !verbose || println("Not matching requisites")
+  end
 
   min_h = min_height(stl0) * (eps()/eps(model))
 
@@ -422,4 +427,43 @@ function run_poisson(
   @pack! out = integration_volume, integration_surface
   @pack! out = error_l2, error_h1
   out
+end
+
+function check_requisites(filename)
+  println("---------------------------------------")
+  println("Checking requisites of : $(basename(filename))")
+  X,T,N = read_stl(filename)
+  if length(X) == 0 || length(T) == 0
+    !verbose || println("Skipping run: no facets or no vertices")
+    return 
+  end
+  stl = compute_stl_model(T,X)
+  stl = merge_and_collapse(stl)
+  
+  pmin,pmax = get_bounding_box(stl)
+  δ = 0.2
+  nmin = 10
+  nmax = 100
+  Δ = (pmax-pmin)*δ
+  origin,sizes,partition = compute_sizes(pmin-Δ,pmax+Δ;nmin,nmax)
+
+  model = CartesianDiscreteModel(origin,sizes,partition)
+  min_h = min_height(stl) * (eps()/eps(model))
+  println("Scaled min height: $min_h")
+  if !STLCutters.check_requisites(stl,model)
+    println("@warn Failing requisites")
+  end
+  println("---------------------------------------")
+end
+
+function download_and_check_requisites(ids)
+  for id in ids
+    filename = download_thing(id,path=tmpdir())
+    try
+      check_requisites(filename)
+    catch e
+      println("Failing $id")
+      println(e)
+    end
+  end
 end

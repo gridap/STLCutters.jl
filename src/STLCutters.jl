@@ -52,6 +52,7 @@ export merge_and_collapse
 export get_bounding_box
 export compute_grid
 export is_water_tight
+export check_requisites
 export compute_submesh
 export volume, volumes
 export surface, surfaces

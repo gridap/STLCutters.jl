@@ -17,6 +17,8 @@ using Preconditioners: AMGPreconditioner
 using Preconditioners: SmoothedAggregation
 using STLCutters: FACE_IN, FACE_OUT, FACE_CUT
 
+import STLCutters: check_requisites
+
 export analysisdir
 export testdir
 export tmpdir
