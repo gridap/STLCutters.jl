@@ -685,12 +685,15 @@ function _preprocess_small_facets(stl::DiscreteModel{Dc};atol) where Dc
     deleteat!(T,touched)
     append!(T,Tnew)
     _delete_empty_cells!(T)
-    stl = compute_stl_model(Table(T),X)
-    stl = merge_nodes(stl;atol)
-    stl = delete_duplicated_faces(stl)
-    @assert is_water_tight(stl)
+    _stl = compute_stl_model(Table(T),X)
+    _stl = merge_nodes(_stl;atol)
+    _stl = delete_duplicated_faces(_stl)
+    if !is_water_tight(_stl)
+      _stl = stl
+      incomplete = false
+    end
   end
-  stl,incomplete
+  _stl,incomplete
 end
 
 function delete_duplicated_faces(stl::DiscreteModel)
