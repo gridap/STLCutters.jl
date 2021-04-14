@@ -653,6 +653,7 @@ end
 function _preprocess_small_facets(stl::DiscreteModel{Dc};atol) where Dc
   @notimplementedif Dc ≠ 2
   hang_v,cut_e = get_hanging_vertices_and_edges(stl;atol)
+  _stl = stl
   incomplete = false
   if !isempty(hang_v)
     incomplete = true
