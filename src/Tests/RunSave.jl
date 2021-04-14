@@ -186,6 +186,7 @@ function _run_and_save(
 
   if !check_requisites(stl0,model;verbose,max_num_facets)
     !verbose || println("Not matching requisites")
+    return
   end
 
   min_h = min_height(stl0) * (eps()/eps(model))
