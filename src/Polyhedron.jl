@@ -509,6 +509,45 @@ function simplexify_boundary(
   T,X,f_to_stlf
 end
 
+function surface(poly::Polyhedron{3})
+  T,X = simplexify_surface(poly)
+  p = TRI
+  c = array_cache(T)
+  !isempty(T) || return 0.0
+  sum( i -> measure(get_cell!(c,T,X,p,i)), 1:length(T) )
+end
+
+function surface(poly::Polyhedron{3},stl::STL)
+  T,X, = simplexify_boundary(poly,stl)
+  p = TRI
+  c = array_cache(T)
+  !isempty(T) || return 0.0
+  sum( i -> measure(get_cell!(c,T,X,p,i)), 1:length(T) )
+end
+
+function surface(polys::AbstractVector{<:Polyhedron},args...) 
+  s = 0.0
+  for p in polys
+    s += surface(p,args...)
+  end
+  s
+end
+
+function volume(poly::Polyhedron{3})
+  T,X = simplexify(poly)
+  p = TET
+  c = array_cache(T)
+  sum( i -> measure(get_cell!(c,T,X,p,i)), 1:length(T) )
+end
+
+function volume(polys::AbstractVector{<:Polyhedron},args...) 
+  v = 0.0
+  for p in polys
+    v += volume(p,args...)
+  end
+  v
+end
+
 ## Getters
 
 num_dims(::Polyhedron{D}) where D = D
@@ -1639,11 +1678,13 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
 
   compute_distances!(Γk0,lazy_append(Πk,Πkf),lazy_append(Πk_ids,Πkf_ids))
   compute_distances!(K,Πkf,Πkf_ids)
-  Π_to_refΠ,Πs = link_planes!(Γk0,stl,Πr,Πf;atol)
+  Π_to_refΠ,Πs,inv_Π = link_planes!(Γk0,stl,Πr,Πf;atol)
+  invert_plane_distances!(K,Πs,inv_Π)
   set_linked_planes!(Γk0,Π_to_refΠ,Πs)
   set_linked_planes!(K,Π_to_refΠ,Πs)
 
   Γk = clip(Γk0,Πk_ids,inout=Πk_io)
+ 
   if isnothing(Γk) || isempty(get_original_facets(Γk,stl))
     nothing,nothing
   else
@@ -1660,6 +1701,7 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
       append!(Kn_in,k_in)
       append!(Kn_out,k_out)
     end
+
     Kn_in,Kn_out
   end
 end
@@ -2030,7 +2072,7 @@ function link_planes!(surf::Polyhedron,stl::STL,Πr,Πf;atol)
   end
 
   if maximum(length,Π_to_faces) == 0
-    return fill(UNSET,length(planes)), planes
+    return fill(UNSET,length(planes)), planes, falses(length(planes))
   end
 
   ## Link coplanar planes
@@ -2153,17 +2195,77 @@ function link_planes!(surf::Polyhedron,stl::STL,Πr,Πf;atol)
     end
   end
 
+  ## Correct plane orientations
+  #
+  inverted_planes = falses(length(planes))
+  for i in 1:length(Π_to_ref_Π)
+    if abs(Π_to_ref_Π[i]) == i
+      fi = planes[i]
+      di = facedims[fi]
+      if di == D-1
+        k = UNSET
+        for j in i+1:length(Π_to_ref_Π)
+          if abs(Π_to_ref_Π[j]) == i
+            fj = planes[j]
+            dj = facedims[fj]
+            if dj == D
+              k = j
+              break
+            end
+          end
+        end
+        if k ≠ UNSET
+          if sign(Π_to_ref_Π[i]) == sign(Π_to_ref_Π[k])
+            for j in i:length(Π_to_ref_Π)
+              if abs(Π_to_ref_Π[j]) == i
+                Π_to_ref_Π[j] = -Π_to_ref_Π[j]
+              end
+            end
+          end
+          for j in i:length(Π_to_ref_Π)
+            if abs(Π_to_ref_Π[j]) == i
+              fj = planes[j]
+              dj = facedims[fj]
+              if dj == D-1
+                if sign(Π_to_ref_Π[j]) == sign(Π_to_ref_Π[k])
+                  Π_to_ref_Π[j] = -Π_to_ref_Π[j]
+                  invert_plane_distances!(surf,planes[j])
+                  inverted_planes[j] = true
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
   # TODO: 
   # reduce to cell plane (cartesian dist)
   # keep the facet planes as far as possible (just the distances)
   # All reflex coplanar planes must have the same relative orientation (modify)
-  Π_to_ref_Π, planes
+  Π_to_ref_Π, planes, inverted_planes
 end
 
 function relative_orientation(Π1::Plane,Π2::Plane;atol)
   d = normal(Π1) ⋅ normal(Π2)
   @assert abs(d) > atol
   sign(d)
+end
+
+function invert_plane_distances!(poly::Polyhedron,Π::Integer)
+  dists = get_plane_distances(poly.data,Π)
+  for i in 1:length(dists)
+    dists[i] = -dists[i]
+  end
+end
+
+function invert_plane_distances!(poly::Polyhedron,Πs,inv_Π)
+  for i in 1:length(Πs)
+    if inv_Π[i]
+      invert_plane_distances!(poly,Πs[i])
+    end
+  end
 end
 
 function distance_between_planes(poly::Polyhedron,Π1,Π2,f1::Function=identity,f2::Function=identity)

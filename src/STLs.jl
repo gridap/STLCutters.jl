@@ -280,7 +280,7 @@ function collapse_small_facets!(stl::DiscreteModel;atol)
   stl
 end
 
-function merge_nodes(stl::DiscreteModel;atol=10*eps(Float32,stl))
+function merge_nodes(stl::DiscreteModel;atol=eps(Float32,stl))
   X,T = delete_repeated_vertices(stl;atol)
   compute_stl_model(T,X)
 end
