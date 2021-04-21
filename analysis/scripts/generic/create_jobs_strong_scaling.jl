@@ -25,8 +25,8 @@ function jobdict(hpc_id,jobname,params,walltime,mem_gb)
   "o" => datadir(hpcname,jobname*".out"),
   "e" => datadir(hpcname,jobname*".err"),
   "walltime" => walltime,
-  "ncpus" => 48,#ncpus,
-  "mem" => 190,#memory(mem_gb),
+  "ncpus" => ncpus,
+  "mem" => "190gb",#memory(mem_gb),
   "julia" => julia,
   "name" => jobname,
   "func" => func,
@@ -39,7 +39,7 @@ function create_jobs_strong_scaling(
   hpc_id;
   walltime="1:00:00",
   memory=16,
-  ncpus=[1,2,4,16,32,48],
+  ncpus=[1,2,4,8,16,32,48],
   nmaxs=100,
   stls)
 

@@ -45,6 +45,10 @@ end
 raw_gadi = collect_results(datadir("gadi"))
 raw_titani = collect_results(datadir("titani"))
 
+raw_strong_scaling = filter(i->!ismissing(i.nruns)&&i.nruns>1,raw_gadi)
+
+raw_gadi = filter(i->ismissing(i.nruns)||i.nruns==1,raw_gadi)
+
 raw_matrix = filter(i->i.nmax ≠ 100,raw_gadi)
 
 raw_10k_gadi = filter(i->i.nmax == 100,raw_gadi)
@@ -300,3 +304,34 @@ println("$(c/size(raw_10k,1)*100)% of $(size(raw_10k,1)) has ϵ_V below $tol ($c
 #
 #accumulated_frequency_histogram(raw_10k,:surface_error,prefix="filter")
 
+## plot strong scaling
+
+data = raw_strong_scaling
+
+geos = unique(data.name)
+nmaxs = sort(unique(data.nmax))
+nthreads = sort(unique(data.nthreads))
+#nmaxs = [100]
+geos = ["cube"]
+
+plot()
+for g in geos, nmax in nmaxs, method in (:threads,:spawn)
+  d = filter(i -> i.name == g && i.nmax == nmax && i.threading == method,data)
+  nthreads = sort(unique(d.nthreads))
+  times = zeros(length(nthreads))
+  for (i,n) in enumerate(nthreads)
+    _d = filter(i->i.nthreads==n,d)
+    min_t = minimum(_d.time)
+    times[i] = min_t
+  end
+  speedup = times[1] ./ times
+  plot!(nthreads,speedup,label="n=$nmax,$g,@$method",markershape=:auto)
+end
+
+xlims = Plots.get_sp_lims(plot!()[1],:x)
+ylims = Plots.get_sp_lims(plot!()[1],:y)
+plot!(1:48,1:48,color=:black,linestyle=:dash,label=:none)
+plot!(;xlims,ylims)
+plot!(legend=:outerbottomright)
+plot!(xlabel="Num threads",ylabel="Speed-up")
+savefig("strong_scaling.png")
