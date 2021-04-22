@@ -339,13 +339,12 @@
      .2 Not available: 193 .
      .2 \textbf{Available}: 4770 .
      .3 Ended: 4646.
-     .4 \textbf{Success}: 4641.
-     .4 Fail: 5.
-     .3 Not ended: 124.
+     .4 \textbf{Success}: 4726.
+     .4 Fail: 0.
+     .3 Not ended: 44.
      .4 Load error: 5.
-     .4 Degenerate 62.
-     .4 Too fine: 30.
-     .4 Other: 27.
+     .4 Degenerate 12.
+     .4 Too fine: 27.
      }
 
   \end{block}
@@ -362,9 +361,7 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      99.9\% of 4641 is below $10^{-10}$
-    \item
-      Errors related with to deleting small facets properly
+      100\% of 4726 is below $10^{-10}$
   \end{itemize}
   \end{block}
 
@@ -379,9 +376,7 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      99.9\% of 4641 is below $10^{-10}$
-    \item
-      Errors related with to deleting small facets properly
+      100\% of 4726 is below $10^{-10}$
   \end{itemize}
   \end{block}
 
@@ -396,9 +391,7 @@
     \item
       $\epsilon_V = V_{IN} + V_{OUT} - V_{BBOX}$
     \item
-      99.9\% of 4641 is below $10^{-10}$
-    \item
-      Errors related with to deleting small facets properly
+      100\% of 4726 is below $10^{-10}$
   \end{itemize}
   \end{block}
 
@@ -430,7 +423,9 @@
     \item
       $\epsilon_\Gamma = \Gamma - V_{STL}$
     \item
-      99.9\% of 4641 is below $10^{-9}$
+      99.9\% of 4726 is below $10^{-9}$
+    \item
+      2 outliers can be moved by increasing the tolerance
   \end{itemize}
   \end{block}
 
@@ -496,16 +491,10 @@
     \item
       Issues are depending on the geometry
     \item
-      Most of problematic geometries can be found \textit{a priori}
+      Problematic geometries can be found \textit{a priori}
     \item
       Optimal convergence with AgFEM
   \end{itemize}
-  \textbf{Ongoing work}
-  \begin{itemize}
-    \item
-      Detect true degenerated geometries
-  \end{itemize}
-
 
 \end{frame}
 \end{document}
