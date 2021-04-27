@@ -105,42 +105,16 @@ function get_simplex_dface!(cache,T,X,i::Integer,::Val{d}) where d
   simplex_face( vertices )
 end
 
-function get_cell_cache(grid::Grid)
-  T = get_cell_node_ids(grid)
-  array_cache(T)
+function is_open_surface(stl::STL)
+  Dc = num_dims(stl)
+  e_to_f = get_faces(stl,Dc-1,Dc)
+  1 ≤ maximum(length,e_to_f) ≤ 2 || return false
+  1 ≤ minimum(length,e_to_f) ≤ 2 || return false
+  true
 end
 
-function get_cell!(c,grid::Grid,i)
-  T = get_cell_node_ids(grid)
-  X = get_node_coordinates(grid)
-  p = get_polytope( only(get_reffes(grid)) )
-  get_cell!(c,T,X,p,i)
-end
+# Read STL from file
 
-function get_facet_cache(model::DiscreteModel)
-  Dc = num_dims(model)
-  get_dface_cache(model,Dc-1)
-end
-
-function get_dface_cache(model::DiscreteModel,d)
-  topo = get_grid_topology(model) 
-  T = get_face_vertices(topo,d)
-  array_cache(T)
-end
-
-function get_facet!(c,model::DiscreteModel{Dc},i) where Dc
-  get_dface!(c,model,i,Val{Dc-1}())
-end
-
-function get_dface!(c,model::DiscreteModel,i,::Val{d}) where d
-  topo = get_grid_topology(model) 
-  T = get_face_vertices(topo,d)
-  X = get_vertex_coordinates(topo)
-  p = get_polytope( only(get_reffes(model)) )
-  get_dface!(c,T,X,p,i,Val{d}())
-end
-
-#
 function read_stl(filename::String)
   F = _file_format(filename)
   mesh = load(File{F}(filename))
@@ -171,19 +145,106 @@ end
 
 _is_binary(filename) = contains(_get_encoding(filename),"binary")
 
-_is_ascii(filename) = contains(_get_encoding(filename),"ascii")
-
-
 function Base.convert(::Type{Point{D,T}},x::MeshIO.Point{D}) where {D,T} 
   Point{D,T}(x.data)
 end
 
-function Base.convert(::Type{VectorValue{D,T}},x::MeshIO.Normal{D})  where {D,T}
-  VectorValue{D,T}(x.data)
-end
-
 function Base.convert(::Type{Vector{T}},x::MeshIO.TriangleFace) where T
   convert.(T,collect(x))
+end
+
+# Save STL to file
+
+function save_as_stl(stl::DiscreteModel{Dc,Dp},filename) where {Dc,Dp}
+  (Dc == 2 && Dp == 3 ) || error("Geometry incompatible with STL format")
+  filename *= ".stl"
+  file = File{format"STL_BINARY"}(filename)
+  facetype = MeshIO.GLTriangleFace
+  pointtype = MeshIO.Point3f0
+  normaltype = MeshIO.Vec3f0
+  faces = Array{facetype}(undef, num_cells(stl))
+  vertices = Array{pointtype}(undef, num_cells(stl) * 3)
+  normals = Array{normaltype}(undef, num_cells(stl) * 3)
+  for i in 1:num_cells(stl)
+    faces[i] = facetype( (i-1)*3+1,(i-1)*3+2, (i-1)*3+3 )
+    n = normal(get_cell(stl,i))
+    normals[ (i-1)*3+1 ] = normaltype(Tuple(n)...)
+    normals[ (i-1)*3+2 ] = normals[ (i-1)*3+1 ]
+    normals[ (i-1)*3+3 ] = normals[ (i-1)*3+1 ]
+    coords = get_cell_coordinates(stl)[i]
+    vertices[ (i-1)*3+1 ] = pointtype(Tuple(coords[1])...)
+    vertices[ (i-1)*3+2 ] = pointtype(Tuple(coords[2])...)
+    vertices[ (i-1)*3+3 ] = pointtype(Tuple(coords[3])...)
+  end
+  mesh = MeshIO.Mesh(MeshIO.meta(vertices; normals=normals), faces)
+  save(file,mesh)
+  filename
+end
+
+function save_as_stl(stls::Vector{<:DiscreteModel},filename)
+  files = []
+  for (i,stl) in enumerate(stls)
+    f = save_as_stl(stl,filename*"_$i")
+    push!(files,f)
+  end
+  files
+end
+
+# STL as Grid and DiscreteModel
+
+function get_cell_cache(grid::Grid)
+  T = get_cell_node_ids(grid)
+  array_cache(T)
+end
+
+function get_cell!(c,grid::Grid,i)
+  T = get_cell_node_ids(grid)
+  X = get_node_coordinates(grid)
+  p = get_polytope( only(get_reffes(grid)) )
+  get_cell!(c,T,X,p,i)
+end
+function get_facet_cache(model::DiscreteModel)
+  Dc = num_dims(model)
+  get_dface_cache(model,Dc-1)
+end
+
+function get_dface_cache(model::DiscreteModel,d)
+  topo = get_grid_topology(model) 
+  T = get_face_vertices(topo,d)
+  array_cache(T)
+end
+
+function get_facet!(c,model::DiscreteModel{Dc},i) where Dc
+  get_dface!(c,model,i,Val{Dc-1}())
+end
+
+function get_dface!(c,model::DiscreteModel,i,::Val{d}) where d
+  topo = get_grid_topology(model) 
+  T = get_face_vertices(topo,d)
+  X = get_vertex_coordinates(topo)
+  p = get_polytope( only(get_reffes(model)) )
+  get_dface!(c,T,X,p,i,Val{d}())
+end
+
+function get_dface(model::DiscreteModel,i,::Val{d}) where d
+  c = get_dface_cache(model,d)
+  get_dface!(c,model,i,Val{d}())
+end
+
+function get_vertex(stl::DiscreteModel,vertex::Integer) 
+  get_vertex_coordinates(get_grid_topology(stl))[vertex]
+end
+
+function get_edge(stl::DiscreteModel,edge::Integer)
+  get_dface(stl,edge,Val{1}())
+end
+
+function get_facet(stl::DiscreteModel{Dc},facet::Integer) where Dc
+  get_dface(stl,facet,Val{Dc-1}())
+end
+
+function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
+  get_dface(stl,cell,Val{Dc}())
 end
 
 function compute_stl_model(
@@ -213,35 +274,6 @@ function compute_grid(
   reffes = [LagrangianRefFE(p)]
   cell_types = fill(1,length(T))
   UnstructuredGrid(X,T,reffes,cell_types)
-end
-
-function get_dface(stl::DiscreteModel,iface::Integer,::Val{d}) where d
-  @notimplementedif length( get_polytopes(stl) ) ≠ 1 
-  @notimplementedif !is_simplex( get_polytopes(stl)[1] )
-  0 < iface ≤ num_faces(stl,d) || 
-    throw(AssertionError(
-      "get_dface() :: access at $d-face $iface of $(num_faces(stl,d))"))
-  stl_topology = get_grid_topology(stl)
-  face_vertices = get_faces(stl_topology,d,0)[iface]
-  X = get_vertex_coordinates(stl_topology)
-  v = ntuple( i -> X[face_vertices[i]], Val{d+1}() )
-  simplex_face(v)
-end 
-
-function get_vertex(stl::DiscreteModel,vertex::Integer) 
-  get_vertex_coordinates(get_grid_topology(stl))[vertex]
-end
-
-function get_edge(stl::DiscreteModel,edge::Integer)
-  get_dface(stl,edge,Val{1}())
-end
-
-function get_facet(stl::DiscreteModel{Dc},facet::Integer) where Dc
-  get_dface(stl,facet,Val{Dc-1}())
-end
-
-function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
-  get_dface(stl,cell,Val{Dc}())
 end
 
 function merge_and_collapse(stl::DiscreteModel;atol=eps(Float32,stl))
@@ -297,34 +329,7 @@ function delete_repeated_vertices(stl::DiscreteModel;atol)
 end
 
 function _map_equal_vertices(stl::DiscreteModel;atol)
-#  if is_water_tight(stl)
-#    _map_equal_vertices_water_tight(stl;atol)
-#  else
-    _map_equal_vertices_from_cloud(stl;atol)
-#  end
-end
-
-function _map_equal_vertices_water_tight(stl::DiscreteModel;atol)
-  @notimplementedif !is_water_tight(stl)
-  topo = get_grid_topology(stl)
-  vertex_coordinates = get_vertex_coordinates(topo)
-  e_to_v = get_faces(topo,1,0)
-  c = array_cache(e_to_v)
-  vertices_map = collect(1:num_nodes(stl))
-  for e in 1:length(e_to_v)
-    vertices = getindex!(c,e_to_v,e)
-    a,b = vertices[1],vertices[2]
-    va = vertex_coordinates[a]
-    vb = vertex_coordinates[b]
-    if distance(va,vb) < atol
-      if a < b
-        vertices_map[a] = vertices_map[b]
-      else
-        vertices_map[b] = vertices_map[b]
-      end
-    end
-  end
-  vertices_map
+  _map_equal_vertices_from_cloud(stl;atol)
 end
 
 function _map_equal_vertices_from_cloud(stlmodel::DiscreteModel;atol)
@@ -414,16 +419,6 @@ function _group_vertices(stl::Grid{Dc,D};atol) where {Dc,D}
   cell_to_vertices
 end
 
-function get_bounding_box(mesh::Grid)
-  pmin = get_node_coordinates(mesh)[1]
-  pmax = get_node_coordinates(mesh)[1]
-  for vertex in get_node_coordinates(mesh)
-    pmin = Point(min.(Tuple(pmin),Tuple(vertex)))
-    pmax = Point(max.(Tuple(pmax),Tuple(vertex)))
-  end
-  pmin,pmax
-end
-
 function _compute_min_length(mesh::Grid;atol)
   min_length = Inf
   for nodes in get_cell_node_ids(mesh)
@@ -438,205 +433,6 @@ function _compute_min_length(mesh::Grid;atol)
   end
   min_length
 end
-
-is_water_tight(model::DiscreteModel) = is_water_tight(get_grid_topology(model))
-
-function is_water_tight(top::GridTopology{Dc,Dp}) where {Dc,Dp}
-  Dc == Dp - 1 || error("The Geometry is not a surface")
-  c_to_f = get_faces(top,Dc-1,Dc)
-  maximum(length,c_to_f) == minimum(length,c_to_f) == 2
-end
-
-is_surface(model::DiscreteModel) = is_surface(get_grid_topology(model))
-
-function is_surface(::GridTopology{Dc,Dp}) where {Dc,Dp}
-  Dc == Dp-1
-end
-
-function is_open_surface(stl::STL)
-  Dc = num_dims(stl)
-  e_to_f = get_faces(stl,Dc-1,Dc)
-  1 ≤ maximum(length,e_to_f) ≤ 2 || return false
-  1 ≤ minimum(length,e_to_f) ≤ 2 || return false
-  true
-end
-
-function have_intersection(
-  grid::Grid,
-  cell::Integer,
-  m::DiscreteModel,
-  face::Integer
-  ;atol=nothing)
-
-  dispatch_face(have_intersection,grid,cell,m,face,atol=atol)
-end
-
-function is_on_boundary(
-  grid::Grid,
-  cell::Integer,
-  m::DiscreteModel,
-  face::Integer
-  ;atol::Real)
-
-  dispatch_face(is_on_boundary,grid,cell,m,face,atol=atol)
-end
-
-function get_bounding_box(m::DiscreteModel,face::Integer)
-  dispatch_face(get_bounding_box,m,face)
-end
-
-
-function dispatch_face(fun,grid::Grid,cell::Integer,args...;kargs...)
-  c = get_cell(grid,cell)
-  dispatch_face(fun,c,args...;kargs...)
-end
-
-function dispatch_face(fun,a,b::DiscreteModel,face::Integer;kargs...)
-  topo = get_grid_topology(b)
-  d = get_facedims(topo)[face]
-  dface = face - get_dimrange(topo,d)[1] + 1
-  dispatch_face(fun,a,b,d,dface;kargs...)
-end
-
-function dispatch_face(fun,a::DiscreteModel,face::Integer;kargs...)
-  topo = get_grid_topology(a)
-  d = get_facedims(topo)[face]
-  dface = face - get_dimrange(topo,d)[1] + 1
-  dispatch_face(fun,a,d,dface;kargs...)
-end
-
-@generated(
-function dispatch_face(
-  fun,a,b::DiscreteModel{D},d::Integer,df::Integer;kargs...) where D
-
-  str = ""
-  for d in 0:D
-    str *= "if d == $d \n"
-    str *= "  f$d =  get_dface(b,df,Val{$d}()) \n"
-    str *= "  fun(a,f$d;kargs...) \n"
-    str *= "else"
-  end
-  str *= "\n  @notimplemented \nend"
-  Meta.parse(str)
-end
-)
-
-@generated(
-function dispatch_face(
-  fun,a::DiscreteModel{D},d::Integer,df::Integer;kargs...) where D
-
-  str = ""
-  for d in 0:D
-    str *= "if d == $d \n"
-    str *= "  f$d =  get_dface(a,df,Val{$d}()) \n"
-    str *= "  fun(f$d;kargs...) \n"
-    str *= "else"
-  end
-  str *= "\n  @notimplemented \nend"
-  Meta.parse(str)
-end
-)
-
-function get_bounding_box(grid::CartesianGrid)
-  desc = get_cartesian_descriptor(grid)
-  pmin = desc.origin
-  pmax = desc.origin + VectorValue(desc.partition .* desc.sizes)
-  pmin,pmax
-end
-
-function measure(a::CartesianGrid)
-  pmin,pmax = get_bounding_box(a)
-  measure(pmin,pmax)
-end
-
-function measures(a::Grid,num::Integer,map)
-  m = zeros(num)
-  for i in 1:num_cells(a)
-    c = get_cell(a,i)
-    m[map[i]] += measure(c)
-  end
-  m
-end
-
-function measures(a::CartesianGrid{D,T,typeof(identity)}) where {D,T}
-  cell_vol = prod( get_cartesian_descriptor(a).sizes )
-  fill(cell_vol,num_cells(a))
-end
-
-function measures(a::Grid)
-  measures(a,num_cells(a),1:num_cells(a))
-end
-
-volume(a::Grid{D,D},args...) where D = measure(a,args...)
-
-volumes(a::Grid{D,D},args...) where D = measures(a,args...)
-
-function surface(a::Grid{Df,Dp},args...) where {Df,Dp}
-  @notimplementedif Df ≠ Dp-1
-  measure(a,args...)
-end
-
-function surfaces(a::Grid{Df,Dp},args...) where {Df,Dp}
-  @notimplementedif Df ≠ Dp-1
-  measures(a,args...)
-end
-
-surface(a::DiscreteModel) = surface(get_grid(a))
-
-surfaces(a::DiscreteModel,args...) = surfaces(get_grid(a),args...)
-
-function measure(a::Grid,mask)
-  m = 0.0
-  p = get_polytope(only(get_reffes(a)))
-  T = get_cell_node_ids(a)
-  X = get_node_coordinates(a)
-  c = array_cache(T)
-  for i in 1:num_cells(a)
-    if mask[i]
-      f = get_cell!(c,T,X,p,i)
-      m += measure(f)
-    end
-  end
-  m
-end
-
-function measure(a::CartesianGrid{D,T,typeof(identity)},mask) where {D,T}
-  cell_vol = prod( get_cartesian_descriptor(a).sizes )
-  cell_vol * count(mask)
-end
-
-function measure(a::Grid,cell_to_val,val)
-  measure(a,lazy_map(isequal(val),cell_to_val))
-end
-
-function measure(a::Grid)
-  measure(a,lazy_map(i->true,1:num_cells(a)))
-end
-
-function get_bounding_box(stl::DiscreteModel)
-  vertices = get_vertex_coordinates(get_grid_topology(stl))
-  pmin = pmax = vertices[1]
-  for vertex in vertices
-    pmin = Point( min.( Tuple(pmin), Tuple(vertex) ) )
-    pmax = Point( max.( Tuple(pmax), Tuple(vertex) ) )
-  end
-  pmin,pmax
-end
-
-function min_height(grid::Grid)
-  min_h = Inf
-  c = get_cell_cache(grid)
-  for i in 1:num_cells(grid)
-    cell = get_cell!(c,grid,i)
-    h = min_height(cell)
-    if h < min_h
-      min_h = h
-    end
-  end
-  min_h
-end
-
-min_height(model::DiscreteModel) = min_height(get_grid(model))
 
 function preprocess_small_facets(stl::DiscreteModel;atol)
   @notimplementedif !is_water_tight(stl)
@@ -815,41 +611,6 @@ function split_disconnected_parts(stl::DiscreteModel)
   stls
 end
 
-function save_as_stl(stl::DiscreteModel{Dc,Dp},filename) where {Dc,Dp}
-  (Dc == 2 && Dp == 3 ) || error("Geometry incompatible with STL format")
-  filename *= ".stl"
-  file = File{format"STL_BINARY"}(filename)
-  facetype = MeshIO.GLTriangleFace
-  pointtype = MeshIO.Point3f0
-  normaltype = MeshIO.Vec3f0
-  faces = Array{facetype}(undef, num_cells(stl))
-  vertices = Array{pointtype}(undef, num_cells(stl) * 3)
-  normals = Array{normaltype}(undef, num_cells(stl) * 3)
-  for i in 1:num_cells(stl)
-    faces[i] = facetype( (i-1)*3+1,(i-1)*3+2, (i-1)*3+3 )
-    n = normal(get_cell(stl,i))
-    normals[ (i-1)*3+1 ] = normaltype(Tuple(n)...)
-    normals[ (i-1)*3+2 ] = normals[ (i-1)*3+1 ]
-    normals[ (i-1)*3+3 ] = normals[ (i-1)*3+1 ]
-    coords = get_cell_coordinates(stl)[i]
-    vertices[ (i-1)*3+1 ] = pointtype(Tuple(coords[1])...)
-    vertices[ (i-1)*3+2 ] = pointtype(Tuple(coords[2])...)
-    vertices[ (i-1)*3+3 ] = pointtype(Tuple(coords[3])...)
-  end
-  mesh = MeshIO.Mesh(MeshIO.meta(vertices; normals=normals), faces)
-  save(file,mesh)
-  filename
-end
-
-function save_as_stl(stls::Vector{<:DiscreteModel},filename)
-  files = []
-  for (i,stl) in enumerate(stls)
-    f = save_as_stl(stl,filename*"_$i")
-    push!(files,f)
-  end
-  files
-end
-
 function check_requisites(stl::DiscreteModel,bgmodel::DiscreteModel;
   verbose=true,max_num_facets=2000)
 
@@ -958,5 +719,105 @@ function has_sharp_edges(stlmodel)
     n1 ⋅ n2 ≉ -1 || return true
   end
   false
+end
+
+function get_bounding_box(mesh::Grid)
+  pmin = get_node_coordinates(mesh)[1]
+  pmax = get_node_coordinates(mesh)[1]
+  for vertex in get_node_coordinates(mesh)
+    pmin = Point(min.(Tuple(pmin),Tuple(vertex)))
+    pmax = Point(max.(Tuple(pmax),Tuple(vertex)))
+  end
+  pmin,pmax
+end
+
+function get_bounding_box(stl::DiscreteModel)
+  vertices = get_vertex_coordinates(get_grid_topology(stl))
+  pmin = pmax = vertices[1]
+  for vertex in vertices
+    pmin = Point( min.( Tuple(pmin), Tuple(vertex) ) )
+    pmax = Point( max.( Tuple(pmax), Tuple(vertex) ) )
+  end
+  pmin,pmax
+end
+
+is_water_tight(model::DiscreteModel) = is_water_tight(get_grid_topology(model))
+
+function is_water_tight(top::GridTopology{Dc,Dp}) where {Dc,Dp}
+  Dc == Dp - 1 || error("The Geometry is not a surface")
+  c_to_f = get_faces(top,Dc-1,Dc)
+  maximum(length,c_to_f) == minimum(length,c_to_f) == 2
+end
+
+is_surface(model::DiscreteModel) = is_surface(get_grid_topology(model))
+
+function is_surface(::GridTopology{Dc,Dp}) where {Dc,Dp}
+  Dc == Dp-1
+end
+
+function measure(a::Grid,mask)
+  m = 0.0
+  p = get_polytope(only(get_reffes(a)))
+  T = get_cell_node_ids(a)
+  X = get_node_coordinates(a)
+  c = array_cache(T)
+  for i in 1:num_cells(a)
+    if mask[i]
+      f = get_cell!(c,T,X,p,i)
+      m += measure(f)
+    end
+  end
+  m
+end
+
+function measure(a::Grid,cell_to_val,val)
+  measure(a,lazy_map(isequal(val),cell_to_val))
+end
+
+function measure(a::Grid)
+  measure(a,lazy_map(i->true,1:num_cells(a)))
+end
+
+volume(a::Grid{D,D},args...) where D = measure(a,args...)
+
+function surface(a::Grid{Df,Dp},args...) where {Df,Dp}
+  @notimplementedif Df ≠ Dp-1
+  measure(a,args...)
+end
+
+surface(a::DiscreteModel) = surface(get_grid(a))
+
+function min_height(grid::Grid)
+  min_h = Inf
+  c = get_cell_cache(grid)
+  for i in 1:num_cells(grid)
+    cell = get_cell!(c,grid,i)
+    h = min_height(cell)
+    if h < min_h
+      min_h = h
+    end
+  end
+  min_h
+end
+
+min_height(model::DiscreteModel) = min_height(get_grid(model))
+
+# Cartesian Grid
+
+function get_bounding_box(grid::CartesianGrid)
+  desc = get_cartesian_descriptor(grid)
+  pmin = desc.origin
+  pmax = desc.origin + VectorValue(desc.partition .* desc.sizes)
+  pmin,pmax
+end
+
+function measure(a::CartesianGrid)
+  pmin,pmax = get_bounding_box(a)
+  measure(pmin,pmax)
+end
+
+function measure(a::CartesianGrid{D,T,typeof(identity)},mask) where {D,T}
+  cell_vol = prod( get_cartesian_descriptor(a).sizes )
+  cell_vol * count(mask)
 end
 
