@@ -208,7 +208,7 @@ function compute_cell_to_facets(grid::CartesianGrid,stl::STL)
       Δ = (_pmax - _pmin) * δ
       _pmin = _pmin - Δ
       _pmax = _pmax + Δ
-      if fast_intersection(f,_pmin,_pmax,p)
+      if voxel_intersextion(f,_pmin,_pmax,p)
         push!(thread_to_cells[i],cell)
         push!(thread_to_stl_facets[i],stl_facet)
       end

@@ -59,7 +59,7 @@ export surface, surfaces
 export min_height
 
 
-include("Intersections.jl")
+include("SimplexFaces.jl")
 include("STLs.jl")
 include("Polyhedron.jl")
 
