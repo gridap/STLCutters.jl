@@ -17,7 +17,15 @@ struct Plane{D,T}
   origin::Point{D,T}
   normal::VectorValue{D,T}
 end
-  
+
+struct CartesianPlane{D,T}
+  d::Int8
+  value::T
+  positive::Bool
+end 
+
+# Constructors
+
 Segment(a::Point...) = Segment(a)
 
 Triangle(a::Point...) = Triangle(a)
@@ -29,6 +37,14 @@ function Plane(a::Face{Df,Dp}) where {Df,Dp}
   n = normal(a)
   Plane(o,n)
 end
+
+function CartesianPlane(p::Point{D},d::Integer,orientation::Integer) where D
+  @notimplementedif abs( orientation ) ≠ 1
+  T = eltype(p)
+  CartesianPlane{D,T}(Int8(d),p[d],orientation>0)
+end
+
+# Getters
 
 origin(a::Plane) = a.origin
 
@@ -287,10 +303,16 @@ function get_bounding_box(f::Face)
   end
 end
 
+# Distances
+
 function signed_distance(p::Point,Π::Plane)
   o = origin( Π )
   n = normal( Π )
   (p-o) ⋅ n 
+end
+
+function signed_distance(point::Point{D},Π::CartesianPlane{D}) where D
+  Π.positive ? point[Π.d] - Π.value : Π.value - point[Π.d]
 end
 
 distance(a::Point,b::Point) =  norm( a - b )
@@ -354,6 +376,8 @@ function distance_to_boundary(a::Face,b::Point)
   min_dist
 end
 
+# Projections
+
 function projection(p::Point{D},q::Point{D}) where D
   q
 end
@@ -386,26 +410,26 @@ function contains_projection(f::Face,p::Point)
   true
 end
 
-# Predicates
+# Voxel predicates
 
-function voxel_intersextion(f::Face{1,2},pmin::Point{2},pmax::Point{2},p::Polytope{2})
+function voxel_intersection(f::Face{1,2},pmin::Point,pmax::Point,p::Polytope)
   D = num_point_dims(f)
   for i in 1:num_vertices(f)
     v = f[i]
-    voxel_intersextion(v,pmin,pmax) && return true
+    voxel_intersection(v,pmin,pmax) && return true
   end  
-  voxel_intersextion(f,pmin,pmax)
+  voxel_intersection(f,pmin,pmax)
 end
 
-function voxel_intersextion(f::Face{2,3},pmin::Point{3},pmax::Point{3},p::Polytope{3})
+function voxel_intersection(f::Face{2,3},pmin::Point,pmax::Point,p::Polytope)
   D = num_point_dims(f)
   for i in 1:num_vertices(f)
     v = f[i]
-    voxel_intersextion(v,pmin,pmax) && return true
+    voxel_intersection(v,pmin,pmax) && return true
   end  
   for i in 1:num_edges(f)
     e = get_edge(f,i)
-    voxel_intersextion(e,pmin,pmax) && return true
+    voxel_intersection(e,pmin,pmax) && return true
   end
   n = normal(f)
   c = center(f)
@@ -424,14 +448,13 @@ function voxel_intersextion(f::Face{2,3},pmin::Point{3},pmax::Point{3},p::Polyto
   false
 end
 
-
-function voxel_intersextion(p::Point,pmin::Point,pmax::Point)
+function voxel_intersection(p::Point,pmin::Point,pmax::Point)
   all( Tuple(p) .> Tuple(pmin) ) || return false
   all( Tuple(p) .< Tuple(pmax) ) || return false
   true
 end
 
-function voxel_intersextion(e::Face{1,D},pmin::Point{D},pmax::Point{D}) where D
+function voxel_intersection(e::Face{1,D},pmin::Point{D},pmax::Point{D}) where D
   t_min,t_max = 0.0,1.0
   for d in 1:D
     p_d = e[1][d]
@@ -461,12 +484,12 @@ function voxel_intersextion(e::Face{1,D},pmin::Point{D},pmax::Point{D}) where D
   t_min < t_max
 end
 
-function _compute_distances(Π::Plane{D},pmin::Point{D},pmax::Point{D},p::Polytope{D}) where D
+function _compute_distances(Π::Plane,pmin::Point,pmax::Point,p::Polytope{D}) where D
   @assert is_n_cube(p)
   ntuple(i->signed_distance(_get_vertex(p,pmin,pmax,i),Π),Val{2^D}())
 end
 
-function _get_vertex(p::Polytope{D},pmin::Point{D},pmax::Point{D},i::Integer) where D
+function _get_vertex(p::Polytope{D},pmin::Point,pmax::Point,i::Integer) where D
   Point(ntuple(d-> (i-1) & (1<<(d-1)) == 0 ? pmin[d] : pmax[d], Val{D}()))
 end
 

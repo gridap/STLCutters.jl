@@ -247,6 +247,16 @@ function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
   get_dface(stl,cell,Val{Dc}())
 end
 
+function Base.eps(T::Type{<:AbstractFloat},grid::Grid)
+  pmin,pmax = get_bounding_box(grid)
+  vmax = max(abs.(Tuple(pmin))...,abs.(Tuple(pmax))...)
+  eps(T(vmax))
+end
+
+Base.eps(grid::Grid) = eps(Float64,grid)
+
+Base.eps(model::DiscreteModel) = eps(get_grid(model))
+
 function compute_stl_model(
   cell_to_vertices::Table,
   vertex_to_coordinates::Vector{<:Point{D}}) where D

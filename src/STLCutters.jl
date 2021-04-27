@@ -61,7 +61,8 @@ export min_height
 
 include("SimplexFaces.jl")
 include("STLs.jl")
-include("Polyhedron.jl")
+include("Polyhedra.jl")
+include("SubTriangulations.jl")
 
 include("Embedded.jl")
 

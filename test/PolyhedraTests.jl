@@ -14,7 +14,7 @@ using STLCutters: restrict
 using STLCutters: clip 
 using STLCutters: decompose 
 using STLCutters: edge_mesh
-using STLCutters: surface, volume, volumes 
+using STLCutters: surface, volume 
 using STLCutters: compute_stl_model 
 using STLCutters: compute_grid 
 using STLCutters: get_cell_planes 
