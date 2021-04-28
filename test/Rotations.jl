@@ -15,7 +15,7 @@ using STLCutters: merge_nodes
 using STLCutters: get_bounding_box 
 using STLCutters: compute_submesh 
 using STLCutters: compute_grid 
-using STLCutters: surface, volume, volumes 
+using STLCutters: surface, volume
 using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 
 function test_stl_cut(model,stl,vol)

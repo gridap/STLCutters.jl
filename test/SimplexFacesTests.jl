@@ -12,7 +12,7 @@ using STLCutters: measure
 using STLCutters: normal
 using STLCutters: signed_distance
 using STLCutters: contains_projection
-using STLCutters: voxel_intersextion
+using STLCutters: voxel_intersection
 using STLCutters: simplex_face
 using STLCutters: Plane
 
@@ -281,11 +281,11 @@ p1 = Point(1.5,0.5)
 p2 = Point(2.0,0.0)
 e = simplex_face(p1,p2)
 
-@test voxel_intersextion(a,pmin,pmax,p)
-@test voxel_intersextion(b,pmin,pmax,p)
-@test voxel_intersextion(c,pmin,pmax,p)
-@test !voxel_intersextion(d,pmin,pmax,p)
-@test !voxel_intersextion(e,pmin,pmax,p)
+@test voxel_intersection(a,pmin,pmax,p)
+@test voxel_intersection(b,pmin,pmax,p)
+@test voxel_intersection(c,pmin,pmax,p)
+@test !voxel_intersection(d,pmin,pmax,p)
+@test !voxel_intersection(e,pmin,pmax,p)
 
 
 # Voxel intersection Face{3}
@@ -321,11 +321,11 @@ p2 = Point(1.5,0.5,0.0)
 p3 = Point(1.5,0.0,0.5)
 e = simplex_face(p1,p2,p3)
 
-@test voxel_intersextion(a,pmin,pmax,p)
-@test voxel_intersextion(b,pmin,pmax,p)
-@test voxel_intersextion(c,pmin,pmax,p)
-@test !voxel_intersextion(d,pmin,pmax,p)
-@test !voxel_intersextion(e,pmin,pmax,p)
+@test voxel_intersection(a,pmin,pmax,p)
+@test voxel_intersection(b,pmin,pmax,p)
+@test voxel_intersection(c,pmin,pmax,p)
+@test !voxel_intersection(d,pmin,pmax,p)
+@test !voxel_intersection(e,pmin,pmax,p)
 
 end # module
 
