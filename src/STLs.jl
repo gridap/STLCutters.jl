@@ -831,3 +831,67 @@ function measure(a::CartesianGrid{D,T,typeof(identity)},mask) where {D,T}
   cell_vol * count(mask)
 end
 
+function compute_cell_to_facets(grid::CartesianGrid,stl::STL)
+  desc = get_cartesian_descriptor(grid)
+  @assert length(get_reffes(grid)) == 1
+  p = get_polytope(get_cell_reffe(grid)[1])
+  @notimplementedif desc.map !== identity
+  cell_to_stl_facets = [ Int32[] for _ in 1:num_cells(grid) ]
+  n = Threads.nthreads()
+  thread_to_cells = [ Int32[] for _ in 1:n ]
+  thread_to_stl_facets = [ Int32[] for _ in 1:n ]
+  coords = get_node_coordinates(grid)
+  cell_to_nodes = get_cell_node_ids(grid)
+  c = [ ( get_cell_cache(stl), array_cache(cell_to_nodes) ) for _ in 1:n ]
+  δ = 0.1
+  Threads.@threads for stl_facet in 1:num_cells(stl)
+    i = Threads.threadid()
+    cc,nc = c[i]
+    f = get_cell!(cc,stl,stl_facet)
+    pmin,pmax = get_bounding_box(f)
+    for cid in get_cells_around(desc,pmin,pmax)
+      cell = LinearIndices(desc.partition)[cid.I...]
+      nodes = getindex!(nc,cell_to_nodes,cell)
+      _pmin = coords[nodes[1]]
+      _pmax = coords[nodes[end]]
+      Δ = (_pmax - _pmin) * δ
+      _pmin = _pmin - Δ
+      _pmax = _pmax + Δ
+      if voxel_intersection(f,_pmin,_pmax,p)
+        push!(thread_to_cells[i],cell)
+        push!(thread_to_stl_facets[i],stl_facet)
+      end
+    end
+  end
+  cell_to_stl_facets = [ Int32[] for _ in 1:num_cells(grid) ]
+  for (cells,stl_facets) in zip(thread_to_cells,thread_to_stl_facets)
+    for (cell,stl_facet) in zip(cells,stl_facets)
+      push!(cell_to_stl_facets[cell],stl_facet)
+    end
+  end
+  cell_to_stl_facets
+end
+
+function get_cells_around(desc::CartesianDescriptor{D},pmin::Point,pmax::Point) where D
+  cmin,_ = get_cell_bounds(desc,pmin)
+  _,cmax = get_cell_bounds(desc,pmax)
+  cmin = CartesianIndices(desc.partition)[cmin]
+  cmax = CartesianIndices(desc.partition)[cmax]
+  ranges = ntuple( i -> cmin.I[i]:cmax.I[i], Val{D}() )
+  CartesianIndices( ranges )
+end
+
+function get_cell_bounds(desc::CartesianDescriptor,p::Point)
+  function _get_cell(cell)
+    cell = Int.(cell)
+    cell = max.(cell,1)
+    cell = min.(cell,desc.partition)
+    LinearIndices(desc.partition)[cell...]
+  end
+  tol = 0.1
+  coords = Tuple(p-desc.origin)./desc.sizes
+  cell = floor.(coords).+1
+  cell_min = cell .- ( (coords.-(floor.(coords))) .< tol )
+  cell_max = cell .+ ( (coords.-(floor.(coords))) .> (1-tol) )
+  _get_cell(cell_min),_get_cell(cell_max)
+end

@@ -29,6 +29,7 @@ import Gridap.ReferenceFEs: num_edges
 import Gridap.ReferenceFEs: num_facets 
 import Gridap.ReferenceFEs: num_dims 
 import Gridap.ReferenceFEs: num_point_dims 
+import Gridap.ReferenceFEs: get_offset
 import Gridap.ReferenceFEs: get_offsets
 import Gridap.ReferenceFEs: get_facedims
 import Gridap.ReferenceFEs: simplexify 
