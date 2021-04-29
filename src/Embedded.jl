@@ -153,3 +153,28 @@ function _convert_io(ioc::Integer)
   end
 end
 
+## Remove the next lines when upgrading GridapEmbedded to v0.7
+
+using GridapEmbedded.CSG
+using GridapEmbedded.AgFEM
+using GridapEmbedded.AgFEM: _aggregate_by_threshold
+import GridapEmbedded.AgFEM: aggregate
+
+function aggregate(
+  strategy,
+  cut::EmbeddedDiscretization,
+  facet_to_inoutcut::AbstractVector)
+
+  aggregate(strategy,cut,cut.geo,IN,facet_to_inoutcut)
+end
+
+function aggregate(
+  strategy::AggregateCutCellsByThreshold,
+  cut::EmbeddedDiscretization,
+  geo::CSG.Geometry,
+  in_or_out,
+  facet_to_inoutcut::AbstractVector)
+
+  _aggregate_by_threshold(strategy.threshold,cut,geo,in_or_out,facet_to_inoutcut)
+end
+
