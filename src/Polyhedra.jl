@@ -1033,6 +1033,8 @@ function refine_by_vertices(Γ,K,vertices,atol)
     _,γ⁻ = split(Γ,Πid⁺)
     _,γ⁺ = split(Γ,Πid⁻)
     k⁻,k⁺ = split(K,Πid)
+    round_distances!(k⁻,atol/10)
+    round_distances!(k⁺,atol/10)
     Γn = [γ⁻,γ⁺]
     Kn = [k⁻,k⁺]
     if length(vertices) == i
@@ -1090,5 +1092,17 @@ end
 function get_new_plane_ids(poly)
   id = minimum( get_plane_ids(poly.data) )
   id-1,id-2,id-3
+end
+
+function round_distances!(poly,atol)
+  Π_to_v_to_dist = poly.data.plane_to_vertex_to_distances
+  for i in 1:length(Π_to_v_to_dist)
+    v_to_dist = Π_to_v_to_dist[i]
+    for v in 1:length(v_to_dist)
+      if abs(v_to_dist[v]) < atol
+        v_to_dist[v] = 0.0
+      end
+    end
+  end
 end
 
