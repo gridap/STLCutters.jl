@@ -29,28 +29,21 @@ function compute_submesh(
   caches = _get_threaded_caches(cell_to_nodes)
 
   cut_cells = filter(i->!isempty(c_to_stlf[i]),1:num_cells(grid))
-#  if threading == :threads
-#    Threads.@threads for cell in cut_cells
-#      save_cell_submesh!(submesh,io_arrays,stl,p,cell,
-#        compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
-#          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)... )
-#    end
-#  elseif threading == :spawn
-#    @sync for cell in cut_cells
-#      Threads.@spawn save_cell_submesh!(submesh,io_arrays,stl,p,cell,
-#        compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
-#          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)... )
-#    end
-#  else
-#    @unreachable
-#  end
-  
-   for cell in cut_cells
+  if threading == :threads
+    Threads.@threads for cell in cut_cells
       save_cell_submesh!(submesh,io_arrays,stl,p,cell,
         compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
           c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)... )
-   end
-
+    end
+  elseif threading == :spawn
+    @sync for cell in cut_cells
+      Threads.@spawn save_cell_submesh!(submesh,io_arrays,stl,p,cell,
+        compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
+          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)... )
+    end
+  else
+    @unreachable
+  end
 
   submesh = _append_threaded_submesh!(submesh)
   io_arrays = _reduce_io_arrays(bgmodel,io_arrays)
