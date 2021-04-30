@@ -507,6 +507,78 @@ function _intersection_point(p::Polytope,pmin::Point,pmax::Point,v_to_dists::Tup
   (v1*d2-v2*d1)/(d2-d1)
 end
 
+# Bisectors
+
+function bisector_plane!(
+   cache,
+   stl::STL{Dc,Dp},
+   d::Integer,
+   dface::Integer,
+   Πf::AbstractArray) where {Dc,Dp}
+
+  @notimplementedif Dc ≠ Dp-1
+  @notimplementedif d ≠ Dc-1
+  c,fc = cache
+  e_to_f = get_faces(stl,d,Dc)
+  facets = getindex!(c,e_to_f,dface)
+  length(facets) == 2 || return Πf[ only(facets) ]
+  edge = get_dface!(fc,stl,dface,Val{Dc-1}())
+  Π1 = Πf[ facets[1] ]
+  Π2 = Πf[ facets[2] ]
+  bisector_plane(edge,Π1,Π2)
+end
+
+function bisector_plane(
+   stl::STL,
+   d::Integer,
+   dface::Integer,
+   Πf::AbstractArray) 
+  
+  c = bisector_plane_cache(stl,d)
+  bisector_plane(c,stl,d,dface,Πf)
+end
+
+function bisector_plane_cache(stl::STL,d::Integer)
+  Dc = num_dims(stl)
+  e_to_f = get_faces(stl,d,Dc)
+  c = array_cache(e_to_f)
+  fc = get_dface_cache(stl,d)
+  c,fc
+end
+
+function bisector_plane(edge::Face{1,3},Π1::Plane,Π2::Plane)
+  n1 = normal(Π1)
+  n2 = normal(Π2)
+  n1 ⋅ n2 ≉ -1 || error("Edge too sharp")
+  n = n1-n2
+  if norm(n) < 1
+    v = edge[2]-edge[1]
+    v /= norm(v)
+    _n = n1+n2
+    @assert norm(_n) > 1
+    _n /= norm(_n)
+    n = _n × v
+    @assert norm(n) ≈ 1
+  end
+  n /= norm(n)
+  @assert norm(n) ≈ 1
+  c = center(edge)
+  Plane(c,n)
+end
+
+function get_cell_planes(p::Polytope,pmin::Point,pmax::Point)
+  @notimplementedif !is_n_cube(p)
+  D = num_dims(p)
+  N = 2*D
+  @assert num_facets(p) == N
+  Π_cell = lazy_map(
+    i -> CartesianPlane(isodd(i)*pmin+iseven(i)*pmax,D-((i-1)÷2),1), 
+    1:N )
+  Π_ids = - ( 1:N )
+  Π_inout = lazy_map( iseven, 1:N )
+  Π_cell, Π_ids, Π_inout
+end
+
 ## Orthogonal
 
 function orthogonal(a::VectorValue{2})

@@ -58,8 +58,6 @@ function compute_submesh(
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc,bgfacet_to_ioc
 end
 
-
-
 function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)
 
@@ -429,8 +427,6 @@ function set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
   bgfacet_to_ioc
 end
 
-
-
 function get_expanded_facets!(facets,stl,c_to_stlf,cell)
   D = num_dims(stl)
   f_to_v = get_faces(stl,D,0)
@@ -568,84 +564,6 @@ function get_reflex_planes(stl::STL,Πf)
     Π_r[f] = bisector_plane!(c,stl,Dc-1,f,Πf)
   end
   Π_r
-end
-
-function bisector_plane(stl::DiscreteModel{Dc,Dp},d::Integer,dface::Integer) where {Dc,Dp}
-  @notimplementedif Dc ≠ Dp-1
-  @notimplementedif d ≠ Dc-1
-  facets = get_faces(get_grid_topology(stl),d,Dc)[dface]
-  if length(facets) != 2 
-    f1 = get_cell(stl,facets[1])
-    return Plane(center(f1),normal(f1))
-  end
-  f1 = get_cell(stl,facets[1])
-  f2 = get_cell(stl,facets[2])
-  e = get_dface(stl,dface,Val{Dc-1}())
-  bisector_plane(e,Plane(f1),Plane(f2))
-end
-
-function bisector_plane!(
-   cache,
-   stl::STL{Dc,Dp},
-   d::Integer,
-   dface::Integer,
-   Πf::AbstractArray) where {Dc,Dp}
-
-  @notimplementedif Dc ≠ Dp-1
-  @notimplementedif d ≠ Dc-1
-  c,fc = cache
-  e_to_f = get_faces(stl,d,Dc)
-  facets = getindex!(c,e_to_f,dface)
-  length(facets) == 2 || return Πf[ only(facets) ]
-  edge = get_dface!(fc,stl,dface,Val{Dc-1}())
-  Π1 = Πf[ facets[1] ]
-  Π2 = Πf[ facets[2] ]
-  bisector_plane(edge,Π1,Π2)
-end
-
-function bisector_plane(
-   stl::STL,
-   d::Integer,
-   dface::Integer,
-   Πf::AbstractArray) 
-  
-  c = bisector_plane_cache(stl,d)
-  bisector_plane(c,stl,d,dface,Πf)
-end
-
-function bisector_plane_cache(stl::STL,d::Integer)
-  Dc = num_dims(stl)
-  e_to_f = get_faces(stl,d,Dc)
-  c = array_cache(e_to_f)
-  fc = get_dface_cache(stl,d)
-  c,fc
-end
-
-function bisector_plane(edge::Face{1,3},Π1::Plane,Π2::Plane)
-  n1 = normal(Π1)
-  n2 = normal(Π2)
-  n1 ⋅ n2 ≉ -1 || error("Edge too sharp")
-  n = n1-n2
-  if norm(n) < 1
-    v = edge[2]-edge[1]
-    v /= norm(v)
-    _n = n1+n2
-    @assert norm(_n) > 1
-    _n /= norm(_n)
-    n = _n × v
-    @assert norm(n) ≈ 1
-  end
-  n /= norm(n)
-  @assert norm(n) ≈ 1
-  c = center(edge)
-  Plane(c,n)
-end
-
-function get_cell_planes(p::Polytope,pmin::Point,pmax::Point)
-  @notimplementedif !is_n_cube(p)
-  D = num_dims(p)
-  [ CartesianPlane(isodd(i)*pmin+iseven(i)*pmax,D-((i-1)÷2),1) for i in 1:2*D ],
-  -(1:2*D),iseven.(1:2*D)
 end
 
 function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)

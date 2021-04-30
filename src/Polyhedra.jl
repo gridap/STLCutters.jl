@@ -1012,7 +1012,6 @@ function next_vertex(p::Polyhedron,vprevious::Integer,vcurrent::Integer)
   get_graph(p)[vcurrent][ i ]
 end
 
-
 ## Kd Tree stuff
 
 function refine_by_vertices(Γ::Polyhedron,K::Polyhedron,atol=0)
