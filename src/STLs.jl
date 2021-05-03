@@ -895,3 +895,42 @@ function get_cell_bounds(desc::CartesianDescriptor,p::Point)
   cell_max = cell .+ ( (coords.-(floor.(coords))) .> (1-tol) )
   _get_cell(cell_min),_get_cell(cell_max)
 end
+
+# Bisectors
+
+function bisector_plane!(
+   cache,
+   stl::STL{Dc,Dp},
+   d::Integer,
+   dface::Integer,
+   Πf::AbstractArray) where {Dc,Dp}
+
+  @notimplementedif Dc ≠ Dp-1
+  @notimplementedif d ≠ Dc-1
+  c,fc = cache
+  e_to_f = get_faces(stl,d,Dc)
+  facets = getindex!(c,e_to_f,dface)
+  length(facets) == 2 || return Πf[ only(facets) ]
+  edge = get_dface!(fc,stl,dface,Val{Dc-1}())
+  Π1 = Πf[ facets[1] ]
+  Π2 = Πf[ facets[2] ]
+  bisector_plane(edge,Π1,Π2)
+end
+
+function bisector_plane(
+   stl::STL,
+   d::Integer,
+   dface::Integer,
+   Πf::AbstractArray) 
+  
+  c = bisector_plane_cache(stl,d)
+  bisector_plane(c,stl,d,dface,Πf)
+end
+
+function bisector_plane_cache(stl::STL,d::Integer)
+  Dc = num_dims(stl)
+  e_to_f = get_faces(stl,d,Dc)
+  c = array_cache(e_to_f)
+  fc = get_dface_cache(stl,d)
+  c,fc
+end
