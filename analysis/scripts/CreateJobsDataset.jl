@@ -2,54 +2,47 @@ module CreateJobsDataset
 
 using DrWatson
 
-@quickactivate "STLCutters"
+@quickactivate "STLCuttersAnalysis"
 
 using Mustache
-using STLCutters
-using STLCutters.Tests
+using STLCuttersAnalysis
 
-using STLCutters.Tests: download_things
+thingi10_solid_manifold = datadir("geometries","thingi10k_solid_manifold.jl")
 
-export create_jobs_dataset
-
-function jobdict(hpc_id,jobname,params,walltime,mem_gb,ncpus)
-  @unpack from, to = params
-  @unpack hpcname,queue,memory,julia= hpc_dict[hpc_id]
-  includes = 
-      "using STLCutters.Tests: run_geometry_list; using FileIO;
-       include(\"$(testdir("data","thingi10k_solid_manifold.jl"))\");"
-  func = "run_geometry_list"
-  args = "
-        file_ids[$from:$to],
-        load(\"$(tmpdir("thing_to_path.bson"))\"),
-        rerun = false,
-        datapath = \"$(datadir(hpcname))\""
-  Dict(
-  "q" => queue,
-  "o" => datadir(hpcname,jobname*".out"),
-  "e" => datadir(hpcname,jobname*".err"),
-  "walltime" => walltime,
-  "ncpus" => ncpus,
-  "mem" => memory(mem_gb),
-  "name" => jobname,
-  "julia" => julia,
-  "includes" => includes,
-  "func" => func,
-  "args" => args,
-  "projectdir" => projectdir()
-  )
-end
-
-include( testdir("data","thingi10k_solid_manifold.jl") ) # file_ids = Int[]
+include( thingi10_solid_manifold ) # file_ids::Vector{Int}
 
 include( scriptsdir("generic","hpc_dicts.jl") )
 
-function create_jobs_dataset(hpc_id,subset;walltime="24:00:00",memory=16,ncpus=memory÷4)
+function testdict(hpcname,from,to)
+  incl = 
+      "using STLCutters.Tests: run_geometry_list; using FileIO;
+       include(\"$thingi10_solid_manifold\");"
+  func = "run_geometry_list"
+  args = "
+        file_ids[$from:$to],
+        load(\"$(tmpdir("thing_to_path.bson"))\"),"
+  kwargs = "
+        rerun = false,
+        datapath = \"$(datadir(hpcname))\""
+  @dict incl func args kwargs
+end
+
+function jobdir(params)
+  jobname = savename(params)
+  jobname = replace(jobname,"="=>"_")
+end
+
+function main(
+  hpc_id,
+  subset;
+  walltime="24:00:00",
+  memory=16,
+  ncpus=memory÷4,
+  chunk_size=100)
 
   @unpack hpcname = hpc_dict[hpc_id]
 
   template = read(scriptsdir(hpcname,"jobtemplate.sh"),String)
-
 
   thing_to_path_bson = tmpdir("thing_to_path.bson")
 
@@ -67,27 +60,25 @@ function create_jobs_dataset(hpc_id,subset;walltime="24:00:00",memory=16,ncpus=m
     end
   end
 
-  chunk_size = 100
   num_chunks = ceil(Int,length(things_ids)/chunk_size)
   starts = [ 1+(i-1)*chunk_size for i in 1:num_chunks ]
   ends = [ chunk_size*i for i in 1:num_chunks ]
   ends[end] = length(things_ids)
 
+  jobparams = @dict walltime memory ncpus
   for chunk in 1:num_chunks
     from,to = starts[chunk], ends[chunk]
     from,to = subset[from], subset[to]
     range = @dict from to
-    jobname = savename(range)
-    jobname = replace(jobname,"="=>"_")
+    jobname = jobdir(range)
     jobfile = datadir(hpcname,jobname*".sh")
+    @pack! jobparams = jobname
+    testparams = testdict(hpcname,from,to)
     open(jobfile,"w") do io
-      render(io,template,jobdict(hpc_id,jobname,range,walltime,memory,ncpus))
+      render(io,template,jobdict(hpc_id,jobparams,testparams))
     end
   end
-
 end
 
 end # module
-
-using Main.CreateJobsDataset
 

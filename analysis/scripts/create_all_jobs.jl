@@ -1,21 +1,22 @@
-using STLCutters
-using STLCutters.Tests
-using STLCutters.Tests: scriptsdir
 
-include( scriptsdir("generic","create_jobs_matrix.jl") )
-include( scriptsdir("generic","create_jobs_dataset.jl") )
+include("CreateJobsMatrix.jl")
 
-subsets = Dict(
-  :acuario => 1:1,
-  :titani => 1:2924,
-  :gadi => 2925:4963 )
+CreateJobsMatrix.main(:gadi,memory=32,ncpus=8,nmaxs=112,poisson=false)
 
-function create_all_jobs(hpc::Symbol,subset=subsets[hpc];onlymatrix=false,kwargs...)
-  create_jobs_matrix(hpc;kwargs...)
-  onlymatrix || create_jobs_dataset(hpc,subset;kwargs...)
-  nothing
-end
-# create_jobs_matrix(:gadi,memory=32,displace=true,nmaxs=112,poisson=true,solution_order=1)
-# create_jobs_matrix(:gadi,memory=32,displace=false,poisson=true,solution_order=2)
+CreateJobsMatrix.main(:gadi,memory=32,ncpus=8,walltime="5:00:00",
+  displacement=false,poisson=false)
 
-# create_jobs_matrix(:gadi,walltime="1:00:00",memory=64,ncpus=16,displace=false,poisson=true,solution_order=2,solver=:amg)
+CreateJobsMatrix.main(:gadi,memory=32,ncpus=8,
+  nmaxs=112,poisson=true,solution_order=1,solver=:direct)
+
+CreateJobsMatrix.main(:gadi,memory=32,ncpus=8,walltime="5:00:00",
+  displacement=false,poisson=true,solution_order=2,solver=:amg)
+
+CreateJobsMatrix.main(:gadi,memory=16,ncpus=1,
+  displacement=false,poisson=true,solution_order=2,solver=:amg,nruns=5)
+
+include("CreateJobsDataset.jl")
+
+CreateJobsDataset.main(:gadi,2925:4963,ncpus=8,memory=32,chunk_size=100)
+
+CreateJobsDataset.main(:titani,1:2924,ncpus=12,memory=120,chunk_size=500)

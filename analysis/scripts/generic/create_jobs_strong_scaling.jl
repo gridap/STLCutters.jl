@@ -3,8 +3,6 @@ using DrWatson
 @quickactivate "STLCutters"
 
 using Mustache
-using STLCutters
-using STLCutters.Tests
 
 include( scriptsdir("generic","hpc_dicts.jl") )
 
