@@ -67,6 +67,4 @@ include("SubTriangulations.jl")
 
 include("Embedded.jl")
 
-include("Tests/Tests.jl")
-
 end # module

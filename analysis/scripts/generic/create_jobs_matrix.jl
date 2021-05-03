@@ -42,9 +42,9 @@ stl_list = [
   "96457", # NightHawk
   "550964", # Eiffel Tower
   "293137", # Bunny low-poly
-  "441708_1", # Standford Bunny
+  "441708", # Standford Bunny
   "35269", # Octocat
-  "65904", # Heart 
+  "65904_1", # Heart 
   "551021", # Arc de Triomph
   "37266", # Extruded Earth
   "252119"] # Angel
