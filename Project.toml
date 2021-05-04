@@ -4,6 +4,7 @@ authors = ["Pere Antoni Martorell", "Large Scale Scientific Computing"]
 version = "0.1.0"
 
 [deps]
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
 Gridap = "56d4f2e9-7ea1-5844-9cf6-b9c51ca7ce8e"
@@ -15,6 +16,7 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Preconditioners = "af69fa37-3177-5a40-98ee-561f696e4fcd"
 
 [compat]
+Downloads = "1.4"
 FileIO = "1.6"
 GraphRecipes = "0.5"
 Gridap = "0.15,0.16"
