@@ -244,7 +244,7 @@ function _run_and_save(
     end
     @pack! out = it
     merge!(out,data)
-    @tagsave("$_title.bson",out;safe=true)
+    safesave("$_title.bson",out)
   end
   out
 end

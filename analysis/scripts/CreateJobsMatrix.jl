@@ -24,11 +24,12 @@ stl_list = [
 
 function testdict(params)
   @unpack func,filename,nmin,nmax,kwargs = params 
+  filename = datadir("geometries","$filename.stl")
   incl = ""
-  kwargs = "
-          nmin=$nmin,
-          nmax=$nmax,
-          $kwargs"
+  kwargs = 
+   s10 * "nmin=$nmin,\n" *
+   s10 * "nmax=$nmax,\n" *
+   kwargs
   args = "\"$filename\",\n"
   testparams = Dict{Symbol,Any}()
   @dict incl func args kwargs
@@ -39,6 +40,14 @@ function jobdir(prefix,params)
   jobname = savename(prefix*params[:filename],params;ignores)
   replace(jobname,"="=>"")
 end
+
+format_data(a::String) = "\"$a\""
+
+format_data(a::Number) = "$a"
+
+format_data(a::Symbol) = ":$a"
+
+s10 = join(fill(' ',10))
 
 function main(
   hpc_id;
@@ -54,28 +63,22 @@ function main(
 
   template = read( projectdir("scripts",hpcname,"jobtemplate.sh"),String)
 
-  _kwargs = join(["$k = $v, " for (k,v) in kwargs ])
+  _kwargs = join([ s10*"$k=$(format_data(v)),\n" for (k,v) in kwargs ])
 
-  _kwargs = 
-         "$_kwargs
-          rerun=false,
-          datapath = \"$(datadir(hpcname))\","
+  _kwargs *= s10*"rerun=false,\n"
+  _kwargs *= s10*"datapath = \"$(datadir(hpcname))\",\n"
 
   if displace
     func = "rotations_and_displacements"
-    _kwargs =
-         "$_kwargs
-          displacements=exp10.(-17:-1 ),
-          angles=exp10.(-17:-1 ),"
+    _kwargs *= s10*"displacements=exp10.(-17:-1 ),\n"
+    _kwargs *= s10*"angles=exp10.(-17:-1 ),\n"
   else
     func = "run_and_save"
   end
 
   if poisson
-    _kwargs =
-         "$_kwargs
-          poisson=true,
-          agfem_threshold=0.5,"
+    _kwargs *= s10*"poisson=true,\n"
+    _kwargs *= s10*"agfem_threshold=0.5,\n"
   end
 
   prefix = ""
@@ -93,7 +96,9 @@ function main(
     :nmax => nmaxs,
     :kwargs => _kwargs 
     )
-  push!(all_params,kwargs...)
+  for kwarg in kwargs
+    push!(all_params,kwarg)
+  end
 
   if !isdir( datadir(hpcname) )
     mkdir( datadir(hpcname) )
