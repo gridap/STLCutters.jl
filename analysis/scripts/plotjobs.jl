@@ -1,112 +1,11 @@
 using DrWatson
 
-@quickactivate "STLCutters"
+@quickactivate "STLCuttersAnalisis"
 
 using DataFrames
-
-using STLCutters
-using STLCutters.Tests
-using STLCutters.Tests: scriptsdir
-
 using Plots
 
-function save_plot(name,data,xfield,yfield;relative=false,labels=Dict(),xlog=true,ylog=false)
-
-  if relative
-    r0 = filter( i -> i[xfield] == 0, data )
-    min_n = minimum(r0.nmax)
-    r0 = filter( i -> i.nmax == min_n, r0 )
-    y0 = only(r0[!,yfield])
-  end
-  !isempty(filter( i -> i[xfield] ≠ 0, data )) || return
-  
-  nmaxs = sort(unique(data.nmax))
-  plot()
-  for (i,nmax) in enumerate(nmaxs)
-    r = filter(i->i.nmax == nmax,data)
-    r = filter( i -> i[xfield] ≠ 0, r )
-    !isempty(r) || continue
-    x = r[!,xfield]
-    y = r[!,yfield]
-    !relative || ( y = @. abs( y - y0) / y0 )
-    scatter!(x,y,label="N_max = $nmax",markershape=:auto)
-  end
-  !xlog || plot!(xscale=:log10)
-  !ylog || plot!(yscale=:log10)
-  plot!(legend=:outerbottomright)
-  xlabel = haskey(labels,xfield) ? labels[xfield] : "$xfield"
-  ylabel = haskey(labels,yfield) ? labels[yfield] : "$yfield"
-  plot!(;xlabel,ylabel)
-  plot!(title=name)
-
-  savefig(plotsdir("$name.pdf"))
-end
-
-raw_gadi = collect_results(datadir("gadi"))
-raw_titani = collect_results(datadir("titani"))
-
-raw_strong_scaling = filter(i->!ismissing(i.nruns)&&i.nruns>1,raw_gadi)
-
-raw_gadi = filter(i->ismissing(i.nruns)||i.nruns==1,raw_gadi)
-
-raw_matrix = filter(i->i.nmax ≠ 100,raw_gadi)
-
-raw_10k_gadi = filter(i->i.nmax == 100,raw_gadi)
-raw_10k_titani = raw_titani
-
-raw_10k = vcat( raw_10k_gadi,raw_10k_titani,cols=:union)
-
-raw_10k = filter( i->!contains(i.path,"#"), raw_10k)
-
-raw_matrix = filter(i->i.name≠"96457"||i.rotation<0.1,raw_matrix)
-replace!(raw_matrix.name,"65904_1"=>"65904")
-filter!(i->i.name≠"wine_glass",raw_matrix)
-
-raw_matrix_poisson = filter( i-> !ismissing(i.poisson) && i.poisson, raw_matrix )
-raw_matrix = filter( i -> ismissing(i.poisson) || !i.poisson, raw_matrix )
-
-xfields = [:rotation,:displacement]
-yfields = [:surface_error,:volume_error,:min_subcells_x_cell,:max_subcells_x_cell,:avg_subcells_x_cell,:time] 
-relative_yfields = [:domain_volume,:domain_surface]
-log_yfields = [:min_subcells_x_cell,:max_subcells_x_cell,:avg_subcells_x_cell,:time]
-
-labels = Dict(
-  :rotation => "Rotation angle (θ) [rads]", 
-  :displacement => "Displacement (Δx)",
-  :volume_error => "Domain volume error (ϵ_V)",   
-  :domain_volume => "Domain volume variation (Δv_Ω)",
-  :surface_error => "Domain surface error (ϵ_Γ)",   
-  :domain_surface => "Domain surface variation (ΔΓ_Ω)",
-  :time => "Trianglulation time (t) [secs]",
-  :num_cells => "Num background cells",
-  :num_stl_facets => "Num STL facets",
-  :nmax => "Relative cell size (h₀/h) ",
-  :error_h1 => "H1 error norm (ϵ_H¹)",
-  :error_l2 => "L2 error norm (ϵ_L²)" )
-
-all_params = Dict(
-  :name => unique(raw_matrix[!,:name]),
-  :x => xfields,
-  :y => [yfields;relative_yfields]  )
-
-xfilter = Dict( :rotation => :displacement, :displacement => :rotation )
-
-for params in dict_list(all_params)
-  @unpack name,x,y = params
-
-  r = raw_matrix
-  r = filter(i->i.name == name,r)
-  r = filter(i->i[xfilter[x]] == 0,r)
-
-  plotname = savename(params)
-  plotname = replace(plotname,'='=>'_')
-
-  relative = y ∈ relative_yfields
-  ylog = y ∈ log_yfields
-
-#  save_plot(plotname,r,x,y;relative,labels,ylog)
-
-end
+# Functions
 
 function plot_all_geometries(raw,plotname,xfield,yfield)
   data = filter(i->!ismissing(i[xfield]),raw)
@@ -158,68 +57,6 @@ function plot_all_geometries(raw,plotname,xfield,yfield)
   savefig(plotsdir("$plotname.pdf"))
 end
 
-test_fields = [:rotation,:displacement,:nmax]
-default_value = Dict(
-  :rotation => 0,
-  :displacement => 0,
-  :nmax => 112 )
-
-data = raw_matrix
-
-all_params = Dict(
-  :x => test_fields,
-  :y => [:domain_surface,:domain_volume,:time]
-)
-
-for params in dict_list(all_params)
-  plotname = savename(params)
-  plotname = replace(plotname,'='=>'_')
-
-  @unpack x,y = params
-  plot_all_geometries(data,plotname,x,y)
-end
-
-data = filter(i->i.solution_order==1,raw_matrix_poisson)
-test_fields = [:rotation,:displacement]
-all_params = Dict(
-  :x => test_fields,
-  :y => [:error_h1,:error_l2]
-)
-
-for params in dict_list(all_params)
-  plotname = savename(params)
-  plotname = replace(plotname,'='=>'_')
-
-  @unpack x,y = params
-  plot_all_geometries(data,plotname,x,y)
-end
-
-
-data = filter(i->i.solution_order==2,raw_matrix_poisson)
-data = filter(i-> !ismissing(i.solver) && i.solver==:amg, data)
-data = filter(i-> i.nmax > 14, data)
-
-test_fields = [:nmax]
-all_params = Dict(
-  :x => test_fields,
-  :y => [:error_h1,:error_l2]
-)
-
-for params in dict_list(all_params)
-  plotname = savename(params)
-  plotname = replace(plotname,'='=>'_')
-
-  @unpack x,y = params
-  plot_all_geometries(data,plotname,x,y)
-end
-
-
-include(testdir("data","thingi10k_solid_manifold.jl"))
-
-#raw_10k = filter(i->parse(Int,i.name)∉degenerate_file_ids,raw_10k)
-raw_10k = filter(i->parse(Int,i.name)∈file_ids,raw_10k)
-
-
 function save_plot(data,xfield,yfield;prefix=nothing)
   markerkw = (markersize=2,markercolor=:black)
 
@@ -260,10 +97,116 @@ function accumulated_frequency_histogram(data,field;range=exp10.(-17:0.1:0),pref
   savefig(plotsdir(filename))
 end
 
+# Filter Raw Data
+
+raw_gadi = collect_results(datadir("gadi"))
+raw_titani = collect_results(datadir("titani"))
+
+raw_strong_scaling = filter(i->!ismissing(i.nruns)&&i.nruns>1,raw_gadi)
+
+raw_gadi = filter(i->ismissing(i.nruns)||i.nruns==1,raw_gadi)
+
+raw_matrix = filter(i->i.nmax ≠ 100,raw_gadi)
+
+raw_10k_gadi = filter(i->i.nmax == 100,raw_gadi)
+raw_10k_titani = raw_titani
+
+raw_10k = vcat( raw_10k_gadi,raw_10k_titani,cols=:union)
+
+raw_10k = filter( i->!contains(i.path,"#"), raw_10k)
+
+raw_matrix = filter(i->i.name≠"96457"||i.rotation<0.1,raw_matrix)
+replace!(raw_matrix.name,"65904_1"=>"65904")
+filter!(i->i.name≠"wine_glass",raw_matrix)
+
+raw_matrix_poisson = filter( i-> !ismissing(i.poisson) && i.poisson, raw_matrix)
+raw_matrix = filter( i -> ismissing(i.poisson) || !i.poisson, raw_matrix)
+
+labels = Dict(
+  :rotation => "Rotation angle (θ) [rads]", 
+  :displacement => "Displacement (Δx)",
+  :volume_error => "Domain volume error (ϵ_V)",   
+  :domain_volume => "Domain volume variation (Δv_Ω)",
+  :surface_error => "Domain surface error (ϵ_Γ)",   
+  :domain_surface => "Domain surface variation (ΔΓ_Ω)",
+  :time => "Trianglulation time (t) [secs]",
+  :num_cells => "Num background cells",
+  :num_stl_facets => "Num STL facets",
+  :nmax => "Relative cell size (h₀/h) ",
+  :error_h1 => "H1 error norm (ϵ_H¹)",
+  :error_l2 => "L2 error norm (ϵ_L²)" )
+
+
+# Rotations and displacements
+
+test_fields = [:rotation,:displacement,:nmax]
+default_value = Dict(
+  :rotation => 0,
+  :displacement => 0,
+  :nmax => 112 )
+data = raw_matrix
+
+all_params = Dict(
+  :x => test_fields,
+  :y => [:domain_surface,:domain_volume,:time]
+)
+
+for params in dict_list(all_params)
+  plotname = savename(params)
+  plotname = replace(plotname,'='=>'_')
+
+  @unpack x,y = params
+  plot_all_geometries(data,plotname,x,y)
+end
+
+# Rotations and displacements Poisson
+
+data = filter(i->i.solution_order==1,raw_matrix_poisson)
+test_fields = [:rotation,:displacement]
+all_params = Dict(
+  :x => test_fields,
+  :y => [:error_h1,:error_l2]
+)
+
+for params in dict_list(all_params)
+  plotname = savename(params)
+  plotname = replace(plotname,'='=>'_')
+
+  @unpack x,y = params
+  plot_all_geometries(data,plotname,x,y)
+end
+
+# Error norm convergence
+
+data = filter(i->i.solution_order==2,raw_matrix_poisson)
+data = filter(i-> !ismissing(i.solver) && i.solver==:amg, data)
+data = filter(i-> i.nmax > 14, data)
+
+test_fields = [:nmax]
+all_params = Dict(
+  :x => test_fields,
+  :y => [:error_h1,:error_l2]
+)
+
+for params in dict_list(all_params)
+  plotname = savename(params)
+  plotname = replace(plotname,'='=>'_')
+
+  @unpack x,y = params
+  plot_all_geometries(data,plotname,x,y)
+end
+
+## Thingi10k
+
+include( datadir("geometries","thingi10k_solid_manifold.jl"))
+
+raw_10k = filter(i->parse(Int,i.name)∈file_ids,raw_10k)
+
+# Dot plots 
+
 xfield = :num_stl_facets
 yfield = :surface_error
 save_plot(raw_10k,xfield,yfield)
-
 
 xfield = :num_stl_facets
 yfield = :volume_error
@@ -274,6 +217,8 @@ xfield = :num_stl_facets
 yfield = :time
 save_plot(raw_10k_t,xfield,yfield)
 
+# Histograms
+
 accumulated_frequency_histogram(raw_10k,:volume_error)
 
 accumulated_frequency_histogram(raw_10k,:surface_error)
@@ -282,35 +227,23 @@ accumulated_frequency_histogram(raw_10k_t,:time,range=exp10.(0:0.1:6))
 
 accumulated_frequency_histogram(raw_10k,:num_stl_facets,range=exp10.(0:0.1:6))
 
+# Print large errors
 
 tol = 1e-9
+n = size(raw_10k,1)
 c = count(i->abs(i) < tol,raw_10k.surface_error)
-println("$(c/size(raw_10k,1)*100)% of $(size(raw_10k,1)) has ϵ_Γ below $tol ($c out of $(size(raw_10k,1)))")
+println("$(c/n*100)% of $n has ϵ_Γ below $tol ($c out of $n)")
 
 c = count(i->abs(i) < tol,raw_10k.volume_error)
-println("$(c/size(raw_10k,1)*100)% of $(size(raw_10k,1)) has ϵ_V below $tol ($c out of $(size(raw_10k,1)))")
+println("$(c/n*100)% of $n has ϵ_V below $tol ($c out of $n)")
 
-#raw_10k = filter(i->ismissing(i.min_h)||i.min_h>1e-5,raw_10k)
-#
-#xfield = :num_stl_facets
-#yfield = :surface_error
-#save_plot(raw_10k,xfield,yfield,prefix="filter")
-#
-#xfield = :num_stl_facets
-#yfield = :volume_error
-#save_plot(raw_10k,xfield,yfield,prefix="filter")
-#
-#accumulated_frequency_histogram(raw_10k,:volume_error,prefix="filter")
-#
-#accumulated_frequency_histogram(raw_10k,:surface_error,prefix="filter")
-
-## plot strong scaling
+# Strong Scaling
 
 data = raw_strong_scaling
 
 geos = unique(data.name)
 nmaxs = sort(unique(data.nmax))
-nthreads = sort(unique(data.nthreads))
+#nthreads = sort(unique(data.nthreads))
 #nmaxs = [100]
 geos = ["cube"]
 
@@ -334,4 +267,5 @@ plot!(1:48,1:48,color=:black,linestyle=:dash,label=:none)
 plot!(;xlims,ylims)
 plot!(legend=:outerbottomright)
 plot!(xlabel="Num threads",ylabel="Speed-up")
-savefig("strong_scaling.png")
+#savefig(plotsdir("strong_scaling.pdf"))
+
