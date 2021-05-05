@@ -102,7 +102,10 @@ end
 raw_gadi = collect_results(datadir("gadi"))
 raw_titani = collect_results(datadir("titani"))
 
-raw_strong_scaling = filter(i->!ismissing(i.nruns)&&i.nruns>1,raw_gadi)
+raw_timing = filter(i->!ismissing(i.nruns)&&i.nruns>1,raw_gadi)
+
+raw_strong_scaling = filter( i -> !i.poisson, raw_timing )
+raw_timing = filter( i -> i.poisson, raw_timing )
 
 raw_gadi = filter(i->ismissing(i.nruns)||i.nruns==1,raw_gadi)
 
@@ -236,6 +239,87 @@ println("$(c/n*100)% of $n has ϵ_Γ below $tol ($c out of $n)")
 
 c = count(i->abs(i) < tol,raw_10k.volume_error)
 println("$(c/n*100)% of $n has ϵ_V below $tol ($c out of $n)")
+
+# Timing
+
+raw_timing = filter( i->!contains(i.path,"#"), raw_timing)
+replace!(raw_timing.name,"65904_1"=>"65904")
+
+data = raw_timing
+times = [:time_cutter,:time_operator,:time_system]
+names = sort( unique( data.name ) )
+
+# plot all
+
+plot()
+for name in names
+  d = filter(i->i.name == name,data)
+  nmaxs = sort( unique( d.nmax ) )
+  min_times = zeros(length(nmaxs))
+  for (i,nmax) in enumerate(nmaxs)
+    _d = filter(i->i.nmax==nmax,d)
+    min_times[i] = minimum(_d[!,times[1]])
+  end
+  x = nmaxs
+  y = min_times
+  plot!(x,y,label="$name",markershape=:auto)
+end
+plot!(xscale=:log10)
+plot!(yscale=:log10)
+plot!(legend=:outerbottomright)
+plot!(xlabel="Nmax")
+plot!(ylabel="Time cutter [secs.]")
+savefig(plotsdir("general_timing.pdf"))
+
+Ns = sort( unique( data.nmax ) ) 
+
+plot()
+for nmax in Ns
+  d = filter(i->i.nmax == nmax,data)
+  nfacets = sort( unique( d.num_stl_facets ) )
+  min_times = zeros(length(nfacets))
+  for (i,nf) in enumerate(nfacets)
+    _d = filter(i->i.num_stl_facets==nf,d)
+    min_times[i] = minimum(_d[!,times[1]])
+  end
+  x = nfacets
+  y = min_times
+  plot!(x,y,label="Nmax = $nmax",markershape=:auto)
+end
+plot!(xscale=:log10)
+plot!(yscale=:log10)
+plot!(legend=:outerbottomright)
+plot!(xlabel="Num stl facets")
+plot!(ylabel="Time cutter [secs.]")
+savefig(plotsdir("stl_size_timing.pdf"))
+
+
+for name in names
+  d = filter(i->i.name == name,data)
+  nmaxs = sort( unique( d.nmax ) )
+  plot()
+  for time in times
+    min_times = zeros(length(nmaxs))
+    for (i,nmax) in enumerate(nmaxs)
+      _d = filter(i->i.nmax==nmax,d)
+      min_times[i] = minimum(_d[!,time])
+    end
+    x = nmaxs
+    y = min_times
+    plot!(x,y,label="$time",markershape=:auto)
+  end
+  plot!(xscale=:log10)
+  plot!(yscale=:log10)
+  plot!(legend=:outerbottomright)
+  plot!(xlabel="Nmax")
+  plot!(ylabel="Time [secs.]")
+  savefig(plotsdir("$(name)_timing.pdf"))
+end
+
+
+
+
+
 
 # Strong Scaling
 
