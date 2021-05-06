@@ -271,8 +271,9 @@ plot!(xlabel="Nmax")
 plot!(ylabel="Time cutter [secs.]")
 savefig(plotsdir("general_timing.pdf"))
 
-Ns = sort( unique( data.nmax ) ) 
+# plot n stl faces vs time
 
+Ns = sort( unique( data.nmax ) ) 
 plot()
 for nmax in Ns
   d = filter(i->i.nmax == nmax,data)
@@ -293,6 +294,7 @@ plot!(xlabel="Num stl facets")
 plot!(ylabel="Time cutter [secs.]")
 savefig(plotsdir("stl_size_timing.pdf"))
 
+# plot all times
 
 for name in names
   d = filter(i->i.name == name,data)
@@ -316,11 +318,49 @@ for name in names
   savefig(plotsdir("$(name)_timing.pdf"))
 end
 
+# plot complexity
+
+data2 = raw_matrix
+data2 = filter( i -> i.rotation == 0, data2 )
+data2 = filter( i -> i.displacement == 0, data2 )
+
+x,y = [],[]
+for name in names
+  d = filter(i->i.name == name,data)
+  d2 = filter(i->i.name == name,data2)
+  nmaxs = sort( unique( d.nmax ) )
+  for nmax in nmaxs
+    _d = filter(i->i.nmax==nmax,d)
+    _d2 = filter(i->i.nmax==nmax,d2)
+    if isempty(_d2) || ismissing(only(_d2.num_cells_cut))
+      println("Excluding for alg. complexity: \"$name\", nmax=$nmax")
+      continue
+    end
+    t = minimum(_d.time_cutter)
+    ncut = only(_d2.num_cells_cut)
+    nstl = only(_d2.num_stl_facets)
+    !ismissing(ncut) || continue
+    xi = ceil(nstl / ncut)
+    yi = t / ncut
+    push!(x,xi)
+    push!(y,yi)
+  end
+end
+markerkw = (markersize=3,markercolor=:black,markershape=:+)
+scatter(x,y;markerkw...)
+plot!(legend=:none,xscale=:log10,yscale=:log10)
+plot!(xlabel="Num STL faces / Num cells CUT")
+plot!(ylabel="Time cutter / Num cells CUT [secs.]")
+max_x = floor(maximum(x))
+min_y = minimum(y)*5
+plot!(1:max_x,(1:max_x)*min_y,color=:black,linestyle=:dash,label="x")
+plot!(1:max_x,(1:max_x) .* log2.( (1:max_x) .+1 ) .* min_y,color=:red,linestyle=:dash,label="xlog(x)")
+plot!(1:max_x,(1:max_x) .* (1:max_x) .* min_y,color=:blue,linestyle=:dash,label="x²")
+plot!(legend=:bottomright)
+savefig(plotsdir("complexity_timming.pdf"))
 
 
-
-
-
+@assert false
 # Strong Scaling
 
 data = raw_strong_scaling
