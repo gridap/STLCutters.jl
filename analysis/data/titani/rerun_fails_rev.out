@@ -1,0 +1,929 @@
+BEGIN of run_geometry_list()
+---------------------------------------
+Running: 472018 ...
+Skipping run: /users/pere.antoni.martorell/STLCutters.jl/analysis/data/titani/472018.bson is found
+---------------------------------------
+Running: 472019 ...
+---------------------------------------
+Maximum num facets per vertex: 84
+Maximum num facets per bgcell: 2674
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472021 ...
+---------------------------------------
+Maximum num facets per vertex: 83
+Maximum num facets per bgcell: 2541
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472022 ...
+---------------------------------------
+Maximum num facets per vertex: 90
+Maximum num facets per bgcell: 2543
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472038 ...
+---------------------------------------
+Maximum num facets per vertex: 62
+Maximum num facets per bgcell: 374
+---------------------------------------
+Num stl facets:	50726
+Minimum stl facet height (scaled):	1.6823382403393322e-7
+Num background grid cells:	256000
+Background grid partition:	(32, 80, 100)
+Background grid size:	0.37930667877197266
+---------------------------------------
+TIME: 	 97.764364281 s
+Domain volume:	2477.429536830904
+Domain surface:	1853.3635417736884
+Box volume: 	 13970.483430982073
+Volume error: 	 -1.5624278823553825e-15
+Surface error: 	 -8.587714672424346e-16
+Num subcells: 	 2191931
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 10815
+AVG num subcells per cut cell: 	 148.12346263008516
+---------------------------------------
+---------------------------------------
+Running: 472043 ...
+---------------------------------------
+Maximum num facets per vertex: 85
+Maximum num facets per bgcell: 2494
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472045 ...
+---------------------------------------
+Maximum num facets per vertex: 89
+Maximum num facets per bgcell: 2358
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472046 ...
+---------------------------------------
+Maximum num facets per vertex: 86
+Maximum num facets per bgcell: 2557
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472049 ...
+@warn: Unable to fix small facets in 100 iterations
+---------------------------------------
+Maximum num facets per vertex: 36
+Maximum num facets per bgcell: 128
+---------------------------------------
+Num stl facets:	1692
+Minimum stl facet height (scaled):	1.3615854655995784e-8
+Num background grid cells:	584800
+Background grid partition:	(100, 68, 86)
+Background grid size:	0.8356660156249928
+---------------------------------------
+TIME: 	 5.145122061 s
+Domain volume:	30005.463521566933
+Domain surface:	8691.750715213677
+Box volume: 	 341275.8732773969
+Volume error: 	 -8.527948424023939e-16
+Surface error: 	 -1.4795931802969287e-13
+Num subcells: 	 404083
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 3291
+AVG num subcells per cut cell: 	 31.133600431466213
+---------------------------------------
+---------------------------------------
+Running: 472051 ...
+---------------------------------------
+Maximum num facets per vertex: 82
+Maximum num facets per bgcell: 2678
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472052 ...
+---------------------------------------
+Maximum num facets per vertex: 85
+Maximum num facets per bgcell: 2354
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472054 ...
+---------------------------------------
+Maximum num facets per vertex: 75
+Maximum num facets per bgcell: 2504
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472061 ...
+@warn: Unable to fix small facets in 100 iterations
+---------------------------------------
+Maximum num facets per vertex: 46
+Maximum num facets per bgcell: 74
+---------------------------------------
+Num stl facets:	1194
+Minimum stl facet height (scaled):	5.735398014407584e-9
+Num background grid cells:	266600
+Background grid partition:	(43, 62, 100)
+Background grid size:	0.9245599594116212
+---------------------------------------
+TIME: 	 3.130585087 s
+Domain volume:	25791.308090004142
+Domain surface:	7205.9160439534035
+Box volume: 	 210700.41387609448
+Volume error: 	 -2.900708301175059e-15
+Surface error: 	 1.0690410597386766e-13
+Num subcells: 	 270456
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 1816
+AVG num subcells per cut cell: 	 30.965880467139915
+---------------------------------------
+---------------------------------------
+Running: 472068 ...
+---------------------------------------
+Maximum num facets per vertex: 37
+Maximum num facets per bgcell: 127
+---------------------------------------
+Num stl facets:	1698
+Minimum stl facet height (scaled):	1.3886863381842768e-7
+Num background grid cells:	584800
+Background grid partition:	(100, 68, 86)
+Background grid size:	0.8356660156249928
+---------------------------------------
+TIME: 	 4.034529425 s
+Domain volume:	30005.431392035414
+Domain surface:	8691.75159122607
+Box volume: 	 341275.8732773969
+Volume error: 	 8.527948424023939e-16
+Surface error: 	 -1.209624854340003e-13
+Num subcells: 	 403945
+MIN num subcells per cut cell: 	 10
+MAX num subcells per cut cell: 	 3709
+AVG num subcells per cut cell: 	 31.118172713966565
+---------------------------------------
+---------------------------------------
+Running: 472069 ...
+---------------------------------------
+Maximum num facets per vertex: 86
+Maximum num facets per bgcell: 2664
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472077 ...
+---------------------------------------
+Maximum num facets per vertex: 79
+Maximum num facets per bgcell: 2626
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 472101 ...
+---------------------------------------
+Maximum num facets per vertex: 63
+Maximum num facets per bgcell: 565
+---------------------------------------
+Num stl facets:	14596
+Minimum stl facet height (scaled):	5.621001153232303e-7
+Num background grid cells:	55800
+Background grid partition:	(45, 124, 10)
+Background grid size:	0.7111999893188476
+---------------------------------------
+TIME: 	 54.44566575 s
+Domain volume:	3314.398243702142
+Domain surface:	2983.8074840333325
+Box volume: 	 20072.867749789686
+Volume error: 	 -1.4136612191654913e-14
+Surface error: 	 5.669468135426973e-14
+Num subcells: 	 610611
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 16638
+AVG num subcells per cut cell: 	 95.7370649106303
+---------------------------------------
+---------------------------------------
+Running: 472113 ...
+---------------------------------------
+Maximum num facets per vertex: 67
+Maximum num facets per bgcell: 200
+---------------------------------------
+Num stl facets:	20974
+Minimum stl facet height (scaled):	1.166704296620847e-6
+Num background grid cells:	222300
+Background grid partition:	(57, 39, 100)
+Background grid size:	2.0150666959285735
+---------------------------------------
+TIME: 	 35.441483455 s
+Domain volume:	85662.8491624888
+Domain surface:	36800.153240171676
+Box volume: 	 1.8188954580781092e6
+Volume error: 	 -1.7920925563244744e-15
+Surface error: 	 9.312396103120378e-14
+Num subcells: 	 1218943
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 8439
+AVG num subcells per cut cell: 	 119.55109846998823
+---------------------------------------
+---------------------------------------
+Running: 472116 ...
+---------------------------------------
+Maximum num facets per vertex: 43
+Maximum num facets per bgcell: 177
+---------------------------------------
+Num stl facets:	22498
+Minimum stl facet height (scaled):	1.1920928955078125e-7
+Num background grid cells:	61950
+Background grid partition:	(177, 35, 10)
+Background grid size:	1.1853333815932274
+---------------------------------------
+TIME: 	 38.249177998 s
+Domain volume:	5870.366720947572
+Domain surface:	6940.022815121081
+Box volume: 	 103172.23923176785
+Volume error: 	 -1.2835083309635492e-14
+Surface error: 	 5.884175484355322e-14
+Num subcells: 	 1093078
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 6178
+AVG num subcells per cut cell: 	 204.5430389221557
+---------------------------------------
+---------------------------------------
+Running: 472131 ...
+---------------------------------------
+Maximum num facets per vertex: 108
+Maximum num facets per bgcell: 165
+---------------------------------------
+Num stl facets:	10252
+Minimum stl facet height (scaled):	1.348680651262879e-7
+Num background grid cells:	267300
+Background grid partition:	(100, 81, 33)
+Background grid size:	1.1675534114837647
+---------------------------------------
+TIME: 	 15.330943415 s
+Domain volume:	5181.832418259584
+Domain surface:	4258.37201400924
+Box volume: 	 425431.0956239005
+Volume error: 	 -2.7364083872668067e-16
+Surface error: 	 7.475231017235649e-14
+Num subcells: 	 828666
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 2478
+AVG num subcells per cut cell: 	 203.6034398034398
+---------------------------------------
+---------------------------------------
+Running: 472138 ...
+---------------------------------------
+Maximum num facets per vertex: 108
+Maximum num facets per bgcell: 165
+---------------------------------------
+Num stl facets:	10252
+Minimum stl facet height (scaled):	1.3847126230203783e-7
+Num background grid cells:	267300
+Background grid partition:	(100, 81, 33)
+Background grid size:	1.1675534114837647
+---------------------------------------
+TIME: 	 15.312702191 s
+Domain volume:	5181.181921232634
+Domain surface:	4258.375115666028
+Box volume: 	 425431.0956239005
+Volume error: 	 -1.3682041936334034e-16
+Surface error: 	 4.8268599411191985e-14
+Num subcells: 	 825273
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 2726
+AVG num subcells per cut cell: 	 202.91935087287928
+---------------------------------------
+---------------------------------------
+Running: 472141 ...
+---------------------------------------
+Maximum num facets per vertex: 88
+Maximum num facets per bgcell: 824
+---------------------------------------
+Num stl facets:	15398
+Minimum stl facet height (scaled):	1.2475118661482875e-7
+Num background grid cells:	680800
+Background grid partition:	(92, 100, 74)
+Background grid size:	0.5837766723632811
+---------------------------------------
+TIME: 	 66.967977068 s
+Domain volume:	3321.8974074822017
+Domain surface:	3785.5118670330844
+Box volume: 	 135443.9956133705
+Volume error: 	 -2.1487722896045965e-15
+Surface error: 	 -4.1924799349201346e-14
+Num subcells: 	 1148605
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 21940
+AVG num subcells per cut cell: 	 84.68664749686647
+---------------------------------------
+---------------------------------------
+Running: 472147 ...
+---------------------------------------
+Maximum num facets per vertex: 92
+Maximum num facets per bgcell: 799
+---------------------------------------
+Num stl facets:	15428
+Minimum stl facet height (scaled):	1.328286182813819e-7
+Num background grid cells:	680800
+Background grid partition:	(92, 100, 74)
+Background grid size:	0.5837766723632811
+---------------------------------------
+TIME: 	 66.282362703 s
+Domain volume:	3321.950566403503
+Domain surface:	3785.491581468975
+Box volume: 	 135443.9956133705
+Volume error: 	 -2.1487722896045965e-15
+Surface error: 	 -6.09054073790815e-14
+Num subcells: 	 1163872
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 20529
+AVG num subcells per cut cell: 	 86.04702055300902
+---------------------------------------
+---------------------------------------
+Running: 472164 ...
+---------------------------------------
+Maximum num facets per vertex: 36
+Maximum num facets per bgcell: 192
+---------------------------------------
+Num stl facets:	1458
+Minimum stl facet height (scaled):	1.5015497842910955e-7
+Num background grid cells:	541800
+Background grid partition:	(100, 63, 86)
+Background grid size:	0.8356591796875
+---------------------------------------
+TIME: 	 1.847740523 s
+Domain volume:	30530.048111508855
+Domain surface:	8767.09494319846
+Box volume: 	 316174.29980648664
+Volume error: 	 -4.97069763616308e-15
+Surface error: 	 6.411105723586209e-14
+Num subcells: 	 338339
+MIN num subcells per cut cell: 	 12
+MAX num subcells per cut cell: 	 5504
+AVG num subcells per cut cell: 	 25.89857624004899
+---------------------------------------
+---------------------------------------
+Running: 472167 ...
+---------------------------------------
+Maximum num facets per vertex: 22
+Maximum num facets per bgcell: 135
+---------------------------------------
+Num stl facets:	900
+Minimum stl facet height (scaled):	1.6765315127530568e-7
+Num background grid cells:	42180
+Background grid partition:	(114, 10, 37)
+Background grid size:	3.08087158203125
+---------------------------------------
+TIME: 	 8.899563958 s
+Domain volume:	112108.6621125043
+Domain surface:	43170.798280932344
+Box volume: 	 1.23346651522175e6
+Volume error: 	 4.152746829502916e-15
+Surface error: 	 -1.988758681010703e-14
+Num subcells: 	 216675
+MIN num subcells per cut cell: 	 12
+MAX num subcells per cut cell: 	 2173
+AVG num subcells per cut cell: 	 47.894562334217504
+---------------------------------------
+---------------------------------------
+Running: 472183 ...
+---------------------------------------
+Maximum num facets per vertex: 87
+Maximum num facets per bgcell: 171
+---------------------------------------
+Num stl facets:	25284
+Minimum stl facet height (scaled):	1.1965891097043553e-7
+Num background grid cells:	34800
+Background grid partition:	(116, 10, 30)
+Background grid size:	2.607733182907104
+---------------------------------------
+TIME: 	 21.190226337 s
+Domain volume:	36517.4120551694
+Domain surface:	20952.39081482055
+Box volume: 	 617118.6962181005
+Volume error: 	 -6.225229674343107e-15
+Surface error: 	 3.9935066743753223e-14
+Num subcells: 	 363840
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 1718
+AVG num subcells per cut cell: 	 117.21649484536083
+---------------------------------------
+---------------------------------------
+Running: 472185 ...
+---------------------------------------
+Maximum num facets per vertex: 86
+Maximum num facets per bgcell: 171
+---------------------------------------
+Num stl facets:	25328
+Minimum stl facet height (scaled):	1.4664436459530979e-7
+Num background grid cells:	34800
+Background grid partition:	(116, 10, 30)
+Background grid size:	2.607733283042908
+---------------------------------------
+TIME: 	 19.651414551 s
+Domain volume:	36520.50777951398
+Domain surface:	21011.50213634816
+Box volume: 	 617118.7673093602
+Volume error: 	 -7.545732069339326e-16
+Surface error: 	 -3.029989417747166e-14
+Num subcells: 	 382149
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 1718
+AVG num subcells per cut cell: 	 122.71965317919076
+---------------------------------------
+---------------------------------------
+Running: 472197 ...
+---------------------------------------
+Maximum num facets per vertex: 35
+Maximum num facets per bgcell: 306
+---------------------------------------
+Num stl facets:	17716
+Minimum stl facet height (scaled):	8.450921102103214e-7
+Num background grid cells:	165600
+Background grid partition:	(69, 100, 24)
+Background grid size:	0.9067528595924378
+---------------------------------------
+TIME: 	 22.836496481 s
+Domain volume:	2847.273274449728
+Domain surface:	3215.673068063512
+Box volume: 	 123460.24488689117
+Volume error: 	 -1.0608049350241292e-15
+Surface error: 	 2.814176718558644e-14
+Num subcells: 	 640316
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 7392
+AVG num subcells per cut cell: 	 139.4112780317875
+---------------------------------------
+---------------------------------------
+Running: 488051 ...
+---------------------------------------
+Maximum num facets per vertex: 298
+Maximum num facets per bgcell: 2204
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 548863 ...
+---------------------------------------
+Maximum num facets per vertex: 88
+Maximum num facets per bgcell: 439
+---------------------------------------
+Num stl facets:	35848
+Minimum stl facet height (scaled):	3.5664620320546113e-7
+Num background grid cells:	255300
+Background grid partition:	(37, 69, 100)
+Background grid size:	0.7139947688952089
+---------------------------------------
+TIME: 	 57.153868483 s
+Domain volume:	8104.926755445179
+Domain surface:	7842.906979524629
+Box volume: 	 92925.71353887957
+Volume error: 	 -6.890280910033048e-15
+Surface error: 	 1.3834502717520672e-13
+Num subcells: 	 1606093
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 11511
+AVG num subcells per cut cell: 	 96.48522167487685
+---------------------------------------
+---------------------------------------
+Running: 548865 ...
+---------------------------------------
+Maximum num facets per vertex: 76
+Maximum num facets per bgcell: 3052
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 548871 ...
+---------------------------------------
+Maximum num facets per vertex: 89
+Maximum num facets per bgcell: 6343
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 548872 ...
+---------------------------------------
+Maximum num facets per vertex: 61
+Maximum num facets per bgcell: 1107
+---------------------------------------
+Num stl facets:	22842
+Minimum stl facet height (scaled):	2.613744900379986e-7
+Num background grid cells:	111300
+Background grid partition:	(53, 100, 21)
+Background grid size:	0.9617765655517578
+---------------------------------------
+TIME: 	 677.593433042 s
+Domain volume:	7054.040307379619
+Domain surface:	7614.330284107614
+Box volume: 	 99018.81785138759
+Volume error: 	 -8.376783181372701e-15
+Surface error: 	 -1.2302848811028645e-14
+Num subcells: 	 1177380
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 50794
+AVG num subcells per cut cell: 	 126.55917445985166
+---------------------------------------
+---------------------------------------
+Running: 548875 ...
+---------------------------------------
+Maximum num facets per vertex: 93
+Maximum num facets per bgcell: 4802
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 551075 ...
+---------------------------------------
+Maximum num facets per vertex: 77
+Maximum num facets per bgcell: 624
+---------------------------------------
+Num stl facets:	153456
+Minimum stl facet height (scaled):	1.229557746941521e-7
+Num background grid cells:	292500
+Background grid partition:	(100, 45, 65)
+Background grid size:	0.667643611907959
+---------------------------------------
+TIME: 	 204.978220931 s
+Domain volume:	10141.517284327507
+Domain surface:	5705.491784224452
+Box volume: 	 87048.23392037555
+Volume error: 	 -1.0866096269213827e-14
+Surface error: 	 1.9176648878153576e-13
+Num subcells: 	 5163239
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 24742
+AVG num subcells per cut cell: 	 355.8155192612501
+---------------------------------------
+---------------------------------------
+Running: 636802 ...
+---------------------------------------
+Maximum num facets per vertex: 27
+Maximum num facets per bgcell: 1726
+---------------------------------------
+Num stl facets:	41300
+Minimum stl facet height (scaled):	2.4824123969258554e-7
+Num background grid cells:	84000
+Background grid partition:	(20, 100, 42)
+Background grid size:	0.9113568801879883
+---------------------------------------
+TIME: 	 830.168473386 s
+Domain volume:	1794.6124492417255
+Domain surface:	4724.600674772499
+Box volume: 	 63583.54180225315
+Volume error: 	 -8.12463376471924e-15
+Surface error: 	 7.661576421440694e-14
+Has a leak!
+Num subcells: 	 1703367
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 44328
+AVG num subcells per cut cell: 	 266.31754221388366
+---------------------------------------
+---------------------------------------
+Running: 636807 ...
+---------------------------------------
+Maximum num facets per vertex: 16
+Maximum num facets per bgcell: 1266
+---------------------------------------
+Num stl facets:	34264
+Minimum stl facet height (scaled):	2.5662986803540173e-7
+Num background grid cells:	92400
+Background grid partition:	(28, 100, 33)
+Background grid size:	1.1671520538330078
+---------------------------------------
+TIME: 	 519.216217139 s
+Domain volume:	2295.0243438683133
+Domain surface:	5955.148733455613
+Box volume: 	 146910.99055947168
+Volume error: 	 -3.565893512978098e-15
+Surface error: 	 1.0614324612600028e-13
+Has a leak!
+Num subcells: 	 1531301
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 27069
+AVG num subcells per cut cell: 	 339.08348095659875
+---------------------------------------
+---------------------------------------
+Running: 650187 ...
+---------------------------------------
+Maximum num facets per vertex: 32
+Maximum num facets per bgcell: 166
+---------------------------------------
+Num stl facets:	25400
+Minimum stl facet height (scaled):	5.992544672782045e-7
+Num background grid cells:	273000
+Background grid partition:	(65, 100, 42)
+Background grid size:	0.9177443161010743
+---------------------------------------
+TIME: 	 25.327429114 s
+Domain volume:	3553.4237621476886
+Domain surface:	9147.275409129468
+Box volume: 	 211022.01096791495
+Volume error: 	 -1.5171030432116726e-15
+Surface error: 	 1.1752381877805328e-13
+Has a leak!
+Num subcells: 	 1770585
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 3109
+AVG num subcells per cut cell: 	 132.7275112443778
+---------------------------------------
+---------------------------------------
+Running: 686056 ...
+AssertionError("is_water_tight(stl)")
+Failed run of geometry 686056
+---------------------------------------
+Running: 693473 ...
+---------------------------------------
+Maximum num facets per vertex: 74
+Maximum num facets per bgcell: 754
+---------------------------------------
+Num stl facets:	38464
+Minimum stl facet height (scaled):	1.4953834881898238e-7
+Num background grid cells:	1000000
+Background grid partition:	(100, 100, 100)
+Background grid size:	0.9240000752711495
+---------------------------------------
+TIME: 	 166.698604099 s
+Domain volume:	82461.20620885695
+Domain surface:	41548.76647811724
+Box volume: 	 788889.2167941186
+Volume error: 	 -5.0320911856683304e-14
+Surface error: 	 1.194308162069259e-13
+Num subcells: 	 2329012
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 20879
+AVG num subcells per cut cell: 	 47.21002168933574
+---------------------------------------
+---------------------------------------
+Running: 709758 ...
+CapturedException(ArgumentError("cannot parse \"2.60459165684925e-047\" as Float32"), Any[(_parse_failure(::Type{T} where T, ::SubString{String}, ::Int64, ::Int64) at parse.jl:370, 2), (#tryparse_internal#364 at parse.jl:366 [inlined], 1), (tryparse_internal at parse.jl:364 [inlined], 1), (#parse#365 at parse.jl:376 [inlined], 1), (parse at parse.jl:376 [inlined], 1), (_broadcast_getindex_evalf at broadcast.jl:648 [inlined], 1), (_broadcast_getindex at broadcast.jl:631 [inlined], 1), (getindex at broadcast.jl:575 [inlined], 1), (macro expansion at broadcast.jl:932 [inlined], 1), (macro expansion at simdloop.jl:77 [inlined], 1), (copyto! at broadcast.jl:931 [inlined], 1), (copyto! at broadcast.jl:886 [inlined], 1), (copy at broadcast.jl:862 [inlined], 1), (materialize(::Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1},Nothing,typeof(parse),Tuple{Base.RefValue{Type{Float32}},Array{SubString{String},1}}}) at broadcast.jl:837, 1), (load(::Stream{DataFormat{:STL_ASCII},IOStream,String}; facetype::Type{T} where T, pointtype::Type{T} where T, normaltype::Type{T} where T, topology::Bool) at stl.jl:108, 1), (load at stl.jl:96 [inlined], 1), (#21 at MeshIO.jl:29 [inlined], 1), (open(::MeshIO.var"#21#22"{Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}}, ::File{DataFormat{:STL_ASCII},String}; kwargs::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}) at io.jl:325, 1), (open at io.jl:323 [inlined], 1), (#load#20 at MeshIO.jl:27 [inlined], 1), (load(::File{DataFormat{:STL_ASCII},String}) at MeshIO.jl:27, 1), (#invokelatest#1 at essentials.jl:710 [inlined], 1), (invokelatest at essentials.jl:709 [inlined], 1), (action(::Symbol, ::Array{Union{Base.PkgId, Module},1}, ::Formatted; options::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}) at loadsave.jl:212, 1), (action at loadsave.jl:192 [inlined], 1), (load(::Formatted; options::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}) at loadsave.jl:120, 1), (load at loadsave.jl:117 [inlined], 1), (read_stl(::String) at STLs.jl:146, 1), (_run_and_save(::String; title::String, verbose::Bool, vtk::Bool, δ::Float64, nmin::Int64, nmax::Int64, Δx::Int64, θ::Int64, kdtree::Bool, tolfactor::Float64, poisson::Bool, solution_order::Int64, agfem_threshold::Int64, solver::Symbol, threading::Symbol, nruns::Int64, nthreads::Int64, max_num_facets::Int64) at RunSave.jl:168, 1), (run_and_save(::String; datapath::String, verbose::Bool, vtk::Bool, rerun::Bool, params::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}) at RunSave.jl:271, 1), (run_geometry_list(::Array{Int64,1}, ::Dict{Int64,Union{Nothing, String}}; verbose::Bool, params::Base.Iterators.Pairs{Symbol,Any,Tuple{Symbol,Symbol},NamedTuple{(:rerun, :datapath),Tuple{Bool,String}}}) at RunSave.jl:304, 1), (top-level scope at none:5, 1), (eval(::Module, ::Any) at boot.jl:331, 1), (exec_options(::Base.JLOptions) at client.jl:272, 1), (_start() at client.jl:506, 1)])
+Failed run of geometry 709758
+---------------------------------------
+Running: 711199 ...
+---------------------------------------
+Maximum num facets per vertex: 76
+Maximum num facets per bgcell: 754
+---------------------------------------
+Num stl facets:	38464
+Minimum stl facet height (scaled):	1.2265575213170924e-7
+Num background grid cells:	1000000
+Background grid partition:	(100, 100, 100)
+Background grid size:	0.9240000752711495
+---------------------------------------
+TIME: 	 239.771896446 s
+Domain volume:	82529.75744805472
+Domain surface:	41562.783165579945
+Box volume: 	 788889.2167941186
+Volume error: 	 -4.5156008880190885e-14
+Surface error: 	 1.1676464757727831e-13
+Num subcells: 	 2323398
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 18872
+AVG num subcells per cut cell: 	 47.06950831628208
+---------------------------------------
+---------------------------------------
+Running: 719791 ...
+@warn: Unable to fix small facets in 100 iterations
+---------------------------------------
+Maximum num facets per vertex: 361
+Maximum num facets per bgcell: 4810
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 789796 ...
+---------------------------------------
+Maximum num facets per vertex: 80
+Maximum num facets per bgcell: 362
+---------------------------------------
+Num stl facets:	169380
+Minimum stl facet height (scaled):	2.519183953352471e-7
+Num background grid cells:	137700
+Background grid partition:	(100, 81, 17)
+Background grid size:	0.8833406982421876
+---------------------------------------
+TIME: 	 225.676947309 s
+Domain volume:	2530.1567277241807
+Domain surface:	3667.7246380000724
+Box volume: 	 94911.46147111777
+Volume error: 	 -1.6865304256298502e-14
+Surface error: 	 7.750379243135067e-13
+Num subcells: 	 4782310
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 7815
+AVG num subcells per cut cell: 	 808.368830290737
+---------------------------------------
+---------------------------------------
+Running: 799437 ...
+---------------------------------------
+Maximum num facets per vertex: 31
+Maximum num facets per bgcell: 690
+---------------------------------------
+Num stl facets:	28010
+Minimum stl facet height (scaled):	9.715592970462442e-7
+Num background grid cells:	64000
+Background grid partition:	(32, 100, 20)
+Background grid size:	1.0864735642671584
+---------------------------------------
+TIME: 	 43.17178389 s
+Domain volume:	4871.711075738967
+Domain surface:	2920.518348440655
+Box volume: 	 82080.02215441411
+Volume error: 	 -3.3684979862557366e-15
+Surface error: 	 6.461871767339976e-14
+Num subcells: 	 956710
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 17233
+AVG num subcells per cut cell: 	 291.3246041412911
+---------------------------------------
+---------------------------------------
+Running: 815481 ...
+---------------------------------------
+Maximum num facets per vertex: 64
+Maximum num facets per bgcell: 644
+---------------------------------------
+Num stl facets:	182040
+Minimum stl facet height (scaled):	1.415848562521973e-7
+Num background grid cells:	291600
+Background grid partition:	(54, 54, 100)
+Background grid size:	2.0255535025149585
+---------------------------------------
+TIME: 	 1960.001629008 s
+Domain volume:	178635.62337736491
+Domain surface:	21721.307952992604
+Box volume: 	 2.423364138043766e6
+Volume error: 	 -9.992054664780687e-15
+Surface error: 	 2.5105901742338625e-13
+Num subcells: 	 5897321
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 19016
+AVG num subcells per cut cell: 	 790.5256032171582
+---------------------------------------
+---------------------------------------
+Running: 815486 ...
+---------------------------------------
+Maximum num facets per vertex: 59
+Maximum num facets per bgcell: 1155
+---------------------------------------
+Num stl facets:	1099474
+Minimum stl facet height (scaled):	1.2877841460408347e-6
+Num background grid cells:	940000
+Background grid partition:	(100, 100, 94)
+Background grid size:	2.0156927032470704
+---------------------------------------
+TIME: 	 33257.654543296 s
+Domain volume:	1.2409727513317934e6
+Domain surface:	132565.97287578677
+Box volume: 	 7.6984062369312765e6
+Volume error: 	 -1.9706994244738216e-13
+Surface error: 	 1.9620489869978266e-12
+Num subcells: 	 44055610
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 32177
+AVG num subcells per cut cell: 	 1109.9367630756828
+---------------------------------------
+---------------------------------------
+Running: 906891 ...
+---------------------------------------
+Maximum num facets per vertex: 97
+Maximum num facets per bgcell: 1054
+---------------------------------------
+Num stl facets:	41300
+Minimum stl facet height (scaled):	4.1318766847751463e-7
+Num background grid cells:	160000
+Background grid partition:	(40, 40, 100)
+Background grid size:	2.8
+---------------------------------------
+TIME: 	 982.628368945 s
+Domain volume:	92661.3627583799
+Domain surface:	27176.35663724034
+Box volume: 	 3.51232e6
+Volume error: 	 -2.5190086492253115e-15
+Surface error: 	 1.1003750868250031e-13
+Num subcells: 	 1347279
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 17201
+AVG num subcells per cut cell: 	 369.3199013157895
+---------------------------------------
+---------------------------------------
+Running: 960066 ...
+---------------------------------------
+Maximum num facets per vertex: 53
+Maximum num facets per bgcell: 4824
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 973980 ...
+---------------------------------------
+Maximum num facets per vertex: 19
+Maximum num facets per bgcell: 107
+---------------------------------------
+Num stl facets:	24498
+Minimum stl facet height (scaled):	2.2792295840504075e-7
+Num background grid cells:	901600
+Background grid partition:	(98, 100, 92)
+Background grid size:	2.502895416259766
+---------------------------------------
+TIME: 	 10.666153392 s
+Domain volume:	218674.8987924982
+Domain surface:	54387.98729132055
+Box volume: 	 1.4136503722545976e7
+Volume error: 	 -3.9528412097970197e-16
+Surface error: 	 6.742449610988651e-14
+Num subcells: 	 1146353
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 943
+AVG num subcells per cut cell: 	 96.64078570224245
+---------------------------------------
+---------------------------------------
+Running: 1043471 ...
+---------------------------------------
+Maximum num facets per vertex: 36
+Maximum num facets per bgcell: 1057
+---------------------------------------
+Num stl facets:	20204
+Minimum stl facet height (scaled):	5.469252153946572e-7
+Num background grid cells:	67100
+Background grid partition:	(100, 61, 11)
+Background grid size:	1.4319447302743793
+---------------------------------------
+TIME: 	 2305.167961852 s
+Domain volume:	11856.413498780697
+Domain surface:	7291.487882709594
+Box volume: 	 197015.90446953382
+Volume error: 	 -5.908930151623219e-15
+Surface error: 	 5.363551692786008e-15
+Num subcells: 	 902483
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 34168
+AVG num subcells per cut cell: 	 245.37330070690592
+---------------------------------------
+---------------------------------------
+Running: 1051177 ...
+---------------------------------------
+Maximum num facets per vertex: 55
+Maximum num facets per bgcell: 2252
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 1063860 ...
+---------------------------------------
+Maximum num facets per vertex: 104
+Maximum num facets per bgcell: 5270
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 1063863 ...
+---------------------------------------
+Maximum num facets per vertex: 127
+Maximum num facets per bgcell: 1887
+---------------------------------------
+Num stl facets:	168258
+Minimum stl facet height (scaled):	7.282352631400986e-7
+Num background grid cells:	144000
+Background grid partition:	(32, 100, 45)
+Background grid size:	1.1737559564286477
+---------------------------------------
+TIME: 	 61824.344208758 s
+Domain volume:	28625.562951663986
+Domain surface:	12010.755970527785
+Box volume: 	 232860.550399791
+Volume error: 	 -2.4496853416030255e-14
+Surface error: 	 2.697265797143607e-13
+Num subcells: 	 6861984
+MIN num subcells per cut cell: 	 9
+MAX num subcells per cut cell: 	 69425
+AVG num subcells per cut cell: 	 596.1758470894874
+---------------------------------------
+---------------------------------------
+Running: 1063866 ...
+---------------------------------------
+Maximum num facets per vertex: 104
+Maximum num facets per bgcell: 3285
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 1255206 ...
+---------------------------------------
+Maximum num facets per vertex: 395
+Maximum num facets per bgcell: 9549
+Please refine your mesh
+Not matching requisites
+---------------------------------------
+Running: 1258096 ...
+Skipping run: /users/pere.antoni.martorell/STLCutters.jl/analysis/data/titani/1258096.bson is found
+---------------------------------------
+Running: 1396891 ...
+Skipping run: /users/pere.antoni.martorell/STLCutters.jl/analysis/data/titani/1396891.bson is found
+---------------------------------------
+Running: 1396906 ...
+Skipping run: /users/pere.antoni.martorell/STLCutters.jl/analysis/data/titani/1396906.bson is found
+---------------------------------------
+Running: 1411696 ...
+Skipping run: /users/pere.antoni.martorell/STLCutters.jl/analysis/data/titani/1411696.bson is found
+---------------------------------------
+Running: 1483721 ...
+Skipping run: /users/pere.antoni.martorell/STLCutters.jl/analysis/data/titani/1483721.bson is found
+---------------------------------------
+Running: 1505036 ...
+Skipping run: /users/pere.antoni.martorell/STLCutters.jl/analysis/data/titani/1505036.bson is found
+---------------------------------------
+Running: 1514904 ...
+Skipping run: /users/pere.antoni.martorell/STLCutters.jl/analysis/data/titani/1514904.bson is found
+---------------------------------------
+Running: 1706466 ...
+Skipping run: /users/pere.antoni.martorell/STLCutters.jl/analysis/data/titani/1706466.bson is found
+---------------------------------------
+Running: 1743321 ...
+Skipping run: /users/pere.antoni.martorell/STLCutters.jl/analysis/data/titani/1743321.bson is found
+END of run_geometry_list()
