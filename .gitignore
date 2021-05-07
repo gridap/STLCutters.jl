@@ -12,6 +12,7 @@
 *.bson
 *.sh
 */tmp/*
+tmp/*
 *.aux
 *.log
 *.out

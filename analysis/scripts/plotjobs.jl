@@ -101,6 +101,7 @@ end
 
 raw_gadi = collect_results(datadir("gadi"))
 raw_titani = collect_results(datadir("titani"))
+raw_local = collect_results(datadir("local"))
 
 raw_timing = filter(i->!ismissing(i.nruns)&&i.nruns>1,raw_gadi)
 
@@ -320,9 +321,10 @@ end
 
 # plot complexity
 
-data2 = raw_matrix
-data2 = filter( i -> i.rotation == 0, data2 )
-data2 = filter( i -> i.displacement == 0, data2 )
+replace!(raw_local.name,"65904_1"=>"65904")
+data2 = raw_local
+#data2 = filter( i -> i.rotation == 0, data2 )
+#data2 = filter( i -> i.displacement == 0, data2 )
 
 x,y = [],[]
 for name in names
@@ -338,29 +340,41 @@ for name in names
     end
     t = minimum(_d.time_cutter)
     ncut = only(_d2.num_cells_cut)
-    nstl = only(_d2.num_stl_facets)
+    nf = only(_d2.avg_stl_faces_x_cell)
+#    nstl = only(_d2.num_stl_facets)
     !ismissing(ncut) || continue
-    xi = ceil(nstl / ncut)
+    xi = nf #ceil(nstl / ncut)
     yi = t / ncut
     push!(x,xi)
     push!(y,yi)
   end
 end
 markerkw = (markersize=3,markercolor=:black,markershape=:+)
-scatter(x,y;markerkw...)
+scatter(x,y;markerkw...,label="data")
 plot!(legend=:none,xscale=:log10,yscale=:log10)
-plot!(xlabel="Num STL faces / Num cells CUT")
-plot!(ylabel="Time cutter / Num cells CUT [secs.]")
-max_x = floor(maximum(x))
-min_y = minimum(y)*5
-plot!(1:max_x,(1:max_x)*min_y,color=:black,linestyle=:dash,label="x")
-plot!(1:max_x,(1:max_x) .* log2.( (1:max_x) .+1 ) .* min_y,color=:red,linestyle=:dash,label="xlog(x)")
-plot!(1:max_x,(1:max_x) .* (1:max_x) .* min_y,color=:blue,linestyle=:dash,label="x²")
+plot!(xlabel="Average Num STL faces per CUT cell")
+plot!(ylabel="Cutter Time per CUT cell [secs.]")
+xlims = Plots.get_sp_lims(plot!()[1],:x)
+ylims = Plots.get_sp_lims(plot!()[1],:y)
+x_rng = ceil(minimum(x)):floor(maximum(x))
+min_y = minimum(y)
+
+x = minimum(x):0.1:floor(maximum(x))
+fy = min_y /2 
+fx = 2
+_x = x .* fx
+y_x = _x .* fy
+y_x2 = _x.^2 .* fy
+y_xlogx = _x .* log2.( _x ) .* fy
+
+plot!(x,y_x,color=:black,linestyle=:dash,label="x")
+plot!(x,y_xlogx,color=:red,linestyle=:dashdot,label="xlog(x)")
+plot!(x,y_x2,color=:blue,linestyle=:dashdotdot,label="x²")
 plot!(legend=:bottomright)
+plot!(;xlims,ylims)
 savefig(plotsdir("complexity_timming.pdf"))
 
 
-@assert false
 # Strong Scaling
 
 data = raw_strong_scaling

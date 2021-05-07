@@ -741,8 +741,12 @@ function get_bounding_box(mesh::Grid)
   pmin,pmax
 end
 
-function get_bounding_box(stl::DiscreteModel)
-  vertices = get_vertex_coordinates(get_grid_topology(stl))
+function get_bounding_box(model::DiscreteModel)
+  get_bounding_box(get_grid_topology(model))
+end
+
+function get_bounding_box(msh::T) where T<:Union{GridTopology,STL}
+  vertices = get_vertex_coordinates(msh)
   pmin = pmax = vertices[1]
   for vertex in vertices
     pmin = Point( min.( Tuple(pmin), Tuple(vertex) ) )
