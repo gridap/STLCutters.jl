@@ -50,10 +50,14 @@ function main(filename;
   X,T,N = read_stl(filename)
   stl = compute_stl_model(T,X)
   stl = merge_and_collapse(stl)
+
   pmin,pmax = get_bounding_box(stl)
   Δ = (pmax-pmin)*δ
   origin,sizes,partition = compute_sizes(pmin-Δ,pmax+Δ;nmin,nmax)
   model = CartesianDiscreteModel(origin,sizes,partition)
+
+  @test check_requisites(stl,model)
+  @test min_height(stl) > tolfactor * eps( model )
 
   t = @timed data = compute_submesh(model,stl;tolfactor,kdtree)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data

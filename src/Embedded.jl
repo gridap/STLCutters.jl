@@ -9,7 +9,9 @@ function STLGeometry(stl::DiscreteModel;name="stl")
 end
 
 function STLGeometry(filename::String;name="stl")
-  @notimplemented
+  X,T,N = read_stl(filename)
+  stl = compute_stl_model(T,X)
+  stl = merge_nodes(stl)
   STLGeometry(stl,name=name)
 end
 
@@ -25,6 +27,8 @@ function similar_geometry(a::STLGeometry,tree::Leaf)
   STLGeometry(tree)
 end
 
+get_bounding_box(a::STLGeometry) = get_bounding_box( get_stl(a) )
+
 struct STLCutter <: Interfaces.Cutter end
 
 function cut(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
@@ -37,60 +41,36 @@ function cut(background::DiscreteModel,geom::STLGeometry)
   cut(cutter,background,geom)
 end
 
-
 function _cut_sm(model::DiscreteModel,geom::STLGeometry)
   grid = get_grid(model)
   stl = get_stl(geom)
   out = compute_submesh(model,get_stl(geom))
-  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc,bgfacet_to_ioc = out
-  bgcell_to_ioc = [ map( _convert_io, bgcell_to_ioc ) ]
-  cell_to_points = Table( map(i->Int32.(i),T) )
+  T,X,F,Xf,k_to_io,k_to_bgc,f_to_bgc,f_to_stlf,bgc_to_ioc,bgf_to_ioc = out
+  bgcell_to_ioc = [ map( _convert_io, bgc_to_ioc ) ]
+  cell_to_points = Table( T )
   point_to_coords = X
-  point_to_rcoords = send_to_ref_space(grid,k_to_bgcell,T,X)
+  point_to_rcoords = send_to_ref_space(grid,k_to_bgc,T,X)
   cell_to_io = [ map( _convert_io, k_to_io ) ]
-  cell_to_bgcell = Int32.(k_to_bgcell)
+  cell_to_bgcell = k_to_bgc
   data = cell_to_points,cell_to_bgcell,point_to_coords,point_to_rcoords
   subcells = SubCellData(data...)
 
-  f_to_points = Table( map(i->Int32.(i),F) )
+  f_to_points = Table( F )
   point_to_coords = Xf
-  point_to_rcoords = send_to_ref_space(grid,f_to_bgcell,F,Xf)
+  point_to_rcoords = send_to_ref_space(grid,f_to_bgc,F,Xf)
   f_to_normal = [ normal(get_cell(get_stl(geom),facet)) for facet in f_to_stlf ]
-  f_to_bgcell = Int32.(f_to_bgcell)
+  f_to_bgcell = f_to_bgc
   data = f_to_points,f_to_normal,f_to_bgcell,point_to_coords,point_to_rcoords
   subfacets = SubFacetData(data...) 
   f_to_io = fill(Int8(INTERFACE),length(F))
   f_to_io = [ f_to_io ]
 
-  replace!( bgfacet_to_ioc, FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT )
+  bgfacet_to_ioc = 
+    replace!( bgf_to_ioc, FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT )
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
   (bgcell_to_ioc,subcells,cell_to_io,subfacets,f_to_io,oid_to_ls),bgfacet_to_ioc
 end
-
-#function _cut_sm(model::DiscreteModel,geom::STLGeometry)
-#  out = refine_grid(get_grid(model),get_stl(geom))
-#  T,X,reffes,cell_types,cell_to_io,cell_to_bgcell,bgcell_to_ioc = out
-#  bgcell_to_ioc = [ map( _convert_io, bgcell_to_ioc ) ]
-#  subgrid = UnstructuredGrid(X,Table(T),reffes,cell_types)
-#  out = get_subcell_coords(subgrid,get_grid(model),cell_to_bgcell,cell_to_io)
-#  cell_to_points,point_to_coords,point_to_rcoords,cell_to_bgcell,cell_to_io = out
-#  data = Table(cell_to_points),Int32.(cell_to_bgcell),point_to_coords,point_to_rcoords
-#  subcells = SubTriangulation(data...)
-#  cell_to_io = [ map( _convert_io, cell_to_io ) ]
-#
-#  _stl,f_to_bgcell,f_to_f = refine_surface(get_grid(model),get_stl(geom))
-#  f_to_io = fill(Int8(INTERFACE),num_cells(_stl))
-#  out = get_subcell_coords(get_grid(_stl),get_grid(model),f_to_bgcell,f_to_io)
-#  f_to_points,point_to_coords,point_to_rcoords,f_to_bgcell,f_to_io = out 
-#  f_to_normal = [ normal(get_cell(get_stl(geom),facet)) for facet in f_to_f ]
-#  data = Table(f_to_points),f_to_normal,Int32.(f_to_bgcell),point_to_coords,point_to_rcoords
-#  subfacets = FacetSubTriangulation(data...) 
-#  f_to_io = [ f_to_io ]
-#
-#  oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
-#  bgcell_to_ioc,subcells,cell_to_io,subfacets,f_to_io,oid_to_ls
-#end
 
 function send_to_ref_space(grid::Grid,cell::Integer,point::Point)
   cell_coordinates = get_cell_coordinates(grid)[cell]
@@ -98,13 +78,12 @@ function send_to_ref_space(grid::Grid,cell::Integer,point::Point)
   Point(Tuple(point-pmin)./Tuple(pmax-pmin)) 
 end
 
-function send_to_ref_space(grid::Grid,cell::Integer,points::Vector)
-  cell_coordinates = get_cell_coordinates(grid)[cell]
-  pmin,pmax = cell_coordinates[1],cell_coordinates[end]
-  [ Point(Tuple(point-pmin)./Tuple(pmax-pmin)) for point in points ]
-end
+function send_to_ref_space(
+  grid::Grid,
+  cell_to_bgcell::Vector,
+  cell_to_points::Vector,
+  points::Vector)
 
-function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,cell_to_points::Vector,points::Vector)
   rpoints = zero(points)
   for (i,k) in enumerate(cell_to_points)
     for p in k
@@ -112,32 +91,6 @@ function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,cell_to_points::Vec
     end
   end
   rpoints
-end
-
-function get_subcell_coords(subgrid,grid,cell_to_bgcell,cell_to_io)
-  cell_to_points = Vector{Int}[]
-  point_to_coords = empty(get_node_coordinates(subgrid))
-  point_to_rcoords = empty(get_node_coordinates(subgrid))
-  new_cell_to_bgcell = Int32[]
-  new_cell_to_io = Int8[]
-  for cell in 1:num_cells(subgrid)
-    p = get_polytope( get_cell_reffes(subgrid)[cell] )
-    bgcell = cell_to_bgcell[cell]
-    coords = get_cell_coordinates(subgrid)[cell]
-    rcoords = send_to_ref_space(grid,bgcell,coords)
-    points = length(point_to_coords) .+ (1:length(coords))
-    _cell_to_points = map( i -> points[i], simplexify(p)[1] )
-    append!(cell_to_points,_cell_to_points)
-    append!(point_to_coords,coords)
-    append!(point_to_rcoords,rcoords)
-    append!(new_cell_to_bgcell,fill(bgcell,length(_cell_to_points)))
-    append!(new_cell_to_io,fill(cell_to_io[cell],length(_cell_to_points)))
-  end
-  cell_to_points,
-  point_to_coords,
-  point_to_rcoords,
-  new_cell_to_bgcell,
-  new_cell_to_io
 end
 
 function _convert_io(ioc::Integer)
