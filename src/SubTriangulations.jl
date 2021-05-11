@@ -50,12 +50,14 @@ function compute_submesh(
   bgcell_to_ioc, bgnode_to_io, bgfacet_to_ioc = io_arrays
   T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf = submesh
 
-  propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io) 
+  propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
   set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
-  
+
   delete_small_subcells!(bgmodel,T,X,k_to_io,k_to_bgcell)
   delete_small_subfacets!(bgmodel,F,Xf,f_to_bgcell,f_to_stlf)
-  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc,bgfacet_to_ioc
+
+  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,
+  bgcell_to_ioc,bgfacet_to_ioc
 end
 
 function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
@@ -68,7 +70,7 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   facets,expanded_facets,empty_facets,reflex_faces = _faces
 
   Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax)
-  Πkf,Πkf_ids = filter_face_planes(stl,Πr,reflex_faces,Πf,facets) 
+  Πkf,Πkf_ids = filter_face_planes(stl,Πr,reflex_faces,Πf,facets)
 
   K = Polyhedron(p,cell_coords)
   Γk0 = restrict(Γ0,stl,expanded_facets)
@@ -83,7 +85,7 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   set_linked_planes!(K,Π_to_refΠ,Πs)
 
   Γk = clip(Γk0,Πk_ids,inout=Πk_io)
- 
+
   if isnothing(Γk) || isempty(get_original_facets(Γk,stl))
     nothing,nothing
   else
@@ -175,7 +177,7 @@ function link_planes!(surf::Polyhedron,stl::STL,Πr,Πf;atol)
   correct_distances!(surf,Π_to_ref_Π,Π_to_faces)
   Π_to_ref_Π = mark_inverted_planes!(Π_to_ref_Π,planes,Πr,Πf,stl;atol)
   inverted_planes = invert_reflex_planes!(Π_to_ref_Π,planes,stl)
-  
+
   Π_to_ref_Π, planes, inverted_planes
 end
 
@@ -211,13 +213,13 @@ function refine(
   Kn_clip
 end
 
-function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,empty_facets,stl::STL)
+function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,empty_facets,stl)
   i = findfirst(i->has_original_reflex_face(surf,i), rfaces )
   if i === nothing
     R = [surf],[cell]
   else
     rf = rfaces[i]
-    if !has_coplanars(surf.data,rf) || !contains_coplanars(surf.data,rf) 
+    if !has_coplanars(surf.data,rf) || !contains_coplanars(surf.data,rf)
       s⁻,s⁺ = split(surf,rf)
       k⁻,k⁺ = split(cell,rf)
       S = [s⁻,s⁺]
@@ -258,7 +260,7 @@ function _get_empty_arrays(stl::STL)
   T = Vector{Int32}[]
   F = Vector{Int32}[]
   X = P[]
-  Xf = P[] 
+  Xf = P[]
   k_to_io = Int8[]
   k_to_bgcell = Int32[]
   f_to_bgcell = Int32[]
@@ -353,7 +355,7 @@ end
 
 function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,bgcell)
   T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf = submesh_arrays
-  append!(F, map(i->i.+length(Xf),Tfn) ) 
+  append!(F, map(i->i.+length(Xf),Tfn) )
   append!(Xf,Xfn)
   append!(f_to_bgcell,fill(bgcell,length(Tfn)))
   append!(f_to_stlf,fn_to_f)
@@ -434,7 +436,7 @@ function get_expanded_facets!(facets,stl,c_to_stlf,cell)
   nv = array_cache(f_to_v)
   nf = array_cache(v_to_f)
   empty!(facets)
-  for f in c_to_stlf[cell] 
+  for f in c_to_stlf[cell]
     for v in getindex!(nv,f_to_v,f)
       for _f in getindex!(nf,v_to_f,v)
         if _f ∉ facets
@@ -503,14 +505,14 @@ function correct_small_facets_planes!(stl::STL,Πf,f_to_isempty;atol)
   fc = array_cache(e_to_f)
   for f in 1:num_cells(stl)
     f_to_isempty[f] || continue
-    f_to_new_plane[f] == UNSET || continue 
+    f_to_new_plane[f] == UNSET || continue
     num_new_planes += 1
     f_to_new_plane[f] = num_new_planes
     empty!(full_facets)
     empty!(queue)
     push!(queue,f)
     head = 1
-    while length(queue) ≥ head 
+    while length(queue) ≥ head
       f_curr = queue[head]
       head += 1
       for e in getindex!(ec,f_to_e,f_curr)
@@ -520,8 +522,8 @@ function correct_small_facets_planes!(stl::STL,Πf,f_to_isempty;atol)
             f_to_new_plane[f_neig] == UNSET || continue
             f_to_new_plane[f_neig] = num_new_planes
             push!(queue,f_neig)
-          elseif f_to_new_plane[f_neig] ≠ num_new_planes 
-            f_to_new_plane[f_neig] == num_new_planes 
+          elseif f_to_new_plane[f_neig] ≠ num_new_planes
+            f_to_new_plane[f_neig] == num_new_planes
             push!(full_facets,f_neig)
           end
         end
@@ -554,7 +556,7 @@ function correct_small_facets_planes!(stl::STL,Πf,f_to_isempty;atol)
   Πf
 end
 
-function get_reflex_planes(stl::STL,Πf) 
+function get_reflex_planes(stl::STL,Πf)
   Dc = num_dims(stl)
   Dp = num_point_dims(stl)
   c = bisector_plane_cache(stl,Dc-1)
@@ -581,7 +583,7 @@ function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
   p_to_p_to_facing = [ trues(length(parts)) for _ in 1:length(parts) ]
   for (i,fi) in enumerate(facets), (j,fj) in enumerate(facets)
     fi ≠ fj || continue
-    f_to_part[i] ≠ f_to_part[j] || continue 
+    f_to_part[i] ≠ f_to_part[j] || continue
     if !is_facet_in_facet(poly,fj,fi;inside)
       p_to_p_to_facing[f_to_part[i]][f_to_part[j]] = false
     end
@@ -734,7 +736,7 @@ function filter_face_planes(
   reflex_faces::AbstractVector{<:Integer},
   facet_planes::AbstractVector,
   facets::AbstractVector{<:Integer})
-  
+
   Dc = num_dims(stl)
   Πr = view(reflex_planes,lazy_map(i->i-get_offset(stl,Dc-1),reflex_faces))
   Πf = view(facet_planes,lazy_map(i->i-get_offset(stl,Dc),facets))
@@ -744,7 +746,7 @@ end
 
 function get_cell_nodes_to_inout(polys_in,polys_out,p::Polytope)
   node_to_inout = fill(UNSET,num_vertices(p))
-  
+
   complete_nodes_to_inout!(node_to_inout,polys_in,FACE_IN,p)
   complete_nodes_to_inout!(node_to_inout,polys_out,FACE_OUT,p)
   #@assert UNSET ∉ node_to_inout
@@ -753,7 +755,7 @@ end
 
 function get_cell_facets_to_inoutcut(polys_in,polys_out,p::Polytope)
   facet_to_inoutcut = fill(UNSET,num_facets(p))
-  
+
   complete_facets_to_inoutcut!(facet_to_inoutcut,polys_in,FACE_IN,p)
   complete_facets_to_inoutcut!(facet_to_inoutcut,polys_out,FACE_OUT,p)
   @assert UNSET ∉ facet_to_inoutcut
@@ -888,12 +890,12 @@ function link_coplanar_planes(surf,stl,Π_to_faces;atol)
       d = facedims[f]
       if d == D-1
         j = findfirst(isequal(f),planes)
-        if Π ∈ Π_to_faces[j] && distance_between_planes(surf,Π,f,abs,abs) < atol
+        if Π ∈ Π_to_faces[j] && distance_between_planes(surf,Π,f) < atol
           push!(Π_to_coplanar_Π[i],f)
         end
       elseif d == D
         facet = get_cell(stl,f-get_offset(stl,D))
-        if distance_between_planes(surf,Π,f,abs,abs) < atol
+        if distance_between_planes(surf,Π,f) < atol
           push!(Π_to_coplanar_Π[i],f)
         end
       end
@@ -932,7 +934,7 @@ function group_coplanar_planes(planes,Π_to_coplanar_Π)
   end
   for i in reverse(1:length(Π_to_ref_Π))
     if Π_to_ref_Π[i] > 0 && Π_to_ref_Π[i] ≠ i
-      Π_to_ref_Π[ Π_to_ref_Π[i] ] = -Π_to_ref_Π[i]  
+      Π_to_ref_Π[ Π_to_ref_Π[i] ] = -Π_to_ref_Π[i]
       Π_to_ref_Π[i] = -Π_to_ref_Π[i]
     end
   end
@@ -1063,15 +1065,15 @@ function invert_plane_distances!(poly::Polyhedron,Πs,inv_Π)
   end
 end
 
-function distance_between_planes(poly::Polyhedron,Π1,Π2,f1::Function=identity,f2::Function=identity)
+function distance_between_planes(poly::Polyhedron,Π1,Π2)
   dist1 = get_plane_distances(poly.data,Π1)
   dist2 = get_plane_distances(poly.data,Π2)
   max_dist = 0.0
   for v in 1:num_vertices(poly)
-    _d = abs(f1(dist1[v]) - f2(dist2[v]))
+    _d = abs(abs(dist1[v]) - abs(dist2[v]))
     max_dist = max(max_dist,_d)
   end
-  max_dist 
+  max_dist
 end
 
 function set_linked_planes!(poly::Polyhedron,Π_to_ref_Π,planes)
@@ -1209,14 +1211,11 @@ function split_reflex_face(
     Sr,Kr = [surf],[cell]
   else
     @notimplementedif count(in(empty_facets),neig_facets) > 1
-    cond = 
-      f->!has_original_facet(surf,f+facet_offset) || 
+    cond =
+      f->!has_original_facet(surf,f+facet_offset) ||
         f+facet_offset∈empty_facets
     j = findfirst(cond,neig_facets)
-    !isnothing(j) || 
-      throw(
-        ErrorException("One of these facets may be degenerate: $neig_facets"))
-
+    !isnothing(j) || error("Degenerated facet or sharp edge")
     missing_facet = neig_facets[j] + facet_offset
     _surf = one_face_polyhedron(surf,missing_facet)
     j = findfirst(i->isnothing(i)||!has_facets(i),S)
@@ -1237,7 +1236,7 @@ function one_face_polyhedron(poly::Polyhedron,face::Integer)
   end
   sort!(nodes)
   r = restrict(poly,nodes)
-  for v in 1:num_vertices(r) 
+  for v in 1:num_vertices(r)
     r.data.vertex_to_original_faces[v] = [face]
   end
   r

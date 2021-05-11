@@ -22,7 +22,7 @@ struct CartesianPlane{D,T}
   d::Int8
   value::T
   positive::Bool
-end 
+end
 
 # Constructors
 
@@ -308,7 +308,7 @@ end
 function signed_distance(p::Point,Π::Plane)
   o = origin( Π )
   n = normal( Π )
-  (p-o) ⋅ n 
+  (p-o) ⋅ n
 end
 
 function signed_distance(point::Point{D},Π::CartesianPlane{D}) where D
@@ -366,7 +366,7 @@ function distance_to_boundary(a::Face,b::Point)
   min_dist = Inf
   for i in 1:num_facets(a)
     facet = get_facet(a,i)
-    if isa(facet,Point) || measure(facet) ≠ 0 
+    if isa(facet,Point) || measure(facet) ≠ 0
       dist = distance(facet,b)
       if dist < min_dist
         min_dist = dist
@@ -417,7 +417,7 @@ function voxel_intersection(f::Face{1,2},pmin::Point,pmax::Point,p::Polytope)
   for i in 1:num_vertices(f)
     v = f[i]
     voxel_intersection(v,pmin,pmax) && return true
-  end  
+  end
   voxel_intersection(f,pmin,pmax)
 end
 
@@ -426,7 +426,7 @@ function voxel_intersection(f::Face{2,3},pmin::Point,pmax::Point,p::Polytope)
   for i in 1:num_vertices(f)
     v = f[i]
     voxel_intersection(v,pmin,pmax) && return true
-  end  
+  end
   for i in 1:num_edges(f)
     e = get_edge(f,i)
     voxel_intersection(e,pmin,pmax) && return true
@@ -484,7 +484,12 @@ function voxel_intersection(e::Face{1,D},pmin::Point{D},pmax::Point{D}) where D
   t_min < t_max
 end
 
-function _compute_distances(Π::Plane,pmin::Point,pmax::Point,p::Polytope{D}) where D
+function _compute_distances(
+  Π::Plane,
+  pmin::Point,
+  pmax::Point,
+  p::Polytope{D}) where D
+
   @assert is_n_cube(p)
   ntuple(i->signed_distance(_get_vertex(p,pmin,pmax,i),Π),Val{2^D}())
 end
@@ -498,7 +503,13 @@ function _is_edge_cut(p::Polytope,v_to_dists::Tuple,e::Integer)
   sign(v_to_dists[e_to_v[1]]) ≠ sign(v_to_dists[e_to_v[2]])
 end
 
-function _intersection_point(p::Polytope,pmin::Point,pmax::Point,v_to_dists::Tuple,e::Integer)
+function _intersection_point(
+  p::Polytope,
+  pmin::Point,
+  pmax::Point,
+  v_to_dists::Tuple,
+  e::Integer)
+
   e_to_v = get_face_vertices(p,1)[e]
   d1 = v_to_dists[e_to_v[1]]
   d2 = v_to_dists[e_to_v[2]]
@@ -535,7 +546,7 @@ function get_cell_planes(p::Polytope,pmin::Point,pmax::Point)
   N = 2*D
   @assert num_facets(p) == N
   Π_cell = lazy_map(
-    i -> CartesianPlane(isodd(i)*pmin+iseven(i)*pmax,D-((i-1)÷2),1), 
+    i -> CartesianPlane(isodd(i)*pmin+iseven(i)*pmax,D-((i-1)÷2),1),
     1:N )
   Π_ids = - ( 1:N )
   Π_inout = lazy_map( iseven, 1:N )
@@ -571,11 +582,8 @@ end
 end
 
 function orthogonal(a::VectorValue{D}...) where D
-  if length(a) != D-1
-    msg = 
-    "orthogonal(::VectorValue{D}...) only defined for D-1 VectorValues{D}'s"
-    throw(ArgumentError(msg))
-  end
+  length(a) == D-1 || error(
+      "orthogonal(::VectorValue{D}...) only defined for D-1 VectorValues{D}'s")
   orthogonal(a,)
 end
 

@@ -404,7 +404,7 @@ end
 
 function _group_vertices(stl::Grid{Dc,D};atol) where {Dc,D}
   min_length = _compute_min_length(stl;atol)
-  num_digits = -Int(floor(log10(min_length)))
+  digits = -Int(floor(log10(min_length)))
   pmin, pmax = get_bounding_box(stl)
   cells = NTuple{D,Int}[]
   vertices = Int[]
@@ -412,9 +412,9 @@ function _group_vertices(stl::Grid{Dc,D};atol) where {Dc,D}
   for (iv,v) in enumerate(get_node_coordinates(stl))
     p = v-pmin
     for i in m
-      f = d -> i.I[d] == 1 ? floor(p[d],digits=num_digits) : ceil(p[d],digits=num_digits)
+      f = d -> i.I[d] == 1 ? floor(p[d];digits) : ceil(p[d];digits)
       c = ntuple( f, Val{D}() )
-      c = Int.(round.(exp10(num_digits).*c)).+1
+      c = Int.(round.(exp10(digits).*c)).+1
       push!(cells,c)
       push!(vertices,iv)
     end
@@ -624,7 +624,7 @@ end
 function check_requisites(stl::DiscreteModel,bgmodel::DiscreteModel;
   verbose=true,max_num_facets=2000)
 
-  !verbose || println("---------------------------------------")
+  !verbose || println(join(fill('-',40)))
   fulfill = true
   if !is_surface(stl)
     !verbose || println("Is not a surface")

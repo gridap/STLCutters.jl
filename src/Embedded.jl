@@ -128,6 +128,7 @@ function aggregate(
   in_or_out,
   facet_to_inoutcut::AbstractVector)
 
-  _aggregate_by_threshold(strategy.threshold,cut,geo,in_or_out,facet_to_inoutcut)
+  _aggregate_by_threshold(
+    strategy.threshold,cut,geo,in_or_out,facet_to_inoutcut)
 end
 

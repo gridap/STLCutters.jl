@@ -416,8 +416,10 @@ function restrict(data::PolyhedronData,nodes)
   v_to_e = fill((UNSET,UNSET),length(nodes))
   Π_to_rΠ = copy(data.plane_to_ref_plane)
   Π_to_id = copy(data.plane_to_ids)
-  Π_to_v_to_d = [ data.plane_to_vertex_to_distances[i][nodes] for i in 1:length(Π_to_id) ]
-  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id  )
+  _Π_to_v_to_d = data.plane_to_vertex_to_distances
+  Π_to_v_to_d = [ _Π_to_v_to_d[i][nodes] for i in 1:length(Π_to_id) ]
+  args = v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id
+  PolyhedronData(args...)
 end
 
 # Printers
@@ -731,7 +733,8 @@ function Base.copy(data::PolyhedronData)
   Π_to_v_to_dist = _copy(data.plane_to_vertex_to_distances)
   Π_to_ref_Π = copy(data.plane_to_ref_plane)
   Π_to_id = copy(data.plane_to_ids)
-  PolyhedronData( v_to_Π, v_to_of, v_to_pv, v_to_pe, Π_to_v_to_dist, Π_to_ref_Π, Π_to_id )
+  args = v_to_Π, v_to_of, v_to_pv, v_to_pe, Π_to_v_to_dist, Π_to_ref_Π, Π_to_id
+  PolyhedronData(args...)
 end
 
 function compute_distances!(p::Polyhedron,Π,faces)
@@ -833,7 +836,8 @@ function polyhedron_data(num_vertices::Integer)
   Π_to_v_to_d = Vector{Int32}[]
   Π_to_rΠ = Int32[]
   Π_to_id = Int32[]
-  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id  )
+  args = v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id
+  PolyhedronData(args...)
 end
 
 function polyhedron_data(p::Polytope)
@@ -844,7 +848,8 @@ function polyhedron_data(p::Polytope)
   Π_to_v_to_d = Vector{Int32}[]
   Π_to_rΠ = Int32[]
   Π_to_id = Int32[]
-  PolyhedronData( v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id  )
+  args = v_to_Π, v_to_of, v_to_v, v_to_e, Π_to_v_to_d, Π_to_rΠ, Π_to_id
+  PolyhedronData(args...)
 end
 
 function complete_graph!(edge_graph,num_vertices::Integer)
