@@ -61,7 +61,7 @@ function main(filename;
 
   t = @timed data = compute_submesh(model,stl;tolfactor,kdtree)
   T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
-  
+
   submesh = compute_grid(Table(T),X,TET)
   facets = compute_grid(Table(F),Xf,TRI)
 
@@ -89,7 +89,7 @@ function main(filename;
   cut_volume = bgmesh_cut_vol
 
   domain_surf = surface(facets)
-  stl_surf = surface(get_grid(stl)) 
+  stl_surf = surface(get_grid(stl))
 
   volume_error = (in_volume + out_volume - volume(grid)) / volume(grid)
   surface_error = ( stl_surf - domain_surf ) / stl_surf
