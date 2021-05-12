@@ -622,7 +622,7 @@ function split_disconnected_parts(stl::DiscreteModel)
 end
 
 function check_requisites(stl::DiscreteModel,bgmodel::DiscreteModel;
-  verbose=true,max_num_facets=2000)
+  verbose=true,max_num_facets=10000)
 
   !verbose || println(join(fill('-',40)))
   fulfill = true

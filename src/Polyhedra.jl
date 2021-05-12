@@ -725,6 +725,14 @@ function compact!(data::PolyhedronData,ids,old_to_new)
   data
 end
 
+function Base.copy(poly::Polyhedron)
+  vertices = get_vertex_coordinates(poly)
+  graph = get_graph(poly)
+  open = isopen(poly)
+  data = copy(get_data(poly))
+  Polyhedron(vertices,graph,open,data)
+end
+
 function Base.copy(data::PolyhedronData)
   v_to_Π = copy(data.vertex_to_planes)
   v_to_of = copy(data.vertex_to_original_faces)
@@ -1110,3 +1118,107 @@ function round_distances!(poly,atol)
   end
 end
 
+function delete_inactive_planes!(Γ::Polyhedron,K::Polyhedron,stl::STL)
+  @assert isopen(Γ)
+  planes = get_active_planes(Γ,K,stl)
+  s1 = get_plane_ids(K.data) == filter(i->i>0,get_plane_ids(Γ.data))
+  restrict_planes!(Γ,planes)
+  restrict_planes!(K,planes)
+end
+
+function get_active_planes(Γ::Polyhedron,K::Polyhedron,stl::STL)
+  used_planes_Γ = _get_used_planes(K)
+  used_planes_K = _get_used_planes(Γ)
+  used_planes = lazy_append( used_planes_Γ, used_planes_K )
+  face_planes = _get_face_planes(Γ,stl)
+  planes = lazy_append( used_planes, face_planes )
+  _append_ref_planes( Γ, planes )
+end
+
+function restrict_planes!(poly::Polyhedron,planes)
+  restrict_planes!(get_data(poly),planes)
+end
+
+function restrict_planes!(data::PolyhedronData,planes)
+  Π_to_id = data.plane_to_ids
+  Π_to_v_to_dist = data.plane_to_vertex_to_distances
+  Π_to_ref_Π = data.plane_to_ref_plane
+  is_inactive = trues(length(Π_to_id))
+  is_touch = falses(length(Π_to_id))
+  for Π in planes
+    i = findfirst(isequal(Π),Π_to_id)
+    !isnothing(i) || continue
+    is_inactive[i] = false
+  end
+  id = 0
+  for i in 1:length(Π_to_id)
+    if !is_inactive[i]
+      id += 1
+      if !is_touch[i]
+        ref_plane = abs( Π_to_ref_Π[i] )
+        if ref_plane != UNSET
+          @assert i == ref_plane
+          for j in i:length(Π_to_id)
+            if !is_inactive[j] &&
+               !is_touch[j] &&
+               abs( Π_to_ref_Π[j] ) == ref_plane
+
+              _sign = sign( Π_to_ref_Π[j] )
+              Π_to_ref_Π[j] = _sign * id
+              is_touch[j] = true
+            end
+          end
+        end
+      end
+    end
+  end
+  deleteat!( Π_to_v_to_dist, is_inactive)
+  deleteat!( Π_to_ref_Π, is_inactive)
+  deleteat!( Π_to_id, is_inactive)
+end
+
+function _copy_plane_distances!(data,org,dest,sign)
+  dest_dists = data.plane_to_vertex_to_distances[dest]
+  org_dists = data.plane_to_vertex_to_distances[org]
+  for v in 1:length(org_dists)
+    d = org_dists[v] * sign
+    dest_dists[v] = org_dists[v] * sign
+  end
+end
+
+function _get_used_planes(poly::Polyhedron)
+  v_to_Π = get_data(poly).vertex_to_planes
+  planes = Int32[]
+  for v in 1:length(v_to_Π)
+    for Π in v_to_Π[v]
+      if Π ∉ planes
+        push!(planes,Π)
+      end
+    end
+  end
+  planes
+end
+
+function _get_face_planes(poly::Polyhedron,stl::STL)
+  rfaces = get_original_reflex_faces(poly,stl,empty=true)
+  facets = get_original_facets(poly,stl,empty=true)
+  lazy_append(rfaces,facets)
+end
+
+function _append_ref_planes(poly::Polyhedron,planes)
+  ref_planes = Int32[]
+  Π_to_ref_Π = get_data(poly).plane_to_ref_plane
+  Π_to_id = get_plane_ids( get_data(poly) )
+  for Π in planes
+    i = findfirst( isequal(Π), Π_to_id )
+    i !== nothing || continue
+    iref = abs(Π_to_ref_Π[i])
+    if iref ≠ UNSET
+      Π_ref = Π_to_id[iref]
+      if Π_ref ∉ ref_planes && Π_ref ∉ planes
+        push!(ref_planes,Π_ref)
+      end
+    end
+  end
+  lazy_append(planes,ref_planes)
+end

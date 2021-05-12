@@ -29,7 +29,7 @@ function compute_submesh(
   caches = _get_threaded_caches(cell_to_nodes)
 
   cut_cells = filter(i->!isempty(c_to_stlf[i]),1:num_cells(grid))
-  if threading == :threads
+  if threading == :threads || Threads.nthreads() == 1
     Threads.@threads for cell in cut_cells
       save_cell_submesh!(submesh,io_arrays,stl,p,cell,
         compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
@@ -190,6 +190,7 @@ function refine(
   ;inside::Bool)
 
   reflex_faces = filter( f -> is_reflex(Γ,stl,f;inside), reflex_faces )
+  K = copy(K)
   Γn,Kn = decompose(Γ,K,reflex_faces,empty_facets,stl)
   Kn_clip = empty(Kn)
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
@@ -218,6 +219,7 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,empty_facets,stl)
   if i === nothing
     R = [surf],[cell]
   else
+    delete_inactive_planes!(surf,cell,stl)
     rf = rfaces[i]
     if !has_coplanars(surf.data,rf) || !contains_coplanars(surf.data,rf)
       s⁻,s⁺ = split(surf,rf)
