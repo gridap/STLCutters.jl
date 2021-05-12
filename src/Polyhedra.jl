@@ -115,7 +115,7 @@ end
 function clip(p::Polyhedron,Π,side)
   @assert side ∈ (:right,:left)
   p⁻,p⁺ = split(p,Π,side)
-  side == :left ? p⁻ : p⁺ 
+  side == :left ? p⁻ : p⁺
 end
 
 function split(p::Polyhedron,Π,side=:both)
@@ -361,7 +361,7 @@ function surface(poly::Polyhedron{3},stl::STL)
   sum( i -> measure(get_cell!(c,T,X,p,i)), 1:length(T) )
 end
 
-function surface(polys::AbstractVector{<:Polyhedron},args...) 
+function surface(polys::AbstractVector{<:Polyhedron},args...)
   s = 0.0
   for p in polys
     s += surface(p,args...)
@@ -376,7 +376,7 @@ function volume(poly::Polyhedron{3})
   sum( i -> measure(get_cell!(c,T,X,p,i)), 1:length(T) )
 end
 
-function volume(polys::AbstractVector{<:Polyhedron},args...) 
+function volume(polys::AbstractVector{<:Polyhedron},args...)
   v = 0.0
   for p in polys
     v += volume(p,args...)
@@ -571,7 +571,7 @@ function has_original_face(p::Polyhedron,face::Integer,::Val{2};empty=false)
           num_v = 1
           vcurrent = v
           vnext = vneig
-          while vnext ≠ v 
+          while vnext ≠ v
             if v_to_v[vnext] ∉ (v_to_v[v],v_to_v[vcurrent]) || empty
               num_v += 1
             end
@@ -621,7 +621,7 @@ function has_faces(p::Polyhedron,::Val{2})
       num_v = 1
       vcurrent = v
       vnext = vneig
-      while vnext ≠ v 
+      while vnext ≠ v
         if v_to_v[vnext] ∉ (v_to_v[v],v_to_v[vcurrent])
           num_v += 1
         end
@@ -717,7 +717,7 @@ function compact!(data::PolyhedronData,ids,old_to_new)
   deleteat!(v_to_pe,ids)
   f = i -> i == UNSET ? i : old_to_new[i]
   for (i,pe) in enumerate(v_to_pe)
-    v_to_pe[i] = (f(pe[1]),f(pe[2])) 
+    v_to_pe[i] = (f(pe[1]),f(pe[2]))
   end
   for v_to_dist in Π_to_v_to_dist
     deleteat!(v_to_dist,ids)
@@ -875,7 +875,7 @@ function correct_graph!(graph,num_vertices::Integer)
     while i ≤ length(graph[v])
       if graph[v][i] == v
         deleteat!(graph[v],i)
-      else 
+      else
         i += 1
       end
     end
@@ -884,7 +884,7 @@ function correct_graph!(graph,num_vertices::Integer)
       _i = i == length(graph[v]) ? 1 : i+1
       if graph[v][i] == graph[v][_i]
         deleteat!(graph[v],i)
-      else 
+      else
         i += 1
       end
     end
@@ -944,7 +944,7 @@ function compute_intersection(p1::Point,d1::Real,p2::Point,d2::Real)
   ( p1*(abs(d2))+p2*(abs(d1)) ) / ( abs(d1) + abs(d2) )
 end
 
-add_vertex!(data::Nothing,a...) = data 
+add_vertex!(data::Nothing,a...) = data
 
 function _intersect(a::AbstractVector{T},b::AbstractVector{T}) where T
   n = count(in(a),b)
@@ -959,7 +959,7 @@ function _intersect(a::AbstractVector{T},b::AbstractVector{T}) where T
   r
 end
 
-function _copy(a::AbstractVector{<:AbstractVector}) 
+function _copy(a::AbstractVector{<:AbstractVector})
   [ copy(i) for i in a ]
 end
 
@@ -980,17 +980,17 @@ function add_vertex!(data::PolyhedronData,v1::Integer,v2::Integer,Πid::Integer)
   i = findfirst(isequal(Πid),Π_to_id)
   d1 = Π_to_v_to_d[i][v1] # Distances may be in the input
   d2 = Π_to_v_to_d[i][v2]
-  pv = iszero(d1) ? v_to_pv[v1] : length(v_to_pv)+1 
-  pv = iszero(d2) ? v_to_pv[v2] : pv 
+  pv = iszero(d1) ? v_to_pv[v1] : length(v_to_pv)+1
+  pv = iszero(d2) ? v_to_pv[v2] : pv
   push!(v_to_pv,pv)
   @assert d1 ≠ d2
   ref_i = data.plane_to_ref_plane[i]
   for i in 1:length(Π_to_v_to_d)
-    v_to_d = Π_to_v_to_d[i] 
+    v_to_d = Π_to_v_to_d[i]
     if pv ≠ length(v_to_pv)
       dist = v_to_d[pv]
     elseif ref_i == UNSET || data.plane_to_ref_plane[i] ∈ (UNSET,i)
-      if Π_to_id[i] == Πid 
+      if Π_to_id[i] == Πid
         dist = 0.0
       else
         dist = (d1*v_to_d[v2]-d2*v_to_d[v1])/(d1-d2)

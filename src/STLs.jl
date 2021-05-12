@@ -14,7 +14,7 @@ function STL(model::DiscreteModel{Dc,Dp}) where {Dc,Dp}
   v_coords = get_vertex_coordinates(topo)
   polytope = only(get_polytopes(topo))
   facedims = get_facedims(topo)
-  offsets = Int32.(get_offsets(topo)) 
+  offsets = Int32.(get_offsets(topo))
   T = Table{Int32,Vector{Int32},Vector{Int32}}
   n_m_to_nf_to_mf = Matrix{T}(undef,Dc+1,Dc+1)
   for n in 0:Dc, m in 0:Dc
@@ -145,7 +145,7 @@ end
 
 _is_binary(filename) = contains(_get_encoding(filename),"binary")
 
-function Base.convert(::Type{Point{D,T}},x::MeshIO.Point{D}) where {D,T} 
+function Base.convert(::Type{Point{D,T}},x::MeshIO.Point{D}) where {D,T}
   Point{D,T}(x.data)
 end
 
@@ -209,7 +209,7 @@ function get_facet_cache(model::DiscreteModel)
 end
 
 function get_dface_cache(model::DiscreteModel,d)
-  topo = get_grid_topology(model) 
+  topo = get_grid_topology(model)
   T = get_face_vertices(topo,d)
   array_cache(T)
 end
@@ -219,7 +219,7 @@ function get_facet!(c,model::DiscreteModel{Dc},i) where Dc
 end
 
 function get_dface!(c,model::DiscreteModel,i,::Val{d}) where d
-  topo = get_grid_topology(model) 
+  topo = get_grid_topology(model)
   T = get_face_vertices(topo,d)
   X = get_vertex_coordinates(topo)
   p = get_polytope( only(get_reffes(model)) )
@@ -231,7 +231,7 @@ function get_dface(model::DiscreteModel,i,::Val{d}) where d
   get_dface!(c,model,i,Val{d}())
 end
 
-function get_vertex(stl::DiscreteModel,vertex::Integer) 
+function get_vertex(stl::DiscreteModel,vertex::Integer)
   get_vertex_coordinates(get_grid_topology(stl))[vertex]
 end
 
@@ -326,12 +326,12 @@ function merge_nodes(stl::DiscreteModel;atol=eps(Float32,stl))
   X,T = delete_repeated_vertices(stl;atol)
   compute_stl_model(T,X)
 end
-  
+
 function delete_repeated_vertices(stl::DiscreteModel;atol)
   vertex_to_equal = _map_equal_vertices(stl;atol)
   topo = get_grid_topology(stl)
   X = get_vertex_coordinates(topo)
-  T = get_cell_vertices(topo) 
+  T = get_cell_vertices(topo)
   X,T = _delete_vertices(X,T,vertex_to_equal)
   _delete_empty_cells!(T)
   T = Table(T)
@@ -388,7 +388,7 @@ function _delete_vertices(X,T,vertex_to_equal_vertex)
   X,T
 end
 
-function _delete_empty_cells!(T)  
+function _delete_empty_cells!(T)
   filter!( f -> length(f) == _num_uniques(f) , T )
 end
 
@@ -514,7 +514,7 @@ function delete_duplicated_faces(stl::DiscreteModel)
   is_duplicated = falses(num_cells(stl))
   for v in 1:num_vertices(topo)
     facets = getindex!(vf,v_to_f,v)
-    for i in 1:length(facets), j in i+1:length(facets) 
+    for i in 1:length(facets), j in i+1:length(facets)
       fi = facets[i]
       fj = facets[j]
       fi ≠ fj || continue
@@ -925,8 +925,8 @@ function bisector_plane(
    stl::STL,
    d::Integer,
    dface::Integer,
-   Πf::AbstractArray) 
-  
+   Πf::AbstractArray)
+
   c = bisector_plane_cache(stl,d)
   bisector_plane(c,stl,d,dface,Πf)
 end

@@ -1,10 +1,10 @@
 
 struct STLGeometry <: CSG.Geometry
-  tree::Leaf{Tuple{T,String,Nothing}} where T<:DiscreteModel 
+  tree::Leaf{Tuple{T,String,Nothing}} where T<:DiscreteModel
 end
 
 function STLGeometry(stl::DiscreteModel;name="stl")
-  tree = Leaf( ( stl, name, nothing ) ) 
+  tree = Leaf( ( stl, name, nothing ) )
   STLGeometry( tree )
 end
 
@@ -61,11 +61,11 @@ function _cut_sm(model::DiscreteModel,geom::STLGeometry)
   f_to_normal = [ normal(get_cell(get_stl(geom),facet)) for facet in f_to_stlf ]
   f_to_bgcell = f_to_bgc
   data = f_to_points,f_to_normal,f_to_bgcell,point_to_coords,point_to_rcoords
-  subfacets = SubFacetData(data...) 
+  subfacets = SubFacetData(data...)
   f_to_io = fill(Int8(INTERFACE),length(F))
   f_to_io = [ f_to_io ]
 
-  bgfacet_to_ioc = 
+  bgfacet_to_ioc =
     replace!( bgf_to_ioc, FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT )
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
@@ -75,7 +75,7 @@ end
 function send_to_ref_space(grid::Grid,cell::Integer,point::Point)
   cell_coordinates = get_cell_coordinates(grid)[cell]
   pmin,pmax = cell_coordinates[1],cell_coordinates[end]
-  Point(Tuple(point-pmin)./Tuple(pmax-pmin)) 
+  Point(Tuple(point-pmin)./Tuple(pmax-pmin))
 end
 
 function send_to_ref_space(

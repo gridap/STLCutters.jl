@@ -18,23 +18,23 @@ using FileIO
 
 import Gridap: writevtk
 import Gridap.ReferenceFEs: get_polytope
-import Gridap.ReferenceFEs: is_simplex 
-import Gridap.ReferenceFEs: is_n_cube 
+import Gridap.ReferenceFEs: is_simplex
+import Gridap.ReferenceFEs: is_n_cube
 import Gridap.ReferenceFEs: get_vertex_coordinates
-import Gridap.ReferenceFEs: get_faces 
+import Gridap.ReferenceFEs: get_faces
 import Gridap.ReferenceFEs: get_face_vertices
-import Gridap.ReferenceFEs: num_faces 
+import Gridap.ReferenceFEs: num_faces
 import Gridap.ReferenceFEs: num_vertices
-import Gridap.ReferenceFEs: num_edges 
-import Gridap.ReferenceFEs: num_facets 
-import Gridap.ReferenceFEs: num_dims 
-import Gridap.ReferenceFEs: num_point_dims 
+import Gridap.ReferenceFEs: num_edges
+import Gridap.ReferenceFEs: num_facets
+import Gridap.ReferenceFEs: num_dims
+import Gridap.ReferenceFEs: num_point_dims
 import Gridap.ReferenceFEs: get_offset
 import Gridap.ReferenceFEs: get_offsets
 import Gridap.ReferenceFEs: get_facedims
-import Gridap.ReferenceFEs: simplexify 
-import Gridap.ReferenceFEs: get_bounding_box 
-import Gridap.Geometry: num_cells 
+import Gridap.ReferenceFEs: simplexify
+import Gridap.ReferenceFEs: get_bounding_box
+import Gridap.Geometry: num_cells
 import Gridap.Geometry: get_cell_vertices
 
 import GridapEmbedded.Interfaces: cut
