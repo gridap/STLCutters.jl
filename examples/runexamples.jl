@@ -46,4 +46,11 @@ using Test
 
 end
 
+@time @testset "Poisson" begin
+  include("Poisson.jl")
+
+  filename = joinpath(@__DIR__,"../test/data/293137.stl")
+  Poisson.main(filename,n=20)
+end
+
 end # module

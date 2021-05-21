@@ -9,7 +9,7 @@ using GridapEmbedded
 using Test
 
 using STLCutters: compute_stl_model
-using STLCutters: read_stl, merge_nodes, get_bounding_box 
+using STLCutters: read_stl, merge_nodes, get_bounding_box
 
 # Manufactured solution
 u(x) = x[1] + x[2] - x[3]
