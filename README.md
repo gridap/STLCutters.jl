@@ -16,7 +16,6 @@ STL to cell-wise triangulation to solve FE problems in [Gridap.jl](https://githu
 pkg> add git@github.com:pmartorell/STLCutters.jl.git
 ```
 
-
 ## Examples
 
 ### Sub-triangulation examples
@@ -39,7 +38,7 @@ julia> SubTriangulation.main(filename,nmax=50,output="results2")
 
 Solve a Poisson equation on a test geometry, e.g., 293137.stl (Low-Poly Bunny)
  ```julia
-julia>  include("examples/Poisson.jl")
+julia> include("examples/Poisson.jl")
 julia> filename = "test/data/293137.stl"
-julia> Poisson.main(filename,n=20)
+julia> Poisson.main(filename,n=20,output="results3")
 ```
