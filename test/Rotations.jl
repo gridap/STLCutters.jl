@@ -1,52 +1,177 @@
-module GridRefinementTests
+module Rotations
   
 using Test
+
 using Gridap
-using STLCutters
-using DelimitedFiles
-
+using Gridap.ReferenceFEs
 using Gridap.Geometry
+using Gridap.Arrays
+using Gridap.Helpers
+using STLCutters
 
+using STLCutters: read_stl
 using STLCutters: compute_stl_model
-using STLCutters: refine_grid 
-using STLCutters: volume,volumes
-using STLCutters: FACE_CUT, FACE_IN, FACE_OUT
-using STLCutters: get_bounding_box 
-using STLCutters: read_stl 
 using STLCutters: merge_nodes 
+using STLCutters: get_bounding_box 
+using STLCutters: compute_submesh 
+using STLCutters: compute_grid 
+using STLCutters: surface, volume
+using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
+
+function test_stl_cut(model,stl,vol)
+  data = compute_submesh(model,stl)
+  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
+
+  submesh = compute_grid(Table(T),X,TET)
+  facets = compute_grid(Table(F),Xf,TRI)
+
+  grid = get_grid(model)
+
+  #writevtk(facets,"subfacets",cellfields=["bgcell"=>f_to_bgcell])
+  #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
+  #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
+
+  bgmesh_in_vol = volume(grid,bgcell_to_ioc,FACE_IN)
+  bgmesh_out_vol  = volume(grid,bgcell_to_ioc,FACE_OUT)
+  bgmesh_cut_vol  = volume(grid,bgcell_to_ioc,FACE_CUT)
+  submesh_in_vol  = volume(submesh,k_to_io,FACE_IN)
+  submesh_out_vol = volume(submesh,k_to_io,FACE_OUT)
+  
+  in_volume = bgmesh_in_vol + submesh_in_vol
+  out_volume = bgmesh_out_vol + submesh_out_vol
+  cut_volume = bgmesh_cut_vol
+
+  domain_surf = surface(facets)
+  stl_surf = surface(get_grid(stl)) 
+
+  @test submesh_in_vol + submesh_out_vol ≈ cut_volume 
+  @test stl_surf ≈ domain_surf
+  @test in_volume + out_volume ≈ volume(grid)
+  @test in_volume ≈ vol
+  
+  println("\t εV = $(in_volume + out_volume - volume(grid))")
+  println("\t εVin = $(in_volume-vol)")
+  println("\t εΓ = $(stl_surf - domain_surf))")
+
+end
+
+Rx(ϕ) = TensorValue(
+  1,0,0,
+  0,cos(ϕ),-sin(ϕ),
+  0,sin(ϕ),cos(ϕ))
+
+Ry(θ) = TensorValue(
+  cos(θ),0,sin(θ),
+  0,1,0,
+  -sin(θ),0,cos(θ))
+
+Rz(ψ) = TensorValue(
+  cos(ψ),sin(ψ),0,
+  -sin(ψ),cos(ψ),0,
+  0,0,1)
+
+R(ϕ,θ,ψ) = Rx(ϕ)⋅Ry(θ)⋅Rz(ψ)
+
+R(θ) = R(θ,θ,θ)
 
 
+#X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
+#X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
+X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
 
-R(θ) = TensorValue(cos(θ),sin(θ),-sin(θ),cos(θ))
-origin = Point(0.5,0.5)
+stl0 = compute_stl_model(T,X)
+stl0 = merge_nodes(stl0)
 
-bg_mesh = compute_linear_grid(QUAD4)
-bg_mesh = CartesianGrid( Point(0.0,0.0),(0.2,0.2),(5,5))
+X0 = get_node_coordinates(get_grid(stl0))
+T0 = get_cell_node_ids(stl0)
 
-vertices = [
-  Point(0.2,0.2),
-  Point(0.2,0.8),
-  Point(0.8,0.8),
-  Point(0.8,0.2) ]
-faces = [[1,2],[2,3],[3,4],[4,1]]
+## Coindident Grid-Cube
+δ = 0.2
+n = 7
+D = 3
 
-θs = π.*[ exp10.(-10:-1); 1 ./ (5:-1:2) ]
+pmin,pmax = get_bounding_box(stl0)
+O = (pmin+pmax)/2
 
-for (i,θ) in enumerate(θs)
+Δ = (pmax-pmin)*δ
+pmin = pmin - Δ
+pmax = pmax + Δ
+partition = (n,n,n)
 
-_vertices = origin .+ R(θ).⋅(vertices .- origin)
-stl = compute_stl_model(Table(faces),_vertices)
-out = refine_grid(bg_mesh,stl)
-T,X,reffes,cell_types,cell_to_io,cell_to_bgcell,bgcell_to_ioc = out 
-submesh = UnstructuredGrid(X,Table(T),reffes,cell_types)
-vol = volume(submesh) + sum(volumes(bg_mesh).*(bgcell_to_ioc.≠FACE_CUT))
-@test volume(bg_mesh) ≈ vol
-vol1 = sum(volumes(submesh).*(cell_to_io.==FACE_IN))
-vol2 = sum(volumes(bg_mesh).*(bgcell_to_ioc.==FACE_IN))
-@test vol1+vol2 ≈ 0.6^2
-writevtk(submesh,"submesh_$i",cellfields=["io"=>cell_to_io,"bgcell"=>cell_to_bgcell])
-writevtk(bg_mesh,"bgmesh_$i",cellfields=["io"=>bgcell_to_ioc])
-writevtk(get_grid(stl),"_stl_$i")
+model = CartesianDiscreteModel(pmin,pmax,partition)
+
+
+θs = [0;exp10.( -17:0 )]
+Δx = VectorValue(0.0,0.0,0.1)
+
+for θ in θs
+  println("Testing θz = $θ ...")
+  Oi = O + Δx
+  Xi = map(p-> p + Δx,X0)
+  Xi = map(p-> Oi + Rz(θ)⋅(p-Oi),Xi)
+  stl = compute_stl_model(Table(T0),Xi)
+  #writevtk(stl.grid,"stl")
+  test_stl_cut(model,stl,1)
+end
+
+## Rational Grid
+δ = 0.2
+n = 7
+D = 3
+
+pmin,pmax = get_bounding_box(stl0)
+pmin = Point(rationalize.(Tuple(pmin)))
+pmax = Point(rationalize.(Tuple(pmax)))
+δ = rationalize(δ)
+
+O = (pmin+pmax)/2
+
+Δ = (pmax-pmin)*δ
+pmin = pmin - Δ
+pmax = pmax + Δ
+partition = (n,n,n)
+
+model = CartesianDiscreteModel(pmin,pmax,partition)
+
+δx = Point(0,0,1)
+Δxs = [0;exp10.(-17:-1)]
+
+for Δx in Δxs
+  println("Testing Δx = $Δx ...")
+  Xi = map(p-> p + Δx,X0)
+  stl = compute_stl_model(Table(T0),Xi)
+  #writevtk(stl.grid,"stl")
+  test_stl_cut(model,stl,1)
+end
+
+δ = 0.2
+n = 7
+D = 3
+
+pmin,pmax = get_bounding_box(stl0)
+pmin = Point(rationalize.(Tuple(pmin)))
+pmax = Point(rationalize.(Tuple(pmax)))
+δ = rationalize(δ)
+
+origins = [pmin, pmax, (pmin+pmax)/2 ]
+
+Δ = (pmax-pmin)*δ
+pmin = pmin - Δ
+pmax = pmax + Δ
+partition = (n,n,n)
+
+model = CartesianDiscreteModel(pmin,pmax,partition)
+
+θs = [0;exp10.( -17:-1 )]
+
+for O in origins
+  for θ in θs
+    println("Testing θ = $θ over $O ...")
+    Xi = map(p-> O + R(θ)⋅(p-O),X0)
+    stl = compute_stl_model(Table(T0),Xi)
+    #writevtk(stl,"stl")
+    test_stl_cut(model,stl,1)
+  end
 end
 
 end # module

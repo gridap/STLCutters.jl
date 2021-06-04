@@ -1,5 +1,9 @@
 module STLCutters
 
+import MeshIO
+import Plots
+import GraphRecipes
+
 using Gridap
 using Gridap.Geometry
 using Gridap.ReferenceFEs
@@ -12,57 +16,55 @@ using GridapEmbedded.LevelSetCutters
 using LinearAlgebra
 using FileIO
 
-import MeshIO
-
+import Gridap: writevtk
 import Gridap.ReferenceFEs: get_polytope
-import Gridap.ReferenceFEs: is_simplex 
-import Gridap.ReferenceFEs: is_n_cube 
+import Gridap.ReferenceFEs: is_simplex
+import Gridap.ReferenceFEs: is_n_cube
 import Gridap.ReferenceFEs: get_vertex_coordinates
-import Gridap.ReferenceFEs: num_faces 
+import Gridap.ReferenceFEs: get_faces
+import Gridap.ReferenceFEs: get_face_vertices
+import Gridap.ReferenceFEs: num_faces
 import Gridap.ReferenceFEs: num_vertices
-import Gridap.ReferenceFEs: num_edges 
-import Gridap.ReferenceFEs: num_facets 
-import Gridap.ReferenceFEs: num_dims 
+import Gridap.ReferenceFEs: num_edges
+import Gridap.ReferenceFEs: num_facets
+import Gridap.ReferenceFEs: num_dims
+import Gridap.ReferenceFEs: num_point_dims
+import Gridap.ReferenceFEs: get_offset
+import Gridap.ReferenceFEs: get_offsets
+import Gridap.ReferenceFEs: get_facedims
+import Gridap.ReferenceFEs: simplexify
+import Gridap.ReferenceFEs: get_bounding_box
+import Gridap.Geometry: num_cells
+import Gridap.Geometry: get_cell_vertices
 
 import GridapEmbedded.Interfaces: cut
 import GridapEmbedded.CSG: get_tree
 import GridapEmbedded.CSG: compatible_geometries
 import GridapEmbedded.CSG: similar_geometry
 
-export Table
-export Point
-export Segment
-export Triangle
+import Plots: plot
+
 export STLGeometry
 
-export distance
-export projection
-export have_intersection
-export intersection_point
-export insert_vertices!
-export insert_edges!
-export insert_facets!
-export distribute_faces
+export read_stl
+export compute_stl_model
+export merge_nodes
+export merge_and_collapse
+export get_bounding_box
 export compute_grid
-export initial_mesh
+export is_water_tight
+export check_requisites
+export compute_submesh
+export volume, volumes
+export surface, surfaces
+export min_height
 
-export cut
-export surface
-export square
 
-include("CellMeshes.jl")
-
-include("Intersections.jl")
+include("SimplexFaces.jl")
 include("STLs.jl")
-include("CellRefinement.jl")
-include("FaceInsertion.jl")
-include("FaceDistribution.jl")
-include("GridRefinement.jl")
-include("SurfaceRefinement.jl")
-include("HexahedraIntersection.jl")
+include("Polyhedra.jl")
+include("SubTriangulations.jl")
 
 include("Embedded.jl")
-
-include("tables/LookupTables.jl")
 
 end # module

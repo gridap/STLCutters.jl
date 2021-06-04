@@ -3,79 +3,70 @@ module IntegrationTests
 using STLCutters
 using Gridap
 import Gridap: ∇
-using Gridap.Geometry
 using GridapEmbedded
 using Test
 
 using STLCutters: compute_stl_model
+using STLCutters: read_stl, merge_nodes, get_bounding_box 
 
 # Manufactured solution
-u(x) = x[1] + x[2] # - x[3]
-∇u(x) = VectorValue( 1, 1) #, -1)
-Δu(x) = 0
-f(x) = - Δu(x)
-ud(x) = u(x)
-∇(::typeof(u)) = ∇u
+u0(x) = x[1] + x[2] - x[3]
 
+X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
+stl = compute_stl_model(T,X)
+stl = merge_nodes(stl)
+# writevtk(stl,"geo")
 n = 10
-partition = (n,n)
+δ = 0.2
+pmin,pmax = get_bounding_box(stl)
+diagonal = pmax-pmin
+pmin = pmin - diagonal*δ
+pmax = pmax + diagonal*δ
+partition = (n,n,n)
 
-pmin,pmax = Point(0.0,0.0),Point(1.0,1.0)
-
-vertices = [ Point(0.15,0.15),
-             Point(0.15,0.85),
-             Point(0.85,0.85), 
-             Point(0.85,0.15) ]
-faces = [[1,2],[2,3],[3,4],[4,1]]
-stl = compute_stl_model(Table(faces),vertices)
-
-geo = STLGeometry(stl,name="wall")
-
+geo = STLGeometry(stl)
 bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
 
-cutgeom = cut(bgmodel,geo)
-model_in = DiscreteModel(cutgeom)
+cutgeo, = cut(bgmodel,geo)
 
-degree = 2
+# Setup integration meshes
+Ω = Triangulation(cutgeo)
+Γd = EmbeddedBoundary(cutgeo)
+Γg = GhostSkeleton(cutgeo)
 
-trian_in = Triangulation(cutgeom)
-test_triangulation(trian_in)
-quad_in = CellQuadrature(trian_in,degree)
-vol = sum(integrate(1,trian_in,quad_in))
-@test vol ≈ (0.85-0.15)^2
+# Setup normal vectors
+n_Γd = get_normal_vector(Γd)
+n_Γg = get_normal_vector(Γg)
 
-trian_Γ = EmbeddedBoundary(cutgeom)
-test_triangulation(trian_Γ)
-quad_Γ = CellQuadrature(trian_Γ,degree)
-surf = sum(integrate(1,trian_Γ,quad_Γ))
-@test surf ≈ (0.85-0.15)*2^2
+#writevtk(Ω,"trian_O")
+#writevtk(Γd,"trian_Gd",cellfields=["normal"=>n_Γd])
+#writevtk(Γg,"trian_Gg",cellfields=["normal"=>n_Γg])
+#writevtk(Triangulation(bgmodel),"bgtrian")
 
-trian_Γg_in = GhostSkeleton(cutgeom)
+# Setup Lebesgue measures
+order = 1
+degree = 2*order
+dΩ = Measure(Ω,degree)
+dΓd = Measure(Γd,degree)
+dΓg = Measure(Γg,degree)
 
-n_Γ = get_normal_vector(trian_Γ)
+vol = sum( ∫(1)*dΩ  )
+surf = sum( ∫(1)*dΓd )
 
+@test vol ≈ 1
+@test surf ≈ 6
 
-V_in = TestFESpace(model=model_in,valuetype=Float64,reffe=:Lagrangian,order=1,conformity=:H1)
-
-v_in = FEFunction(V_in,rand(num_free_dofs(V_in)))
-
-v_in_Γ = restrict(v_in,trian_Γ)
-
-v_in_in = restrict(v_in,trian_in)
-
-v_in_Γg_in = restrict(v_in,trian_Γg_in)
-
-trian = Triangulation(bgmodel)
+# Setup FESpace
+model = DiscreteModel(cutgeo)
+V = TestFESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
+v = FEFunction(V,rand(num_free_dofs(V)))
+u = interpolate(u0,V)
 
 # Check divergence theorem
-u(x) = x[1] + x[2]
-u_in = interpolate(V_in,u)
-u_in_Γ = restrict(u_in,trian_Γ)
-u_in_in = restrict(u_in,trian_in)
-a = sum( integrate(∇(v_in_in)⋅∇(u_in_in),trian_in,quad_in) )
-b = sum( integrate(v_in_Γ⋅n_Γ⋅∇(u_in_Γ),trian_Γ,quad_Γ) )
-@test abs(a-b) < 1e-9
+a = sum( ∫( ∇(v)⋅∇(u) ) * dΩ )
+b = sum( ∫( v⋅n_Γd⋅∇(u) ) * dΓd )
+@test abs( a-b ) < 1e-9
 
-end # module
+end
