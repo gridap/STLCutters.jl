@@ -27,7 +27,7 @@ julia> include("examples/SubTriangulation.jl")
 julia> filename = "test/data/47076.stl"
 julia> SubTriangulation.main(filename,nmax=50,output="example1")
 ```
-![Example 1](examples/example.png)
+![Example 1](examples/example1.png)
 
 Download a geometry directly from [Thingi10k](https://ten-thousand-models.appspot.com/), e.g, [37384](https://ten-thousand-models.appspot.com/detail.html?file_id=37384)
 ```julia
