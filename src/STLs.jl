@@ -445,7 +445,8 @@ function _compute_min_length(mesh::Grid;atol)
 end
 
 function preprocess_small_facets(stl::DiscreteModel;atol)
-  @notimplementedif !is_water_tight(stl)
+  @notimplementedif !is_edge_manifold(stl) "The geometry is not edge manifold"
+  @notimplementedif !is_water_tight(stl) "The geometry is not watter tight"
   max_iters = 100
   for i in 1:max_iters
     stl,incomplete = _preprocess_small_facets(stl;atol)

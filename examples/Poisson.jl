@@ -82,7 +82,7 @@ function main(filename;n=20,δ=0.2,output=nothing)
 
   p = AMGPreconditioner{SmoothedAggregation}(A)
 
-  x = cg(A,b,verbose=true,Pl=p,reltol=1e-10)
+  x = cg(A,b,verbose=true,Pl=p,reltol=1e-12)
 
   uh = FEFunction(U,x)
 

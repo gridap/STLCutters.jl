@@ -78,11 +78,7 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   compute_distances!(Γk0,lazy_append(Πk,Πkf),lazy_append(Πk_ids,Πkf_ids))
   compute_distances!(K,Πkf,Πkf_ids)
 
-  Π_to_refΠ,Πs,inv_Π = link_planes!(Γk0,stl,Πr,Πf;atol)
-  invert_plane_distances!(Γk0,Πs,inv_Π)
-  invert_plane_distances!(K,Πs,inv_Π)
-  set_linked_planes!(Γk0,Π_to_refΠ,Πs)
-  set_linked_planes!(K,Π_to_refΠ,Πs)
+  merge_coplanar_planes!(Γk0,K,stl,Πr,Πf;atol)
 
   Γk = clip(Γk0,Πk_ids,inout=Πk_io)
 
@@ -163,6 +159,14 @@ function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
   end
   replace!(bgcell_to_ioc, UNSET => FACE_OUT )
   bgcell_to_ioc
+end
+
+function merge_coplanar_planes!(Γk0,K,stl,Πr,Πf;atol)
+  Π_to_refΠ,Πs,inv_Π = link_planes!(Γk0,stl,Πr,Πf;atol)
+  invert_plane_distances!(Γk0,Πs,inv_Π)
+  invert_plane_distances!(K,Πs,inv_Π)
+  set_linked_planes!(Γk0,Π_to_refΠ,Πs)
+  set_linked_planes!(K,Π_to_refΠ,Πs)
 end
 
 function link_planes!(surf::Polyhedron,stl::STL,Πr,Πf;atol)

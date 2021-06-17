@@ -166,23 +166,11 @@ function split(p::Polyhedron,Π,side=:both)
     end
   end
   if side == :both
-    complete_graph!(out_graph,num_vertices(p))
-    disconnect_graph!(out_graph,num_vertices(p),distances,(<))
-    add_open_vertices!(out_graph,p)
-    out_vertices = [p.vertices;new_vertices]
-    out_data = copy(data)
-    update_data!(out_data,out_graph,num_vertices(p))
-    p_out = compact!(Polyhedron(out_vertices,out_graph,isopen(p),out_data))
+    p_out = split_postprocess!(out_graph,copy(data),new_vertices,p,distances,(<))
   else
     p_out = nothing
   end
-  complete_graph!(in_graph,num_vertices(p))
-  disconnect_graph!(in_graph,num_vertices(p),distances,(≶))
-  add_open_vertices!(in_graph,p)
-  in_vertices = [p.vertices;new_vertices]
-  in_data = data
-  update_data!(in_data,in_graph,num_vertices(p))
-  p_in = compact!(Polyhedron(in_vertices,in_graph,isopen(p),in_data))
+  p_in = split_postprocess!(in_graph,data,new_vertices,p,distances,(≶))
   p⁻ = side ≠ :right ? p_in : p_out
   p⁺ = side ≠ :right ? p_out : p_in
   p⁻,p⁺
@@ -860,34 +848,22 @@ function polyhedron_data(p::Polytope)
   PolyhedronData(args...)
 end
 
+@inline function split_postprocess!(graph,data,new_vertices,input_poly,distances,(≶))
+  complete_graph!(graph,num_vertices(input_poly))
+  disconnect_graph!(graph,num_vertices(input_poly),distances,(≶))
+  add_open_vertices!(graph,input_poly)
+  vertices = [input_poly.vertices;new_vertices]
+  update_data!(data,graph,num_vertices(input_poly))
+  poly = Polyhedron(vertices,graph,isopen(input_poly),data)
+  compact!(poly)
+end
+
 function complete_graph!(edge_graph,num_vertices::Integer)
   for v in num_vertices+1:length(edge_graph)
     vnext = next_vertex(edge_graph,num_vertices,v)
     vnext ∉ (UNSET,OPEN) || continue
     edge_graph[v][end] = vnext
     edge_graph[vnext][2] = v
-  end
-end
-
-function correct_graph!(graph,num_vertices::Integer)
-  for v in num_vertices+1:length(graph)
-    i = 1
-    while i ≤ length(graph[v])
-      if graph[v][i] == v
-        deleteat!(graph[v],i)
-      else
-        i += 1
-      end
-    end
-    i = 1
-    while i ≤ length(graph[v]) && length(graph[v]) > 1
-      _i = i == length(graph[v]) ? 1 : i+1
-      if graph[v][i] == graph[v][_i]
-        deleteat!(graph[v],i)
-      else
-        i += 1
-      end
-    end
   end
 end
 

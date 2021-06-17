@@ -396,6 +396,16 @@ function projection(p::Point{Dp},f::Face{Df,Dp}) where {Df,Dp}
   p + ( ( c - p ) ⋅ n ) * n
 end
 
+function projection(p::Point,Π::Plane)
+  n = normal(Π)
+  c = origin(Π)
+  p + ( ( c - p ) ⋅ n ) * n
+end
+
+function projection(p::Point,Π::CartesianPlane)
+  Point( Base.setindex(Tuple(p),Π.value,Π.d) )
+end
+
 function contains_projection(f::Face,p::Point)
   for i in 1:num_facets(f)
     facet = get_facet(f,i)
