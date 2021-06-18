@@ -772,6 +772,7 @@ end
 
 function measure(a::Grid,mask)
   m = 0.0
+  m = BigFloat(0.0,precision=128)
   p = get_polytope(only(get_reffes(a)))
   T = get_cell_node_ids(a)
   X = get_node_coordinates(a)
