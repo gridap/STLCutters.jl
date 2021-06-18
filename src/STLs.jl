@@ -783,7 +783,7 @@ function measure(a::Grid,mask)
       m += measure(f)
     end
   end
-  m
+  Float64(m)
 end
 
 function measure(a::Grid,cell_to_val,val)
