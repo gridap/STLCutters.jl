@@ -8,20 +8,24 @@ using Gridap.Geometry
 using Gridap.Arrays
 using STLCutters
 
-using STLCutters: Polyhedron 
-using STLCutters: STL 
-using STLCutters: restrict 
-using STLCutters: clip 
-using STLCutters: split 
-using STLCutters: surface, volume 
-using STLCutters: get_facet_planes 
-using STLCutters: get_reflex_planes 
-using STLCutters: compute_distances! 
+using STLCutters: Polyhedron
+using STLCutters: STL
+using STLCutters: restrict
+using STLCutters: clip
+using STLCutters: split
+using STLCutters: surface, volume
+using STLCutters: get_facet_planes
+using STLCutters: get_reflex_planes
+using STLCutters: compute_distances!
 using STLCutters: get_original_reflex_faces
 using STLCutters: get_cell_planes
 using STLCutters: filter_face_planes
 using STLCutters: refine
 using STLCutters: get_cell_nodes_to_inout
+using STLCutters: read_stl
+using STLCutters: merge_nodes
+using STLCutters: compute_stl_model
+using STLCutters: compute_grid
 using STLCutters: FACE_IN, FACE_OUT, FACE_CUT
 
 vertices = [
@@ -33,7 +37,7 @@ vertices = [
   Point(0.5,0.5,0.7),
   Point(1.2,1.2,0.5)]
 
-facet_to_vertices = 
+facet_to_vertices =
 [[4,6,1],
  [6,5,7],
  [4,3,6],
@@ -80,7 +84,7 @@ n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
 @test n_to_io == [fill(FACE_OUT,num_vertices(HEX)÷2);fill(FACE_IN,num_vertices(HEX)÷2)]
 mesh_in = compute_grid(T_in,X_in,TET)
 mesh_out = compute_grid(T_out,X_out,TET)
-mesh_Γ = compute_grid(T_Γ,X_Γ,TRI)  
+mesh_Γ = compute_grid(T_Γ,X_Γ,TRI)
 
 #  writevtk(Γk,"Gk")
 #  writevtk(Kn_in,"Kin")
@@ -102,7 +106,7 @@ vertices = [
   Point(0.5,0.5,0.5),
   Point(1.2,1.2,-1.0)]
 
-facet_to_vertices = 
+facet_to_vertices =
 [[4,6,1],
  [6,5,7],
  [4,3,6],
@@ -182,28 +186,24 @@ partition = (n,n,n)
 model = CartesianDiscreteModel(pmin,pmax,partition)
 grid = get_grid(model)
 
-@time data = compute_submesh(model,stl,kdtree=false)
-T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
-
-submesh = compute_grid(Table(T),X,TET)
-facets = compute_grid(Table(F),Xf,TRI)
+@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=false)
 
 #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
 
-bgmesh_in_vol = volume(grid,bgcell_to_ioc,FACE_IN)
-bgmesh_out_vol  = volume(grid,bgcell_to_ioc,FACE_OUT)
-bgmesh_cut_vol  = volume(grid,bgcell_to_ioc,FACE_CUT)
-submesh_in_vol  = volume(submesh,k_to_io,FACE_IN)
-submesh_out_vol = volume(submesh,k_to_io,FACE_OUT)
+bgmesh_in_vol = volume(grid,labels.bgcell_to_ioc,:in)
+bgmesh_out_vol  = volume(grid,labels.bgcell_to_ioc,:out)
+bgmesh_cut_vol  = volume(grid,labels.bgcell_to_ioc,:cut)
+submesh_in_vol  = volume(subcells,labels.cell_to_io,:in)
+submesh_out_vol = volume(subcells,labels.cell_to_io,:out)
 
 in_volume = bgmesh_in_vol + submesh_in_vol
 out_volume = bgmesh_out_vol + submesh_out_vol
 cut_volume = bgmesh_cut_vol
 
-println("Num subcells: $(num_cells(submesh))")
-@test surface(get_grid(stl)) ≈ surface(facets)
-@test submesh_in_vol + submesh_out_vol ≈ cut_volume 
+println("Num subcells: $(num_cells(subcells))")
+@test surface(get_grid(stl)) ≈ surface(subfaces)
+@test submesh_in_vol + submesh_out_vol ≈ cut_volume
 @test in_volume + out_volume ≈ volume(grid)
 @test in_volume ≈ 273280.03374196636
 
@@ -227,30 +227,26 @@ partition = (n,n,n)
 model = CartesianDiscreteModel(pmin,pmax,partition)
 grid = get_grid(model)
 
-@time data = compute_submesh(model,stl,kdtree=false)
-T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
-
-submesh = compute_grid(Table(T),X,TET)
-facets = compute_grid(Table(F),Xf,TRI)
+@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=false)
 
 #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
 
-bgmesh_in_vol = volume(grid,bgcell_to_ioc,FACE_IN)
-bgmesh_out_vol  = volume(grid,bgcell_to_ioc,FACE_OUT)
-bgmesh_cut_vol  = volume(grid,bgcell_to_ioc,FACE_CUT)
-submesh_in_vol  = volume(submesh,k_to_io,FACE_IN)
-submesh_out_vol = volume(submesh,k_to_io,FACE_OUT)
+bgmesh_in_vol = volume(grid,labels.bgcell_to_ioc,:in)
+bgmesh_out_vol  = volume(grid,labels.bgcell_to_ioc,:out)
+bgmesh_cut_vol  = volume(grid,labels.bgcell_to_ioc,:cut)
+submesh_in_vol  = volume(subcells,labels.cell_to_io,:in)
+submesh_out_vol = volume(subcells,labels.cell_to_io,:out)
 
 in_volume = bgmesh_in_vol + submesh_in_vol
 out_volume = bgmesh_out_vol + submesh_out_vol
 cut_volume = bgmesh_cut_vol
 
-println("Num subcells: $(num_cells(submesh))")
-@test surface(get_grid(stl)) ≈ surface(facets)
-@test submesh_in_vol + submesh_out_vol ≈ cut_volume 
+println("Num subcells: $(num_cells(subcells))")
+@test surface(get_grid(stl)) ≈ surface(subfaces)
+@test submesh_in_vol + submesh_out_vol ≈ cut_volume
 @test in_volume + out_volume ≈ volume(grid)
-@test in_volume ≈ 74.12595970214333 
+@test in_volume ≈ 74.12595970214333
 
 ## Kd-Tree
 
@@ -274,28 +270,24 @@ partition = (n,n,n)
 model = CartesianDiscreteModel(pmin,pmax,partition)
 grid = get_grid(model)
 
-@time data = compute_submesh(model,stl,kdtree=true)
-T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
-
-submesh = compute_grid(Table(T),X,TET)
-facets = compute_grid(Table(F),Xf,TRI)
+@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=true)
 
 #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
 
-bgmesh_in_vol = volume(grid,bgcell_to_ioc,FACE_IN)
-bgmesh_out_vol  = volume(grid,bgcell_to_ioc,FACE_OUT)
-bgmesh_cut_vol  = volume(grid,bgcell_to_ioc,FACE_CUT)
-submesh_in_vol  = volume(submesh,k_to_io,FACE_IN)
-submesh_out_vol = volume(submesh,k_to_io,FACE_OUT)
+bgmesh_in_vol = volume(grid,labels.bgcell_to_ioc,:in)
+bgmesh_out_vol  = volume(grid,labels.bgcell_to_ioc,:out)
+bgmesh_cut_vol  = volume(grid,labels.bgcell_to_ioc,:cut)
+submesh_in_vol  = volume(subcells,labels.cell_to_io,:in)
+submesh_out_vol = volume(subcells,labels.cell_to_io,:out)
 
 in_volume = bgmesh_in_vol + submesh_in_vol
 out_volume = bgmesh_out_vol + submesh_out_vol
 cut_volume = bgmesh_cut_vol
 
-println("Num subcells: $(num_cells(submesh))")
-@test surface(get_grid(stl)) ≈ surface(facets)
-@test submesh_in_vol + submesh_out_vol ≈ cut_volume 
+println("Num subcells: $(num_cells(subcells))")
+@test surface(get_grid(stl)) ≈ surface(subfaces)
+@test submesh_in_vol + submesh_out_vol ≈ cut_volume
 @test in_volume + out_volume ≈ volume(grid)
 @test in_volume ≈ 273280.03374196636
 
@@ -319,28 +311,25 @@ partition = (n,n,n)
 model = CartesianDiscreteModel(pmin,pmax,partition)
 grid = get_grid(model)
 
-@time data = compute_submesh(model,stl,kdtree=true)
-T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
-
-submesh = compute_grid(Table(T),X,TET)
-facets = compute_grid(Table(F),Xf,TRI)
+@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=true)
 
 #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
 
-bgmesh_in_vol = volume(grid,bgcell_to_ioc,FACE_IN)
-bgmesh_out_vol  = volume(grid,bgcell_to_ioc,FACE_OUT)
-bgmesh_cut_vol  = volume(grid,bgcell_to_ioc,FACE_CUT)
-submesh_in_vol  = volume(submesh,k_to_io,FACE_IN)
-submesh_out_vol = volume(submesh,k_to_io,FACE_OUT)
+
+bgmesh_in_vol = volume(grid,labels.bgcell_to_ioc,:in)
+bgmesh_out_vol  = volume(grid,labels.bgcell_to_ioc,:out)
+bgmesh_cut_vol  = volume(grid,labels.bgcell_to_ioc,:cut)
+submesh_in_vol  = volume(subcells,labels.cell_to_io,:in)
+submesh_out_vol = volume(subcells,labels.cell_to_io,:out)
 
 in_volume = bgmesh_in_vol + submesh_in_vol
 out_volume = bgmesh_out_vol + submesh_out_vol
 cut_volume = bgmesh_cut_vol
 
-println("Num subcells: $(num_cells(submesh))")
-@test surface(get_grid(stl)) ≈ surface(facets)
-@test submesh_in_vol + submesh_out_vol ≈ cut_volume 
+println("Num subcells: $(num_cells(subcells))")
+@test surface(get_grid(stl)) ≈ surface(subfaces)
+@test submesh_in_vol + submesh_out_vol ≈ cut_volume
 @test in_volume + out_volume ≈ volume(grid)
 @test in_volume ≈ 74.12595970214333 
 end # module

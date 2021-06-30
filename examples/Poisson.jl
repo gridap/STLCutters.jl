@@ -52,9 +52,6 @@ function main(filename;n=20,δ=0.2,output=nothing)
   dΩ = Measure(Ω,degree)
   dΓd = Measure(Γd,degree)
 
-  vol = sum( ∫(1)*dΩ  )
-  surf = sum( ∫(1)*dΓd )
-
   # Setup FESpace
   model = DiscreteModel(cutgeo)
   Vstd = FESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)

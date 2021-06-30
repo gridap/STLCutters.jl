@@ -14,6 +14,7 @@ using STLCutters: signed_distance
 using STLCutters: contains_projection
 using STLCutters: voxel_intersection
 using STLCutters: simplex_face
+using STLCutters: min_height
 using STLCutters: Plane
 
 # Face{1,2}

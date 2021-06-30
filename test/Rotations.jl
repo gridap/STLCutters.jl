@@ -11,19 +11,14 @@ using STLCutters
 
 using STLCutters: read_stl
 using STLCutters: compute_stl_model
-using STLCutters: merge_nodes 
-using STLCutters: get_bounding_box 
-using STLCutters: compute_submesh 
-using STLCutters: compute_grid 
-using STLCutters: surface, volume
+using STLCutters: merge_nodes
+using STLCutters: get_bounding_box
+using STLCutters: compute_grid
+using STLCutters: surface, volume, volumes
 using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 
 function test_stl_cut(model,stl,vol)
-  data = compute_submesh(model,stl)
-  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,bgcell_to_ioc = data
-
-  submesh = compute_grid(Table(T),X,TET)
-  facets = compute_grid(Table(F),Xf,TRI)
+  subcells,subfaces,labels = subtriangulate(model,stl)
 
   grid = get_grid(model)
 
@@ -31,24 +26,21 @@ function test_stl_cut(model,stl,vol)
   #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
   #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
 
-  bgmesh_in_vol = volume(grid,bgcell_to_ioc,FACE_IN)
-  bgmesh_out_vol  = volume(grid,bgcell_to_ioc,FACE_OUT)
-  bgmesh_cut_vol  = volume(grid,bgcell_to_ioc,FACE_CUT)
-  submesh_in_vol  = volume(submesh,k_to_io,FACE_IN)
-  submesh_out_vol = volume(submesh,k_to_io,FACE_OUT)
-  
+  bgmesh_in_vol, bgmesh_out_vol, bgmesh_cut_vol = volumes(grid,labels.bgcell_to_ioc)
+  submesh_in_vol,submesh_out_vol, = volumes(subcells,labels.cell_to_io)
+
   in_volume = bgmesh_in_vol + submesh_in_vol
   out_volume = bgmesh_out_vol + submesh_out_vol
   cut_volume = bgmesh_cut_vol
 
-  domain_surf = surface(facets)
-  stl_surf = surface(get_grid(stl)) 
+  domain_surf = surface(subfaces)
+  stl_surf = surface(get_grid(stl))
 
-  @test submesh_in_vol + submesh_out_vol ≈ cut_volume 
+  @test submesh_in_vol + submesh_out_vol ≈ cut_volume
   @test stl_surf ≈ domain_surf
   @test in_volume + out_volume ≈ volume(grid)
   @test in_volume ≈ vol
-  
+
   println("\t εV = $(in_volume + out_volume - volume(grid))")
   println("\t εVin = $(in_volume-vol)")
   println("\t εΓ = $(stl_surf - domain_surf))")

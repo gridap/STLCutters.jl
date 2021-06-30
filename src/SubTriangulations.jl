@@ -1,10 +1,21 @@
 
-function compute_submesh(
+const DEFAULT_TOL_FACTOR = 1e3
+
+struct SubtriangulationLabels
+  cell_to_bgcell::Vector{Int32}
+  cell_to_io::Vector{Int8}
+  face_to_stlface::Vector{Int32}
+  face_to_bgcell::Vector{Int32}
+  bgcell_to_ioc::Vector{Int8}
+  bgface_to_ioc::Vector{Int8}
+end
+
+function subtriangulate(
   bgmodel::CartesianDiscreteModel,
   stlmodel::DiscreteModel;
   threading=:spawn,
   kdtree=false,
-  tolfactor=1e3)
+  tolfactor=DEFAULT_TOL_FACTOR)
 
   grid = get_grid(bgmodel)
   grid_topology = get_grid_topology(bgmodel)
@@ -56,8 +67,24 @@ function compute_submesh(
   delete_small_subcells!(bgmodel,T,X,k_to_io,k_to_bgcell)
   delete_small_subfacets!(bgmodel,F,Xf,f_to_bgcell,f_to_stlf)
 
-  T,X,F,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,
-  bgcell_to_ioc,bgfacet_to_ioc
+  cell_grid = compute_grid(Table(T),X,TET)
+  face_grid = compute_grid(Table(F),Xf,TRI)
+  labels = SubtriangulationLabels(
+    k_to_bgcell, k_to_io, f_to_stlf, f_to_bgcell, bgcell_to_ioc, bgfacet_to_ioc)
+
+  cell_grid, face_grid, labels
+end
+
+function subtriangulate(bgmodel::CartesianDiscreteModel,args...;kwargs...)
+  stlmodel = _to_stl_model(args...)
+  subtriangulate(bgmodel,stlmodel;kwargs...)
+end
+
+function _to_stl_model(filename::AbstractString)
+  X,T,N = read_stl(filename)
+  stl = compute_stl_model(T,X)
+  stl = merge_and_collapse(stl)
+  stl
 end
 
 function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
@@ -115,6 +142,7 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out)
   f_to_f .-= get_offset(stl,D)
   n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
   f_to_ioc = get_cell_facets_to_inoutcut(Kn_in,Kn_out,p)
+
   _append_submesh!(submesh,Xin,Tin,Xout,Tout,X_Γ,T_Γ,f_to_f,cell)
   for i in 1:num_vertices(p)
     bgcell_node_to_io[i,cell] = n_to_io[i]

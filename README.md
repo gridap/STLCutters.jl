@@ -25,7 +25,7 @@ Use a test geometry, e.g., 47076.stl (Chichen Itza)
 ```julia
 julia> include("examples/SubTriangulation.jl")
 julia> filename = "test/data/47076.stl"
-julia> SubTriangulation.main(filename,nmax=50,output="example1")
+julia> SubTriangulation.main(filename,n=50,output="example1")
 ```
 ![Example 1](examples/example1.png)
 
@@ -33,7 +33,7 @@ Download a geometry directly from [Thingi10k](https://ten-thousand-models.appspo
 ```julia
 julia> include("examples/SubTriangulation.jl")
 julia> filename = SubTriangulation.download(37384)
-julia> SubTriangulation.main(filename,nmax=50,output="example2")
+julia> SubTriangulation.main(filename,n=50,output="example2")
 ```
 ![Example 2](examples/example2.png)
 

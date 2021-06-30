@@ -7,6 +7,7 @@ using Test
 @testset "Polyhedra" begin include("PolyhedraTests.jl") end
 @testset "SubTriangulations" begin include("SubTriangulationsTests.jl") end
 @testset "Rotations" begin include("Rotations.jl") end
+@testset "SampleGeometries" begin include("SampleGeometriesTests.jl") end
 
 @testset "Integration" begin include("Integration.jl") end
 @testset "Poisson" begin include("Poisson.jl") end

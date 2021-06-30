@@ -771,7 +771,6 @@ function is_surface(::GridTopology{Dc,Dp}) where {Dc,Dp}
 end
 
 function measure(a::Grid,mask)
-  m = 0.0
   m = BigFloat(0.0,precision=128)
   p = get_polytope(only(get_reffes(a)))
   T = get_cell_node_ids(a)
@@ -784,6 +783,14 @@ function measure(a::Grid,mask)
     end
   end
   Float64(m)
+end
+
+function measure(a::Grid,cell_to_inoutcut,inoutcut::Symbol)
+  inout_dict = Dict{Symbol,Int8}(
+    :in => FACE_IN,
+    :out => FACE_OUT,
+    :cut => FACE_CUT )
+  measure(a,cell_to_inoutcut,inout_dict[inoutcut])
 end
 
 function measure(a::Grid,cell_to_val,val)
@@ -802,6 +809,12 @@ function surface(a::Grid{Df,Dp},args...) where {Df,Dp}
 end
 
 surface(a::DiscreteModel) = surface(get_grid(a))
+
+function volumes(a::Grid,cell_to_inoutcut)
+  volume(a,cell_to_inoutcut,FACE_IN),
+  volume(a,cell_to_inoutcut,FACE_OUT),
+  volume(a,cell_to_inoutcut,FACE_CUT)
+end
 
 function min_height(grid::Grid)
   min_h = Inf
@@ -837,7 +850,9 @@ function measure(a::CartesianGrid{D,T,typeof(identity)},mask) where {D,T}
   cell_vol * count(mask)
 end
 
+
 function compute_cell_to_facets(grid::CartesianGrid,stl::STL)
+  CELL_EXPANSION_FACTOR = 1e-3
   desc = get_cartesian_descriptor(grid)
   @assert length(get_reffes(grid)) == 1
   p = get_polytope(get_cell_reffe(grid)[1])
@@ -849,7 +864,7 @@ function compute_cell_to_facets(grid::CartesianGrid,stl::STL)
   coords = get_node_coordinates(grid)
   cell_to_nodes = get_cell_node_ids(grid)
   c = [ ( get_cell_cache(stl), array_cache(cell_to_nodes) ) for _ in 1:n ]
-  δ = 0.1
+  δ = CELL_EXPANSION_FACTOR
   Threads.@threads for stl_facet in 1:num_cells(stl)
     i = Threads.threadid()
     cc,nc = c[i]

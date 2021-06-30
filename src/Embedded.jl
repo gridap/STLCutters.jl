@@ -9,10 +9,8 @@ function STLGeometry(stl::DiscreteModel;name="stl")
 end
 
 function STLGeometry(filename::String;name="stl")
-  X,T,N = read_stl(filename)
-  stl = compute_stl_model(T,X)
-  stl = merge_nodes(stl)
-  STLGeometry(stl,name=name)
+  stlmodel = _to_stl_model(filename)
+  STLGeometry(stlmodel,name=name)
 end
 
 get_tree(geo::STLGeometry) = geo.tree
@@ -32,7 +30,7 @@ get_bounding_box(a::STLGeometry) = get_bounding_box( get_stl(a) )
 struct STLCutter <: Interfaces.Cutter end
 
 function cut(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
-  data,bgf_to_ioc = _cut_sm(background,geom)
+  data,bgf_to_ioc = _cut_stl(background,geom)
   EmbeddedDiscretization(background, data..., geom), bgf_to_ioc
 end
 
@@ -41,94 +39,81 @@ function cut(background::DiscreteModel,geom::STLGeometry)
   cut(cutter,background,geom)
 end
 
-function _cut_sm(model::DiscreteModel,geom::STLGeometry)
-  grid = get_grid(model)
-  stl = get_stl(geom)
-  out = compute_submesh(model,get_stl(geom))
-  T,X,F,Xf,k_to_io,k_to_bgc,f_to_bgc,f_to_stlf,bgc_to_ioc,bgf_to_ioc = out
-  bgcell_to_ioc = [ map( _convert_io, bgc_to_ioc ) ]
-  cell_to_points = Table( T )
-  point_to_coords = X
-  point_to_rcoords = send_to_ref_space(grid,k_to_bgc,T,X)
-  cell_to_io = [ map( _convert_io, k_to_io ) ]
-  cell_to_bgcell = k_to_bgc
+function _cut_stl(model::DiscreteModel,geom::STLGeometry)
+  subcell_grid, subface_grid, labels = subtriangulate(model,geom)
+
+  inout_dict = Dict{Int8,Int8}(
+    FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT, UNSET => OUT )
+
+  cell_to_io = [ replace( labels.cell_to_io, inout_dict... ) ]
+  cell_to_bgcell = labels.cell_to_bgcell
+  cell_to_points = get_cell_node_ids( subcell_grid )
+  point_to_coords = get_node_coordinates( subcell_grid )
+  point_to_rcoords = send_to_ref_space(model,cell_to_bgcell,subcell_grid)
   data = cell_to_points,cell_to_bgcell,point_to_coords,point_to_rcoords
   subcells = SubCellData(data...)
 
-  f_to_points = Table( F )
-  point_to_coords = Xf
-  point_to_rcoords = send_to_ref_space(grid,f_to_bgc,F,Xf)
-  f_to_normal = [ normal(get_cell(get_stl(geom),facet)) for facet in f_to_stlf ]
-  f_to_bgcell = f_to_bgc
-  data = f_to_points,f_to_normal,f_to_bgcell,point_to_coords,point_to_rcoords
+  face_to_bgcell = labels.face_to_bgcell
+  face_to_points = get_cell_node_ids( subface_grid )
+  point_to_coords = get_node_coordinates( subface_grid )
+  point_to_rcoords = send_to_ref_space(model,face_to_bgcell,subface_grid)
+  face_to_normal = _normals(geom,labels.face_to_stlface)
+  data = face_to_points,face_to_normal,face_to_bgcell,point_to_coords,point_to_rcoords
   subfacets = SubFacetData(data...)
-  f_to_io = fill(Int8(INTERFACE),length(F))
-  f_to_io = [ f_to_io ]
 
-  bgfacet_to_ioc =
-    replace!( bgf_to_ioc, FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT )
+  face_to_io = [ fill(Int8(INTERFACE),num_cells(subface_grid)) ]
+
+  bgface_to_ioc = replace( labels.bgface_to_ioc, inout_dict... )
+  bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ]
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
-  (bgcell_to_ioc,subcells,cell_to_io,subfacets,f_to_io,oid_to_ls),bgfacet_to_ioc
+  (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc
 end
 
-function send_to_ref_space(grid::Grid,cell::Integer,point::Point)
-  cell_coordinates = get_cell_coordinates(grid)[cell]
-  pmin,pmax = cell_coordinates[1],cell_coordinates[end]
-  Point(Tuple(point-pmin)./Tuple(pmax-pmin))
+function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
+  send_to_ref_space(
+    grid,
+    cell_to_bgcell,
+    get_cell_node_ids(subgrid),
+    get_node_coordinates(subgrid))
 end
 
 function send_to_ref_space(
   grid::Grid,
   cell_to_bgcell::Vector,
-  cell_to_points::Vector,
+  cell_to_points::AbstractVector,
   points::Vector)
 
   rpoints = zero(points)
-  for (i,k) in enumerate(cell_to_points)
-    for p in k
-      rpoints[p] = send_to_ref_space(grid,cell_to_bgcell[i],points[p])
+  cache = array_cache(cell_to_points)
+  bgcache = array_cache(get_cell_node_ids(grid))
+  for i in 1:length(cell_to_points)
+    for p in getindex!(cache,cell_to_points,i)
+      rpoints[p] = send_to_ref_space!(bgcache,grid,cell_to_bgcell[i],points[p])
     end
   end
   rpoints
 end
 
-function _convert_io(ioc::Integer)
-  if ioc == FACE_IN
-    Int8(IN)
-  elseif ioc == FACE_OUT
-    Int8(OUT)
-  elseif ioc == FACE_CUT
-    Int8(CUT)
-  else
-    Int8(OUT)
-    #@unreachable
+function send_to_ref_space!(cache,grid::Grid,cell::Integer,point::Point)
+  cell_nodes = getindex!(cache,get_cell_node_ids(grid),cell)
+  node_coordinates = get_node_coordinates(grid)
+  pmin = node_coordinates[cell_nodes[1]]
+  pmax = node_coordinates[cell_nodes[end]]
+  Point(Tuple(point-pmin)./Tuple(pmax-pmin))
+end
+
+function _normals(geom::STLGeometry,face_to_stlface)
+  stl = get_stl(geom)
+  cache = get_cell_cache(stl)
+  N = typeof(normal(get_cell!(cache,stl,1)))
+  normals = zeros(N,length(face_to_stlface))
+  for (i,stlf) in enumerate( face_to_stlface )
+    normals[i] = normal(get_cell!(cache,stl,stlf))
   end
+  normals
 end
 
-## Remove the next lines when upgrading GridapEmbedded to v0.7
+_to_stl_model(geo::STLGeometry) =  get_stl(geo)
 
-using GridapEmbedded.CSG
-using GridapEmbedded.AgFEM
-using GridapEmbedded.AgFEM: _aggregate_by_threshold
-import GridapEmbedded.AgFEM: aggregate
-
-function aggregate(
-  strategy,
-  cut::EmbeddedDiscretization,
-  facet_to_inoutcut::AbstractVector)
-
-  aggregate(strategy,cut,cut.geo,IN,facet_to_inoutcut)
-end
-
-function aggregate(
-  strategy::AggregateCutCellsByThreshold,
-  cut::EmbeddedDiscretization,
-  geo::CSG.Geometry,
-  in_or_out,
-  facet_to_inoutcut::AbstractVector)
-
-  _aggregate_by_threshold(
-    strategy.threshold,cut,geo,in_or_out,facet_to_inoutcut)
-end
-
+surface(geo::STLGeometry) = surface(get_grid(get_stl(geo)))

@@ -8,16 +8,17 @@ using Gridap.Geometry
 using Gridap.Arrays
 using STLCutters
 
-using STLCutters: Polyhedron 
-using STLCutters: STL 
-using STLCutters: restrict 
-using STLCutters: clip 
-using STLCutters: split 
-using STLCutters: surface, volume 
-using STLCutters: get_facet_planes 
-using STLCutters: compute_distances! 
+using STLCutters: Polyhedron
+using STLCutters: STL
+using STLCutters: restrict
+using STLCutters: clip
+using STLCutters: split
+using STLCutters: surface, volume
+using STLCutters: get_facet_planes
+using STLCutters: compute_distances!
 using STLCutters: plot
 using STLCutters: check_graph
+using STLCutters: compute_stl_model
 
 p = Polyhedron(TRI)
 @test check_graph(p)
@@ -49,7 +50,7 @@ vertices = [
   Point(1.0,-0.3,0.5),
   Point(-0.2,1.2,0.5)]
 
-facet_to_vertices = 
+facet_to_vertices =
 [[1,2,3]]
 
 stlmodel = compute_stl_model( Table(facet_to_vertices), vertices )

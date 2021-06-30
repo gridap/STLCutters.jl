@@ -46,19 +46,8 @@ import Plots: plot
 
 export STLGeometry
 
-export read_stl
-export compute_stl_model
-export merge_nodes
-export merge_and_collapse
+export subtriangulate
 export get_bounding_box
-export compute_grid
-export is_water_tight
-export check_requisites
-export compute_submesh
-export volume, volumes
-export surface, surfaces
-export min_height
-
 
 include("SimplexFaces.jl")
 include("STLs.jl")
