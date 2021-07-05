@@ -733,7 +733,7 @@ function Base.copy(data::PolyhedronData)
   PolyhedronData(args...)
 end
 
-function compute_distances!(p::Polyhedron,Π,faces)
+function compute_distances!(p::Polyhedron,Π,faces;atol=0)
   data = get_data(p)
   v_to_f = get_data(p).vertex_to_original_faces
   Π_to_v_to_d = get_plane_distances(data)
@@ -750,6 +750,9 @@ function compute_distances!(p::Polyhedron,Π,faces)
         dist = 0.0
       else
         dist = signed_distance(p[v],Πi)
+        if abs(dist) < atol
+          dist = 0.0
+        end
       end
       v_to_d[v] = dist
     end

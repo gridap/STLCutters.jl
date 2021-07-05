@@ -103,7 +103,7 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   Γk0 = restrict(Γ0,stl,expanded_facets)
 
   compute_distances!(Γk0,lazy_append(Πk,Πkf),lazy_append(Πk_ids,Πkf_ids))
-  compute_distances!(K,Πkf,Πkf_ids)
+  compute_distances!(K,Πkf,Πkf_ids;atol=atol/10)
 
   merge_coplanar_planes!(Γk0,K,stl,Πr,Πf;atol)
 
