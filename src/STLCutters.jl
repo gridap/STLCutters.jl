@@ -45,6 +45,7 @@ import GridapEmbedded.CSG: similar_geometry
 import Plots: plot
 
 export STLGeometry
+export STLCutter
 
 export subtriangulate
 export get_bounding_box

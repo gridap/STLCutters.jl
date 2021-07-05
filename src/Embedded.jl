@@ -27,10 +27,13 @@ end
 
 get_bounding_box(a::STLGeometry) = get_bounding_box( get_stl(a) )
 
-struct STLCutter <: Interfaces.Cutter end
+struct STLCutter <: Interfaces.Cutter
+  options::Dict{Symbol,Any}
+  STLCutter(;options...) = new(options)
+end
 
 function cut(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
-  data,bgf_to_ioc = _cut_stl(background,geom)
+  data,bgf_to_ioc = _cut_stl(background,geom;cutter.options...)
   EmbeddedDiscretization(background, data..., geom), bgf_to_ioc
 end
 
@@ -39,8 +42,8 @@ function cut(background::DiscreteModel,geom::STLGeometry)
   cut(cutter,background,geom)
 end
 
-function _cut_stl(model::DiscreteModel,geom::STLGeometry)
-  subcell_grid, subface_grid, labels = subtriangulate(model,geom)
+function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
+  subcell_grid, subface_grid, labels = subtriangulate(model,geom;kwargs...)
 
   inout_dict = Dict{Int8,Int8}(
     FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT, UNSET => OUT )
