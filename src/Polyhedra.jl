@@ -1156,15 +1156,6 @@ function restrict_planes!(data::PolyhedronData,planes)
   deleteat!( Π_to_id, is_inactive)
 end
 
-function _copy_plane_distances!(data,org,dest,sign)
-  dest_dists = data.plane_to_vertex_to_distances[dest]
-  org_dists = data.plane_to_vertex_to_distances[org]
-  for v in 1:length(org_dists)
-    d = org_dists[v] * sign
-    dest_dists[v] = org_dists[v] * sign
-  end
-end
-
 function _get_used_planes(poly::Polyhedron)
   v_to_Π = get_data(poly).vertex_to_planes
   planes = Int32[]

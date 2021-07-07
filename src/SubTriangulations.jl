@@ -564,18 +564,32 @@ function correct_small_facets_planes!(stl::STL,Πf,f_to_isempty;atol)
       end
     end
     empty_facets = queue
-    !isempty(full_facets) || @unreachable
-    n = zero( normal(first(Πf)) )
-    c = zero( center(first(Πf)) )
-    for full_f in full_facets
-      n += normal(Πf[full_f]) / length(full_facets)
-    end
-    for empty_f in empty_facets
-      c += center(Πf[empty_f]) / length(empty_facets)
-    end
-    Π = Plane(c,n)
+    Π = _get_mean_plane(Πf,empty_facets,full_facets)
     push!(Πnew,Π)
   end
+  for f in 1:num_cells(stl)
+    f_to_isempty[f] || continue
+    Πf[f] = Πnew[ f_to_new_plane[f] ]
+  end
+  _check_planes(Πf,f_to_isempty,stl;atol)
+  Πf
+end
+
+function _get_mean_plane(Πf,empty_facets,full_facets)
+  !isempty(full_facets) || @unreachable
+  n = zero( normal(first(Πf)) )
+  c = zero( center(first(Πf)) )
+  for full_f in full_facets
+    n += normal(Πf[full_f]) / length(full_facets)
+  end
+  for empty_f in empty_facets
+    c += center(Πf[empty_f]) / length(empty_facets)
+  end
+  Plane(c,n)
+end
+
+function _check_planes(Πf,f_to_isempty,stl;atol)
+  D = num_dims(stl)
   v_coords = get_vertex_coordinates(stl)
   f_to_v = get_face_vertices(stl,D)
   c = array_cache(f_to_v)
@@ -587,7 +601,6 @@ function correct_small_facets_planes!(stl::STL,Πf,f_to_isempty;atol)
       @assert abs(signed_distance(v,Πf[f])) < atol
     end
   end
-  Πf
 end
 
 function get_reflex_planes(stl::STL,Πf)
@@ -604,24 +617,9 @@ end
 
 function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
   length(part_to_facets) > 1 || return [facets]
-  f_to_part = fill(UNSET,length(facets))
-  for (i,f) in enumerate(facets)
-    f_to_part[i] = findfirst( p -> f ∈ p, part_to_facets )
-  end
-  parts = unique(f_to_part)
+  f_to_part, parts = _get_facet_to_part(facets,part_to_facets)
   length(parts) > 1 || return [facets]
-  for i in 1:length(facets)
-    p = findfirst(isequal(f_to_part[i]),parts)
-    f_to_part[i] = p
-  end
-  p_to_p_to_facing = [ trues(length(parts)) for _ in 1:length(parts) ]
-  for (i,fi) in enumerate(facets), (j,fj) in enumerate(facets)
-    fi ≠ fj || continue
-    f_to_part[i] ≠ f_to_part[j] || continue
-    if !is_facet_in_facet(poly,fj,fi;inside)
-      p_to_p_to_facing[f_to_part[i]][f_to_part[j]] = false
-    end
-  end
+  p_to_p_to_facing = _get_part_to_part_to_facing(poly,facets,f_to_part,parts;inside)
   p_to_group = fill(UNSET,length(parts))
   group = Int32[]
   ids = Int32[]
@@ -657,6 +655,32 @@ function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
     push!(group_to_facets[g],f)
   end
   group_to_facets
+end
+
+function _get_facet_to_part(facets,part_to_facets)
+  f_to_part = fill(UNSET,length(facets))
+  for (i,f) in enumerate(facets)
+    f_to_part[i] = findfirst( p -> f ∈ p, part_to_facets )
+  end
+  parts = unique(f_to_part)
+  length(parts) > 1 || return f_to_part,parts
+  for i in 1:length(facets)
+    p = findfirst(isequal(f_to_part[i]),parts)
+    f_to_part[i] = p
+  end
+  f_to_part,parts
+end
+
+function _get_part_to_part_to_facing(poly,facets,f_to_part,parts;inside)
+  p_to_p_to_facing = [ trues(length(parts)) for _ in 1:length(parts) ]
+  for (i,fi) in enumerate(facets), (j,fj) in enumerate(facets)
+    fi ≠ fj || continue
+    f_to_part[i] ≠ f_to_part[j] || continue
+    if !is_facet_in_facet(poly,fj,fi;inside)
+      p_to_p_to_facing[f_to_part[i]][f_to_part[j]] = false
+    end
+  end
+  p_to_p_to_facing
 end
 
 function get_disconnected_facets(poly::Polyhedron,stl::STL)
