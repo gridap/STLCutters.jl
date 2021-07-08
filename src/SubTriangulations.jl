@@ -103,7 +103,9 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   Γk0 = restrict(Γ0,stl,expanded_facets)
 
   compute_distances!(Γk0,lazy_append(Πk,Πkf),lazy_append(Πk_ids,Πkf_ids))
-  compute_distances!(K,Πkf,Πkf_ids;atol=atol/10)
+  compute_distances!(K,Πkf,Πkf_ids)
+
+  snap_vertices(K;atol)
 
   merge_coplanar_planes!(Γk0,K,stl,Πr,Πf;atol)
 
@@ -187,6 +189,46 @@ function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
   end
   replace!(bgcell_to_ioc, UNSET => FACE_OUT )
   bgcell_to_ioc
+end
+
+function snap_vertices(K;atol)
+  Πs = get_plane_ids(K.data)
+  Π_to_v_to_dist = get_plane_distances(K.data)
+  v_to_Π = K.data.vertex_to_planes
+  for (i,Π) in enumerate(Πs)
+    v_to_dist = Π_to_v_to_dist[i]
+    for v in 1:length(v_to_dist)
+      if abs(v_to_dist[v]) < atol/10
+        v_to_dist[v] = 0.0
+        f_qp = _get_quasi_coplanar_face(K,v,v_to_dist;atol)
+        if f_qp ≠ UNSET
+          for vj in 1:length(v_to_dist)
+            if f_qp ∈ v_to_Π[vj]
+              v_to_dist[vj] = 0.0
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+function _get_quasi_coplanar_face(K,v,v_to_dist;atol)
+  v_to_Π = K.data.vertex_to_planes
+  for Π in v_to_Π[v]
+    is_quasi_coplanar = true
+    for vi in 1:length(v_to_Π)
+      if Π ∈ v_to_Π[vi]
+        if abs(v_to_dist[vi]) > atol
+          is_quasi_coplanar = false
+        end
+      end
+    end
+    if is_quasi_coplanar
+      return Π
+    end
+  end
+  UNSET
 end
 
 function merge_coplanar_planes!(Γk0,K,stl,Πr,Πf;atol)
