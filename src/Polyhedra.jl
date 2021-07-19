@@ -102,25 +102,62 @@ end
 
 # Operations
 
-function clip(poly::Polyhedron,Π;inside=true,inout=trues(length(Π)))
+function clip(poly::Polyhedron,Π;inside=true,inout=trues(length(Π)),boundary=nothing)
   p = poly
   for (i,Πi) in enumerate(Π)
     side = inside == inout[i] ? :left : :right
-    p = clip(p,Πi,side)
+    p = clip(p,Πi,side;boundary)
     !isnothing(p) || break
   end
   p
 end
 
-function clip(p::Polyhedron,Π,side)
-  @assert side ∈ (:right,:left)
-  p⁻,p⁺ = split(p,Π,side)
-  side == :left ? p⁻ : p⁺
+#function clip(p::Polyhedron,Π,side;invert=false)
+#  @assert side ∈ (:right,:left)
+#  p⁻,p⁺ = split(p,Π,side;invert)
+#  side == :left ? p⁻ : p⁺
+#end
+
+function split_overlapping(p::Polyhedron,Π)
+  p⁻ = clip(p,Π,:left,boundary=true)
+  p⁺ = clip(p,Π,:right,boundary=true)
+  # p⁻ = clip(p,Π,:right,invert=true)
+  # p⁺ = clip(p,Π,:right,invert=false)
+  p⁻,p⁺
 end
 
-function split(p::Polyhedron,Π,side=:both)
+function split_gapping(p::Polyhedron,Π)
+  p⁻ = clip(p,Π,:left,boundary=false)
+  p⁺ = clip(p,Π,:right,boundary=false)
+  # p⁻ = clip(p,Π,:left,invert=false)
+  # p⁺ = clip(p,Π,:left,invert=true)
+  p⁻,p⁺
+end
+
+function clip(p::Polyhedron,Π,side;boundary=nothing::Union{Nothing,Bool},invert=false)
+  @assert side ∈ (:right,:left)
+  if boundary === nothing
+    p⁻,p⁺ = split(p,Π,side;invert)
+    p  = side == :left ? p⁻ : p⁺
+  else
+    invert = false
+    if side == :right && !boundary
+      invert = true
+      side = :left
+    elseif side == :left && boundary
+      invert = true
+      side = :right
+    end
+    p = clip(p,Π,side;invert)
+  end
+  p
+end
+
+function split(p::Polyhedron,Π,side=:both;invert=false)
   @assert side ∈ (:both,:left,:right)
   distances = get_plane_distances(get_data(p),Π)
+  _sign = invert ? (-) : (+)
+  distances = lazy_map(_sign,distances)
   smin = Inf
   smax = -Inf
   for v in 1:num_vertices(p)
@@ -261,7 +298,11 @@ function simplexify_boundary(poly::Polyhedron{3},stl::STL)
   D = 3
   stack = Int32[]
   v_to_pv = get_data(poly).vertex_to_parent_vertex
-  v_to_Π = get_data(poly).vertex_to_planes
+  if isopen(poly)
+    v_to_Π = get_data(poly).vertex_to_original_faces
+  else
+    v_to_Π = get_data(poly).vertex_to_planes
+  end
   facedims = get_facedims(stl)
   facet_list = Int32[]
   istouch = map( i -> falses(length(i)), get_graph(poly) )
@@ -304,6 +345,10 @@ function simplexify_boundary(poly::Polyhedron{3},stl::STL)
     end
   end
   T,X,f_to_stlf
+end
+
+function simplexify_boundary(::Nothing,args...)
+  nothing,nothing,nothing
 end
 
 function simplexify(polys::AbstractVector{<:Polyhedron{Dp,Tp}}) where {Dp,Tp}
@@ -1100,7 +1145,7 @@ end
 function delete_inactive_planes!(Γ::Polyhedron,K::Polyhedron,stl::STL)
   @assert isopen(Γ)
   planes = get_active_planes(Γ,K,stl)
-  s1 = get_plane_ids(K.data) == filter(i->i>0,get_plane_ids(Γ.data))
+  #s1 = get_plane_ids(K.data) == filter(i->i>0,get_plane_ids(Γ.data))
   restrict_planes!(Γ,planes)
   restrict_planes!(K,planes)
 end

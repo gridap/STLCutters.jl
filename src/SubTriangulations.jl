@@ -15,7 +15,8 @@ function subtriangulate(
   stlmodel::DiscreteModel;
   threading=:spawn,
   kdtree=false,
-  tolfactor=DEFAULT_TOL_FACTOR)
+  tolfactor=DEFAULT_TOL_FACTOR,
+  surfacesource=:skin)
 
   grid = get_grid(bgmodel)
   grid_topology = get_grid_topology(bgmodel)
@@ -44,13 +45,15 @@ function subtriangulate(
     Threads.@threads for cell in cut_cells
       save_cell_submesh!(submesh,io_arrays,stl,p,cell,
         compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
-          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)... )
+          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)...
+          ;surfacesource )
     end
   elseif threading == :spawn
     @sync for cell in cut_cells
       Threads.@spawn save_cell_submesh!(submesh,io_arrays,stl,p,cell,
         compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
-          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)... )
+          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)...
+          ;surfacesource )
     end
   else
     @unreachable
@@ -91,8 +94,9 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)
 
   cell_coords = _get_cell_coordinates!(caches,node_to_coords,cell_to_nodes,cell)
-  pmin = cell_coords[1] - atol
-  pmax = cell_coords[end] + atol
+  pmin = cell_coords[1]
+  pmax = cell_coords[end]
+
    _faces = _get_cell_faces!(caches,stl,c_to_stlf,cell,f_to_isempty)
   facets,expanded_facets,empty_facets,reflex_faces = _faces
 
@@ -103,16 +107,26 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   Γk0 = restrict(Γ0,stl,expanded_facets)
 
   compute_distances!(Γk0,lazy_append(Πk,Πkf),lazy_append(Πk_ids,Πkf_ids))
-  compute_distances!(K,Πkf,Πkf_ids)
+  compute_distances!(K,lazy_append(Πk,Πkf),lazy_append(Πk_ids,Πkf_ids))
 
-  snap_vertices(K;atol)
+  _merge_coplanar_planes!(Γk0,K,stl,Πk,Πr,Πf;atol)
+  _Γk = clip(Γk0,Πk_ids,inout=Πk_io,boundary=true)
+
+  if isnothing(_Γk)
+
+    return nothing,nothing,nothing
+  end
+
+  planes = get_active_planes(_Γk,K,stl)
+  restrict_planes!(Γk0,planes)
+  restrict_planes!(K,planes)
 
   merge_coplanar_planes!(Γk0,K,stl,Πr,Πf;atol)
 
-  Γk = clip(Γk0,Πk_ids,inout=Πk_io)
+  Γk = clip(Γk0,Πk_ids,inout=Πk_io,boundary=true)
 
   if isnothing(Γk) || isempty(get_original_facets(Γk,stl))
-    nothing,nothing
+    nothing,nothing,nothing
   else
     if kdtree
       Γv,Kv = refine_by_vertices(Γk,K,atol)
@@ -128,16 +142,27 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
       append!(Kn_out,k_out)
     end
 
-    Kn_in,Kn_out
+    Γk = clip(Γk0,Πk_ids,inout=Πk_io)
+
+    Kn_in,Kn_out,Γk
   end
 end
 
-function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out)
+function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
+  surfacesource)
+
   !isnothing(Kn_in) || return
   bgcell_to_ioc, bgcell_node_to_io, bgcell_facet_to_ioc = io_arrays
   Tin,Xin = simplexify(Kn_in)
   Tout,Xout = simplexify(Kn_out)
-  T_Γ,X_Γ,f_to_f = simplexify_boundary(Kn_in,stl)
+  if surfacesource == :skin
+    S = Γk
+  elseif surfacesource == :inside
+    S = Kn_in
+  else
+    @notimplemented "surfacesource=$surfacesource is not implemented"
+  end
+  T_Γ,X_Γ,f_to_f = simplexify_boundary(S,stl)
   bgcell_to_ioc[cell] = _get_cell_io(T_Γ,Kn_in,Kn_out)
   bgcell_to_ioc[cell] == FACE_CUT || return
   D = num_dims(stl)
@@ -234,6 +259,98 @@ function _get_quasi_coplanar_face(K,v,v_to_dist;atol)
   UNSET
 end
 
+function _merge_coplanar_planes!(Γk0,K,stl,Πk,Πr,Πf;atol)
+  snap_distances!(Γk0,K;atol=atol/10)
+  Π_to_qp_Π = merge_coplanar_with_cell_planes(Γk0,K,stl,Πk,Πr,Πf;atol)
+  correct_plane_distances!(Γk0,Π_to_qp_Π,stl;atol) # TODO
+  set_linked_planes!(Γk0,Π_to_qp_Π)
+  set_linked_planes!(K,Π_to_qp_Π)
+end
+
+
+function snap_distances!(P,Q;atol)
+  snap_distances!(P;atol)
+  snap_distances!(Q;atol)
+end
+
+function snap_distances!(P;atol)
+  Π_to_v_to_dist = get_plane_distances(P.data)
+  for i in 1:length(Π_to_v_to_dist)
+    v_to_dist = Π_to_v_to_dist[i]
+    for v in 1:length(v_to_dist)
+      if abs(v_to_dist[v]) < atol
+        v_to_dist[v] = 0.0
+      end
+    end
+  end
+end
+
+
+
+
+function merge_coplanar_with_cell_planes(S,K,stl,Πk,Πr,Πf;atol)
+  planes = S.data.plane_to_ids
+  plane_to_qp_plane = fill(Int32(UNSET),length(planes))
+  for (i,Πi) in enumerate(planes)
+    Πi < 0 || continue
+    for (j,Πj) in enumerate(planes)
+      Πj > 0 || continue
+      if are_quasi_coplanar(K,S,Πi,Πj,stl;atol)
+        s = relative_orientation(Πi,Πj,Πk,Πr,Πf,stl;atol)
+        plane_to_qp_plane[j] = i * s
+        plane_to_qp_plane[i] = i
+      end
+    end
+  end
+  plane_to_qp_plane
+end
+
+function relative_orientation(i,j,Πk,Πr,Πf,stl;atol)
+  Πi = _get_plane(i,Πk,Πr,Πf,stl)
+  Πj = _get_plane(j,Πk,Πr,Πf,stl)
+  relative_orientation(Πi,Πj;atol)
+end
+
+function _get_plane(fi,Πk,Πr,Πf,stl)
+  D = num_dims(stl)
+  facedims = get_facedims(stl)
+  rf_offset = get_offset(stl,D-1)
+  f_offset = get_offset(stl,D)
+  if fi < 0
+    Πi = Πk[ abs(fi) ]
+  else
+    Πi = facedims[fi] == D ? Πf[fi-f_offset] : Πr[fi-rf_offset]
+  end
+  Πi
+end
+
+
+function correct_plane_distances!(S,plane_to_qp_plane,stl;atol)
+  plane = S.data.plane_to_ids
+  Π_to_v_to_dist = S.data.plane_to_vertex_to_distances
+  v_to_f = S.data.vertex_to_original_faces
+  for (i,qp_i) in enumerate( plane_to_qp_plane )
+    qp_i ≠ 0 || continue
+    v_to_dist = Π_to_v_to_dist[ abs(qp_i) ]
+    for v in 1:length(v_to_dist)
+      if plane[i] ∈ v_to_f[v]
+        v_to_dist[v] = 0.0
+      end
+    end
+  end
+end
+
+function set_linked_planes!(poly::Polyhedron,Π_to_qp_Π)
+  planes = poly.data.plane_to_ids
+  set_linked_planes!(poly,Π_to_qp_Π,planes)
+end
+
+function are_quasi_coplanar(K,S,Πi,Πj,stl;atol)
+  distance_between_planes(S,Πi,Πj) < atol && return true
+  distance_between_planes(K,Πi,Πj) < atol && return true
+  false
+end
+
 function merge_coplanar_planes!(Γk0,K,stl,Πr,Πf;atol)
   Π_to_refΠ,Πs,inv_Π = link_planes!(Γk0,stl,Πr,Πf;atol)
   invert_plane_distances!(Γk0,Πs,inv_Π)
@@ -292,14 +409,14 @@ function refine(
 end
 
 function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,empty_facets,stl)
-  i = findfirst(i->has_original_reflex_face(surf,i), rfaces )
+  i = findfirst(i->has_original_reflex_face(surf,i,empty=false), rfaces )
   if i === nothing
     R = [surf],[cell]
   else
     delete_inactive_planes!(surf,cell,stl)
     rf = rfaces[i]
     if !has_coplanars(surf.data,rf) || !contains_coplanars(surf.data,rf)
-      s⁻,s⁺ = split(surf,rf)
+      s⁻,s⁺ = split_overlapping(surf,rf)
       k⁻,k⁺ = split(cell,rf)
       S = [s⁻,s⁺]
       K = [k⁻,k⁺]
@@ -402,7 +519,7 @@ function _get_cell_faces!(caches,stl,c_to_stlf,cell,f_to_isempty)
 end
 
 function _get_cell_io(T_Γ,Kn_in,Kn_out)
-  if length(T_Γ) > 0
+  if !isnothing(T_Γ) && length(T_Γ) > 0
     FACE_CUT
   else
     if length(Kn_in) > 0 && length(Kn_out) == 0
@@ -1147,7 +1264,7 @@ function invert_reflex_planes!(Π_to_ref_Π,planes,stl)
   inverted_planes
 end
 
-function relative_orientation(Π1::Plane,Π2::Plane;atol)
+function relative_orientation(Π1,Π2;atol)
   d = normal(Π1) ⋅ normal(Π2)
   @assert abs(d) > atol
   sign(d)

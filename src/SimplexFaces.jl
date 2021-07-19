@@ -48,6 +48,14 @@ end
 
 origin(a::Plane) = a.origin
 
+function normal(a::CartesianPlane{D,T}) where {D,T}
+  n = zero( VectorValue{D,T} )
+  data = Tuple(n)
+  v = a.positive ? 1 : -1
+  data = Base.setindex(data,v,a.d)
+  VectorValue( data )
+end
+
 function Base.zero(::Type{<:Plane{D,T}}) where {D,T}
   Plane(zero(Point{D,T}),zero(Point{D,T}))
 end

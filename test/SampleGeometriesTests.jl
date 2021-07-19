@@ -67,7 +67,7 @@ function main(filename;
     sm = output*"_submesh"
     bg = output*"_bgmesh"
     writevtk(subfaces,sf,celldata=["bgcell"=>labels.face_to_bgcell])
-    writevtk(subcells,sc,celldata=["inout"=>labels.cell_to_io,"bgcell"=>labels.cell_to_bgcell])
+    writevtk(subcells,sm,celldata=["inout"=>labels.cell_to_io,"bgcell"=>labels.cell_to_bgcell])
     writevtk(grid,bg,celldata=["inoutcut"=>labels.bgcell_to_ioc])
   end
 
