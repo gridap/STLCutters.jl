@@ -170,15 +170,18 @@ function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
       while !isempty(stack)
         current_cell = pop!(stack)
         for node in getindex!(node_cache,c_to_n,cell)
-          if bgnode_to_io[node] == FACE_IN || bgcell_to_ioc[cell] == FACE_IN
+          if bgnode_to_io[node] == FACE_IN ||
+             ( bgcell_to_ioc[cell] == FACE_IN &&
+               bgnode_to_io[node] == UNSET )
+
             for neig_cell in getindex!(neig_cell_cache,n_to_c,node)
               if bgcell_to_ioc[neig_cell] == UNSET
                 bgcell_to_ioc[neig_cell] = FACE_IN
+                push!(stack,neig_cell)
                 for neig_node in getindex!(neig_node_cache,c_to_n,neig_cell)
                   if bgnode_to_io[neig_node] == UNSET
                     bgnode_to_io[neig_node] = FACE_IN
                   end
-                  push!(stack,neig_cell)
                 end
               end
             end
