@@ -201,6 +201,16 @@ in_volume = bgmesh_in_vol + submesh_in_vol
 out_volume = bgmesh_out_vol + submesh_out_vol
 cut_volume = bgmesh_cut_vol
 
+
+celldata = [ "inoutcut" => labels.bgcell_to_ioc ]
+writevtk( grid, "bgcells"; celldata )
+
+celldata = [ "inout" => labels.cell_to_io, "bgcell" => labels.cell_to_bgcell ]
+writevtk( subcells, "subcells"; celldata )
+
+celldata = [ "bgcell" => labels.face_to_bgcell ]
+writevtk( subfaces, "subfaces" )
+
 println("Num subcells: $(num_cells(subcells))")
 @test surface(get_grid(stl)) ≈ surface(subfaces)
 @test submesh_in_vol + submesh_out_vol ≈ cut_volume

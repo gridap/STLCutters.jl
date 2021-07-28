@@ -378,6 +378,31 @@ function simplexify_boundary(
   T,X,f_to_stlf
 end
 
+function simplexify_boundary(::NTuple{N,Nothing},args...) where N
+  nothing,nothing,nothing,nothing
+end
+
+function simplexify_boundary(p::Tuple,stl::STL)
+  p_in, p_out, p_skin = p
+  P = eltype(p_in)
+  Dp = num_dims(P)
+  Tp = point_eltype(P)
+  T = Vector{Int32}[]
+  X = Point{Dp,Tp}[]
+  f_to_stlf = Int32[]
+  f_to_ios = Int8[]
+  for (p_i,ios) in zip( (p_in,p_out,p_skin), (FACE_IN,FACE_OUT,FACE_CUT) )
+    Ti, Xi, f_to_f_i = simplexify_boundary(p_i,stl)
+    if !isnothing(Ti)
+      append!(T, map(i->i.+length(X),Ti) )
+      append!(X,Xi)
+      append!(f_to_stlf,f_to_f_i)
+      append!(f_to_ios, fill(Int8(ios),length(Ti)) )
+    end
+  end
+  T,X,f_to_stlf,f_to_ios
+end
+
 function surface(poly::Polyhedron{3})
   T,X = simplexify_surface(poly)
   p = TRI
@@ -508,7 +533,13 @@ end
 
 # Getters
 
-num_dims(::Polyhedron{D}) where D = D
+num_dims(::T) where T<:Polyhedron = num_dims(T)
+
+num_dims(::Type{<:Polyhedron{D}}) where D = D
+
+point_eltype(::T) where T<:Polyhedron = point_eltype(T)
+
+point_eltype(::Type{<:Polyhedron{D,T}}) where {D,T} = T
 
 num_vertices(a::Polyhedron) = length(a.vertices)
 

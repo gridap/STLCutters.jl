@@ -133,7 +133,7 @@ main(filename,nmax=20,nmin=5)
 rm(filename)
 
 filename = download(57657)
-main(filename,nmax=100,nmin=5,tolfactor=10000)
+main(filename,nmax=100,nmin=5,tolfactor=10^5)
 rm(filename)
 
 filename = download(1452677)

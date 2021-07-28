@@ -810,10 +810,17 @@ end
 
 surface(a::DiscreteModel) = surface(get_grid(a))
 
-function volumes(a::Grid,cell_to_inoutcut)
-  volume(a,cell_to_inoutcut,FACE_IN),
-  volume(a,cell_to_inoutcut,FACE_OUT),
-  volume(a,cell_to_inoutcut,FACE_CUT)
+function measures(a::Grid,cell_to_inoutcut)
+  measure(a,cell_to_inoutcut,FACE_IN),
+  measure(a,cell_to_inoutcut,FACE_OUT),
+  measure(a,cell_to_inoutcut,FACE_CUT)
+end
+
+volumes(a::Grid{D,D},args...) where D = measures(a,args...)
+
+function surfaces(a::Grid{Df,Dp},args...) where {Df,Dp}
+  @notimplementedif Df ≠ Dp-1
+  measures(a,args...)
 end
 
 function min_height(grid::Grid)

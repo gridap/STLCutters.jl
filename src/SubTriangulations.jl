@@ -6,6 +6,7 @@ struct SubtriangulationLabels
   cell_to_io::Vector{Int8}
   face_to_stlface::Vector{Int32}
   face_to_bgcell::Vector{Int32}
+  face_to_ios::Vector{Int8}
   bgcell_to_ioc::Vector{Int8}
   bgface_to_ioc::Vector{Int8}
 end
@@ -62,18 +63,20 @@ function subtriangulate(
   submesh = _append_threaded_submesh!(submesh)
   io_arrays = _reduce_io_arrays(bgmodel,io_arrays)
   bgcell_to_ioc, bgnode_to_io, bgfacet_to_ioc = io_arrays
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf = submesh
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf, f_to_ios = submesh
 
   propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
   set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
 
   delete_small_subcells!(bgmodel,T,X,k_to_io,k_to_bgcell)
-  delete_small_subfacets!(bgmodel,F,Xf,f_to_bgcell,f_to_stlf)
+  delete_small_subfacets!(bgmodel,F,Xf,f_to_bgcell,f_to_stlf,f_to_ios)
 
   cell_grid = compute_grid(Table(T),X,TET)
   face_grid = compute_grid(Table(F),Xf,TRI)
   labels = SubtriangulationLabels(
-    k_to_bgcell, k_to_io, f_to_stlf, f_to_bgcell, bgcell_to_ioc, bgfacet_to_ioc)
+    k_to_bgcell, k_to_io,
+    f_to_stlf, f_to_bgcell, f_to_ios,
+    bgcell_to_ioc, bgfacet_to_ioc)
 
   cell_grid, face_grid, labels
 end
@@ -98,32 +101,38 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   pmax = cell_coords[end]
 
    _faces = _get_cell_faces!(caches,stl,c_to_stlf,cell,f_to_isempty)
-  facets,expanded_facets,empty_facets,reflex_faces = _faces
+  facets,empty_facets,reflex_faces = _faces
 
   Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax)
+  Πk⁺,Πk⁺_ids,Πk⁺_io = get_cell_planes(p,pmin-atol,pmax+atol)
+  Πk⁺_ids = Πk⁺_ids .+ Πk_ids[end]
+
   Πkf,Πkf_ids = filter_face_planes(stl,Πr,reflex_faces,Πf,facets)
 
   K = Polyhedron(p,cell_coords)
-  Γk0 = restrict(Γ0,stl,expanded_facets)
+  Γk0 = restrict(Γ0,stl,c_to_stlf[cell])
 
   compute_distances!(Γk0,lazy_append(Πk,Πkf),lazy_append(Πk_ids,Πkf_ids))
   compute_distances!(K,lazy_append(Πk,Πkf),lazy_append(Πk_ids,Πkf_ids))
 
   _merge_coplanar_planes!(Γk0,K,stl,Πk,Πr,Πf;atol)
-  _Γk = clip(Γk0,Πk_ids,inout=Πk_io,boundary=true)
 
-  if isnothing(_Γk)
+  compute_distances!(Γk0,Πk⁺,Πk⁺_ids)
+  Γk = clip(Γk0,Πk⁺_ids,inout=Πk⁺_io,boundary=true)
 
+  if isnothing(Γk)
     return nothing,nothing,nothing
   end
 
-  planes = get_active_planes(_Γk,K,stl)
+  planes = get_active_planes(Γk,K,stl)
+
   restrict_planes!(Γk0,planes)
   restrict_planes!(K,planes)
 
   merge_coplanar_planes!(Γk0,K,stl,Πr,Πf;atol)
 
-  Γk = clip(Γk0,Πk_ids,inout=Πk_io,boundary=true)
+  compute_distances!(Γk0,Πk⁺,Πk⁺_ids)
+  Γk = clip(Γk0,Πk⁺_ids,inout=Πk⁺_io,boundary=true)
 
   if isnothing(Γk) || isempty(get_original_facets(Γk,stl))
     nothing,nothing,nothing
@@ -155,14 +164,8 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
   bgcell_to_ioc, bgcell_node_to_io, bgcell_facet_to_ioc = io_arrays
   Tin,Xin = simplexify(Kn_in)
   Tout,Xout = simplexify(Kn_out)
-  if surfacesource == :skin
-    S = Γk
-  elseif surfacesource == :inside
-    S = Kn_in
-  else
-    @notimplemented "surfacesource=$surfacesource is not implemented"
-  end
-  T_Γ,X_Γ,f_to_f = simplexify_boundary(S,stl)
+  B = _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
+  T_Γ,X_Γ,f_to_f,f_to_ios = B
   bgcell_to_ioc[cell] = _get_cell_io(T_Γ,Kn_in,Kn_out)
   bgcell_to_ioc[cell] == FACE_CUT || return
   D = num_dims(stl)
@@ -170,7 +173,7 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
   n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
   f_to_ioc = get_cell_facets_to_inoutcut(Kn_in,Kn_out,p)
 
-  _append_submesh!(submesh,Xin,Tin,Xout,Tout,X_Γ,T_Γ,f_to_f,cell)
+  _append_submesh!(submesh,Xin,Tin,Xout,Tout,X_Γ,T_Γ,f_to_f,f_to_ios,cell)
   for i in 1:num_vertices(p)
     bgcell_node_to_io[i,cell] = n_to_io[i]
   end
@@ -219,161 +222,39 @@ function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
   bgcell_to_ioc
 end
 
-function snap_vertices(K;atol)
-  Πs = get_plane_ids(K.data)
-  Π_to_v_to_dist = get_plane_distances(K.data)
-  v_to_Π = K.data.vertex_to_planes
-  for (i,Π) in enumerate(Πs)
-    v_to_dist = Π_to_v_to_dist[i]
-    for v in 1:length(v_to_dist)
-      if abs(v_to_dist[v]) < atol/10
-        v_to_dist[v] = 0.0
-        f_qp = _get_quasi_coplanar_face(K,v,v_to_dist;atol)
-        if f_qp ≠ UNSET
-          for vj in 1:length(v_to_dist)
-            if f_qp ∈ v_to_Π[vj]
-              v_to_dist[vj] = 0.0
-            end
-          end
-        end
-      end
+function set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
+  D = num_dims(bgmodel)
+  grid_topology = get_grid_topology(bgmodel)
+  c_to_f = get_faces(grid_topology,D,D-1)
+  cache = array_cache(c_to_f)
+  for cell in 1:num_cells(grid_topology)
+    bgcell_to_ioc[cell] ≠ FACE_CUT || continue
+    for facet in getindex!(cache,c_to_f,cell)
+      bgfacet_to_ioc[facet] = bgcell_to_ioc[cell]
     end
+  end
+  bgfacet_to_ioc
+end
+
+
+function delete_small_subcells!(bgmodel,T,X,arrays...)
+  delete_small_subfaces!(bgmodel,T,X,TET,arrays...)
+end
+
+function delete_small_subfacets!(bgmodel,T,X,arrays...)
+  delete_small_subfaces!(bgmodel,T,X,TRI,arrays...)
+end
+
+function delete_small_subfaces!(bgmodel,T,X,p::Polytope{D},arrays...) where D
+  h = float(get_cartesian_descriptor(bgmodel).sizes[1])
+  c = array_cache(T)
+  ids = findall( i -> measure(get_cell!(c,T,X,p,i)) < eps(h^D), 1:length(T) )
+  deleteat!(T,ids)
+  for array in arrays
+    deleteat!(array,ids)
   end
 end
 
-function _get_quasi_coplanar_face(K,v,v_to_dist;atol)
-  v_to_Π = K.data.vertex_to_planes
-  for Π in v_to_Π[v]
-    is_quasi_coplanar = true
-    for vi in 1:length(v_to_Π)
-      if Π ∈ v_to_Π[vi]
-        if abs(v_to_dist[vi]) > atol
-          is_quasi_coplanar = false
-        end
-      end
-    end
-    if is_quasi_coplanar
-      return Π
-    end
-  end
-  UNSET
-end
-
-function _merge_coplanar_planes!(Γk0,K,stl,Πk,Πr,Πf;atol)
-  snap_distances!(Γk0,K;atol=atol/10)
-  Π_to_qp_Π = merge_coplanar_with_cell_planes(Γk0,K,stl,Πk,Πr,Πf;atol)
-  correct_plane_distances!(Γk0,Π_to_qp_Π,stl;atol) # TODO
-  set_linked_planes!(Γk0,Π_to_qp_Π)
-  set_linked_planes!(K,Π_to_qp_Π)
-end
-
-
-function snap_distances!(P,Q;atol)
-  snap_distances!(P;atol)
-  snap_distances!(Q;atol)
-end
-
-function snap_distances!(P;atol)
-  Π_to_v_to_dist = get_plane_distances(P.data)
-  for i in 1:length(Π_to_v_to_dist)
-    v_to_dist = Π_to_v_to_dist[i]
-    for v in 1:length(v_to_dist)
-      if abs(v_to_dist[v]) < atol
-        v_to_dist[v] = 0.0
-      end
-    end
-  end
-end
-
-
-
-
-function merge_coplanar_with_cell_planes(S,K,stl,Πk,Πr,Πf;atol)
-  planes = S.data.plane_to_ids
-  plane_to_qp_plane = fill(Int32(UNSET),length(planes))
-  for (i,Πi) in enumerate(planes)
-    Πi < 0 || continue
-    for (j,Πj) in enumerate(planes)
-      Πj > 0 || continue
-      if are_quasi_coplanar(K,S,Πi,Πj,stl;atol)
-        s = relative_orientation(Πi,Πj,Πk,Πr,Πf,stl;atol)
-        plane_to_qp_plane[j] = i * s
-        plane_to_qp_plane[i] = i
-      end
-    end
-  end
-  plane_to_qp_plane
-end
-
-function relative_orientation(i,j,Πk,Πr,Πf,stl;atol)
-  Πi = _get_plane(i,Πk,Πr,Πf,stl)
-  Πj = _get_plane(j,Πk,Πr,Πf,stl)
-  relative_orientation(Πi,Πj;atol)
-end
-
-function _get_plane(fi,Πk,Πr,Πf,stl)
-  D = num_dims(stl)
-  facedims = get_facedims(stl)
-  rf_offset = get_offset(stl,D-1)
-  f_offset = get_offset(stl,D)
-  if fi < 0
-    Πi = Πk[ abs(fi) ]
-  else
-    Πi = facedims[fi] == D ? Πf[fi-f_offset] : Πr[fi-rf_offset]
-  end
-  Πi
-end
-
-
-function correct_plane_distances!(S,plane_to_qp_plane,stl;atol)
-  plane = S.data.plane_to_ids
-  Π_to_v_to_dist = S.data.plane_to_vertex_to_distances
-  v_to_f = S.data.vertex_to_original_faces
-  for (i,qp_i) in enumerate( plane_to_qp_plane )
-    qp_i ≠ 0 || continue
-    v_to_dist = Π_to_v_to_dist[ abs(qp_i) ]
-    for v in 1:length(v_to_dist)
-      if plane[i] ∈ v_to_f[v]
-        v_to_dist[v] = 0.0
-      end
-    end
-  end
-end
-
-function set_linked_planes!(poly::Polyhedron,Π_to_qp_Π)
-  planes = poly.data.plane_to_ids
-  set_linked_planes!(poly,Π_to_qp_Π,planes)
-end
-
-function are_quasi_coplanar(K,S,Πi,Πj,stl;atol)
-  distance_between_planes(S,Πi,Πj) < atol && return true
-  distance_between_planes(K,Πi,Πj) < atol && return true
-  false
-end
-
-function merge_coplanar_planes!(Γk0,K,stl,Πr,Πf;atol)
-  Π_to_refΠ,Πs,inv_Π = link_planes!(Γk0,stl,Πr,Πf;atol)
-  invert_plane_distances!(Γk0,Πs,inv_Π)
-  invert_plane_distances!(K,Πs,inv_Π)
-  set_linked_planes!(Γk0,Π_to_refΠ,Πs)
-  set_linked_planes!(K,Π_to_refΠ,Πs)
-end
-
-function link_planes!(surf::Polyhedron,stl::STL,Πr,Πf;atol)
-  planes = surf.data.plane_to_ids
-  default_out = fill(UNSET,length(planes)), planes, falses(length(planes))
-  Π_to_faces = find_faces_on_planes!(surf,stl;atol)
-  maximum(length,Π_to_faces) > 0 || return default_out
-  Π_to_coplanar_Π = link_coplanar_planes(surf,stl,Π_to_faces;atol)
-  maximum(length,Π_to_coplanar_Π) > 0 || return default_out
-  Π_to_ref_Π =  group_coplanar_planes(planes,Π_to_coplanar_Π)
-  merge_faces!(Π_to_faces,planes,Π_to_ref_Π)
-  correct_distances!(surf,Π_to_ref_Π,Π_to_faces)
-  Π_to_ref_Π = mark_inverted_planes!(Π_to_ref_Π,planes,Πr,Πf,stl;atol)
-  inverted_planes = invert_reflex_planes!(Π_to_ref_Π,planes,stl)
-
-  Π_to_ref_Π, planes, inverted_planes
-end
 
 function refine(
   K::Polyhedron,
@@ -389,12 +270,7 @@ function refine(
   Kn_clip = empty(Kn)
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
     facets = get_original_facets(Γi,stl)
-    if length(facets) > 1
-      ids = findall(in(empty_facets),facets)
-      if length(ids) < length(facets)
-        deleteat!(facets,ids)
-      end
-    end
+    clear_empty_facets!(facets,empty_facets)
     facets = add_missing_facets(Γi,stl,facets,reflex_faces,empty_facets)
     @assert !isempty(facets)
     part_to_facets = get_disconnected_facets(Γi,stl)
@@ -417,11 +293,11 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,empty_facets,stl)
     rf = rfaces[i]
     if !has_coplanars(surf.data,rf) || !contains_coplanars(surf.data,rf)
       s⁻,s⁺ = split_overlapping(surf,rf)
-      k⁻,k⁺ = split(cell,rf)
+      k⁻,k⁺ = split(cell,rf) # do not overlap
       S = [s⁻,s⁺]
       K = [k⁻,k⁺]
       if any(isnothing,S) || any(!has_facets,S)
-        S,K = split_reflex_face(S,K,surf,cell,stl,rf,empty_facets)
+        S,K = split_reflex_face(S,K,surf,cell,stl,rf,empty_facets) #TODO: simplify
       end
       if any(isnothing,K)
         j = findfirst(!isnothing,K)
@@ -446,6 +322,9 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,empty_facets,stl)
   R
 end
 
+
+## Threading data
+
 function _get_threaded_empty_arrays(stl::STL)
   n = Threads.nthreads()
   [ _get_empty_arrays(stl::STL) for _ in 1:n ]
@@ -461,7 +340,8 @@ function _get_empty_arrays(stl::STL)
   k_to_bgcell = Int32[]
   f_to_bgcell = Int32[]
   f_to_stlf = Int32[]
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf
+  f_to_ios = Int8[]
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios
 end
 
 function _threaded_empty_array(::Type{T}) where T
@@ -484,10 +364,9 @@ end
 function _get_caches(c_to_n)
   nc = array_cache(c_to_n)
   facets = Int32[]
-  expanded_facets = Int32[]
   empty_facets = Int32[]
   reflex_faces = Int32[]
-  nc,facets,expanded_facets,empty_facets,reflex_faces
+  nc,facets,empty_facets,reflex_faces
 end
 
 function _get_threaded_caches(c_to_n)
@@ -505,9 +384,8 @@ end
 
 function _get_cell_faces!(caches,stl,c_to_stlf,cell,f_to_isempty)
   i = Threads.threadid()
-  _,facets,expanded_facets,empty_facets,reflex_faces = caches[i]
+  _,facets,empty_facets,reflex_faces = caches[i]
   D = num_dims(stl)
-  get_expanded_facets!(expanded_facets,stl,c_to_stlf,cell)
   get_reflex_faces!(reflex_faces,stl,c_to_stlf,cell)
   copy!(facets,c_to_stlf[cell])
   copy!(empty_facets,c_to_stlf[cell])
@@ -515,7 +393,7 @@ function _get_cell_faces!(caches,stl,c_to_stlf,cell,f_to_isempty)
   map!(i->i+get_offset(stl,D),facets,facets)
   map!(i->i+get_offset(stl,D),empty_facets,empty_facets)
   map!(i->i+get_offset(stl,D-1),reflex_faces,reflex_faces)
-  facets,expanded_facets,empty_facets,reflex_faces
+  facets,empty_facets,reflex_faces
 end
 
 function _get_cell_io(T_Γ,Kn_in,Kn_out)
@@ -532,12 +410,12 @@ function _get_cell_io(T_Γ,Kn_in,Kn_out)
   end
 end
 
-function _append_submesh!(submesh,Xin,Tin,Xout,Tout,Xfn,Tfn,fn_to_f,bgcell)
+function _append_submesh!(submesh,Xin,Tin,Xout,Tout,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
   i = Threads.threadid()
   _submesh = submesh[i]
   _append_subcells!(_submesh,Xin,Tin,FACE_IN,bgcell)
   _append_subcells!(_submesh,Xout,Tout,FACE_OUT,bgcell)
-  _append_subfacets!(_submesh,Xfn,Tfn,fn_to_f,bgcell)
+  _append_subfacets!(_submesh,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
 end
 
 function _append_subcells!(submesh_arrays,Xn,Tn,io,bgcell)
@@ -549,12 +427,13 @@ function _append_subcells!(submesh_arrays,Xn,Tn,io,bgcell)
   submesh_arrays
 end
 
-function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,bgcell)
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf = submesh_arrays
+function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios = submesh_arrays
   append!(F, map(i->i.+length(Xf),Tfn) )
   append!(Xf,Xfn)
   append!(f_to_bgcell,fill(bgcell,length(Tfn)))
   append!(f_to_stlf,fn_to_f)
+  append!(f_to_ios,fn_to_ios)
   submesh_arrays
 end
 
@@ -610,40 +489,6 @@ function _reduce_io_arrays(model::DiscreteModel,io_arrays)
   bgcell_to_io, bgnode_to_io, bgfacet_to_io
 end
 
-
-function set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
-  D = num_dims(bgmodel)
-  grid_topology = get_grid_topology(bgmodel)
-  c_to_f = get_faces(grid_topology,D,D-1)
-  cache = array_cache(c_to_f)
-  for cell in 1:num_cells(grid_topology)
-    bgcell_to_ioc[cell] ≠ FACE_CUT || continue
-    for facet in getindex!(cache,c_to_f,cell)
-      bgfacet_to_ioc[facet] = bgcell_to_ioc[cell]
-    end
-  end
-  bgfacet_to_ioc
-end
-
-function get_expanded_facets!(facets,stl,c_to_stlf,cell)
-  D = num_dims(stl)
-  f_to_v = get_faces(stl,D,0)
-  v_to_f = get_faces(stl,0,D)
-  nv = array_cache(f_to_v)
-  nf = array_cache(v_to_f)
-  empty!(facets)
-  for f in c_to_stlf[cell]
-    for v in getindex!(nv,f_to_v,f)
-      for _f in getindex!(nf,v_to_f,v)
-        if _f ∉ facets
-          push!(facets,_f)
-        end
-      end
-    end
-  end
-  facets
-end
-
 function get_reflex_faces!(rfaces,stl,c_to_stlf,cell)
   D = num_dims(stl)
   f_to_r = get_faces(stl,D,D-1)
@@ -663,7 +508,31 @@ function get_reflex_faces!(rfaces,stl,c_to_stlf,cell)
   rfaces
 end
 
-## Planes
+function _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
+  if surfacesource == :both
+    S = (Kn_in,Kn_out,Γk)
+    T_Γ,X_Γ,f_to_f,f_to_ios = simplexify_boundary(S,stl)
+  else
+    if surfacesource == :skin
+      S = Γk
+      ios = FACE_CUT
+    elseif surfacesource == :inside
+      S = Kn_in
+      ios = FACE_IN
+    elseif surfacesource == :outside
+      S = Kn_out
+      ios = FACE_IN
+    else
+      @notimplemented "surfacesource=$surfacesource is not implemented"
+    end
+    T_Γ,X_Γ,f_to_f = simplexify_boundary(S,stl)
+    f_to_ios = isnothing(T_Γ) ? nothing : fill(Int8(ios),length(T_Γ))
+  end
+  T_Γ,X_Γ,f_to_f,f_to_ios
+end
+
+
+## Face/Reflex planes
 
 function get_facet_to_isempty(stl::STL;atol)
   f_to_isempty = falses(num_cells(stl))
@@ -963,6 +832,7 @@ function filter_face_planes(
   lazy_append(Πr,Πf),lazy_append(reflex_faces,facets)
 end
 
+## Postprocess
 
 function get_cell_nodes_to_inout(polys_in,polys_out,p::Polytope)
   node_to_inout = fill(UNSET,num_vertices(p))
@@ -1055,6 +925,117 @@ function complete_facets_to_inoutcut!(facet_to_inoutcut,polys,inout,p::Polytope)
   facet_to_inoutcut
 end
 
+## (Quasi-)Coplanar stuff
+
+function _merge_coplanar_planes!(Γk0,K,stl,Πk,Πr,Πf;atol)
+  snap_distances!(Γk0,K;atol=atol/10)
+  Π_to_qp_Π = merge_coplanar_with_cell_planes(Γk0,K,stl,Πk,Πr,Πf;atol)
+  correct_plane_distances!(Γk0,Π_to_qp_Π,stl;atol)
+  set_linked_planes!(Γk0,Π_to_qp_Π)
+  set_linked_planes!(K,Π_to_qp_Π)
+end
+
+function snap_distances!(P,Q;atol)
+  snap_distances!(P;atol)
+  snap_distances!(Q;atol)
+end
+
+function snap_distances!(P;atol)
+  Π_to_v_to_dist = get_plane_distances(P.data)
+  for i in 1:length(Π_to_v_to_dist)
+    v_to_dist = Π_to_v_to_dist[i]
+    for v in 1:length(v_to_dist)
+      if abs(v_to_dist[v]) < atol
+        v_to_dist[v] = 0.0
+      end
+    end
+  end
+end
+
+function merge_coplanar_with_cell_planes(S,K,stl,Πk,Πr,Πf;atol)
+  planes = S.data.plane_to_ids
+  plane_to_qp_plane = fill(Int32(UNSET),length(planes))
+  for (i,Πi) in enumerate(planes)
+    Πi < 0 || continue
+    for (j,Πj) in enumerate(planes)
+      Πj > 0 || continue
+      if are_quasi_coplanar(K,S,Πi,Πj,stl;atol)
+        s = relative_orientation(Πi,Πj,Πk,Πr,Πf,stl;atol)
+        plane_to_qp_plane[j] = i * s
+        plane_to_qp_plane[i] = i
+      end
+    end
+  end
+  plane_to_qp_plane
+end
+
+function relative_orientation(i,j,Πk,Πr,Πf,stl;atol)
+  Πi = _get_plane(i,Πk,Πr,Πf,stl)
+  Πj = _get_plane(j,Πk,Πr,Πf,stl)
+  relative_orientation(Πi,Πj;atol)
+end
+
+function _get_plane(fi,Πk,Πr,Πf,stl)
+  D = num_dims(stl)
+  facedims = get_facedims(stl)
+  rf_offset = get_offset(stl,D-1)
+  f_offset = get_offset(stl,D)
+  if fi < 0
+    Πi = Πk[ abs(fi) ]
+  else
+    Πi = facedims[fi] == D ? Πf[fi-f_offset] : Πr[fi-rf_offset]
+  end
+  Πi
+end
+
+
+function correct_plane_distances!(S,plane_to_qp_plane,stl;atol)
+  plane = S.data.plane_to_ids
+  Π_to_v_to_dist = S.data.plane_to_vertex_to_distances
+  v_to_f = S.data.vertex_to_original_faces
+  for (i,qp_i) in enumerate( plane_to_qp_plane )
+    qp_i ≠ 0 || continue
+    v_to_dist = Π_to_v_to_dist[ abs(qp_i) ]
+    for v in 1:length(v_to_dist)
+      if plane[i] ∈ v_to_f[v]
+        v_to_dist[v] = 0.0
+      end
+    end
+  end
+end
+
+function set_linked_planes!(poly::Polyhedron,Π_to_qp_Π)
+  planes = poly.data.plane_to_ids
+  set_linked_planes!(poly,Π_to_qp_Π,planes)
+end
+
+function are_quasi_coplanar(K,S,Πi,Πj,stl;atol)
+  distance_between_planes(S,Πi,Πj) < atol && return true
+  distance_between_planes(K,Πi,Πj) < atol && return true
+  false
+end
+
+function merge_coplanar_planes!(Γk0,K,stl,Πr,Πf;atol)
+  Π_to_refΠ,Πs = link_planes!(Γk0,K,stl,Πr,Πf;atol)
+  set_linked_planes!(Γk0,Π_to_refΠ,Πs)
+  set_linked_planes!(K,Π_to_refΠ,Πs)
+end
+
+function link_planes!(surf::Polyhedron,cell::Polyhedron,stl::STL,Πr,Πf;atol)
+  planes = surf.data.plane_to_ids
+  default_out = fill(UNSET,length(planes)), planes
+  Π_to_faces = find_faces_on_planes!(surf,stl;atol)
+  maximum(length,Π_to_faces) > 0 || return default_out
+  Π_to_coplanar_Π = link_coplanar_planes(surf,cell,stl,Π_to_faces;atol)
+  maximum(length,Π_to_coplanar_Π) > 0 || return default_out
+  Π_to_ref_Π =  group_coplanar_planes(planes,Π_to_coplanar_Π)
+  merge_faces!(Π_to_faces,planes,Π_to_ref_Π)
+  correct_distances!(surf,Π_to_ref_Π,Π_to_faces)
+  Π_to_ref_Π = mark_inverted_planes!(Π_to_ref_Π,planes,Πr,Πf,stl;atol)
+
+  Π_to_ref_Π, planes
+end
+
 function find_faces_on_planes!(surf::Polyhedron,stl::STL;atol)
   planes = surf.data.plane_to_ids
   v_to_f = surf.data.vertex_to_original_faces
@@ -1095,8 +1076,9 @@ function find_faces_on_planes!(surf::Polyhedron,stl::STL;atol)
   Π_to_faces
 end
 
-function link_coplanar_planes(surf,stl,Π_to_faces;atol)
+function link_coplanar_planes(surf,cell,stl,Π_to_faces;atol)
   planes = surf.data.plane_to_ids
+  Π_to_ref_Π = surf.data.plane_to_ref_plane
   Π_to_coplanar_Π = [ Int32[] for _ in 1:length(planes) ]
   D = num_dims(stl)
   facedims = get_facedims(stl)
@@ -1104,13 +1086,14 @@ function link_coplanar_planes(surf,stl,Π_to_faces;atol)
   f_offset = get_offset(stl,D)
   for (i,Π) in enumerate(planes)
     Π > 0 || continue
-  #  get_facedims(stl_topo)[Π] == D-1 || continue
+    Π_to_ref_Π[i] == UNSET || continue
     faces = Π_to_faces[i]
     for f in faces
       d = facedims[f]
+      j = findfirst(isequal(f),planes)
+      Π_to_ref_Π[j] == UNSET || continue
       if d == D-1
-        j = findfirst(isequal(f),planes)
-        if Π ∈ Π_to_faces[j] && distance_between_planes(surf,Π,f) < atol
+        if Π ∈ Π_to_faces[j] && are_quasi_coplanar(surf,cell,Π,f,stl;atol)
           push!(Π_to_coplanar_Π[i],f)
         end
       elseif d == D
@@ -1217,72 +1200,10 @@ function mark_inverted_planes!(Π_to_ref_Π,planes,Πr,Πf,stl;atol)
   Π_to_ref_Π
 end
 
-function invert_reflex_planes!(Π_to_ref_Π,planes,stl)
-  D = num_dims(stl)
-  facedims = get_facedims(stl)
-  inverted_planes = falses(length(planes))
-  for i in 1:length(Π_to_ref_Π)
-    if abs(Π_to_ref_Π[i]) == i
-      fi = planes[i]
-      di = facedims[fi]
-      if di == D-1
-        k = UNSET
-        for j in i+1:length(Π_to_ref_Π)
-          if abs(Π_to_ref_Π[j]) == i
-            fj = planes[j]
-            dj = facedims[fj]
-            if dj == D
-              k = j
-              break
-            end
-          end
-        end
-        if k ≠ UNSET
-          if sign(Π_to_ref_Π[i]) == sign(Π_to_ref_Π[k])
-            for j in i:length(Π_to_ref_Π)
-              if abs(Π_to_ref_Π[j]) == i
-                Π_to_ref_Π[j] = -Π_to_ref_Π[j]
-              end
-            end
-          end
-          for j in i:length(Π_to_ref_Π)
-            if abs(Π_to_ref_Π[j]) == i
-              fj = planes[j]
-              dj = facedims[fj]
-              if dj == D-1
-                if sign(Π_to_ref_Π[j]) == sign(Π_to_ref_Π[k])
-                  Π_to_ref_Π[j] = -Π_to_ref_Π[j]
-                  inverted_planes[j] = true
-                end
-              end
-            end
-          end
-        end
-      end
-    end
-  end
-  inverted_planes
-end
-
 function relative_orientation(Π1,Π2;atol)
   d = normal(Π1) ⋅ normal(Π2)
   @assert abs(d) > atol
   sign(d)
-end
-
-function invert_plane_distances!(poly::Polyhedron,Π::Integer)
-  dists = get_plane_distances(poly.data,Π)
-  for i in 1:length(dists)
-    dists[i] = -dists[i]
-  end
-end
-
-function invert_plane_distances!(poly::Polyhedron,Πs,inv_Π)
-  for i in 1:length(Πs)
-    if inv_Π[i]
-      invert_plane_distances!(poly,Πs[i])
-    end
-  end
 end
 
 function distance_between_planes(poly::Polyhedron,Π1,Π2)
@@ -1365,6 +1286,19 @@ function contains_coplanars(data::PolyhedronData,Π)
     end
   end
   false
+end
+
+
+## Helpers
+
+function clear_empty_facets!(facets::Vector,empty_facets::Vector)
+  if length(facets) > 1
+    ids = findall(in(empty_facets),facets)
+    if length(ids) < length(facets)
+      deleteat!(facets,ids)
+    end
+  end
+  facets
 end
 
 function add_missing_facets(
@@ -1460,22 +1394,4 @@ function one_face_polyhedron(poly::Polyhedron,face::Integer)
     r.data.vertex_to_original_faces[v] = [face]
   end
   r
-end
-
-function delete_small_subcells!(bgmodel,T,X,arrays...)
-  delete_small_subfaces!(bgmodel,T,X,TET,arrays...)
-end
-
-function delete_small_subfacets!(bgmodel,T,X,arrays...)
-  delete_small_subfaces!(bgmodel,T,X,TRI,arrays...)
-end
-
-function delete_small_subfaces!(bgmodel,T,X,p::Polytope{D},arrays...) where D
-  h = float(get_cartesian_descriptor(bgmodel).sizes[1])
-  c = array_cache(T)
-  ids = findall( i -> measure(get_cell!(c,T,X,p,i)) < eps(h^D), 1:length(T) )
-  deleteat!(T,ids)
-  for array in arrays
-    deleteat!(array,ids)
-  end
 end

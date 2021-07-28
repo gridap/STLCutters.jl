@@ -1,5 +1,5 @@
 module Rotations
-  
+
 using Test
 
 using Gridap
@@ -14,37 +14,45 @@ using STLCutters: compute_stl_model
 using STLCutters: merge_nodes
 using STLCutters: get_bounding_box
 using STLCutters: compute_grid
-using STLCutters: surface, volume, volumes
+using STLCutters: surface, volume, surfaces, volumes
 using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 
 function test_stl_cut(model,stl,vol)
-  subcells,subfaces,labels = subtriangulate(model,stl)
+  subcells,subfaces,labels = subtriangulate(model,stl,surfacesource=:both)
 
   grid = get_grid(model)
 
-  #writevtk(facets,"subfacets",cellfields=["bgcell"=>f_to_bgcell])
-  #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
-  #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
-
   bgmesh_in_vol, bgmesh_out_vol, bgmesh_cut_vol = volumes(grid,labels.bgcell_to_ioc)
   submesh_in_vol,submesh_out_vol, = volumes(subcells,labels.cell_to_io)
+  in_surf,out_surf,skin_surf = surfaces(subfaces,labels.face_to_ios)
 
   in_volume = bgmesh_in_vol + submesh_in_vol
   out_volume = bgmesh_out_vol + submesh_out_vol
   cut_volume = bgmesh_cut_vol
 
-  domain_surf = surface(subfaces)
   stl_surf = surface(get_grid(stl))
 
-  @test submesh_in_vol + submesh_out_vol ≈ cut_volume
-  @test stl_surf ≈ domain_surf
-  @test in_volume + out_volume ≈ volume(grid)
-  @test in_volume ≈ vol
+  celldata = [ "inoutcut" => labels.bgcell_to_ioc ]
+  writevtk( grid, "bgcells"; celldata )
+  celldata = [ "inout" => labels.cell_to_io, "bgcell" => labels.cell_to_bgcell ]
+  writevtk( subcells, "subcells"; celldata )
+  celldata = [ "bgcell" => labels.face_to_bgcell, "inoutskin" => labels.face_to_ios ]
+  writevtk( subfaces, "subfaces"; celldata )
+  writevtk( stl, "stl" )
 
   println("\t εV = $(in_volume + out_volume - volume(grid))")
   println("\t εVin = $(in_volume-vol)")
-  println("\t εΓ = $(stl_surf - domain_surf))")
+  println("\t εΓin = $(in_surf - stl_surf))")
+  println("\t εΓout = $(out_surf - stl_surf))")
+  println("\t εΓskin = $(skin_surf - stl_surf))")
 
+  tol = 1e-10
+  @test abs( submesh_in_vol + submesh_out_vol - cut_volume ) / cut_volume < tol
+  @test abs( in_surf - stl_surf ) / stl_surf < tol
+  @test abs( out_surf - stl_surf ) / stl_surf < tol
+  @test abs( skin_surf - stl_surf ) / stl_surf < tol
+  @test abs( in_volume + out_volume - volume(grid) ) / volume(grid) < tol
+  @test abs( in_volume - vol ) / vol < tol
 end
 
 Rx(ϕ) = TensorValue(
