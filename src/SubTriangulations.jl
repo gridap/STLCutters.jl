@@ -104,7 +104,7 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   facets,empty_facets,reflex_faces = _faces
 
   Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax)
-  Πk⁺,Πk⁺_ids,Πk⁺_io = get_cell_planes(p,pmin-atol,pmax+atol)
+  Πk⁺,Πk⁺_ids,Πk⁺_io = get_cell_planes(p,pmin-atol,pmax+atol) # Expanding atol*10 increase precion
   Πk⁺_ids = Πk⁺_ids .+ Πk_ids[end]
 
   Πkf,Πkf_ids = filter_face_planes(stl,Πr,reflex_faces,Πf,facets)
@@ -959,7 +959,7 @@ function merge_coplanar_with_cell_planes(S,K,stl,Πk,Πr,Πf;atol)
     Πi < 0 || continue
     for (j,Πj) in enumerate(planes)
       Πj > 0 || continue
-      if are_quasi_coplanar(K,S,Πi,Πj,stl;atol)
+      if are_quasi_coplanar(K,S,Πi,Πj,stl;atol,restrict=true)
         s = relative_orientation(Πi,Πj,Πk,Πr,Πf,stl;atol)
         plane_to_qp_plane[j] = i * s
         plane_to_qp_plane[i] = i
@@ -1009,9 +1009,9 @@ function set_linked_planes!(poly::Polyhedron,Π_to_qp_Π)
   set_linked_planes!(poly,Π_to_qp_Π,planes)
 end
 
-function are_quasi_coplanar(K,S,Πi,Πj,stl;atol)
-  distance_between_planes(S,Πi,Πj) < atol && return true
-  distance_between_planes(K,Πi,Πj) < atol && return true
+function are_quasi_coplanar(K,S,Πi,Πj,stl;atol,restrict=false)
+  distance_between_planes(S,Πi,Πj,stl;restrict) < atol && return true
+  distance_between_planes(K,Πi,Πj,stl;restrict) < atol && return true
   false
 end
 
@@ -1098,7 +1098,7 @@ function link_coplanar_planes(surf,cell,stl,Π_to_faces;atol)
         end
       elseif d == D
         facet = get_cell(stl,f-get_offset(stl,D))
-        if distance_between_planes(surf,Π,f) < atol
+        if are_quasi_coplanar(surf,cell,Π,f,stl;atol)
           push!(Π_to_coplanar_Π[i],f)
         end
       end
@@ -1206,13 +1206,28 @@ function relative_orientation(Π1,Π2;atol)
   sign(d)
 end
 
-function distance_between_planes(poly::Polyhedron,Π1,Π2)
+function distance_between_planes(poly::Polyhedron,Π1,Π2,stl;restrict=false)
+  v_to_Π = poly.data.vertex_to_planes
+  v_to_of = poly.data.vertex_to_original_faces
+  if restrict
+    @assert Π1 < 0
+    @assert Π2 > 0
+    if get_facedims(stl)[Π2] == 1
+      e = Π2 - get_offset(stl,1)
+      f1,f2 = get_faces(stl,1,num_dims(stl))[e]
+      f1,f2 = (f1,f2) .+ get_offset(stl,num_dims(stl))
+    else
+      f1,f2 = Π2,Π2
+    end
+  end
   dist1 = get_plane_distances(poly.data,Π1)
   dist2 = get_plane_distances(poly.data,Π2)
   max_dist = 0.0
   for v in 1:num_vertices(poly)
-    _d = abs(abs(dist1[v]) - abs(dist2[v]))
-    max_dist = max(max_dist,_d)
+    if !restrict || any( Π -> Π ∈ v_to_Π[v] || Π ∈ v_to_of[v], (Π1,f1,f2) )
+      _d = abs(abs(dist1[v]) - abs(dist2[v]))
+      max_dist = max(max_dist,_d)
+    end
   end
   max_dist
 end
