@@ -626,7 +626,6 @@ function _check_planes(Πf,f_to_isempty,stl;atol)
   c = array_cache(f_to_v)
   for f in 1:num_cells(stl)
     f_to_isempty[f] || continue
-    Πf[f] = Πnew[ f_to_new_plane[f] ]
     for i in getindex!(c,f_to_v,f)
       v = v_coords[i]
       @assert abs(signed_distance(v,Πf[f])) < atol
