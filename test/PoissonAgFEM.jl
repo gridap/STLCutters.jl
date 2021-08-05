@@ -20,7 +20,7 @@ stlpath = joinpath(@__DIR__,"data/Bunny-LowPoly.stl")
 
 @time geo = STLGeometry( stlpath )
 
-n = 20
+n = 28
 δ = 0.2
 pmin,pmax = get_bounding_box(geo)
 diagonal = pmax-pmin
@@ -31,8 +31,8 @@ partition = (n,n,n)
 bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
-
-@time cutgeo,facet_to_inoutcut = cut(bgmodel,geo)
+cutter = STLCutter()
+@time cutgeo,facet_to_inoutcut = cut(cutter,bgmodel,geo)
 
 strategy = AggregateAllCutCells()
 aggregates = aggregate(strategy,cutgeo,facet_to_inoutcut)

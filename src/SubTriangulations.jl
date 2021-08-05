@@ -173,6 +173,13 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
   n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,p)
   f_to_ioc = get_cell_facets_to_inoutcut(Kn_in,Kn_out,p)
 
+  f_to_iscut = _get_cell_facets_to_iscut(Γk,p;surfacesource)
+  for (f,iscut) in enumerate(f_to_iscut)
+    if iscut
+      f_to_ioc[f] = FACE_CUT
+    end
+  end
+
   _append_submesh!(submesh,Xin,Tin,Xout,Tout,X_Γ,T_Γ,f_to_f,f_to_ios,cell)
   for i in 1:num_vertices(p)
     bgcell_node_to_io[i,cell] = n_to_io[i]
@@ -529,6 +536,21 @@ function _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
     f_to_ios = isnothing(T_Γ) ? nothing : fill(Int8(ios),length(T_Γ))
   end
   T_Γ,X_Γ,f_to_f,f_to_ios
+end
+
+function _get_cell_facets_to_iscut(Γk,p;surfacesource)
+  f_to_iscut = falses( num_facets(p) )
+  if surfacesource == :skin
+    v_to_Π = Γk.data.vertex_to_planes
+    for v in 1:length(v_to_Π)
+      for Π in v_to_Π[v]
+        if Π < 0 && 0 < abs(Π) ≤ num_facets(p)
+          f_to_iscut[ abs(Π) ] = true
+        end
+      end
+    end
+  end
+  f_to_iscut
 end
 
 
