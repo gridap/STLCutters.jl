@@ -1243,14 +1243,21 @@ function distance_between_planes(poly::Polyhedron,Π1,Π2,stl;restrict=false)
   end
   dist1 = get_plane_distances(poly.data,Π1)
   dist2 = get_plane_distances(poly.data,Π2)
-  max_dist = 0.0
+  max_dist_a = 0.0
   for v in 1:num_vertices(poly)
     if !restrict || any( Π -> Π ∈ v_to_Π[v] || Π ∈ v_to_of[v], (Π1,f1,f2) )
-      _d = abs(abs(dist1[v]) - abs(dist2[v]))
-      max_dist = max(max_dist,_d)
+      _d = abs(dist1[v] - dist2[v])
+      max_dist_a = max(max_dist_a,_d)
     end
   end
-  max_dist
+  max_dist_b = 0.0
+  for v in 1:num_vertices(poly)
+    if !restrict || any( Π -> Π ∈ v_to_Π[v] || Π ∈ v_to_of[v], (Π1,f1,f2) )
+      _d = abs(dist1[v] + dist2[v])
+      max_dist_b = max(max_dist_b,_d)
+    end
+  end
+  min( max_dist_a, max_dist_b)
 end
 
 function set_linked_planes!(poly::Polyhedron,Π_to_ref_Π,planes)

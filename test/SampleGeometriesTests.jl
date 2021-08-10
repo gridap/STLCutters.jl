@@ -144,4 +144,9 @@ filename = download(93703)
 main(filename,nmax=20,nmin=5)
 rm(filename)
 
+filename = download(94492)
+main(filename,nmax=100)
+rm(filename)
+
+
 end # module
