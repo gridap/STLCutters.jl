@@ -905,7 +905,7 @@ function get_cells_around(desc::CartesianDescriptor{D},pmin::Point,pmax::Point) 
   _,cmax = get_cell_bounds(desc,pmax)
   cmin = CartesianIndices(desc.partition)[cmin]
   cmax = CartesianIndices(desc.partition)[cmax]
-  ranges = ntuple( i -> cmin.I[i]:cmax.I[i], Val{D}() )
+  ranges = ntuple( i -> cmin.I[i] : cmax.I[i], Val{D}() )
   CartesianIndices( ranges )
 end
 

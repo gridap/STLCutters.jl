@@ -1,6 +1,10 @@
 
 const DEFAULT_TOL_FACTOR = 1e3
 
+const FACE_CUT = -1
+const FACE_IN = 1
+const FACE_OUT = 2
+
 struct SubtriangulationLabels
   cell_to_bgcell::Vector{Int32}
   cell_to_io::Vector{Int8}
@@ -104,7 +108,7 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   facets,empty_facets,reflex_faces = _faces
 
   Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax)
-  Πk⁺,Πk⁺_ids,Πk⁺_io = get_cell_planes(p,pmin-atol,pmax+atol) # Expanding atol*10 increase precion
+  Πk⁺,Πk⁺_ids,Πk⁺_io = get_cell_planes(p,pmin-atol,pmax+atol)
   Πk⁺_ids = Πk⁺_ids .+ Πk_ids[end]
 
   Πkf,Πkf_ids = filter_face_planes(stl,Πr,reflex_faces,Πf,facets)
@@ -262,7 +266,6 @@ function delete_small_subfaces!(bgmodel,T,X,p::Polytope{D},arrays...) where D
   end
 end
 
-
 function refine(
   K::Polyhedron,
   Γ::Polyhedron,
@@ -277,12 +280,12 @@ function refine(
   Kn_clip = empty(Kn)
   for (i,(Γi,Ki)) in enumerate(zip(Γn,Kn))
     facets = get_original_facets(Γi,stl)
-    clear_empty_facets!(facets,empty_facets)
-    facets = add_missing_facets(Γi,stl,facets,reflex_faces,empty_facets)
+    _clear_empty_facets!(facets,empty_facets)
+    facets = _add_missing_facets(Γi,stl,facets,reflex_faces,empty_facets)
     @assert !isempty(facets)
     part_to_facets = get_disconnected_facets(Γi,stl)
-    group_to_facets = group_facing_facets(Γi,facets,part_to_facets;inside)
-    for facets in group_to_facets
+    colour_to_facets = colour_facing_facets(Γi,facets,part_to_facets;inside)
+    for facets in colour_to_facets
       Ki_clip = clip(Ki,facets;inside)
       !isnothing(Ki_clip) || continue
       push!(Kn_clip,Ki_clip)
@@ -300,11 +303,11 @@ function decompose(surf::Polyhedron,cell::Polyhedron,rfaces,empty_facets,stl)
     rf = rfaces[i]
     if !has_coplanars(surf.data,rf) || !contains_coplanars(surf.data,rf)
       s⁻,s⁺ = split_overlapping(surf,rf)
-      k⁻,k⁺ = split(cell,rf) # do not overlap
+      k⁻,k⁺ = split(cell,rf)
       S = [s⁻,s⁺]
       K = [k⁻,k⁺]
       if any(isnothing,S) || any(!has_facets,S)
-        S,K = split_reflex_face(S,K,surf,cell,stl,rf,empty_facets) #TODO: simplify
+        S,K = _split_reflex_face(S,K,surf,cell,stl,rf,empty_facets)
       end
       if any(isnothing,K)
         j = findfirst(!isnothing,K)
@@ -518,7 +521,8 @@ end
 function _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
   if surfacesource == :both
     S = (Kn_in,Kn_out,Γk)
-    T_Γ,X_Γ,f_to_f,f_to_ios = simplexify_boundary(S,stl)
+    l = (FACE_IN,FACE_OUT,FACE_CUT)
+    T_Γ,X_Γ,f_to_f,f_to_ios = simplexify_boundary(S,l,stl)
   else
     if surfacesource == :skin
       S = Γk
@@ -667,46 +671,46 @@ function get_reflex_planes(stl::STL,Πf)
   Π_r
 end
 
-function group_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
+function colour_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
   length(part_to_facets) > 1 || return [facets]
   f_to_part, parts = _get_facet_to_part(facets,part_to_facets)
   length(parts) > 1 || return [facets]
   p_to_p_to_facing = _get_part_to_part_to_facing(poly,facets,f_to_part,parts;inside)
-  p_to_group = fill(UNSET,length(parts))
-  group = Int32[]
+  p_to_colour = fill(UNSET,length(parts))
+  colour = Int32[]
   ids = Int32[]
-  num_groups = 0
+  num_colours = 0
   for p in 1:length(parts)
-    p_to_group[p] == UNSET || continue
-    num_groups += 1
-    empty!(group)
-    push!(group,p)
+    p_to_colour[p] == UNSET || continue
+    num_colours += 1
+    empty!(colour)
+    push!(colour,p)
     for i in 1:length(parts)
-      if p_to_p_to_facing[p][i] && p_to_p_to_facing[i][p] && i ∉ group
-        push!(group,i)
+      if p_to_p_to_facing[p][i] && p_to_p_to_facing[i][p] && i ∉ colour
+        push!(colour,i)
       end
     end
     empty!(ids)
-    for (i,p_i) in enumerate(group)
-      for p_j in group
+    for (i,p_i) in enumerate(colour)
+      for p_j in colour
         if !p_to_p_to_facing[p_j][p_i]
           push!(ids,i)
           break
         end
       end
     end
-    deleteat!(group,ids)
-    for p_i in group
-      @assert p_to_group[p_i] == UNSET
-      p_to_group[p_i] = num_groups
+    deleteat!(colour,ids)
+    for p_i in colour
+      @assert p_to_colour[p_i] == UNSET
+      p_to_colour[p_i] = num_colours
     end
   end
-  group_to_facets = [ Int32[] for _ in 1:num_groups ]
+  colour_to_facets = [ Int32[] for _ in 1:num_colours ]
   for (i,f) in enumerate(facets)
-    g = p_to_group[f_to_part[i]]
-    push!(group_to_facets[g],f)
+    g = p_to_colour[f_to_part[i]]
+    push!(colour_to_facets[g],f)
   end
-  group_to_facets
+  colour_to_facets
 end
 
 function _get_facet_to_part(facets,part_to_facets)
@@ -1334,7 +1338,7 @@ end
 
 ## Helpers
 
-function clear_empty_facets!(facets::Vector,empty_facets::Vector)
+function _clear_empty_facets!(facets::Vector,empty_facets::Vector)
   if length(facets) > 1
     ids = findall(in(empty_facets),facets)
     if length(ids) < length(facets)
@@ -1344,7 +1348,7 @@ function clear_empty_facets!(facets::Vector,empty_facets::Vector)
   facets
 end
 
-function add_missing_facets(
+function _add_missing_facets(
   surf::Polyhedron,
   stl::STL,
   facets,
@@ -1389,7 +1393,7 @@ function add_missing_facets(
   facets
 end
 
-function split_reflex_face(
+function _split_reflex_face(
   S,K,
   surf::Polyhedron,
   cell::Polyhedron,
@@ -1397,7 +1401,6 @@ function split_reflex_face(
   reflex_face::Integer,
   empty_facets::AbstractVector)
 
-  # TODO: consider reflex faces sharing planes
   D = num_dims(stl)
   rface_offset = get_offset(stl,D-1)
   facet_offset = get_offset(stl,D)
@@ -1414,7 +1417,7 @@ function split_reflex_face(
     j = findfirst(cond,neig_facets)
     !isnothing(j) || error("Degenerated facet or sharp edge")
     missing_facet = neig_facets[j] + facet_offset
-    _surf = one_face_polyhedron(surf,missing_facet)
+    _surf = _one_face_polyhedron(surf,missing_facet)
     j = findfirst(i->isnothing(i)||!has_facets(i),S)
     Sr,Kr = [surf,surf],K
     Sr[j] = _surf
@@ -1422,7 +1425,7 @@ function split_reflex_face(
   Sr,Kr
 end
 
-function one_face_polyhedron(poly::Polyhedron,face::Integer)
+function _one_face_polyhedron(poly::Polyhedron,face::Integer)
   v_to_f = get_data(poly).vertex_to_original_faces
   nodes = Int32[]
   for v in 1:num_vertices(poly)

@@ -3,10 +3,6 @@
 
 const OPEN = -1
 
-const FACE_CUT = -1
-const FACE_IN = 1
-const FACE_OUT = 2
-
 struct Polyhedron{Dp,Tp,Td}
   vertices::Vector{Point{Dp,Tp}}
   edge_vertex_graph::Vector{Vector{Int32}}
@@ -112,25 +108,15 @@ function clip(poly::Polyhedron,Π;inside=true,inout=trues(length(Π)),boundary=n
   p
 end
 
-#function clip(p::Polyhedron,Π,side;invert=false)
-#  @assert side ∈ (:right,:left)
-#  p⁻,p⁺ = split(p,Π,side;invert)
-#  side == :left ? p⁻ : p⁺
-#end
-
 function split_overlapping(p::Polyhedron,Π)
   p⁻ = clip(p,Π,:left,boundary=true)
   p⁺ = clip(p,Π,:right,boundary=true)
-  # p⁻ = clip(p,Π,:right,invert=true)
-  # p⁺ = clip(p,Π,:right,invert=false)
   p⁻,p⁺
 end
 
 function split_gapping(p::Polyhedron,Π)
   p⁻ = clip(p,Π,:left,boundary=false)
   p⁺ = clip(p,Π,:right,boundary=false)
-  # p⁻ = clip(p,Π,:left,invert=false)
-  # p⁺ = clip(p,Π,:left,invert=true)
   p⁻,p⁺
 end
 
@@ -382,16 +368,15 @@ function simplexify_boundary(::NTuple{N,Nothing},args...) where N
   nothing,nothing,nothing,nothing
 end
 
-function simplexify_boundary(p::Tuple,stl::STL)
-  p_in, p_out, p_skin = p
-  P = eltype(p_in)
+function simplexify_boundary(p::Tuple,labels::Tuple,stl::STL)
+  P = eltype(p[1])
   Dp = num_dims(P)
   Tp = point_eltype(P)
   T = Vector{Int32}[]
   X = Point{Dp,Tp}[]
   f_to_stlf = Int32[]
   f_to_ios = Int8[]
-  for (p_i,ios) in zip( (p_in,p_out,p_skin), (FACE_IN,FACE_OUT,FACE_CUT) )
+  for (p_i,ios) in zip( p, labels )
     Ti, Xi, f_to_f_i = simplexify_boundary(p_i,stl)
     if !isnothing(Ti)
       append!(T, map(i->i.+length(X),Ti) )
