@@ -1018,7 +1018,7 @@ function add_vertex!(data::PolyhedronData,v1::Integer,v2::Integer,Πid::Integer)
   Π_to_v_to_d = get_plane_distances(data)
   Π_to_id = get_plane_ids(data)
   i = findfirst(isequal(Πid),Π_to_id)
-  d1 = Π_to_v_to_d[i][v1] # Distances may be in the input
+  d1 = Π_to_v_to_d[i][v1]
   d2 = Π_to_v_to_d[i][v2]
   pv = iszero(d1) ? v_to_pv[v1] : length(v_to_pv)+1
   pv = iszero(d2) ? v_to_pv[v2] : pv
@@ -1161,7 +1161,6 @@ end
 function delete_inactive_planes!(Γ::Polyhedron,K::Polyhedron,stl::STL)
   @assert isopen(Γ)
   planes = get_active_planes(Γ,K,stl)
-  #s1 = get_plane_ids(K.data) == filter(i->i>0,get_plane_ids(Γ.data))
   restrict_planes!(Γ,planes)
   restrict_planes!(K,planes)
 end
