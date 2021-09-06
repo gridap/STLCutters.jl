@@ -11,7 +11,7 @@ STL to cell-wise triangulation to solve FE problems in [Gridap.jl](https://githu
 
 ```julia
 # Type ] to enter package mode
-pkg> add git@github.com:pmartorell/STLCutters.jl.git
+pkg> add git@github.com:gridap/STLCutters.jl.git
 ```
 
 ## Examples
