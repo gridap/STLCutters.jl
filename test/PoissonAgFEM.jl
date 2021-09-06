@@ -89,9 +89,9 @@ b = get_vector(op)
 @time  x = cg(A,b,verbose=true,Pl=p,reltol=1e-10)
 
 @time uh = FEFunction(U,x)
-  
+
 @time e = u - uh
-  
+
 # Postprocess
 l2(u) = sqrt(sum( ∫( u*u )*dΩ ))
 h1(u) = sqrt(sum( ∫( u*u + ∇(u)⋅∇(u) )*dΩ ))
@@ -101,9 +101,9 @@ eh1 = h1(e)
 ul2 = l2(uh)
 uh1 = h1(uh)
 
-colors = color_aggregates(aggregates,bgmodel)
-writevtk(Ω_bg,"trian",celldata=["aggregate"=>aggregates,"color"=>colors],cellfields=["uh"=>uh])
-writevtk(Ω,"results",cellfields=["uh"=>uh])
+#colors = color_aggregates(aggregates,bgmodel)
+#writevtk(Ω_bg,"trian",celldata=["aggregate"=>aggregates,"color"=>colors],cellfields=["uh"=>uh])
+#writevtk(Ω,"results",cellfields=["uh"=>uh])
 
 @test el2/ul2 < 1.e-9
 @test eh1/uh1 < 1.e-9

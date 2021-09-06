@@ -32,13 +32,13 @@ function test_stl_cut(model,stl,vol)
 
   stl_surf = surface(get_grid(stl))
 
-  celldata = [ "inoutcut" => labels.bgcell_to_ioc ]
-  writevtk( grid, "bgcells"; celldata )
-  celldata = [ "inout" => labels.cell_to_io, "bgcell" => labels.cell_to_bgcell ]
-  writevtk( subcells, "subcells"; celldata )
-  celldata = [ "bgcell" => labels.face_to_bgcell, "inoutskin" => labels.face_to_ios ]
-  writevtk( subfaces, "subfaces"; celldata )
-  writevtk( stl, "stl" )
+#  celldata = [ "inoutcut" => labels.bgcell_to_ioc ]
+#  writevtk( grid, "bgcells"; celldata )
+#  celldata = [ "inout" => labels.cell_to_io, "bgcell" => labels.cell_to_bgcell ]
+#  writevtk( subcells, "subcells"; celldata )
+#  celldata = [ "bgcell" => labels.face_to_bgcell, "inoutskin" => labels.face_to_ios ]
+#  writevtk( subfaces, "subfaces"; celldata )
+#  writevtk( stl, "stl" )
 
   println("\t εV = $(in_volume + out_volume - volume(grid))")
   println("\t εVin = $(in_volume-vol)")
