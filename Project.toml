@@ -1,7 +1,7 @@
 name = "STLCutters"
 uuid = "284f087d-c8bb-44c4-af3c-39d0e1f330a5"
 authors = ["Pere Antoni Martorell", "Large Scale Scientific Computing"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
