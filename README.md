@@ -2,6 +2,7 @@
 
 STL to cell-wise triangulation to solve FE problems in [Gridap.jl](https://github.com/gridap/Gridap.jl) through [GridapEmbedded.jl](https://github.com/gridap/GridapEmbedded.jl)
 
+[![arXiv](https://img.shields.io/badge/arXiv-2110.01378-b31b1b.svg)](https://arxiv.org/abs/2110.01378)
 [![DOI](https://zenodo.org/badge/402797993.svg)](https://zenodo.org/badge/latestdoi/402797993)
 [![CI](https://github.com/gridap/STLCutters.jl/workflows/CI/badge.svg)](https://github.com/gridap/STLCutters.jl/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/gridap/STLCutters.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/gridap/STLCutters.jl)
