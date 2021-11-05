@@ -1,7 +1,7 @@
 module PoisonAgFEMTests
 
 using IterativeSolvers: cg
-using Preconditioners: AMGPreconditioner, SmoothedAggregation
+using AlgebraicMultigrid
 
 using STLCutters
 using Gridap
@@ -39,7 +39,7 @@ aggregates = aggregate(strategy,cutgeo,facet_to_inoutcut)
 
 # Setup integration meshes
 Ω_bg = Triangulation(bgmodel)
-Ω = Triangulation(cutgeo)
+Ω = Triangulation(cutgeo,PHYSICAL)
 Γd = EmbeddedBoundary(cutgeo)
 
 # Setup normal vectors
@@ -61,8 +61,8 @@ surf = sum( ∫(1)*dΓd )
 @show vol,surf
 
 # Setup FESpace
-model = DiscreteModel(cutgeo)
-Vstd = FESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
+Ω_act = Triangulation(cutgeo,ACTIVE)
+Vstd = FESpace(Ω_act,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
 
 @time V = AgFEMSpace(Vstd,aggregates) #,Vser)
 U = TrialFESpace(V)
@@ -84,7 +84,7 @@ l(v) =
 A = get_matrix(op)
 b = get_vector(op)
 
-@time p = AMGPreconditioner{SmoothedAggregation}(A)
+@time p = aspreconditioner(smoothed_aggregation(A))
 
 @time  x = cg(A,b,verbose=true,Pl=p,reltol=1e-10)
 
