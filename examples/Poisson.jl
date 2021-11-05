@@ -1,7 +1,7 @@
 module Poisson
 
 using IterativeSolvers: cg
-using Preconditioners: AMGPreconditioner, SmoothedAggregation
+using AlgebraicMultigrid
 
 using STLCutters
 using Gridap
@@ -77,7 +77,7 @@ function main(filename;n=20,δ=0.2,output=nothing)
   A = get_matrix(op)
   b = get_vector(op)
 
-  p = AMGPreconditioner{SmoothedAggregation}(A)
+  p = aspreconditioner(smoothed_aggregation(A))
 
   x = cg(A,b,verbose=true,Pl=p,reltol=1e-12)
 

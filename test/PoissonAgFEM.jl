@@ -1,7 +1,7 @@
 module PoisonAgFEMTests
 
 using IterativeSolvers: cg
-using Preconditioners: AMGPreconditioner, SmoothedAggregation
+using AlgebraicMultigrid
 
 using STLCutters
 using Gridap
@@ -84,7 +84,7 @@ l(v) =
 A = get_matrix(op)
 b = get_vector(op)
 
-@time p = AMGPreconditioner{SmoothedAggregation}(A)
+@time p = aspreconditioner(smoothed_aggregation(A))
 
 @time  x = cg(A,b,verbose=true,Pl=p,reltol=1e-10)
 

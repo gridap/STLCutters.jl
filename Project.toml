@@ -4,6 +4,7 @@ authors = ["Pere Antoni Martorell", "Large Scale Scientific Computing"]
 version = "0.1.1"
 
 [deps]
+AlgebraicMultigrid = "2169fc97-5a83-5252-b627-83903c6c433c"
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
@@ -13,9 +14,9 @@ IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MeshIO = "7269a6da-0436-5bbc-96c2-40638cbb6118"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-Preconditioners = "af69fa37-3177-5a40-98ee-561f696e4fcd"
 
 [compat]
+AlgebraicMultigrid = "0.4"
 Downloads = "1.4"
 FileIO = "1.6"
 GraphRecipes = "0.5"
@@ -24,7 +25,6 @@ GridapEmbedded = "0.8"
 IterativeSolvers = "0.9"
 MeshIO = "0.4"
 Plots = "1.11"
-Preconditioners = "0.3"
 julia = "1.5"
 
 [extras]
