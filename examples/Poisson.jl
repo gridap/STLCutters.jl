@@ -36,7 +36,7 @@ function main(filename;n=20,δ=0.2,output=nothing)
 
   # Setup integration meshes
   Ω_bg = Triangulation(bgmodel)
-  Ω = Triangulation(cutgeo)
+  Ω = Triangulation(cutgeo,PHYSICAL)
   Γd = EmbeddedBoundary(cutgeo)
 
   # Setup normal vectors
@@ -53,8 +53,8 @@ function main(filename;n=20,δ=0.2,output=nothing)
   dΓd = Measure(Γd,degree)
 
   # Setup FESpace
-  model = DiscreteModel(cutgeo)
-  Vstd = FESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
+  Ω_act = Triangulation(cutgeo,ACTIVE)
+  Vstd = FESpace(Ω_act,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
 
   V = AgFEMSpace(Vstd,aggregates)
   U = TrialFESpace(V)

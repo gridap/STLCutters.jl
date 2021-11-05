@@ -42,7 +42,7 @@ cutter = STLCutter(threading=:threads,tolfactor=10^4)
 @time cutgeo, = cut(cutter,bgmodel,geo)
 
 # Setup integration meshes
-Ω = Triangulation(cutgeo)
+Ω = Triangulation(cutgeo,PHYSICAL)
 Γd = EmbeddedBoundary(cutgeo)
 
 # Setup normal vectors
@@ -63,9 +63,9 @@ surf = sum( ∫(1)*dΓd )
 @show vol,surf
 
 # Setup FESpace
-model = DiscreteModel(cutgeo)
-V = TestFESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
-U = TrialFESpace(V) 
+Ω_act = Triangulation(cutgeo,ACTIVE)
+V = TestFESpace(Ω_act,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
+U = TrialFESpace(V)
 
 # Weak form
 γd = 10.0
@@ -74,7 +74,7 @@ h = (pmax - pmin)[1] / partition[1]
 
 a(u,v) =
   ∫( ∇(v)⋅∇(u) ) * dΩ +
-  ∫( (γd/h)*v*u  - v*(n_Γd⋅∇(u)) - (n_Γd⋅∇(v))*u ) * dΓd 
+  ∫( (γd/h)*v*u  - v*(n_Γd⋅∇(u)) - (n_Γd⋅∇(v))*u ) * dΓd
 
 l(v) =
   ∫( v*f ) * dΩ +

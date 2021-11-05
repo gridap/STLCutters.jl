@@ -32,7 +32,7 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 cutgeo, = cut(bgmodel,geo)
 
 # Setup integration meshes
-Ω = Triangulation(cutgeo)
+Ω = Triangulation(cutgeo,PHYSICAL)
 Γd = EmbeddedBoundary(cutgeo)
 Γg = GhostSkeleton(cutgeo)
 
@@ -59,8 +59,8 @@ surf = sum( ∫(1)*dΓd )
 @test surf ≈ 6
 
 # Setup FESpace
-model = DiscreteModel(cutgeo)
-V = TestFESpace(model,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
+Ω_act = Triangulation(cutgeo,ACTIVE,geo)
+V = TestFESpace(Ω_act,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
 v = FEFunction(V,rand(num_free_dofs(V)))
 u = interpolate(u0,V)
 
