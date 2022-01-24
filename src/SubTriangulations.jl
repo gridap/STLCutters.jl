@@ -208,7 +208,7 @@ function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
       push!(stack,cell)
       while !isempty(stack)
         current_cell = pop!(stack)
-        for node in getindex!(node_cache,c_to_n,cell)
+        for node in getindex!(node_cache,c_to_n,current_cell)
           if bgnode_to_io[node] == FACE_IN ||
              ( bgcell_to_ioc[cell] == FACE_IN &&
                bgnode_to_io[node] == UNSET )
