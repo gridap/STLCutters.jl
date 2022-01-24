@@ -16,7 +16,7 @@ MeshIO = "7269a6da-0436-5bbc-96c2-40638cbb6118"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 
 [compat]
-AlgebraicMultigrid = "0.4, 0.5"
+AlgebraicMultigrid = "0.5"
 Downloads = "1.4"
 FileIO = "1.6"
 GraphRecipes = "0.5"
