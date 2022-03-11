@@ -117,6 +117,12 @@ function _normals(geom::STLGeometry,face_to_stlface)
   normals
 end
 
-_to_stl_model(geo::STLGeometry) =  get_stl(geo)
+_to_stl_model(geo::STLGeometry) = get_stl(geo)
 
 surface(geo::STLGeometry) = surface(get_grid(get_stl(geo)))
+
+function writevtk(geo::STLGeometry,args...;kwargs...)
+  grid = get_grid(get_stl(geo))
+  writevtk(grid,args...;kwargs...)
+end
+
