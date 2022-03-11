@@ -46,7 +46,7 @@ julia> Poisson.main(filename,n=20,output="example3")
 
 ![Example 3](examples/example3.png)
 
-Solve a **Linear Elasticity** on a test geometry, e.g., `550964.stl` (Eiffel Tower in a 5 degree slope)
+Solve a **Linear Elasticity** problem on a test geometry, e.g., `550964.stl` (Eiffel Tower in a 5 degree slope)
  ```julia
 julia> include("examples/LinearElasticity.jl")
 julia> filename = "test/data/550964.stl"
