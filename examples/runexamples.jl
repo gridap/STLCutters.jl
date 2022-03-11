@@ -21,4 +21,11 @@ end
   Poisson.main(filename,n=20)
 end
 
+@time @testset "LinearElasticity" begin
+  include("LinearElasticity.jl")
+
+  filename = joinpath(@__DIR__,"..","test/data/550964.stl")
+  LinearElasticity.main(filename,n=50)
+end
+
 end # module
