@@ -1,7 +1,8 @@
 module LinearElasticity
 
 using IterativeSolvers: cg
-using AlgebraicMultigrid
+using AlgebraicMultigrid: smoothed_aggregation
+using AlgebraicMultigrid: aspreconditioner
 
 using STLCutters
 using Gridap

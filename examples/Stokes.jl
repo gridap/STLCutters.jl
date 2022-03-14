@@ -14,7 +14,10 @@ using Test
 using LinearAlgebra: tr
 using Gridap.ReferenceFEs
 
-function main(filename;n,outputfile=nothing)
+using GridapPardiso
+using SparseMatricesCSR
+
+function main(filename;n,output=nothing)
 
   geo = STLGeometry( filename )
 
@@ -23,11 +26,11 @@ function main(filename;n,outputfile=nothing)
   L = pmax-pmin
   zmin = pmin[3]+0.001*norm(L)
   pmin = pmin - L*δ - (1-δ)*L.*Point(0,1,0)
-  pmax = pmax + L*δ + (4-δ)*L.*Point(0,1,0)
+  pmax = pmax + L*δ + (2-δ)*L.*Point(0,1,0)
   pmin = VectorValue(pmin[1],pmin[2],zmin)
 
   # Background model
-  cells = (4*n,n,n)
+  cells = (n,3*n,n)
   bgmodel = CartesianDiscreteModel(pmin,pmax,cells)
 
   labels = get_face_labeling(bgmodel)
@@ -66,6 +69,7 @@ function main(filename;n,outputfile=nothing)
   #end
   #vmax = VectorValue(0.2,0.,0.)
   #u_in(x) = vmax*u_z(x[3],pmin[3],pmax[3])
+  #u_wall = u_in
 
   function u_1d(x,xmin,xmax)
     L = xmax - xmin
@@ -102,108 +106,20 @@ function main(filename;n,outputfile=nothing)
 
   l((v,q)) = 0
 
-  op = AffineFEOperator(a,l,X,Y)
-  uh,ph = solve(op)
+  assem = SparseMatrixAssembler(SparseMatrixCSR{1,Float64,Int},Vector{Float64},X,Y)
+@time  op = AffineFEOperator(a,l,X,Y,assem)
 
-  if !isnothing(outputfile)
-    writevtk(Ωb,outputfile*"_Ωb")
-    writevtk(Ω,outputfile*"_Ω",order=2,cellfields=["uh"=>uh,"ph"=>ph])
-    writevtk(Ωa,outputfile*"_Ωa",cellfields=["uh"=>uh,"ph"=>ph])
-    writevtk(Γ,outputfile*"_Γ",cellfields=["n"=>n_Γ,"uh"=>uh,"ph"=>ph])
+  ls = PardisoSolver()
+  solver = LinearFESolver(ls)
+@time  uh,ph = solve(solver,op)
+
+  if !isnothing(output)
+    writevtk(Ωb,output*"_Ωb")
+    writevtk(Ω,output*"_Ω",order=2,cellfields=["uh"=>uh,"ph"=>ph])
+    writevtk(Ωa,output*"_Ωa",cellfields=["uh"=>uh,"ph"=>ph])
+    writevtk(Γ,output*"_Γ",cellfields=["n"=>n_Γ,"uh"=>uh,"ph"=>ph])
   end
 
-
-#
-#
-#
-#  threshold = 1.0
-#  strategy = AggregateByThreshold()
-#  aggregates = aggregate(strategy,cutgeo,geo,OUT,facet_to_inoutcut)
-#
-#  Ω_bg = Triangulation(bgmodel)
-#
-#  # Generate the "active" mesh
-#  Ω_act = Triangulation(cutgeo,ACTIVE_OUT)
-#
-#  colors = color_aggregates(aggregates,bgmodel)
-#  writevtk(Ω_bg,"trian",celldata=["aggregate"=>aggregates,"color"=>colors])
-#
-#  # Setup integration meshes
-#  Ω = Triangulation(cutgeo,PHYSICAL_OUT)
-#
-#  writevtk(Ω_act,"trian_act")
-#  writevtk(Ω,"trian_phys")
-#
-##  Γw = EmbeddedBoundary(cutgeo)
-#  Γg = GhostSkeleton(cutgeo,ACTIVE_OUT)
-##
-##  # Setup normal vectors
-###  n_Γi = get_normal_vector(Γi)
-##  n_Γw = get_normal_vector(Γw)
-#  n_Γg = get_normal_vector(Γg)
-#
-#  #writevtk(Ω,"trian_O")
-#  #writevtk(Γi,"trian_Gi",cellfields=["uin"=>uin,"normal"=>n_Γi])
-#  #writevtk(Γw,"trian_Gw",cellfields=["normal"=>n_Γw])
-#  #writevtk(Triangulation(bgmodel),"bgtrian")
-#
-#  # Setup Lebesgue measures
-#  order = 1
-#  degree = 2*order
-#  dΩ = Measure(Ω,degree)
-##  dΓi = Measure(Γi,degree)
-##  dΓw = Measure(Γw,degree)
-#  dΓg = Measure(Γg,degree)
-#
-#  # Setup FESpace
-#
-#  reffe_u = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
-#  reffe_p = ReferenceFE(lagrangian,Float64,order)
-#
-#  Vstd = TestFESpace(Ω_act,reffe_u,labels=labels,dirichlet_tags=["boundary"])#,conformity=:H1)
-#  Qstd = TestFESpace(Ω_act,reffe_p)#,conformity=:H1)
-#
-#  V = AgFEMSpace(Vstd,aggregates)
-#  Q = AgFEMSpace(Qstd,aggregates)
-#
-##  V = Vstd
-##  Q = Qstd
-#
-#  U = TrialFESpace(V,[uin])
-#  P = TrialFESpace(Q)
-#
-#  X = MultiFieldFESpace([U,P])
-#  Y = MultiFieldFESpace([V,Q])
-#
-#  # Stabilization parameters
-#  β0 = 0.25
-#  β1 = 0.2
-#  β2 = 0.1
-#  β3 = 0.05
-#  γ = 10.0
-#  h = (pmax-pmin)[1]/partition[1]
-#
-#  c_Ω(p,q) = (β1*h^2)*∇(p)⋅∇(q)
-#  i_Γg(u,v) = (β2*h)*jump(n_Γg⋅∇(u))⋅jump(n_Γg⋅∇(v))
-#  j_Γg(p,q) = (β3*h^3)*jump(n_Γg⋅∇(p))*jump(n_Γg⋅∇(q))
-#
-#  # Weak form
-##  a((u,p),(v,q)) = ∫( ∇(v)⊙∇(u) - (∇⋅v)*p + q*(∇⋅u) + c_Ω(p,q) )dΩ +
-##    ∫( i_Γg(u,v) - j_Γg(p,q) ) * dΓg
-##
-#  a((u,p),(v,q)) = ∫( ∇(v)⊙∇(u) - (∇⋅v)*p + q*(∇⋅u) )dΩ
-#  l((v,q)) = 0
-#
-#  # FE problem
-#@time  op = AffineFEOperator(a,l,X,Y)
-#
-#@time  uh, ph = solve(op)
-#
-#  # Postprocess
-#  if outputfile !== nothing
-#    writevtk(Ω,outputfile, cellfields=["uh"=>uh,"ph"=>ph])
-#  end
-#
 end
 
 end # module
