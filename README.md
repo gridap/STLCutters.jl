@@ -50,7 +50,7 @@ Solve a **Linear Elasticity** problem on a test geometry, e.g., `550964.stl` (Ei
  ```julia
 julia> include("examples/LinearElasticity.jl")
 julia> filename = "test/data/550964.stl"
-julia> Poisson.main(filename,n=50,force=(tand(5),0,-1),output="example4")
+julia> LinearElasticity.main(filename,n=50,force=(tand(5),0,-1),output="example4")
 ```
 
 ![Example 4](examples/example4.png)
