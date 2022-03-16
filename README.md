@@ -53,4 +53,13 @@ julia> filename = "test/data/550964.stl"
 julia> Poisson.main(filename,n=50,force=(tand(5),0,-1),output="example4")
 ```
 
-![Example 3](examples/example4.png)
+![Example 4](examples/example4.png)
+
+Solve an **Incompressible Flow** problem on a test geometry, e.g., `47076.stl` (Chichen Itza)
+ ```julia
+julia> include("examples/Stokes.jl")
+julia> filename = "test/data/47076.stl"
+julia> Poisson.main(filename,n=10,output="example5")
+```
+
+![Example 5](examples/example5.png)

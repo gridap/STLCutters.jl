@@ -34,9 +34,7 @@ function main(filename;n,output=nothing)
   bgmodel = CartesianDiscreteModel(pmin,pmax,cells)
 
   labels = get_face_labeling(bgmodel)
-#  wall_tags = [(1:20)...,(21:24)...]
   wall_tags = union(get_faces(HEX)[ [21,22,25,26] ]...)
-  #wall_tags = get_faces(HEX)[21]
   add_tag_from_tags!(labels,"wall",wall_tags)
   add_tag_from_tags!(labels,"inlet",23)
 
@@ -61,23 +59,12 @@ function main(filename;n,output=nothing)
   V = AgFEMSpace(Vstd,aggregates)
   Q = AgFEMSpace(Qstd,aggregates)
 
-  #function u_z(z,zmin,zmax)
-  #  L = zmax - zmin
-  #  z = (z-zmin)/L
-  #  fac = 10
-  #  (1 - exp(-fac*z))
-  #end
-  #vmax = VectorValue(0.2,0.,0.)
-  #u_in(x) = vmax*u_z(x[3],pmin[3],pmax[3])
-  #u_wall = u_in
-
   function u_1d(x,xmin,xmax)
     L = xmax - xmin
     y = (x-xmin)/L
     4*y-4*y^2
   end
   vmax = 0.2*VectorValue(0,1,0)
- # u_in(x) = vmax*u_1d(x[2],pmin[2],pmax[2])*u_1d(x[3],pmin[3],pmax[3])
   u_in(x) = vmax*u_1d(x[1],pmin[1],pmax[1])*u_1d(x[3],pmin[3],pmax[3])
   u_wall = VectorValue(0.,0.,0.)
 
@@ -113,6 +100,8 @@ function main(filename;n,output=nothing)
   solver = LinearFESolver(ls)
 @time  uh,ph = solve(solver,op)
 
+  ph = project(ph,Ωa,dΩ,Float64,k,aggregates)
+
   if !isnothing(output)
     writevtk(Ωb,output*"_Ωb")
     writevtk(Ω,output*"_Ω",order=2,cellfields=["uh"=>uh,"ph"=>ph])
@@ -120,6 +109,17 @@ function main(filename;n,output=nothing)
     writevtk(Γ,output*"_Γ",cellfields=["n"=>n_Γ,"uh"=>uh,"ph"=>ph])
   end
 
+end
+
+function project(q,model,dΩ,T,order,aggregates)
+  reffe = ReferenceFE(lagrangian,T,order)
+  Vstd = FESpace(model,reffe,conformity=:H1)
+  V = AgFEMSpace(Vstd,aggregates)
+  a(u,v) = ∫( u⊙v )*dΩ
+  l(v) = ∫( v⊙q )*dΩ
+  op = AffineFEOperator(a,l,V,V)
+  qh = solve(op)
+  qh
 end
 
 end # module

@@ -78,19 +78,37 @@ function main(filename;n=20,δ=0.2,force=(0,0,-1)::NTuple{3},output=nothing)
 
   p = aspreconditioner(smoothed_aggregation(A))
 
-  x = cg(A,b,verbose=true,Pl=p,reltol=1e-12)
+  x = cg(A,b,verbose=true,Pl=p,reltol=1e-10)
 
   uh = FEFunction(U,x)
+
+  σh = project(norm∘σ∘ε(uh),Ω_act,dΩ,Float64,order,aggregates)
 
   if output !== nothing
     colors = color_aggregates(aggregates,bgmodel)
     writevtk(Ω_bg,output*"_trian",
       celldata=["aggregate"=>aggregates,"color"=>colors],
       cellfields=["uh"=>uh])
-    writevtk(Ω,output*"_results",cellfields=["uh"=>uh,"σ"=>σ∘ε(uh),"ε"=>ε(uh)])
+    writevtk(Ω,output*"_results",cellfields=["uh"=>uh,"σ"=>σh,"ε"=>ε(uh)])
+    writevtk(Γ,output*"_boundary",cellfields=["uh"=>uh,"σ"=>σh,"ε"=>ε(uh)])
     writevtk(geo,output*"_geo")
   end
 
+end
+
+function project(q,model,dΩ,T,order,aggregates)
+  reffe = ReferenceFE(lagrangian,T,order)
+  Vstd = FESpace(model,reffe,conformity=:H1)
+  V = AgFEMSpace(Vstd,aggregates)
+  a(u,v) = ∫( u⊙v )*dΩ
+  l(v) = ∫( v⊙q )*dΩ
+  op = AffineFEOperator(a,l,V,V)
+  A = get_matrix(op)
+  b = get_vector(op)
+  p = aspreconditioner(smoothed_aggregation(A))
+  x = cg(A,b,verbose=false,Pl=p,reltol=1e-8)
+  qh = FEFunction(V,x)
+  qh
 end
 
 end # module
