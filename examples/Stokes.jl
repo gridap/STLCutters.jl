@@ -1,21 +1,20 @@
 module Stokes
 
-import AlgebraicMultigrid
-
+using Test
 using STLCutters
 using Gridap
 using GridapEmbedded
-using Test
-using Gridap
-
-import Gridap: ∇
-using GridapEmbedded
-using Test
-using LinearAlgebra: tr
 using Gridap.ReferenceFEs
 
-using GridapPardiso
-using SparseMatricesCSR
+const ENABLE_MKL = haskey(ENV,"ENABLE_MKL")
+
+if ENABLE_MKL
+  import Pkg
+  Pkg.add("GridapPardiso")
+  Pkg.add("SparseMatricesCSR")
+  using GridapPardiso
+  using SparseMatricesCSR
+end
 
 function main(filename;n,output=nothing)
 
@@ -93,12 +92,16 @@ function main(filename;n,output=nothing)
 
   l((v,q)) = 0
 
-  assem = SparseMatrixAssembler(SparseMatrixCSR{1,Float64,Int},Vector{Float64},X,Y)
-@time  op = AffineFEOperator(a,l,X,Y,assem)
-
-  ls = PardisoSolver()
-  solver = LinearFESolver(ls)
-@time  uh,ph = solve(solver,op)
+  if ENABLE_MKL
+    assem = SparseMatrixAssembler(SparseMatrixCSR{1,Float64,Int},Vector{Float64},X,Y)
+    op = AffineFEOperator(a,l,X,Y,assem)
+    ls = PardisoSolver()
+    solver = LinearFESolver(ls)
+    uh,ph = solve(solver,op)
+  else
+    op = AffineFEOperator(a,l,X,Y)
+    uh,ph = solve(op)
+  end
 
   ph = project(ph,Ωa,dΩ,Float64,k,aggregates)
 

@@ -57,9 +57,10 @@ julia> LinearElasticity.main(filename,n=50,force=(tand(5),0,-1),output="example4
 
 Solve an **Incompressible Flow** problem on a test geometry, e.g., `47076.stl` (Chichen Itza)
  ```julia
+julia> # ENV["ENABLE_MKL"] = "" ## Uncomment if GridapPardiso.jl requirements are fulfilled
 julia> include("examples/Stokes.jl")
 julia> filename = "test/data/47076.stl"
-julia> Poisson.main(filename,n=10,output="example5")
+julia> Stokes.main(filename,n=10,output="example5")
 ```
 
 ![Example 5](examples/example5.png)
