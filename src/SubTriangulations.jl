@@ -21,7 +21,8 @@ function subtriangulate(
   threading=:spawn,
   kdtree=false,
   tolfactor=DEFAULT_TOL_FACTOR,
-  surfacesource=:skin)
+  surfacesource=:skin,
+  showprogress=true)
 
   grid = get_grid(bgmodel)
   grid_topology = get_grid_topology(bgmodel)
@@ -46,12 +47,14 @@ function subtriangulate(
   caches = _get_threaded_caches(cell_to_nodes)
 
   cut_cells = filter(i->!isempty(c_to_stlf[i]),1:num_cells(grid))
+  progress = progress_bar(cut_cells;showprogress)
   if threading == :threads || Threads.nthreads() == 1
     Threads.@threads for cell in cut_cells
       save_cell_submesh!(submesh,io_arrays,stl,p,cell,
         compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
           c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)...
           ;surfacesource )
+      next!(progress)
     end
   elseif threading == :spawn
     @sync for cell in cut_cells
@@ -59,6 +62,7 @@ function subtriangulate(
         compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
           c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)...
           ;surfacesource )
+      next!(progress)
     end
   else
     @unreachable
@@ -95,6 +99,20 @@ function _to_stl_model(filename::AbstractString)
   stl = compute_stl_model(T,X)
   stl = merge_and_collapse(stl)
   stl
+end
+
+function progress_bar(a::AbstractVector;kw...)
+  progress_bar(length(a);kw...)
+end
+
+function progress_bar(n::Integer;showprogress)
+  p = Progress(n,
+    desc="STLCutter: ",
+    dt = 0.5,
+    barglyphs=BarGlyphs("[=> ]"),
+    barlen=40,
+    color=:none,
+    enabled=showprogress)
 end
 
 function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,

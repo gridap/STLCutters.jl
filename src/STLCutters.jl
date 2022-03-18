@@ -15,6 +15,7 @@ using GridapEmbedded.Interfaces
 using GridapEmbedded.LevelSetCutters
 using LinearAlgebra
 using FileIO
+using ProgressMeter
 
 import Gridap: writevtk
 import Gridap.ReferenceFEs: get_polytope

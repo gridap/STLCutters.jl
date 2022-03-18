@@ -19,7 +19,7 @@ pkg> add STLCutters
 
 ### Sub-triangulation examples
 
-Use a test geometry, e.g., 47076.stl (Chichen Itza)
+Use a test geometry, e.g., `47076.stl` (Chichen Itza)
 ```julia
 julia> include("examples/SubTriangulation.jl")
 julia> filename = "test/data/47076.stl"
@@ -35,9 +35,9 @@ julia> SubTriangulation.main(filename,n=50,output="example2")
 ```
 ![Example 2](examples/example2.png)
 
-### Poisson examples
+### Finite Elements examples
 
-Solve a Poisson equation on a test geometry, e.g., 293137.stl (Low-Poly Bunny)
+Solve a **Poisson** equation on a test geometry, e.g., `293137.stl` (Low-Poly Bunny)
  ```julia
 julia> include("examples/Poisson.jl")
 julia> filename = "test/data/293137.stl"
@@ -45,3 +45,22 @@ julia> Poisson.main(filename,n=20,output="example3")
 ```
 
 ![Example 3](examples/example3.png)
+
+Solve a **Linear Elasticity** problem on a test geometry, e.g., `550964.stl` (Eiffel Tower in a 5 degree slope)
+ ```julia
+julia> include("examples/LinearElasticity.jl")
+julia> filename = "test/data/550964.stl"
+julia> LinearElasticity.main(filename,n=50,force=(tand(5),0,-1),output="example4")
+```
+
+![Example 4](examples/example4.png)
+
+Solve an **Incompressible Flow** problem on a test geometry, e.g., `47076.stl` (Chichen Itza)
+ ```julia
+julia> # ENV["ENABLE_MKL"] = "" ## Uncomment if GridapPardiso.jl requirements are fulfilled
+julia> include("examples/Stokes.jl")
+julia> filename = "test/data/47076.stl"
+julia> Stokes.main(filename,n=10,output="example5")
+```
+
+![Example 5](examples/example5.png)
