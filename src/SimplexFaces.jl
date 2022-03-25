@@ -467,10 +467,12 @@ function voxel_intersection(f::Face{2,3},pmin::Point,pmax::Point,p::Polytope)
 end
 
 function voxel_intersection(p::Point,pmin::Point,pmax::Point)
+  @check all( pmin .≤ pmax ) "pmin  > pmax"
   all( p .> pmin ) && all( p .< pmax )
 end
 
 function voxel_intersection(e::Face{1,D},pmin::Point{D},pmax::Point{D}) where D
+  @check all( pmin .≤ pmax ) "pmin  > pmax"
   t_min,t_max = 0.0,1.0
   for d in 1:D
     p_d = e[1][d]
