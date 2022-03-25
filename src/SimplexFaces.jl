@@ -467,9 +467,7 @@ function voxel_intersection(f::Face{2,3},pmin::Point,pmax::Point,p::Polytope)
 end
 
 function voxel_intersection(p::Point,pmin::Point,pmax::Point)
-  all( Tuple(p) .> Tuple(pmin) ) || return false
-  all( Tuple(p) .< Tuple(pmax) ) || return false
-  true
+  all( p .> pmin ) && all( p .< pmax )
 end
 
 function voxel_intersection(e::Face{1,D},pmin::Point{D},pmax::Point{D}) where D
