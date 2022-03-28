@@ -705,7 +705,7 @@ end
 function max_num_facets_per_bgcell(stlmodel,bgmodel)
   stl = STL(stlmodel)
   grid = get_grid(bgmodel)
-  c_to_stlf =compute_cell_to_facets(grid,stl)
+  c_to_stlf = compute_cell_to_facets(grid,stl)
   maximum(length,c_to_stlf)
 end
 
