@@ -449,6 +449,7 @@ function voxel_intersection(f::Face{2,3},pmin::Point,pmax::Point,p::Polytope)
     e = get_edge(f,i)
     voxel_intersection(e,pmin,pmax) && return true
   end
+  measure(f) == 0 && return false
   n = normal(f)
   c = center(f)
   plane = Plane(c,n)
