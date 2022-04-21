@@ -116,8 +116,7 @@ end
 # Read STL from file
 
 function read_stl(filename::String)
-  F = _file_format(filename)
-  mesh = load(File{F}(filename))
+  mesh = _load(filename)
   vertex_to_coordinates = MeshIO.decompose(MeshIO.Point3,mesh)
   facet_to_vertices = MeshIO.decompose(MeshIO.TriangleFace,mesh)
   vertex_to_normals = MeshIO.decompose_normals(mesh)
@@ -126,6 +125,15 @@ function read_stl(filename::String)
   vertex_to_normals = Vector{VectorValue{3,Float64}}( vertex_to_normals )
   facet_to_normals = vertex_to_normals[1:3:end]
   vertex_to_coordinates,facet_to_vertices,facet_to_normals
+end
+
+function _load(filename)
+  if Sys.islinux()
+    F = _file_format(filename)
+    load(File{F}(filename))
+  else
+    load(filename)
+  end
 end
 
 function _file_format(filename)
@@ -139,6 +147,7 @@ function _file_format(filename)
 end
 
 function _get_encoding(filename)
+  @notimplementedif !Sys.islinux()
   cmd = `file --mime-encoding $filename`
   read(cmd,String)
 end
