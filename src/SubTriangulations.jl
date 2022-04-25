@@ -719,7 +719,10 @@ function colour_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
     end
     deleteat!(colour,ids)
     for p_i in colour
-      @assert p_to_colour[p_i] == UNSET
+      p_to_colour[p_i] == UNSET || error("
+      Ambiguity in colouring, check whether STL geometry is matching requisites: is water tight, is manifold, is not self-intersecting, has not sharp edges.
+      Run `check_requisites(geo,bgmodel)` (not checking self-intersections currently)
+      If geometry comes from Thingi10k (ten-thousand-models.appspot.com), check whether `solid` and `manifold` are `true` in metadata")
       p_to_colour[p_i] = num_colours
     end
   end

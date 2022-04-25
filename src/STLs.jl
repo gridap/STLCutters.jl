@@ -632,52 +632,52 @@ function split_disconnected_parts(stl::DiscreteModel)
 end
 
 function check_requisites(stl::DiscreteModel,bgmodel::DiscreteModel;
-  verbose=true,max_num_facets=10000)
+  verbose=false,max_num_facets=10000)
 
   !verbose || println(join(fill('-',40)))
   check_requisites(stl;verbose) &&
   check_facet_density(stl,bgmodel;verbose,max_num_facets)
 end
 
-function check_requisites(stl::DiscreteModel;verbose=true)
+function check_requisites(stl::DiscreteModel;verbose=false)
   fulfill = true
   if !is_surface(stl)
-    !verbose || println("Is not a surface")
+    println("Is not a surface")
     fulfill = false
   end
   if !is_vertex_manifold(stl)
-    !verbose || println("Is not vertex manifold")
+    println("Is not vertex manifold")
     fulfill = false
   end
   if !is_edge_manifold(stl)
-    !verbose || println("Is not edge manifold")
+    println("Is not edge manifold")
     fulfill = false
   end
   if !is_water_tight(stl)
-    !verbose || println("Is not water tight")
+    println("Is not water tight")
     fulfill = false
   end
   if has_sharp_edges(stl)
-    !verbose || println("Has sharp edges")
+    println("Has sharp edges")
     fulfill = false
   end
   fulfill
 end
 
 function check_facet_density(stl::DiscreteModel,bgmodel::DiscreteModel;
-  verbose=true,max_num_facets)
+  verbose=false,max_num_facets)
 
   fulfill = true
   max_fv = max_num_facets_per_vertex(stl)
   max_fbc = max_num_facets_per_bgcell(stl,bgmodel)
-  println("Maximum num facets per vertex: $max_fv")
-  println("Maximum num facets per bgcell: $max_fbc")
+  !verbose || println("Maximum num facets per vertex: $max_fv")
+  !verbose || println("Maximum num facets per bgcell: $max_fbc")
   if max_fbc > max_num_facets
     fulfill = false
     if max_fv > max_num_facets
-      !verbose || println("Unable to run geometry $max_num_facets")
+      println("Unable to run geometry $max_num_facets")
     else
-      !verbose || println("Please refine your mesh")
+      println("Please refine your mesh")
     end
   end
   fulfill

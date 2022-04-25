@@ -34,6 +34,8 @@ function main(filename;n=20,δ=0.2,output=nothing)
   partition = (n,n,n)
   model = CartesianDiscreteModel(pmin,pmax,partition)
 
+  @test check_requisites(stl,model)
+
   subcells,subfaces,labels = subtriangulate(model,stl)
 
   if output !== nothing
