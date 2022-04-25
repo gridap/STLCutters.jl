@@ -25,9 +25,9 @@ function main(filename;n=20,δ=0.2,output=nothing)
   pmax = pmax + diagonal*δ
   partition = (n,n,n)
 
-  @test check_requisites(geo,bgmodel)
-
   bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
+
+  @test check_requisites(geo,bgmodel)
 
   # Cut the background model
 
