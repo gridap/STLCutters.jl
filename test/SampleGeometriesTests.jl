@@ -8,8 +8,6 @@ using STLCutters
 
 import Downloads
 
-using STLCutters: check_requisites
-using STLCutters: get_stl
 using STLCutters: volumes
 using STLCutters: volume, surface
 
@@ -56,7 +54,7 @@ function main(filename;
   origin,sizes,partition = compute_sizes(pmin-Δ,pmax+Δ;nmin,nmax)
   model = CartesianDiscreteModel(origin,sizes,partition)
 
-  @test check_requisites(get_stl(stl),model)
+  @test check_requisites(stl,model)
 
   t = @timed subcells,subfaces,labels = subtriangulate(model,stl;tolfactor,kdtree)
 

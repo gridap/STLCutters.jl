@@ -635,6 +635,11 @@ function check_requisites(stl::DiscreteModel,bgmodel::DiscreteModel;
   verbose=true,max_num_facets=10000)
 
   !verbose || println(join(fill('-',40)))
+  check_requisites(stl;verbose) &&
+  check_facet_density(stl,bgmodel;verbose,max_num_facets)
+end
+
+function check_requisites(stl::DiscreteModel;verbose=true)
   fulfill = true
   if !is_surface(stl)
     !verbose || println("Is not a surface")
@@ -656,6 +661,13 @@ function check_requisites(stl::DiscreteModel,bgmodel::DiscreteModel;
     !verbose || println("Has sharp edges")
     fulfill = false
   end
+  fulfill
+end
+
+function check_facet_density(stl::DiscreteModel,bgmodel::DiscreteModel;
+  verbose=true,max_num_facets)
+
+  fulfill = true
   max_fv = max_num_facets_per_vertex(stl)
   max_fbc = max_num_facets_per_bgcell(stl,bgmodel)
   println("Maximum num facets per vertex: $max_fv")
