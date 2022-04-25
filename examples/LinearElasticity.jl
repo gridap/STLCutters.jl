@@ -35,7 +35,7 @@ function main(filename;n=20,δ=0.2,force=(0,0,-1)::NTuple{3},output=nothing)
 
   bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
-  @test check_requisites(geo,nodel)
+  @test check_requisites(geo,bgmodel)
 
   # Cut the background model
 
