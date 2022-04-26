@@ -15,3 +15,8 @@ version: 0.1.0
 date-released: 2022-04-01
 doi: 10.1016/j.jcp.2022.111162
 url: "https://doi.org/10.1016/j.jcp.2022.111162"
+journal: "Journal of Computational Physics"
+issue: 0021-9991
+volume: 460
+year: 2022
+pages: 111162
