@@ -1,21 +1,16 @@
-cff-version: 1.2.0
+cff-version: 0.0.1
 message: "If you use this software, please cite it as below."
 authors:
+  - family-names: Martorell
+    given-names: Pere Antoni
   - family-names: Badia
     given-names: Santiago 
     orcid: https://orcid.org/0000-0003-2391-4086
-  - family-names: Martorell
-    given-names: Pere Antoni
-    orcid: https://orcid.org/0000-0002-5575-039X
   - family-names: Verdugo
     given-names: Francesc
     orcid: https://orcid.org/0000-0003-3667-443X
-doi: 10.1016/j.jcp.2022.111162
-type: article
-title: "Geometrical discretisations for unfitted finite elements on explicit boundary representations"
-journal: "Journal of Computational Physics"
-issue: 0021-9991
-volume: 460
-year: 2022
-pages: 111162
-
+title: "STLCutters"
+version: 0.1.0
+date-released: 2021-09-04
+doi: 10.5281/zenodo.5444427
+url: "https://github.com/gridap/STLCutters.jl"
