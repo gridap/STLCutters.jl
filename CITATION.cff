@@ -12,8 +12,6 @@ authors:
     orcid: https://orcid.org/0000-0003-3667-443X
 title: "Geometrical discretisations for unfitted finite elements on explicit boundary representations"
 type: article-journal
-version: 0.1.0
-date-released: 2022-07-01
 doi: 10.1016/j.jcp.2022.111162
 url: "https://doi.org/10.1016/j.jcp.2022.111162"
 journal: "Journal of Computational Physics"
