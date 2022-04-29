@@ -50,6 +50,7 @@ export STLCutter
 
 export subtriangulate
 export get_bounding_box
+export check_requisites
 
 include("SimplexFaces.jl")
 include("STLs.jl")

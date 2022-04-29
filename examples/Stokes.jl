@@ -32,6 +32,8 @@ function main(filename;n,output=nothing)
   cells = (n,3*n,n)
   bgmodel = CartesianDiscreteModel(pmin,pmax,cells)
 
+  @test check_requisites(geo,bgmodel)
+
   labels = get_face_labeling(bgmodel)
   wall_tags = union(get_faces(HEX)[ [21,22,25,26] ]...)
   add_tag_from_tags!(labels,"wall",wall_tags)

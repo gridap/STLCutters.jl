@@ -126,3 +126,7 @@ function writevtk(geo::STLGeometry,args...;kwargs...)
   writevtk(grid,args...;kwargs...)
 end
 
+function check_requisites(geo::STLGeometry,bgmodel::DiscreteModel;kwargs...)
+  stl = get_stl(geo)
+  check_requisites(stl,bgmodel)
+end

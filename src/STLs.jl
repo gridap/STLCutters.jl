@@ -462,7 +462,6 @@ function preprocess_small_facets(stl::DiscreteModel;atol)
     incomplete || return stl
   end
   @warn "Unable to fix small facets in $max_iters iterations"
-  println("@warn: Unable to fix small facets in $max_iters iterations")
   stl
 end
 
@@ -632,43 +631,49 @@ function split_disconnected_parts(stl::DiscreteModel)
 end
 
 function check_requisites(stl::DiscreteModel,bgmodel::DiscreteModel;
-  verbose=true,max_num_facets=10000)
+  verbose=false,max_num_facets=10000)
 
   !verbose || println(join(fill('-',40)))
-  fulfill = true
+  check_requisites(stl;verbose)
+  check_facet_density(stl,bgmodel;verbose,max_num_facets)
+  true
+end
+
+function check_requisites(stl::DiscreteModel;verbose=false)
   if !is_surface(stl)
-    !verbose || println("Is not a surface")
-    fulfill = false
+    error("Is not a surface")
   end
   if !is_vertex_manifold(stl)
-    !verbose || println("Is not vertex manifold")
-    fulfill = false
+    error("Is not vertex manifold")
   end
   if !is_edge_manifold(stl)
-    !verbose || println("Is not edge manifold")
-    fulfill = false
+    error("Is not edge manifold")
   end
   if !is_water_tight(stl)
-    !verbose || println("Is not water tight")
-    fulfill = false
+    error("Is not water tight")
   end
   if has_sharp_edges(stl)
-    !verbose || println("Has sharp edges")
-    fulfill = false
+    error("Has sharp edges")
   end
+  true
+end
+
+function check_facet_density(stl::DiscreteModel,bgmodel::DiscreteModel;
+  verbose=false,max_num_facets)
+
   max_fv = max_num_facets_per_vertex(stl)
   max_fbc = max_num_facets_per_bgcell(stl,bgmodel)
-  println("Maximum num facets per vertex: $max_fv")
-  println("Maximum num facets per bgcell: $max_fbc")
+  !verbose || println("Maximum num facets per vertex: $max_fv")
+  !verbose || println("Maximum num facets per bgcell: $max_fbc")
   if max_fbc > max_num_facets
     fulfill = false
     if max_fv > max_num_facets
-      !verbose || println("Unable to run geometry $max_num_facets")
+      error("Unable to run geometry $max_num_facets")
     else
-      !verbose || println("Please refine your mesh")
+      error("Please refine your mesh")
     end
   end
-  fulfill
+  true
 end
 
 function is_vertex_manifold(stlmodel::DiscreteModel{2,3})

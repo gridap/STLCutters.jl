@@ -719,7 +719,9 @@ function colour_facing_facets(poly::Polyhedron,facets,part_to_facets;inside)
     end
     deleteat!(colour,ids)
     for p_i in colour
-      @assert p_to_colour[p_i] == UNSET
+      p_to_colour[p_i] == UNSET || error("
+      Ambiguity in colouring, check whether the STL geometry is a polyhedron, i.e., is solid and manifold. I.e., no self-intersections, no degenerate faces, water tight, manifold and no sharp edges.
+      Run `check_requisites(geo,bgmodel)` (not checking self-intersections currently)")
       p_to_colour[p_i] = num_colours
     end
   end
