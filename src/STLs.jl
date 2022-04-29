@@ -462,7 +462,6 @@ function preprocess_small_facets(stl::DiscreteModel;atol)
     incomplete || return stl
   end
   @warn "Unable to fix small facets in $max_iters iterations"
-  println("@warn: Unable to fix small facets in $max_iters iterations")
   stl
 end
 
