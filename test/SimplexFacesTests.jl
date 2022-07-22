@@ -10,12 +10,14 @@ using STLCutters: distance
 using STLCutters: projection
 using STLCutters: measure
 using STLCutters: normal
+using STLCutters: origin
 using STLCutters: signed_distance
 using STLCutters: contains_projection
 using STLCutters: voxel_intersection
 using STLCutters: simplex_face
 using STLCutters: min_height
 using STLCutters: Plane
+using STLCutters: CartesianPlane
 
 # Face{1,2}
 
@@ -115,6 +117,17 @@ p = Point(0.0,0.0)
 
 @test signed_distance(p,Π) ≈ -1/√2
 
+x0 = Point(0.0,0.0)
+d = 1
+or = 1
+Π = CartesianPlane(x0,d,or)
+p = Point(1.0,1.0)
+
+@test normal(Π) == VectorValue(1,0)
+@test origin(Π) == Point(0,0)
+@test signed_distance(p,Π) == 1
+
+
 # Plane{3}
 
 p1 = Point(0.0,1.0,0.0)
@@ -126,6 +139,16 @@ f = simplex_face(p1,p2,p3)
 p = Point(0.0,0.0,0.0)
 
 @test signed_distance(p,Π) ≈ 1/√3
+
+x0 = Point(0.0,0.0,0.0)
+d = 1
+or = 1
+Π = CartesianPlane(x0,d,or)
+p = Point(1.0,1.0,1.0)
+
+@test normal(Π) == VectorValue(1,0,0)
+@test origin(Π) == Point(0,0,0)
+@test signed_distance(p,Π) == 1
 
 # Distance Point - Point
 
