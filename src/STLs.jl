@@ -1,11 +1,13 @@
 
-struct STL{Dc,Dp,T} <: GridTopology{Dc,Dp}
+struct STLTopology{Dc,Dp,T} <: GridTopology{Dc,Dp}
   vertex_to_coordinates::Vector{Point{Dp,T}}
   n_m_to_nface_to_mfaces::Matrix{Table{Int32,Vector{Int32},Vector{Int32}}}
   polytope::Polytope{Dc}
   facedims::Vector{Int8}
   offsets::Vector{Int32}
 end
+
+const STL = STLTopology
 
 function STL(model::DiscreteModel)
   topo = get_grid_topology(model)
