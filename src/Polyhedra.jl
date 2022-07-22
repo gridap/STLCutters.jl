@@ -22,7 +22,7 @@ end
 
 # Constructors
 
-function Polyhedron(stl::STL)
+function Polyhedron(stl::GridTopology)
   𝓖 = compute_graph(stl)
   X = get_vertex_coordinates(stl)
   isopen = is_open_surface(stl)
@@ -280,7 +280,7 @@ function simplexify_surface(poly::Polyhedron{3})
   T,get_vertex_coordinates(poly)
 end
 
-function simplexify_boundary(poly::Polyhedron{3},stl::STL)
+function simplexify_boundary(poly::Polyhedron{3},stl::GridTopology)
   D = 3
   stack = Int32[]
   v_to_pv = get_data(poly).vertex_to_parent_vertex
@@ -350,7 +350,7 @@ end
 
 function simplexify_boundary(
   polys::AbstractVector{<:Polyhedron{Dp,Tp}},
-  stl::STL) where {Dp,Tp}
+  stl::GridTopology) where {Dp,Tp}
 
   T = Vector{Int32}[]
   X = Point{Dp,Tp}[]
@@ -368,7 +368,7 @@ function simplexify_boundary(::NTuple{N,Nothing},args...) where N
   nothing,nothing,nothing,nothing
 end
 
-function simplexify_boundary(p::Tuple,labels::Tuple,stl::STL)
+function simplexify_boundary(p::Tuple,labels::Tuple,stl::GridTopology)
   P = eltype(p[1])
   Dp = num_dims(P)
   Tp = point_eltype(P)
@@ -396,7 +396,7 @@ function surface(poly::Polyhedron{3})
   sum( i -> measure(get_cell!(c,T,X,p,i)), 1:length(T) )
 end
 
-function surface(poly::Polyhedron{3},stl::STL)
+function surface(poly::Polyhedron{3},stl::GridTopology)
   T,X, = simplexify_boundary(poly,stl)
   p = TRI
   c = array_cache(T)
@@ -427,7 +427,7 @@ function volume(polys::AbstractVector{<:Polyhedron},args...)
   v
 end
 
-function restrict(poly::Polyhedron,stl::STL,stl_facets)
+function restrict(poly::Polyhedron,stl::GridTopology,stl_facets)
   cell_to_nodes = get_cell_vertices(stl)
   c = array_cache(cell_to_nodes)
   nodes = Int32[]
@@ -544,21 +544,21 @@ function isactive(p::Polyhedron,vertex::Integer)
   !isempty( get_graph(p)[vertex] )
 end
 
-function get_original_reflex_faces(p::Polyhedron{D},stl::STL;empty=true) where D
+function get_original_reflex_faces(p::Polyhedron{D},stl::GridTopology;empty=true) where D
   get_original_faces(p,stl,Val{D-2}();empty)
 end
 
-function get_original_facets(p::Polyhedron{D},stl::STL;empty=false) where D
+function get_original_facets(p::Polyhedron{D},stl::GridTopology;empty=false) where D
   get_original_faces(p,stl,Val{D-1}();empty)
 end
 
-function get_original_faces(p::Polyhedron,stl::STL,::Val{d};empty) where d
+function get_original_faces(p::Polyhedron,stl::GridTopology,::Val{d};empty) where d
   faces = collect_original_faces(p,stl,d)
   filter!(f->has_original_face(p,f,Val{d}();empty),faces)
   faces
 end
 
-function collect_original_faces(p::Polyhedron,stl::STL,d::Integer)
+function collect_original_faces(p::Polyhedron,stl::GridTopology,d::Integer)
   v_to_f = get_data(p).vertex_to_original_faces
   facedims = get_facedims(stl)
   faces = Int32[]
@@ -834,8 +834,8 @@ function edge_mesh(p::Polyhedron)
   UnstructuredGrid(X,T,[SEG2],fill(1,length(T)))
 end
 
-function compute_graph(stl::STL{2})
-  @notimplementedif get_polytope(stl) ≠ TRI
+function compute_graph(stl::GridTopology{2})
+  @notimplementedif only(get_polytopes(stl)) ≠ TRI
   D = 2
   v_to_e = get_faces(stl,0,1)
   v_to_f = get_faces(stl,0,D)
@@ -1045,7 +1045,7 @@ function add_vertex!(data::PolyhedronData,v1::Integer,v2::Integer,Πid::Integer)
   data
 end
 
-function set_original_faces!(data::PolyhedronData,stl::STL)
+function set_original_faces!(data::PolyhedronData,stl::GridTopology)
   Dc = num_dims(stl)
   v_to_f = data.vertex_to_original_faces
   for d in 0:Dc
@@ -1158,14 +1158,14 @@ function round_distances!(poly,atol)
   end
 end
 
-function delete_inactive_planes!(Γ::Polyhedron,K::Polyhedron,stl::STL)
+function delete_inactive_planes!(Γ::Polyhedron,K::Polyhedron,stl::GridTopology)
   @assert isopen(Γ)
   planes = get_active_planes(Γ,K,stl)
   restrict_planes!(Γ,planes)
   restrict_planes!(K,planes)
 end
 
-function get_active_planes(Γ::Polyhedron,K::Polyhedron,stl::STL)
+function get_active_planes(Γ::Polyhedron,K::Polyhedron,stl::GridTopology)
   used_planes_Γ = _get_used_planes(K)
   used_planes_K = _get_used_planes(Γ)
   used_planes = lazy_append( used_planes_Γ, used_planes_K )
@@ -1229,7 +1229,7 @@ function _get_used_planes(poly::Polyhedron)
   planes
 end
 
-function _get_face_planes(poly::Polyhedron,stl::STL)
+function _get_face_planes(poly::Polyhedron,stl::GridTopology)
   rfaces = get_original_reflex_faces(poly,stl,empty=true)
   facets = get_original_facets(poly,stl,empty=true)
   lazy_append(rfaces,facets)

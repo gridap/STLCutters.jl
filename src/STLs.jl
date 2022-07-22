@@ -43,6 +43,8 @@ get_vertex_coordinates(stl::STL) = stl.vertex_to_coordinates
 
 get_polytope(stl::STL) = stl.polytope
 
+get_polytopes(stl::STL) = Fill(get_polytope(stl),1)
+
 get_offsets(stl::STL) = stl.offsets
 
 get_offset(stl::STL,d::Integer) = get_offsets(stl)[d+1]
@@ -110,7 +112,7 @@ function get_simplex_dface!(cache,T,X,i::Integer,::Val{d}) where d
   simplex_face( vertices )
 end
 
-function is_open_surface(stl::STL)
+function is_open_surface(stl::GridTopology)
   Dc = num_dims(stl)
   e_to_f = get_faces(stl,Dc-1,Dc)
   1 ≤ maximum(length,e_to_f) ≤ 2 || return false
@@ -765,8 +767,12 @@ function get_bounding_box(model::DiscreteModel)
   get_bounding_box(get_grid_topology(model))
 end
 
-function get_bounding_box(msh::T) where T<:Union{GridTopology,STL}
+function get_bounding_box(msh::GridTopology)
   vertices = get_vertex_coordinates(msh)
+  get_bounding_box(vertices)
+end
+
+function get_bounding_box(vertices::AbstractVector{<:VectorValue})
   pmin = pmax = vertices[1]
   for vertex in vertices
     pmin = Point( min.( Tuple(pmin), Tuple(vertex) ) )

@@ -5,15 +5,16 @@ import Plots
 import GraphRecipes
 
 using Gridap
-using Gridap.Geometry
-using Gridap.ReferenceFEs
 using Gridap.Arrays
+using Gridap.Geometry
 using Gridap.Helpers
+using Gridap.ReferenceFEs
 using GridapEmbedded
 using GridapEmbedded.CSG
 using GridapEmbedded.Interfaces
 using GridapEmbedded.LevelSetCutters
 using LinearAlgebra
+using FillArrays
 using FileIO
 using ProgressMeter
 
@@ -37,6 +38,7 @@ import Gridap.ReferenceFEs: simplexify
 import Gridap.ReferenceFEs: get_bounding_box
 import Gridap.Geometry: num_cells
 import Gridap.Geometry: get_cell_vertices
+import Gridap.Geometry: get_polytopes
 
 import GridapEmbedded.Interfaces: cut
 import GridapEmbedded.CSG: get_tree
