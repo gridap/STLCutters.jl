@@ -1,5 +1,5 @@
 
-struct STL{Dc,Dp,T} # <: GridTopology
+struct STL{Dc,Dp,T} <: GridTopology{Dc,Dp}
   vertex_to_coordinates::Vector{Point{Dp,T}}
   n_m_to_nface_to_mfaces::Matrix{Table{Int32,Vector{Int32},Vector{Int32}}}
   polytope::Polytope{Dc}
@@ -7,10 +7,13 @@ struct STL{Dc,Dp,T} # <: GridTopology
   offsets::Vector{Int32}
 end
 
-
-function STL(model::DiscreteModel{Dc,Dp}) where {Dc,Dp}
-  Dc == Dp-1 || error("STL must be a surface")
+function STL(model::DiscreteModel)
   topo = get_grid_topology(model)
+  STL(topo)
+end
+
+function STL(topo::GridTopology{Dc,Dp}) where {Dc,Dp}
+  Dc == Dp-1 || error("STL must be a surface")
   v_coords = get_vertex_coordinates(topo)
   polytope = only(get_polytopes(topo))
   facedims = get_facedims(topo)
@@ -32,7 +35,7 @@ num_dims(stl::STL{Dc}) where Dc = Dc
 
 num_point_dims(stl::STL{Dc,Dp}) where {Dc,Dp} = Dp
 
-get_faces(stl::STL,n,m) = stl.n_m_to_nface_to_mfaces[n+1,m+1]
+get_faces(stl::STL,n::Integer,m::Integer) = stl.n_m_to_nface_to_mfaces[n+1,m+1]
 
 get_vertex_coordinates(stl::STL) = stl.vertex_to_coordinates
 
