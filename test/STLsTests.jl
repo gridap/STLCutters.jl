@@ -25,6 +25,9 @@ stlmodel = compute_stl_model(T,X)
 stl = STL(stlmodel)
 
 @test num_faces(stl) == num_faces(stlmodel)
+@test num_vertices(stl) == num_vertices(stlmodel)
+@test num_edges(stl) == num_edges(stlmodel)
+@test num_facets(stl) == num_facets(stlmodel)
 
 stlmodel = merge_nodes(stlmodel)
 @test is_water_tight(stlmodel)

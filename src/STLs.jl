@@ -1,5 +1,5 @@
 
-struct STL{Dc,Dp,T} # <: GridTopology
+struct STLTopology{Dc,Dp,T} <: GridTopology{Dc,Dp}
   vertex_to_coordinates::Vector{Point{Dp,T}}
   n_m_to_nface_to_mfaces::Matrix{Table{Int32,Vector{Int32},Vector{Int32}}}
   polytope::Polytope{Dc}
@@ -7,10 +7,15 @@ struct STL{Dc,Dp,T} # <: GridTopology
   offsets::Vector{Int32}
 end
 
+const STL = STLTopology
 
-function STL(model::DiscreteModel{Dc,Dp}) where {Dc,Dp}
-  Dc == Dp-1 || error("STL must be a surface")
+function STL(model::DiscreteModel)
   topo = get_grid_topology(model)
+  STL(topo)
+end
+
+function STL(topo::GridTopology{Dc,Dp}) where {Dc,Dp}
+  Dc == Dp-1 || error("STL must be a surface")
   v_coords = get_vertex_coordinates(topo)
   polytope = only(get_polytopes(topo))
   facedims = get_facedims(topo)
@@ -32,11 +37,13 @@ num_dims(stl::STL{Dc}) where Dc = Dc
 
 num_point_dims(stl::STL{Dc,Dp}) where {Dc,Dp} = Dp
 
-get_faces(stl::STL,n,m) = stl.n_m_to_nface_to_mfaces[n+1,m+1]
+get_faces(stl::STL,n::Integer,m::Integer) = stl.n_m_to_nface_to_mfaces[n+1,m+1]
 
 get_vertex_coordinates(stl::STL) = stl.vertex_to_coordinates
 
 get_polytope(stl::STL) = stl.polytope
+
+get_polytopes(stl::STL) = Fill(get_polytope(stl),1)
 
 get_offsets(stl::STL) = stl.offsets
 
@@ -53,6 +60,10 @@ num_faces(stl::STL,d::Integer) = length(get_faces(stl,d,d))
 num_faces(stl::STL) = length(get_facedims(stl))
 
 num_vertices(stl::STL) = num_faces(stl,0)
+
+num_edges(stl::STL) = num_faces(stl,0)
+
+num_facets(stl::STL{D}) where D = num_faces(stl,D-1)
 
 num_cells(stl::STL{Dc}) where Dc = num_faces(stl,Dc)
 
@@ -105,7 +116,7 @@ function get_simplex_dface!(cache,T,X,i::Integer,::Val{d}) where d
   simplex_face( vertices )
 end
 
-function is_open_surface(stl::STL)
+function is_open_surface(stl::GridTopology)
   Dc = num_dims(stl)
   e_to_f = get_faces(stl,Dc-1,Dc)
   1 ≤ maximum(length,e_to_f) ≤ 2 || return false
@@ -760,8 +771,12 @@ function get_bounding_box(model::DiscreteModel)
   get_bounding_box(get_grid_topology(model))
 end
 
-function get_bounding_box(msh::T) where T<:Union{GridTopology,STL}
+function get_bounding_box(msh::GridTopology)
   vertices = get_vertex_coordinates(msh)
+  get_bounding_box(vertices)
+end
+
+function get_bounding_box(vertices::AbstractVector{<:VectorValue})
   pmin = pmax = vertices[1]
   for vertex in vertices
     pmin = Point( min.( Tuple(pmin), Tuple(vertex) ) )

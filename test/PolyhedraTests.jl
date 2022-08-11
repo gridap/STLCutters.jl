@@ -19,6 +19,8 @@ using STLCutters: compute_distances!
 using STLCutters: plot
 using STLCutters: check_graph
 using STLCutters: compute_stl_model
+using STLCutters: read_stl
+using STLCutters: merge_nodes
 
 p = Polyhedron(TRI)
 @test check_graph(p)
@@ -67,5 +69,21 @@ pn = [p⁻,p⁺]
 @test volume(pn) ≈ 2*volume(p⁻) ≈ 1
 @test surface(pn) ≈ 2*surface(p⁻) ≈ 8
 @test surface(p⁻,stl) ≈ 1
+
+X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
+stlmodel = compute_stl_model(T,X)
+stlmodel = merge_nodes(stlmodel)
+stltopo = get_grid_topology(stlmodel)
+stl = STL(stlmodel)
+
+p1 = Polyhedron(stl)
+p2 = Polyhedron(stltopo)
+
+@test check_graph(p1)
+@test surface(p1) ≈ 6
+
+@test check_graph(p2)
+@test surface(p2) ≈ 6
+
 
 end # module
