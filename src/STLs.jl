@@ -61,6 +61,10 @@ num_faces(stl::STL) = length(get_facedims(stl))
 
 num_vertices(stl::STL) = num_faces(stl,0)
 
+num_edges(stl::STL) = num_faces(stl,0)
+
+num_facets(stl::STL{D}) where D = num_faces(stl,D-1)
+
 num_cells(stl::STL{Dc}) where Dc = num_faces(stl,Dc)
 
 function get_face_vertices(stl::STL{D}) where D
