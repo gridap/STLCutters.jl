@@ -16,6 +16,7 @@ function download(id;path="")
   r = Downloads.request(url)
   if 200 ≤ r.status ≤ 399
     _,ext = splitext(r.url)
+    ext, = split(ext,'?')
     mkpath(path)
     filename = joinpath(path,"$id$ext")
     Downloads.download(url,filename)
