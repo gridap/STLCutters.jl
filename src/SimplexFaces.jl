@@ -13,12 +13,14 @@ struct Tetrahedron{D,T}<:Face{3,D}
   vertices::Tuple{Point{D,T},Point{D,T},Point{D,T},Point{D,T}}
 end
 
-struct Plane{D,T}
+abstract type AbstractPlane{D,T} end
+
+struct Plane{D,T} <: AbstractPlane{D,T}
   origin::Point{D,T}
   normal::VectorValue{D,T}
 end
 
-struct CartesianPlane{D,T}
+struct CartesianPlane{D,T} <: AbstractPlane{D,T}
   d::Int8
   value::T
   positive::Bool
@@ -58,6 +60,11 @@ end
 
 function Base.zero(::Type{<:Plane{D,T}}) where {D,T}
   Plane(zero(Point{D,T}),zero(Point{D,T}))
+end
+
+function origin(p::CartesianPlane{D,T}) where {D,T}
+  o = zero( Point{D,T} )
+  Point( Base.setindex(o.data,p.value,p.d) )
 end
 
 function Base.getindex(::Face)
@@ -539,7 +546,7 @@ end
 
 # Compute planes
 
-function bisector_plane(edge::Face{1,3},Π1::Plane,Π2::Plane)
+function bisector_plane(edge::Face{1,3},Π1::AbstractPlane,Π2::AbstractPlane)
   n1 = normal(Π1)
   n2 = normal(Π2)
   n1 ⋅ n2 ≉ -1 || error("Edge too sharp")

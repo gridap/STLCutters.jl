@@ -180,8 +180,8 @@ function save_as_stl(stl::DiscreteModel{Dc,Dp},filename) where {Dc,Dp}
   filename *= ".stl"
   file = File{format"STL_BINARY"}(filename)
   facetype = MeshIO.GLTriangleFace
-  pointtype = MeshIO.Point3f0
-  normaltype = MeshIO.Vec3f0
+  pointtype = MeshIO.Point3f
+  normaltype = MeshIO.Vec3f
   faces = Array{facetype}(undef, num_cells(stl))
   vertices = Array{pointtype}(undef, num_cells(stl) * 3)
   normals = Array{normaltype}(undef, num_cells(stl) * 3)
