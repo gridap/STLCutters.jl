@@ -867,6 +867,18 @@ end
 
 min_height(model::DiscreteModel) = min_height(get_grid(model))
 
+function max_length(grid::Grid)
+  max_len = 0.0
+  c = get_cell_cache(grid)
+  for i in 1:num_cells(grid)
+    cell = get_cell!(c,grid,i)
+    max_len = max(max_len,max_length(cell))
+  end
+  max_len
+end
+
+max_length(model::DiscreteModel) = max_length(get_grid(model))
+
 # Cartesian Grid
 
 function get_bounding_box(grid::CartesianGrid)
@@ -886,8 +898,13 @@ function measure(a::CartesianGrid{D,T,typeof(identity)},mask) where {D,T}
   cell_vol * count(mask)
 end
 
+function compute_cell_to_facets(model_a::DiscreteModel,grid_b)
+  grid_a = get_grid(model_a)
+  compute_cell_to_facets(grid_a,grid_b)
+end
 
-function compute_cell_to_facets(grid::CartesianGrid,stl::STL)
+
+function compute_cell_to_facets(grid::CartesianGrid,stl)
   CELL_EXPANSION_FACTOR = 1e-3
   desc = get_cartesian_descriptor(grid)
   @assert length(get_reffes(grid)) == 1
@@ -927,6 +944,70 @@ function compute_cell_to_facets(grid::CartesianGrid,stl::STL)
     end
   end
   cell_to_stl_facets
+end
+
+function compute_cell_to_facets(a::UnstructuredGrid,b)
+  tmp = cartesian_bounding_model(a)
+  tmp_to_a = compute_cell_to_facets(tmp,a)
+  tmp_to_b = compute_cell_to_facets(tmp,b)
+  a_to_tmp = inverse_index_map(tmp_to_a,num_cells(a))
+  a_to_b = compose_index_map(a_to_tmp,tmp_to_b)
+  a_to_b # TODO: filter by true intersections (should work without filter
+end
+
+function cartesian_bounding_model(grid::Grid)
+  h = max_length(grid)
+  pmin,pmax = get_bounding_box(grid)
+  s = Tuple(pmax-pmin)
+  partition = Int.( ceil.( s ./ h  ))
+  CartesianDiscreteModel(pmin,pmax,partition)
+end
+
+function inverse_index_map(
+  a_to_b::AbstractVector{<:AbstractVector},
+  nb=maximum(maximum(a_to_b)))
+
+  na = length(a_to_b)
+  as = Int32[]
+  bs = Int32[]
+  cache = array_cache(a_to_b)
+  for a in 1:na
+    for b in getindex!(cache,a_to_b,a)
+      push!(as,a)
+      push!(bs,b)
+    end
+  end
+  assemble_sparse_map(bs,as,nb)
+end
+
+function compose_index_map(
+  a_to_b::AbstractVector{<:AbstractVector},
+  b_to_c::AbstractVector{<:AbstractVector})
+
+  na = length(a_to_b)
+  as = Int32[]
+  cs = Int32[]
+  cache_ab = array_cache(a_to_b)
+  cache_bc = array_cache(b_to_c)
+  for a in 1:na
+    for b in getindex!(cache_ab,a_to_b,a)
+      for c in getindex!(cache_bc,b_to_c,b)
+        push!(as,a)
+        push!(cs,c)
+      end
+    end
+  end
+  assemble_sparse_map(as,cs,na)
+end
+
+function assemble_sparse_map(as,bs,na=maximum(as))
+  a_to_b = map(_->Int32[],1:na)
+  for (a,b) in zip(as,bs)
+    if b ∉ a_to_b[a]
+      push!(a_to_b[a],b)
+    end
+  end
+  a_to_b
 end
 
 function get_cells_around(desc::CartesianDescriptor{D},pmin::Point,pmax::Point) where D

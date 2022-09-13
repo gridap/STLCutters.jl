@@ -303,6 +303,15 @@ function min_height(f::Face{Df}) where Df
   min_dist
 end
 
+function max_length(f::Face{Df}) where Df
+  max_len = 0.0
+  for e in 1:num_edges(f)
+    edge = get_edge(f,e)
+    max_len = max(max_len,length(edge))
+  end
+  max_len
+end
+
 get_bounding_box(p::Point) = p,p
 
 function get_bounding_box(f::Face)
@@ -508,6 +517,23 @@ function voxel_intersection(e::Face{1,D},pmin::Point{D},pmax::Point{D}) where D
     end
   end
   t_min < t_max
+end
+
+function voxel_intersection(
+  c::Face{D,D},
+  pmin::Point{D},
+  pmax::Point{D},
+  p::Polytope) where D
+
+  @check all( pmin .≤ pmax ) "pmin  > pmax"
+  for i in 1:num_facets(c)
+    f = get_facet(c,i)
+    plane = Plane( center(f), normal(c,i) )
+    v_to_dists = _compute_distances(plane,pmin,pmax,p)
+    voxel_intersection(f,pmin,pmax,p) && return true
+    all( d -> d < 0, v_to_dists) || return false
+  end
+  true
 end
 
 function _compute_distances(

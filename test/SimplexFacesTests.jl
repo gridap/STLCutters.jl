@@ -351,5 +351,19 @@ e = simplex_face(p1,p2,p3)
 @test !voxel_intersection(d,pmin,pmax,p)
 @test !voxel_intersection(e,pmin,pmax,p)
 
+# Voxel intersection Cell
+
+t = simplex_face(get_vertex_coordinates(TET)...)
+pmin,pmax = get_bounding_box(t)
+p0 = center(t)
+
+@test voxel_intersection(t,pmin,pmax,HEX)
+@test voxel_intersection(t,pmin,pmin+0.1,HEX)
+@test !voxel_intersection(t,pmax,pmax+0.1,HEX)
+@test voxel_intersection(t,p0,p0+0.1,HEX)
+
+f, = writevtk(t,"tet")
+rm.(f)
+
 end # module
 
