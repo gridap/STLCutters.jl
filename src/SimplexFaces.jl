@@ -149,6 +149,11 @@ is_n_cube(a::Face) = is_n_cube(get_polytope(a))
 
 simplex_face(v::Point...) = simplex_face(v)
 
+function simplex_face(coords::AbstractVector{<:Point{D}}) where D
+  tcoords = ntuple( i -> coords[i], Val{D+1}() )
+  simplex_face(tcoords)
+end
+
 @inline function simplex_face(v::NTuple{N,<:Point}) where N
   if N == 1
     v[1]
@@ -603,6 +608,69 @@ function get_cell_planes(p::Polytope,pmin::Point,pmax::Point)
   Π_ids = - ( 1:N )
   Π_inout = lazy_map( iseven, 1:N )
   Π_cell, Π_ids, Π_inout
+end
+
+function get_cell_planes(p::Polytope,coords)
+  if is_simplex(p)
+    f = simplex_face(coords)
+    get_cell_planes(f)
+  elseif is_n_cube(p)
+    pmin,pmax = coords[1],coords[end]
+    get_cell_planes(p,pmin,pmax)
+  end
+end
+
+function get_cell_planes(face::Face)
+  n_facets = num_facets(face)
+  facets = lazy_map(get_facet,Fill(face,n_facets),1:n_facets)
+  centers = lazy_map(center,facets)
+  normals = lazy_map(normal,Fill(face,n_facets),1:n_facets)
+  mask = lazy_map(n-> n > -n, normals)
+  facs = lazy_map(i->(-1)^(i+1),mask)
+  _normals = lazy_map(*,normals,facs)
+  planes = lazy_map(Plane,centers,_normals)
+  ids = -(1:n_facets)
+  planes,ids,mask
+end
+
+function displace(plane::Plane,dist,oriented=true)
+  c0 = center(plane)
+  n0 = normal(plane)
+  n = oriented ? n0 : -n0
+  c = c0 + n*dist
+  Plane(c,n0)
+end
+
+function displace(plane::CartesianPlane,dist,oriented=true)
+  c0 = origin(plane)
+  d = plane.d
+  or = plane.positive
+  diff = or == oriented ? dist : -dist
+  c = c0 + diff
+  dir = or ? 1 : -1
+  CartesianPlane(c,d,dir)
+end
+
+function expand_planes(
+  planes::AbstractVector{<:AbstractPlane},
+  inout::AbstractVector,
+  dist)
+
+  n_planes = length(planes)
+  lazy_map(displace,planes,Fill(dist,n_planes),inout)
+end
+
+function _visualization_grid(face::Face)
+  X = collect(face.vertices)
+  T = Table( [1:length(X)] )
+  ctype = [1]
+  reffes = [LagrangianRefFE(get_polytope(face))]
+  UnstructuredGrid(X,T,reffes,ctype)
+end
+
+function writevtk(face::Face,filename;kwargs...)
+  grid = _visualization_grid(face)
+  writevtk(grid,filename;kwargs...)
 end
 
 ## Orthogonal

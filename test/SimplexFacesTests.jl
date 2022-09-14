@@ -16,6 +16,7 @@ using STLCutters: contains_projection
 using STLCutters: voxel_intersection
 using STLCutters: simplex_face
 using STLCutters: min_height
+using STLCutters: displace
 using STLCutters: Plane
 using STLCutters: CartesianPlane
 
@@ -276,6 +277,49 @@ b = Point(1.0,1.0,1.0)
 
 @test contains_projection(f,a)
 @test !contains_projection(f,b)
+
+# Displace planes
+
+x = Point(1.0,2.0,3.0)
+n = VectorValue(0,0,1.0)
+
+plane0 = Plane(x,n)
+dist = 0.5
+plane = displace(plane0,dist)
+@test normal(plane) == normal(plane0) == n
+@test origin(plane) == Point(1,2,3.5)
+
+plane = displace(plane0,dist,false)
+@test normal(plane) == normal(plane0) == n
+@test origin(plane) == Point(1,2,2.5)
+
+x = Point(1,2,3)
+d = 3
+plane0 = CartesianPlane(x,d,1)
+plane = displace(plane0,dist)
+dist = 0.5
+@test origin(plane)⋅normal(plane) == origin(plane0)⋅normal(plane0)+dist == 3.5
+
+x = Point(1,2,3)
+d = 3
+plane0 = CartesianPlane(x,d,-1)
+plane = displace(plane0,dist)
+dist = 0.5
+@test origin(plane)⋅normal(plane) == origin(plane0)⋅normal(plane0)+dist == -2.5
+
+x = Point(1,2,3)
+d = 3
+plane0 = CartesianPlane(x,d,1)
+plane = displace(plane0,dist,false)
+dist = 0.5
+@test origin(plane)⋅normal(plane) == origin(plane0)⋅normal(plane0)-dist == 2.5
+
+x = Point(1,2,3)
+d = 3
+plane0 = CartesianPlane(x,d,-1)
+plane = displace(plane0,dist,false)
+dist = 0.5
+@test origin(plane)⋅normal(plane) == origin(plane0)⋅normal(plane0)-dist == -3.5
 
 # Voxel intersection Face{2}
 
