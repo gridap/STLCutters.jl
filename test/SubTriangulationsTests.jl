@@ -28,6 +28,8 @@ using STLCutters: compute_stl_model
 using STLCutters: compute_grid
 using STLCutters: FACE_IN, FACE_OUT, FACE_CUT
 
+using STLCutters: orient
+
 vertices = [
   Point(0.1,-0.2,0.5),
   Point(1.0,-0.3,0.5),
@@ -258,6 +260,103 @@ println("Num subcells: $(num_cells(subcells))")
 @test in_volume + out_volume ≈ volume(grid)
 @test in_volume ≈ 74.12595970214333
 
+# Simplex background grid
+
+X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
+stl = compute_stl_model(T,X)
+stl = merge_nodes(stl)
+
+#writevtk(get_grid(stl),"stl")
+
+p = HEX
+δ = 0.2
+n = 10
+D = 3
+
+pmin,pmax = get_bounding_box(stl)
+Δ = (pmax-pmin)*δ
+pmin = pmin - Δ
+pmax = pmax + Δ
+partition = (n,n,n)
+
+model = CartesianDiscreteModel(pmin,pmax,partition)
+model = simplexify(model)
+model = orient(model)
+grid = get_grid(model)
+
+@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=false)
+
+#writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
+#writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
+
+bgmesh_in_vol = volume(grid,labels.bgcell_to_ioc,:in)
+bgmesh_out_vol  = volume(grid,labels.bgcell_to_ioc,:out)
+bgmesh_cut_vol  = volume(grid,labels.bgcell_to_ioc,:cut)
+submesh_in_vol  = volume(subcells,labels.cell_to_io,:in)
+submesh_out_vol = volume(subcells,labels.cell_to_io,:out)
+
+in_volume = bgmesh_in_vol + submesh_in_vol
+out_volume = bgmesh_out_vol + submesh_out_vol
+cut_volume = bgmesh_cut_vol
+
+
+#celldata = [ "inoutcut" => labels.bgcell_to_ioc ]
+#writevtk( grid, "bgcells"; celldata )
+#
+#celldata = [ "inout" => labels.cell_to_io, "bgcell" => labels.cell_to_bgcell ]
+#writevtk( subcells, "subcells"; celldata )
+#
+#celldata = [ "bgcell" => labels.face_to_bgcell ]
+#writevtk( subfaces, "subfaces" )
+
+println("Num subcells: $(num_cells(subcells))")
+@test surface(get_grid(stl)) ≈ surface(subfaces)
+@test submesh_in_vol + submesh_out_vol ≈ cut_volume
+@test in_volume + out_volume ≈ volume(grid)
+@test in_volume ≈ 273280.03374196636
+
+X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
+stl = compute_stl_model(T,X)
+stl = merge_nodes(stl)
+
+#writevtk(get_grid(stl),"stl")
+
+p = HEX
+δ = 0.2
+n = 20
+D = 3
+
+pmin,pmax = get_bounding_box(stl)
+Δ = (pmax-pmin)*δ
+pmin = pmin - Δ
+pmax = pmax + Δ
+partition = (n,n,n)
+
+model = CartesianDiscreteModel(pmin,pmax,partition)
+model = simplexify(model)
+model = orient(model)
+grid = get_grid(model)
+
+@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=false)
+
+#writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
+#writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
+
+bgmesh_in_vol = volume(grid,labels.bgcell_to_ioc,:in)
+bgmesh_out_vol  = volume(grid,labels.bgcell_to_ioc,:out)
+bgmesh_cut_vol  = volume(grid,labels.bgcell_to_ioc,:cut)
+submesh_in_vol  = volume(subcells,labels.cell_to_io,:in)
+submesh_out_vol = volume(subcells,labels.cell_to_io,:out)
+
+in_volume = bgmesh_in_vol + submesh_in_vol
+out_volume = bgmesh_out_vol + submesh_out_vol
+cut_volume = bgmesh_cut_vol
+
+println("Num subcells: $(num_cells(subcells))")
+@test surface(get_grid(stl)) ≈ surface(subfaces)
+@test submesh_in_vol + submesh_out_vol ≈ cut_volume
+@test in_volume + out_volume ≈ volume(grid)
+@test in_volume ≈ 74.12595970214333
 ## Kd-Tree
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))

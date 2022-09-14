@@ -16,7 +16,7 @@ struct SubtriangulationLabels
 end
 
 function subtriangulate(
-  bgmodel::CartesianDiscreteModel,
+  bgmodel::DiscreteModel,
   stlmodel::DiscreteModel;
   threading=:spawn,
   kdtree=false,
@@ -89,7 +89,7 @@ function subtriangulate(
   cell_grid, face_grid, labels
 end
 
-function subtriangulate(bgmodel::CartesianDiscreteModel,args...;kwargs...)
+function subtriangulate(bgmodel::DiscreteModel,args...;kwargs...)
   stlmodel = _to_stl_model(args...)
   subtriangulate(bgmodel,stlmodel;kwargs...)
 end
@@ -119,14 +119,12 @@ function compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
   c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)
 
   cell_coords = _get_cell_coordinates!(caches,node_to_coords,cell_to_nodes,cell)
-  pmin = cell_coords[1]
-  pmax = cell_coords[end]
 
    _faces = _get_cell_faces!(caches,stl,c_to_stlf,cell,f_to_isempty)
   facets,empty_facets,reflex_faces = _faces
 
-  Πk,Πk_ids,Πk_io = get_cell_planes(p,pmin,pmax)
-  Πk⁺,Πk⁺_ids,Πk⁺_io = get_cell_planes(p,pmin-atol,pmax+atol)
+  Πk,Πk_ids,Πk_io = get_cell_planes(p,cell_coords)
+  Πk⁺,Πk⁺_ids,Πk⁺_io = expand_planes(Πk,Πk_io,atol), Πk_ids, Πk_io
   Πk⁺_ids = Πk⁺_ids .+ Πk_ids[end]
 
   Πkf,Πkf_ids = filter_face_planes(stl,Πr,reflex_faces,Πf,facets)
@@ -274,8 +272,12 @@ function delete_small_subfacets!(bgmodel,T,X,arrays...)
   delete_small_subfaces!(bgmodel,T,X,TRI,arrays...)
 end
 
+function max_length(model::CartesianDiscreteModel)
+  float(get_cartesian_descriptor(model).sizes[1])
+end
+
 function delete_small_subfaces!(bgmodel,T,X,p::Polytope{D},arrays...) where D
-  h = float(get_cartesian_descriptor(bgmodel).sizes[1])
+  h = max_length(bgmodel)
   c = array_cache(T)
   ids = findall( i -> measure(get_cell!(c,T,X,p,i)) < eps(h^D), 1:length(T) )
   deleteat!(T,ids)
@@ -905,18 +907,9 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
     for v in 1:num_vertices(poly)
       isactive(poly,v) || continue
     #  v = inout == FACE_CUT ? v : v_to_v[v]
-      if count(Π -> -2*D ≤ Π < 0 ,v_to_Π[v]) == D
-        i = 0
-        node = 0
-        for _ in 1:D
-          i = findnext(Π -> Π < 0,v_to_Π[v],i+1)
-          f = -v_to_Π[v][i]
-          d = D - ((f-1)>>1)
-          ud = iseven(f)
-          node |= ud<<(d-1)
-        end
-        node += 1
-        #@assert  node_to_inout[node] ∈ (inout,UNSET)
+      node = _find_polytope_vertex(v_to_Π[v],p)
+      if node != UNSET
+      #@assert  node_to_inout[node] ∈ (inout,UNSET)
         _inout = inout
         if node_to_inout[node] ∉ (inout,UNSET)
           _inout = FACE_CUT
@@ -928,7 +921,54 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
   node_to_inout
 end
 
+function find_polytope_vertex(planes,p::Polytope)
+  if is_n_cube(p)
+    _find_n_cube_vertex(planes,p)
+  else
+    _find_polytope_vertex(planes,p)
+  end
+end
+
+function _find_polytope_vertex(planes,p::Polytope)
+  D = num_dims(p)
+  n_facets = num_faces(p,D-1)
+  if count(Π -> -n_facets ≤ Π < 0 ,planes) == D
+    f_to_v = get_faces(p,D-1,0)
+    v_to_f = get_faces(p,0,D-1)
+    i = findfirst(Π -> Π < 0,planes)
+    f = -planes[i]
+    for v in f_to_v[f]
+      if all(f->(-f) ∈ planes,v_to_f[v])
+        return v
+      end
+    end
+  end
+  UNSET
+end
+
+
+function _find_n_cube_vertex(planes,p::Polytope)
+  @notimplementedif !is_n_cube(p)
+  D = num_dims(p)
+  if count(Π -> -2*D ≤ Π < 0 , planes) == D
+    i = 0
+    node = 0
+    for _ in 1:D
+      i = findnext(Π -> Π < 0, planes,i+1)
+      f = -planes[i]
+      d = D - ((f-1)>>1)
+      ud = iseven(f)
+      node |= ud<<(d-1)
+    end
+    node += 1
+  else
+    node = UNSET
+  end
+  node
+end
+
 function complete_facets_to_inoutcut!(facet_to_inoutcut,polys,inout,p::Polytope)
+#  @notimplementedif !is_n_cube(p)
   facet_list = Int32[]
   for poly in polys
     istouch = map( i -> falses(length(i)), get_graph(poly) )

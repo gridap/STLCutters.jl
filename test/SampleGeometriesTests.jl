@@ -10,6 +10,7 @@ import Downloads
 
 using STLCutters: volumes
 using STLCutters: volume, surface
+using STLCutters: orient
 
 function download(id;path="")
   url = "https://www.thingiverse.com/download:$id"
@@ -44,7 +45,7 @@ function compute_sizes(pmin::Point{D},pmax::Point{D};nmin=10,nmax=100) where D
 end
 
 function main(filename;
-  nmin=10,nmax=100,δ=0.2,tolfactor=1000,kdtree=false,output=nothing)
+  nmin=10,nmax=100,δ=0.2,tolfactor=1000,kdtree=false,simplex=false,output=nothing)
 
   println("Running: $(basename(filename))")
 
@@ -54,6 +55,10 @@ function main(filename;
   Δ = (pmax-pmin)*δ
   origin,sizes,partition = compute_sizes(pmin-Δ,pmax+Δ;nmin,nmax)
   model = CartesianDiscreteModel(origin,sizes,partition)
+  if simplex
+    model = simplexify(model)
+    model = orient(model)
+  end
 
   @test check_requisites(stl,model)
 
@@ -103,6 +108,7 @@ end
 filename = joinpath(@__DIR__,"../test/data/47076.stl")
 main(filename,nmax=50)
 main(filename,nmax=10,nmin=10,kdtree=true)
+main(filename,nmax=50,nmin=10,simplex=true)
 
 filename = joinpath(@__DIR__,"../test/data/47076_sf.obj")
 main(filename,nmax=50)
