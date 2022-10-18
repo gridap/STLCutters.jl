@@ -4,23 +4,7 @@ using Test
 using Gridap
 using STLCutters
 
-import Downloads
-
-function download(id;path="")
-  url = "https://www.thingiverse.com/download:$id"
-  r = Downloads.request(url)
-  if 200 ≤ r.status ≤ 399
-    _,ext = splitext(r.url)
-    ext, = split(ext,'?')
-    mkpath(path)
-    filename = joinpath(path,"$id$ext")
-    Downloads.download(url,filename)
-  else
-    @warn "$id is no longer available on Thingiverse."
-    filename = nothing
-  end
-  filename
-end
+download = download_thingi10k
 
 function main(filename;n=20,δ=0.2,output=nothing)
 

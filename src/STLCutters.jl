@@ -3,6 +3,7 @@ module STLCutters
 import MeshIO
 import Plots
 import GraphRecipes
+import Downloads
 
 using Gridap
 using Gridap.Arrays
@@ -47,12 +48,15 @@ import GridapEmbedded.CSG: similar_geometry
 
 import Plots: plot
 
+import Base: split
+
 export STLGeometry
 export STLCutter
 
 export subtriangulate
 export get_bounding_box
 export check_requisites
+export download_thingi10k
 
 include("SimplexFaces.jl")
 include("STLs.jl")
