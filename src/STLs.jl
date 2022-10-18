@@ -1114,4 +1114,62 @@ end
 
 # end orient
 
+# Testing helpers
+
+"""
+  download_thingi10k(id;path"")
+
+Dowloads surface model from [thingiverse](https://www.thingiverse.com)
+indexed by FileID at [Thingi10K](https://ten-thousand-models.appspot.com)
+"""
+
+function download_thingi10k(id;path="")
+  url = "https://www.thingiverse.com/download:$id"
+  r = Downloads.request(url)
+  if 200 ≤ r.status ≤ 399
+    _,ext = splitext(r.url)
+    ext, = split(ext,'?')
+    mkpath(path)
+    filename = joinpath(path,"$id$ext")
+    Downloads.download(url,filename)
+  else
+    @warn "$id is no longer available on Thingiverse."
+    filename = nothing
+  end
+  filename
+end
+
+"""
+  compute_cartesian_descriptor(pmin,pmax;nmin,nmax)
+
+Compute `CartesianDescriptor` in a bounding box
+with the same cell size (h) in all directions:
+
+  h = min( max((pmin-pmax)/nmax), min((pmax-pmin)/nmin) )
+"""
+
+function compute_cartesian_descriptor(pmin::Point,pmax::Point;kwargs...)
+  CartesianDescriptor( _compute_cartesian_description(pmin,pmax;kwargs...) ... )
+end
+
+function _compute_cartesian_description(
+  pmin::Point{D},
+  pmax::Point{D};
+  nmin=10,
+  nmax=100) where D
+
+  s = pmax - pmin
+  s = Tuple(s)
+  h = maximum(s)/nmax
+  p = ( s./maximum(s) ) .* nmax
+  p = ceil.(p)
+  if minimum(p) < nmin
+    p = ( s./minimum(s) ) .* nmin
+    h = minimum(s) / nmin
+  end
+  origin = pmin
+  sizes = tfill(h,Val{D}())
+  partition = Int.(ceil.(p))
+  origin,sizes,partition
+end
 

@@ -6,43 +6,12 @@ using Gridap.Arrays
 using Gridap.Helpers
 using STLCutters
 
-import Downloads
-
 using STLCutters: volumes
 using STLCutters: volume, surface
 using STLCutters: orient
+using STLCutters: compute_cartesian_descriptor
 
-function download(id;path="")
-  url = "https://www.thingiverse.com/download:$id"
-  r = Downloads.request(url)
-  if 200 ≤ r.status ≤ 399
-    _,ext = splitext(r.url)
-    ext, = split(ext,'?')
-    mkpath(path)
-    filename = joinpath(path,"$id$ext")
-    Downloads.download(url,filename)
-  else
-    @warn "$id is no longer available on Thingiverse."
-    filename = nothing
-  end
-  filename
-end
-
-function compute_sizes(pmin::Point{D},pmax::Point{D};nmin=10,nmax=100) where D
-  s = pmax - pmin
-  s = Tuple(s)
-  h = maximum(s)/nmax
-  p = ( s./maximum(s) ) .* nmax
-  p = ceil.(p)
-  if minimum(p) < nmin
-    p = ( s./minimum(s) ) .* nmin
-    h = minimum(s) / nmin
-  end
-  origin = pmin
-  sizes = tfill(h,Val{D}())
-  partition = Int.(ceil.(p))
-  origin,sizes,partition
-end
+download = download_thingi10k
 
 function main(filename;
   nmin=10,nmax=100,δ=0.2,tolfactor=1000,kdtree=false,simplex=false,output=nothing)
@@ -53,8 +22,8 @@ function main(filename;
 
   pmin,pmax = get_bounding_box(stl)
   Δ = (pmax-pmin)*δ
-  origin,sizes,partition = compute_sizes(pmin-Δ,pmax+Δ;nmin,nmax)
-  model = CartesianDiscreteModel(origin,sizes,partition)
+  desc = compute_cartesian_descriptor(pmin-Δ,pmax+Δ;nmin,nmax)
+  model = CartesianDiscreteModel(desc)
   if simplex
     model = simplexify(model)
     model = orient(model)
@@ -93,7 +62,7 @@ function main(filename;
 
 
   println("TIME: $(t.time)")
-  println("Background partition: $partition")
+  println("Background partition: $(desc.partition)")
   println("Num background cells: $(num_cells(model))")
   println("Num subcells: $(num_cells(subcells))")
   println("ϵ_V = $volume_error")
