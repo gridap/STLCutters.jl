@@ -17,8 +17,6 @@ function main(filename;n=20,δ=0.2,output=nothing)
 
   geo = STLGeometry( filename )
 
-  n = 20
-  δ = 0.2
   pmin,pmax = get_bounding_box(geo)
   diagonal = pmax-pmin
   pmin = pmin - diagonal*δ
