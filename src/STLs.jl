@@ -223,6 +223,7 @@ function get_cell!(c,grid::Grid,i)
   p = get_polytope( only(get_reffes(grid)) )
   get_cell!(c,T,X,p,i)
 end
+
 function get_facet_cache(model::DiscreteModel)
   Dc = num_dims(model)
   get_dface_cache(model,Dc-1)
@@ -937,13 +938,8 @@ function compute_cell_to_facets(grid::CartesianGrid,stl)
       end
     end
   end
-  cell_to_stl_facets = [ Int32[] for _ in 1:num_cells(grid) ]
-  for (cells,stl_facets) in zip(thread_to_cells,thread_to_stl_facets)
-    for (cell,stl_facet) in zip(cells,stl_facets)
-      push!(cell_to_stl_facets[cell],stl_facet)
-    end
-  end
-  cell_to_stl_facets
+  ncells = num_cells(grid)
+  assemble_threaded_sparse_map(thread_to_cells,thread_to_stl_facets,ncells)
 end
 
 function compute_cell_to_facets(a::UnstructuredGrid,b)
@@ -952,7 +948,34 @@ function compute_cell_to_facets(a::UnstructuredGrid,b)
   tmp_to_b = compute_cell_to_facets(tmp,b)
   a_to_tmp = inverse_index_map(tmp_to_a,num_cells(a))
   a_to_b = compose_index_map(a_to_tmp,tmp_to_b)
-  a_to_b # TODO: filter by true intersections (should work without filter
+  a_to_b = filter_intersections(a,b,a_to_b)
+  a_to_b
+end
+
+function filter_intersections(a::Grid,b,a_to_b)
+  CELL_EXPANSION_FACTOR = 1e-3
+  n = Threads.nthreads()
+  t_as = map(_->Int32[],1:n)
+  t_bs = map(_->Int32[],1:n)
+  t_c = map(_->(get_cell_cache(a),get_cell_cache(b),array_cache(a_to_b)),1:n)
+  Threads.@threads for ai in 1:num_cells(a)
+    i = Threads.threadid()
+    ca,cb,c = t_c[i]
+    as = t_as[i]
+    bs = t_bs[i]
+    cell_a = get_cell!(ca,a,ai)
+    pmin,pmax = get_bounding_box(cell_a)
+    Δ = norm(pmin-pmax) * CELL_EXPANSION_FACTOR
+    cell_a = expand_face(cell_a,Δ)
+    for bi in getindex!(c,a_to_b,ai)
+      cell_b = get_cell!(cb,b,bi)
+      if has_intersection(cell_a,cell_b)
+        push!(as,ai)
+        push!(bs,bi)
+      end
+    end
+  end
+  assemble_threaded_sparse_map(t_as,t_bs,num_cells(a))
 end
 
 function cartesian_bounding_model(grid::Grid)
@@ -1000,8 +1023,21 @@ function compose_index_map(
   assemble_sparse_map(as,cs,na)
 end
 
+function assemble_threaded_sparse_map(tas,tbs,na=maximum(maximum,tas))
+  a_to_b = map(_->Int32[],1:na)
+  for (as,bs) in zip(tas,tbs)
+    assemble_sparse_map!(a_to_b,as,bs)
+  end
+  a_to_b
+end
+
 function assemble_sparse_map(as,bs,na=maximum(as))
   a_to_b = map(_->Int32[],1:na)
+  assemble_sparse_map!(a_to_b,as,bs)
+  a_to_b
+end
+
+function assemble_sparse_map!(a_to_b,as,bs)
   for (a,b) in zip(as,bs)
     if b ∉ a_to_b[a]
       push!(a_to_b[a],b)
