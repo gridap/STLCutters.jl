@@ -449,6 +449,118 @@ function contains_projection(f::Face,p::Point)
   true
 end
 
+function intersection_point(f::Face{1,D},p::AbstractPlane{D}) where D
+  v1 = f[1]
+  v2 = f[2]
+  d1 = signed_distance(v1,p)
+  d2 = signed_distance(v2,p)
+  if d1-d2 == 0
+    d1,d2 = 1,10
+  end
+  (v1*d2-v2*d1)/(d2-d1)
+end
+
+intersection_point(a::Face{1},b::Face) = _intersection_point(a,b)
+
+intersection_point(a::Face{1},b::Face{1}) = _intersection_point(a,b)
+
+intersection_point(a::Face,b::Face{1}) = _intersection_point(b,a)
+
+function _intersection_point(e::Face{1},f::Face)
+  @notimplementedif num_dims(f) + 1 != num_point_dims(f)
+  n = normal(f)
+  c = center(f)
+  plane = Plane(c,n)
+  intersection_point(e,plane)
+end
+
+function expand_face(f::Face,dist::Real)
+  Dc = num_dims(f)
+  if is_simplex(f)
+    verts = ntuple(i->_pull_vertex(f,i,dist),Val{Dc+1}())
+    simplex_face( verts )
+  else
+    @notimplemented
+  end
+end
+
+function _pull_vertex(f::Face,v::Integer,d::Real)
+  dir = _vertex_direction(f,v)
+  f[v] + dir*d
+end
+
+function _vertex_direction(f::Face,v::Integer)
+  p = get_polytope(f)
+  v_to_e = get_faces(p,0,1)
+  e_to_v = get_faces(p,1,0)
+  dir = zero(f[1])
+  n = length(v_to_e[v])
+  for e in v_to_e[v]
+    for vneig in e_to_v[e]
+      if vneig != v
+        dv = f[v] - f[vneig]
+        dir += dv / n
+      end
+    end
+  end
+  @assert norm(dir) > 0
+  dir / norm(dir)
+end
+
+
+# General predicates
+
+function has_intersection(a::Face,b::Face)
+  Dp = num_point_dims(a)
+  pa = get_polytope(a)
+  pb = get_polytope(b)
+  for da in 0:num_dims(a)
+    db = Dp-da
+    if num_dims(b) ≥ db
+      for fa in 1:num_faces(pa,da), fb in 1:num_faces(pb,db)
+        if has_intersection_point(a,da,fa,b,db,fb)
+          return true
+        end
+      end
+    end
+  end
+  false
+end
+
+function has_intersection_point(p::Point,f::Face{D,D}) where D
+  contains_projection(f,p)
+end
+
+has_intersection_point(f::Face,p::Point) = has_intersection_point(p,f)
+
+function has_intersection_point(a::Face,b::Face)
+  p = intersection_point(a,b)
+  contains_projection(a,p) && contains_projection(b,p)
+end
+
+function has_intersection_point(
+  f::Face,
+  d::Integer,
+  df::Integer,
+  args::Vararg{<:Any,N}) where N
+
+  if d == 0
+    f0 = get_dface(f,df,Val{0}())
+    has_intersection_point(args...,f0)
+  elseif d == 1
+    f1 = get_dface(f,df,Val{1}())
+    has_intersection_point(args...,f1)
+  elseif d == 2
+    f2 = get_dface(f,df,Val{2}())
+    has_intersection_point(args...,f2)
+  elseif d == 3
+    f3 = get_dface(f,df,Val{3}())
+    has_intersection_point(args...,f3)
+  else
+    @notimplemented
+  end
+end
+
 # Voxel predicates
 
 function voxel_intersection(f::Face{1,2},pmin::Point,pmax::Point,p::Polytope)

@@ -13,6 +13,8 @@ using STLCutters: normal
 using STLCutters: origin
 using STLCutters: signed_distance
 using STLCutters: contains_projection
+using STLCutters: expand_face
+using STLCutters: has_intersection
 using STLCutters: voxel_intersection
 using STLCutters: simplex_face
 using STLCutters: min_height
@@ -320,6 +322,38 @@ plane0 = CartesianPlane(x,d,-1)
 plane = displace(plane0,dist,false)
 dist = 0.5
 @test origin(plane)⋅normal(plane) == origin(plane0)⋅normal(plane0)-dist == -3.5
+
+# General intersection
+
+p1 = Point(0.0,0.0,0.0)
+p2 = Point(1.0,0.0,0.0)
+p3 = Point(0.0,1.0,0.0)
+p4 = Point(0.0,0.0,1.0)
+f1 = simplex_face(p1,p2,p3,p4)
+
+offset = 0.5
+p1 = Point(0.0,0.0,0.0) + offset
+p2 = Point(1.0,0.0,0.0) + offset
+p3 = Point(0.0,1.0,0.0) + offset
+p4 = Point(0.0,0.0,1.0) + offset
+f2 = simplex_face(p1,p2,p3,p4)
+
+f3 = expand_face(f1,0.5)
+f4 = expand_face(f2,0.5)
+
+@test !has_intersection(f1,f2)
+@test has_intersection(f1,f3)
+@test has_intersection(f3,f1)
+@test !has_intersection(f2,f3)
+@test has_intersection(f1,f4)
+@test has_intersection(f2,f4)
+@test has_intersection(f3,f4)
+@test has_intersection(f4,f3)
+
+#writevtk(f1,"f1")
+#writevtk(f2,"f2")
+#writevtk(f3,"f3")
+#writevtk(f4,"f4")
 
 # Voxel intersection Face{2}
 
