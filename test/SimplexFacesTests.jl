@@ -443,5 +443,24 @@ p0 = center(t)
 f, = writevtk(t,"tet")
 rm.(f)
 
+
+pmin = Point(0.0,0.0,0.0)
+pmax = Point(12.0,12.0,12.0)
+
+tverts =
+( Point(19.0, 0.0, 1.0),
+  Point(17.0, 5.0, -1.0),
+  Point(10.0, 5.0, -1.0),
+  Point(10.0, 5.0, 7.0))
+t = STLCutters.simplex_face(tverts)
+
+@test voxel_intersection(t,pmin,pmax,HEX)
+
+vverts = map(i->STLCutters._get_vertex(HEX,pmin,pmax,i),1:2^3)
+v = STLCutters.Polyhedron(HEX,vverts)
+writevtk(t,"t")
+writevtk(v,"v")
+
+
 end # module
 

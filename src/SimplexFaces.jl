@@ -645,9 +645,12 @@ function voxel_intersection(
   @check all( pmin .≤ pmax ) "pmin  > pmax"
   for i in 1:num_facets(c)
     f = get_facet(c,i)
+    voxel_intersection(f,pmin,pmax,p) && return true
+  end
+  for i in 1:num_facets(c)
+    f = get_facet(c,i)
     plane = Plane( center(f), normal(c,i) )
     v_to_dists = _compute_distances(plane,pmin,pmax,p)
-    voxel_intersection(f,pmin,pmax,p) && return true
     all( d -> d < 0, v_to_dists) || return false
   end
   true
