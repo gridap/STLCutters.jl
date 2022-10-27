@@ -241,9 +241,11 @@ end
 
 function get_dface!(c,model::DiscreteModel,i,::Val{d}) where d
   topo = get_grid_topology(model)
+  Dc = num_dims(model)
+  PT = ExtrusionPolytope{Dc}
   T = get_face_vertices(topo,d)
   X = get_vertex_coordinates(topo)
-  p = get_polytope( only(get_reffes(model)) )
+  p = get_polytope( only(get_reffes(model)) )::PT
   get_dface!(c,T,X,p,i,Val{d}())
 end
 
@@ -1051,7 +1053,7 @@ function get_cells_around(desc::CartesianDescriptor{D},pmin::Point,pmax::Point) 
   _,cmax = get_cell_bounds(desc,pmax)
   cmin = CartesianIndices(desc.partition)[cmin]
   cmax = CartesianIndices(desc.partition)[cmax]
-  ranges = ntuple( i -> cmin.I[i] : cmax.I[i], Val{D}() )
+  ranges = ntuple( i -> cmin.I[i]::Int : cmax.I[i]::Int, Val{D}() )
   CartesianIndices( ranges )
 end
 
