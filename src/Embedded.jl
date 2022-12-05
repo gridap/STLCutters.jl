@@ -107,14 +107,6 @@ function _first_inverse_index_map(a_to_b,nb)
   b_to_a
 end
 
-function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
-  send_to_ref_space(
-    grid,
-    cell_to_bgcell,
-    get_cell_node_ids(subgrid),
-    get_node_coordinates(subgrid))
-end
-
 function _normals(geom::STLGeometry,face_to_stlface)
   stl = get_stl(geom)
   cache = get_cell_cache(stl)
