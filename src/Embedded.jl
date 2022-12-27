@@ -90,7 +90,7 @@ function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
   node_cell = _first_inverse_index_map(cell_nodes,num_nodes(subgrid))
   node_invmap = lazy_map(Reindex(cell_invmap),node_cell)
   node_rcoords = lazy_map(evaluate,node_invmap,node_coords)
-  collect(node_rcoords)
+  _collect(node_rcoords)
 end
 
 function _first_inverse_index_map(a_to_b,nb)
@@ -130,4 +130,14 @@ end
 function check_requisites(geo::STLGeometry,bgmodel::DiscreteModel;kwargs...)
   stl = get_stl(geo)
   check_requisites(stl,bgmodel)
+end
+
+function _collect(a::LazyArray)
+  c = array_cache(a)
+  T = eltype(a)
+  b = zeros(T,size(a))
+  for i in eachindex(a)
+    b[i] = getindex!(c,a,i)
+  end
+  b
 end
