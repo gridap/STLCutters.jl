@@ -907,7 +907,7 @@ function complete_nodes_to_inout!(node_to_inout,polys,inout,p::Polytope)
     for v in 1:num_vertices(poly)
       isactive(poly,v) || continue
     #  v = inout == FACE_CUT ? v : v_to_v[v]
-      node = _find_polytope_vertex(v_to_Π[v],p)
+      node = find_polytope_vertex(v_to_Π[v],p)
       if node != UNSET
       #@assert  node_to_inout[node] ∈ (inout,UNSET)
         _inout = inout
@@ -968,7 +968,6 @@ function _find_n_cube_vertex(planes,p::Polytope)
 end
 
 function complete_facets_to_inoutcut!(facet_to_inoutcut,polys,inout,p::Polytope)
-#  @notimplementedif !is_n_cube(p)
   facet_list = Int32[]
   for poly in polys
     istouch = map( i -> falses(length(i)), get_graph(poly) )
