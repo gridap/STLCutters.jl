@@ -13,7 +13,7 @@ using STLCutters: compute_cartesian_descriptor
 download = download_thingi10k
 
 function main(filename;
-  nmin=10,nmax=100,δ=0.2,tolfactor=1000,kdtree=false,output=nothing)
+  nmin=10,nmax=100,δ=0.2,tolfactor=1000,kdtree=false,simplex=false,output=nothing)
 
   println("Running: $(basename(filename))")
 
@@ -23,6 +23,9 @@ function main(filename;
   Δ = (pmax-pmin)*δ
   desc = compute_cartesian_descriptor(pmin-Δ,pmax+Δ;nmin,nmax)
   model = CartesianDiscreteModel(desc)
+  if simplex
+    model = simplexify(model,positive=true)
+  end
 
   @test check_requisites(stl,model)
 
@@ -72,6 +75,7 @@ end
 filename = joinpath(@__DIR__,"../test/data/47076.stl")
 main(filename,nmax=50)
 main(filename,nmax=10,nmin=10,kdtree=true)
+main(filename,nmax=50,nmin=10,simplex=true)
 
 filename = joinpath(@__DIR__,"../test/data/47076_sf.obj")
 main(filename,nmax=50)

@@ -149,6 +149,11 @@ is_n_cube(a::Face) = is_n_cube(get_polytope(a))
 
 simplex_face(v::Point...) = simplex_face(v)
 
+function simplex_face(coords::AbstractVector{<:Point{D}}) where D
+  tcoords = ntuple( i -> coords[i], Val{D+1}() )
+  simplex_face(tcoords)
+end
+
 @inline function simplex_face(v::NTuple{N,<:Point}) where N
   if N == 1
     v[1]
@@ -303,6 +308,15 @@ function min_height(f::Face{Df}) where Df
   min_dist
 end
 
+function max_length(f::Face{Df}) where Df
+  max_len = 0.0
+  for e in 1:num_edges(f)
+    edge = get_edge(f,e)
+    max_len = max(max_len,length(edge))
+  end
+  max_len
+end
+
 get_bounding_box(p::Point) = p,p
 
 function get_bounding_box(f::Face)
@@ -435,6 +449,118 @@ function contains_projection(f::Face,p::Point)
   true
 end
 
+function intersection_point(f::Face{1,D},p::AbstractPlane{D}) where D
+  v1 = f[1]
+  v2 = f[2]
+  d1 = signed_distance(v1,p)
+  d2 = signed_distance(v2,p)
+  if d1-d2 == 0
+    d1,d2 = 1,10
+  end
+  (v1*d2-v2*d1)/(d2-d1)
+end
+
+intersection_point(a::Face{1},b::Face) = _intersection_point(a,b)
+
+intersection_point(a::Face{1},b::Face{1}) = _intersection_point(a,b)
+
+intersection_point(a::Face,b::Face{1}) = _intersection_point(b,a)
+
+function _intersection_point(e::Face{1},f::Face)
+  @notimplementedif num_dims(f) + 1 != num_point_dims(f)
+  n = normal(f)
+  c = center(f)
+  plane = Plane(c,n)
+  intersection_point(e,plane)
+end
+
+function expand_face(f::Face,dist::Real)
+  Dc = num_dims(f)
+  if is_simplex(f)
+    verts = ntuple(i->_pull_vertex(f,i,dist),Val{Dc+1}())
+    simplex_face( verts )
+  else
+    @notimplemented
+  end
+end
+
+function _pull_vertex(f::Face,v::Integer,d::Real)
+  dir = _vertex_direction(f,v)
+  f[v] + dir*d
+end
+
+function _vertex_direction(f::Face,v::Integer)
+  p = get_polytope(f)
+  v_to_e = get_faces(p,0,1)
+  e_to_v = get_faces(p,1,0)
+  dir = zero(f[1])
+  n = length(v_to_e[v])
+  for e in v_to_e[v]
+    for vneig in e_to_v[e]
+      if vneig != v
+        dv = f[v] - f[vneig]
+        dir += dv / n
+      end
+    end
+  end
+  @assert norm(dir) > 0
+  dir / norm(dir)
+end
+
+
+# General predicates
+
+function has_intersection(a::Face,b::Face)
+  Dp = num_point_dims(a)
+  pa = get_polytope(a)
+  pb = get_polytope(b)
+  for da in 0:num_dims(a)
+    db = Dp-da
+    if num_dims(b) ≥ db
+      for fa in 1:num_faces(pa,da), fb in 1:num_faces(pb,db)
+        if has_intersection_point(a,da,fa,b,db,fb)
+          return true
+        end
+      end
+    end
+  end
+  false
+end
+
+function has_intersection_point(p::Point,f::Face{D,D}) where D
+  contains_projection(f,p)
+end
+
+has_intersection_point(f::Face,p::Point) = has_intersection_point(p,f)
+
+function has_intersection_point(a::Face,b::Face)
+  p = intersection_point(a,b)
+  contains_projection(a,p) && contains_projection(b,p)
+end
+
+function has_intersection_point(
+  f::Face,
+  d::Integer,
+  df::Integer,
+  args::Vararg{<:Any,N}) where N
+
+  if d == 0
+    f0 = get_dface(f,df,Val{0}())
+    has_intersection_point(args...,f0)
+  elseif d == 1
+    f1 = get_dface(f,df,Val{1}())
+    has_intersection_point(args...,f1)
+  elseif d == 2
+    f2 = get_dface(f,df,Val{2}())
+    has_intersection_point(args...,f2)
+  elseif d == 3
+    f3 = get_dface(f,df,Val{3}())
+    has_intersection_point(args...,f3)
+  else
+    @notimplemented
+  end
+end
+
 # Voxel predicates
 
 function voxel_intersection(f::Face{1,2},pmin::Point,pmax::Point,p::Polytope)
@@ -510,6 +636,26 @@ function voxel_intersection(e::Face{1,D},pmin::Point{D},pmax::Point{D}) where D
   t_min < t_max
 end
 
+function voxel_intersection(
+  c::Face{D,D},
+  pmin::Point{D},
+  pmax::Point{D},
+  p::Polytope) where D
+
+  @check all( pmin .≤ pmax ) "pmin  > pmax"
+  for i in 1:num_facets(c)
+    f = get_facet(c,i)
+    voxel_intersection(f,pmin,pmax,p) && return true
+  end
+  for i in 1:num_facets(c)
+    f = get_facet(c,i)
+    plane = Plane( center(f), normal(c,i) )
+    v_to_dists = _compute_distances(plane,pmin,pmax,p)
+    all( d -> d < 0, v_to_dists) || return false
+  end
+  true
+end
+
 function _compute_distances(
   Π::Plane,
   pmin::Point,
@@ -577,6 +723,69 @@ function get_cell_planes(p::Polytope,pmin::Point,pmax::Point)
   Π_ids = - ( 1:N )
   Π_inout = lazy_map( iseven, 1:N )
   Π_cell, Π_ids, Π_inout
+end
+
+function get_cell_planes(p::Polytope,coords)
+  if is_simplex(p)
+    f = simplex_face(coords)
+    get_cell_planes(f)
+  elseif is_n_cube(p)
+    pmin,pmax = coords[1],coords[end]
+    get_cell_planes(p,pmin,pmax)
+  end
+end
+
+function get_cell_planes(face::Face)
+  n_facets = num_facets(face)
+  facets = lazy_map(get_facet,Fill(face,n_facets),1:n_facets)
+  centers = lazy_map(center,facets)
+  normals = lazy_map(normal,Fill(face,n_facets),1:n_facets)
+  mask = lazy_map(n-> n > -n, normals)
+  facs = lazy_map(i->(-1)^(i+1),mask)
+  _normals = lazy_map(*,normals,facs)
+  planes = lazy_map(Plane,centers,_normals)
+  ids = -(1:n_facets)
+  planes,ids,mask
+end
+
+function displace(plane::Plane,dist,oriented=true)
+  c0 = center(plane)
+  n0 = normal(plane)
+  n = oriented ? n0 : -n0
+  c = c0 + n*dist
+  Plane(c,n0)
+end
+
+function displace(plane::CartesianPlane,dist,oriented=true)
+  c0 = origin(plane)
+  d = plane.d
+  or = plane.positive
+  diff = or == oriented ? dist : -dist
+  c = c0 + diff
+  dir = or ? 1 : -1
+  CartesianPlane(c,d,dir)
+end
+
+function expand_planes(
+  planes::AbstractVector{<:AbstractPlane},
+  inout::AbstractVector,
+  dist)
+
+  n_planes = length(planes)
+  lazy_map(displace,planes,Fill(dist,n_planes),inout)
+end
+
+function _visualization_grid(face::Face)
+  X = collect(face.vertices)
+  T = Table( [1:length(X)] )
+  ctype = [1]
+  reffes = [LagrangianRefFE(get_polytope(face))]
+  UnstructuredGrid(X,T,reffes,ctype)
+end
+
+function writevtk(face::Face,filename;kwargs...)
+  grid = _visualization_grid(face)
+  writevtk(grid,filename;kwargs...)
 end
 
 ## Orthogonal

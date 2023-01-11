@@ -73,37 +73,38 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc
 end
 
-function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
-  send_to_ref_space(
-    grid,
-    cell_to_bgcell,
-    get_cell_node_ids(subgrid),
-    get_node_coordinates(subgrid))
+function send_to_ref_space(
+  model::DiscreteModel,
+  cell_to_bgcell::Vector,
+  subgrid::Grid)
+
+  send_to_ref_space(get_grid(model),cell_to_bgcell,subgrid)
 end
 
-function send_to_ref_space(
-  grid::Grid,
-  cell_to_bgcell::Vector,
-  cell_to_points::AbstractVector,
-  points::Vector)
+function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
+  bgcell_map = get_cell_map(grid)
+  bgcell_invmap = lazy_map(inverse_map,bgcell_map)
+  cell_invmap = lazy_map(Reindex(bgcell_invmap),cell_to_bgcell)
+  cell_nodes = get_cell_node_ids(subgrid)
+  node_coords = get_node_coordinates(subgrid)
+  node_cell = _first_inverse_index_map(cell_nodes,num_nodes(subgrid))
+  node_invmap = lazy_map(Reindex(cell_invmap),node_cell)
+  node_rcoords = lazy_map(evaluate,node_invmap,node_coords)
+  _collect(node_rcoords)
+end
 
-  rpoints = zero(points)
-  cache = array_cache(cell_to_points)
-  bgcache = array_cache(get_cell_node_ids(grid))
-  for i in 1:length(cell_to_points)
-    for p in getindex!(cache,cell_to_points,i)
-      rpoints[p] = send_to_ref_space!(bgcache,grid,cell_to_bgcell[i],points[p])
+function _first_inverse_index_map(a_to_b,nb)
+  na = length(a_to_b)
+  T = eltype(eltype(a_to_b))
+  b_to_a = ones(T,nb)
+  c = array_cache(a_to_b)
+  for a in 1:na
+    bs = getindex!(c,a_to_b,a)
+    for b in bs
+      b_to_a[b] = a
     end
   end
-  rpoints
-end
-
-function send_to_ref_space!(cache,grid::Grid,cell::Integer,point::Point)
-  cell_nodes = getindex!(cache,get_cell_node_ids(grid),cell)
-  node_coordinates = get_node_coordinates(grid)
-  pmin = node_coordinates[cell_nodes[1]]
-  pmax = node_coordinates[cell_nodes[end]]
-  Point(Tuple(point-pmin)./Tuple(pmax-pmin))
+  b_to_a
 end
 
 function _normals(geom::STLGeometry,face_to_stlface)
@@ -129,4 +130,14 @@ end
 function check_requisites(geo::STLGeometry,bgmodel::DiscreteModel;kwargs...)
   stl = get_stl(geo)
   check_requisites(stl,bgmodel)
+end
+
+function _collect(a::LazyArray)
+  c = array_cache(a)
+  T = eltype(a)
+  b = zeros(T,size(a))
+  for i in eachindex(a)
+    b[i] = getindex!(c,a,i)
+  end
+  b
 end
