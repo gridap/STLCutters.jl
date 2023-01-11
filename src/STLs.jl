@@ -1111,47 +1111,6 @@ function bisector_plane_cache(stl::STL,d::Integer)
   c,fc
 end
 
-# orient volume grid:
-# temporary function until Gridap.simplexify(grid) returns an oriented grid
-
-function orient(model::UnstructuredDiscreteModel)
-  grid = get_grid(model)
-  grid = orient(grid)
-  UnstructuredDiscreteModel(grid)
-end
-
-function orient(grid::UnstructuredGrid)
-  mask = get_cell_flip(grid)
-  X = get_node_coordinates(grid)
-  T = get_cell_node_ids(grid)
-  T = _flip_connectivities(T,mask)
-  ctype = get_cell_type(grid)
-  reffes = get_reffes(grid)
-  UnstructuredGrid(X,T,reffes,ctype)
-end
-
-function get_cell_flip(grid::Grid)
-  @notimplementedif num_dims(grid) != num_point_dims(grid)
-  @notimplementedif get_order( only(get_reffes(grid)) ) != 1
-  x0 = zero(eltype(get_node_coordinates(grid)))
-  ψk = get_cell_map(grid)
-  Jk = lazy_map(∇,ψk)
-  J0k = lazy_map(evaluate,Jk,Fill(x0,num_cells(grid)))
-  lazy_map(!isequal(1)∘sign∘det,J0k)
-end
-
-function _flip_connectivities(a::Table,mask)
-  b = Vector(a)
-  for (i,v) in enumerate(mask)
-    if v
-      b[i][2],b[i][3] = b[i][3],b[i][2]
-    end
-  end
-  Table(b)
-end
-
-# end orient
-
 # Testing helpers
 
 """

@@ -28,8 +28,6 @@ using STLCutters: compute_stl_model
 using STLCutters: compute_grid
 using STLCutters: FACE_IN, FACE_OUT, FACE_CUT
 
-using STLCutters: orient
-
 vertices = [
   Point(0.1,-0.2,0.5),
   Point(1.0,-0.3,0.5),
@@ -280,8 +278,7 @@ pmax = pmax + Δ
 partition = (n,n,n)
 
 model = CartesianDiscreteModel(pmin,pmax,partition)
-model = simplexify(model)
-model = orient(model)
+model = simplexify(model,positive=true)
 grid = get_grid(model)
 
 @time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=false)
@@ -333,8 +330,7 @@ pmax = pmax + Δ
 partition = (n,n,n)
 
 model = CartesianDiscreteModel(pmin,pmax,partition)
-model = simplexify(model)
-model = orient(model)
+model = simplexify(model,positive=true)
 grid = get_grid(model)
 
 @time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=false)

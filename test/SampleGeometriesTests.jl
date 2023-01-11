@@ -8,7 +8,6 @@ using STLCutters
 
 using STLCutters: volumes
 using STLCutters: volume, surface
-using STLCutters: orient
 using STLCutters: compute_cartesian_descriptor
 
 download = download_thingi10k
@@ -25,8 +24,7 @@ function main(filename;
   desc = compute_cartesian_descriptor(pmin-Δ,pmax+Δ;nmin,nmax)
   model = CartesianDiscreteModel(desc)
   if simplex
-    model = simplexify(model)
-    model = orient(model)
+    model = simplexify(model,positive=true)
   end
 
   @test check_requisites(stl,model)
