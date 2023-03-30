@@ -907,12 +907,14 @@ function compute_cell_to_facets(model_a::DiscreteModel,grid_b)
 end
 
 
-function compute_cell_to_facets(grid::CartesianGrid,stl)
+function compute_cell_to_facets(
+  grid::CartesianGrid{D,T,<:typeof(identity)},
+  stl) where {D,T}
+
   CELL_EXPANSION_FACTOR = 1e-3
   desc = get_cartesian_descriptor(grid)
   @assert length(get_reffes(grid)) == 1
   p = get_polytope(get_cell_reffe(grid)[1])
-  @notimplementedif desc.map !== identity
   cell_to_stl_facets = [ Int32[] for _ in 1:num_cells(grid) ]
   n = Threads.nthreads()
   thread_to_cells = [ Int32[] for _ in 1:n ]
@@ -1057,7 +1059,9 @@ function get_cells_around(desc::CartesianDescriptor{D},pmin::Point,pmax::Point) 
   CartesianIndices( ranges )
 end
 
-function get_cell_bounds(desc::CartesianDescriptor,p::Point)
+function get_cell_bounds(
+  desc::CartesianDescriptor{D,T,<:typeof(identity)},
+  p::Point) where {D,T}
   function _get_cell(cell)
     cell = Int.(cell)
     cell = max.(cell,1)
@@ -1169,4 +1173,3 @@ function _compute_cartesian_description(
   partition = Int.(ceil.(p))
   origin,sizes,partition
 end
-
