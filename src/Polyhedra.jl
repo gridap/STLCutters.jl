@@ -388,6 +388,39 @@ function simplexify_boundary(p::Tuple,labels::Tuple,stl::GridTopology)
   T,X,f_to_stlf,f_to_ios
 end
 
+function simplexify_cell_boundary(P::Polyhedron,p::Polytope)
+  simplexify_cell_boundary(P,num_facets(p))
+end
+
+function simplexify_cell_boundary(p::Polyhedron,nf::Integer)
+  T,X = simplexify_surface(p)
+  v_to_planes = p.data.vertex_to_planes
+  T_to_planes = lazy_map(Broadcasting(Reindex(v_to_planes)),T)
+  c_to_planes = map(i->reduce(intersect,i),T_to_planes)
+  c_to_plane = map(first,c_to_planes)
+  c_to_facet = map(abs,c_to_plane)
+  mask_one = lazy_map(==(1)∘length,c_to_planes)
+  mask_bg = lazy_map( i-> -nf ≤ i < 0, c_to_plane )
+  mask = map(&,mask_one,mask_bg)
+  T[mask],X,c_to_facet[mask]
+end
+
+function simplexify_cell_boundary(
+  polys::AbstractVector{<:Polyhedron{Dp,Tp}},
+  args...) where {Dp,Tp}
+
+  T = Vector{Int32}[]
+  X = Point{Dp,Tp}[]
+  c_to_bgf = Int32[]
+  for poly in polys
+    Ti,Xi,c_to_bgf_i = simplexify_cell_boundary(poly,args...)
+    append!(T, map(i->i.+length(X),Ti) )
+    append!(X,Xi)
+    append!(c_to_bgf,c_to_bgf_i)
+  end
+  T,X,c_to_bgf
+end
+
 function surface(poly::Polyhedron{3})
   T,X = simplexify_surface(poly)
   p = TRI

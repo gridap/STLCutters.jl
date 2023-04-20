@@ -21,6 +21,8 @@ using STLCutters: check_graph
 using STLCutters: compute_stl_model
 using STLCutters: read_stl
 using STLCutters: merge_nodes
+using STLCutters: simplexify_cell_boundary
+using STLCutters: compute_grid
 
 p = Polyhedron(TRI)
 @test check_graph(p)
@@ -66,6 +68,9 @@ p⁻,p⁺ = split(p,Π[1])
 
 pn = [p⁻,p⁺]
 
+T,X,bgf = simplexify_cell_boundary(pn,HEX)
+
+@test surface(compute_grid(T,X,TRI)) ≈ 6
 @test volume(pn) ≈ 2*volume(p⁻) ≈ 1
 @test surface(pn) ≈ 2*surface(p⁻) ≈ 8
 @test surface(p⁻,stl) ≈ 1
