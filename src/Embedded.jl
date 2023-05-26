@@ -34,12 +34,22 @@ end
 
 function cut(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
   data,bgf_to_ioc = _cut_stl(background,geom;cutter.options...)
-  EmbeddedDiscretization(background, data..., geom), bgf_to_ioc
+  EmbeddedDiscretization(background, data..., geom), bgf_to_ioc, EmbeddedFacetDiscretization(background, data..., geom)
 end
 
 function cut(background::DiscreteModel,geom::STLGeometry)
   cutter = STLCutter()
   cut(cutter,background,geom)
+end
+
+function cut_facets(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
+  data,bgf_to_ioc = _cut_stl(background,geom;cutter.options...)
+  EmbeddedDiscretization(background, data..., geom), bgf_to_ioc, EmbeddedFacetDiscretization(background, data..., geom)
+end
+
+function cut_facets(background::DiscreteModel,geom::STLGeometry)
+  cutter = STLCutter()
+  cut_facets(cutter,background,geom)
 end
 
 function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)

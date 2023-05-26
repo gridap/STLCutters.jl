@@ -185,6 +185,8 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
   Tin,Xin = simplexify(Kn_in)
   Tout,Xout = simplexify(Kn_out)
   B = _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
+  T_Fin,X_Fin,f_to_lbgf = simplexify_cell_boundary(Kin,p)
+  T_Fout,X_Fout,f_to_lbgf = simplexify_cell_boundary(Kout,p)
   T_Γ,X_Γ,f_to_f,f_to_ios = B
   bgcell_to_ioc[cell] = _get_cell_io(T_Γ,Kn_in,Kn_out)
   bgcell_to_ioc[cell] == FACE_CUT || return
