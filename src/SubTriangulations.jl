@@ -8,9 +8,10 @@ const FACE_OUT = 2
 struct SubtriangulationLabels
   cell_to_bgcell::Vector{Int32}
   cell_to_io::Vector{Int8}
-  face_to_stlface::Vector{Int32}
+  face_to_stlface::Vector{Int32} #TODO: face_to_tag { stlface, bgface}
   face_to_bgcell::Vector{Int32}
-  face_to_ios::Vector{Int8}
+  face_to_ios::Vector{Int8}# TODO: face_to_source
+  # face_to_ioc::Vector{Int8} (2nd option)
   bgcell_to_ioc::Vector{Int8}
   bgface_to_ioc::Vector{Int8}
 end
@@ -23,6 +24,7 @@ function subtriangulate(
   tolfactor=DEFAULT_TOL_FACTOR,
   surfacesource=:skin,
   showprogress=true)
+  # cutfacets = false)
 
   grid = get_grid(bgmodel)
   grid_topology = get_grid_topology(bgmodel)
@@ -42,7 +44,7 @@ function subtriangulate(
 
   Γ0 = Polyhedron(stl)
 
-  submesh = _get_threaded_empty_arrays(stl)
+  submesh = _get_threaded_empty_arrays(stl) # edit
   io_arrays = _init_io_arrays(bgmodel,p)
   caches = _get_threaded_caches(cell_to_nodes)
 
@@ -72,6 +74,11 @@ function subtriangulate(
   io_arrays = _reduce_io_arrays(bgmodel,io_arrays)
   bgcell_to_ioc, bgnode_to_io, bgfacet_to_ioc = io_arrays
   T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf, f_to_ios = submesh
+  # TODO:
+  # - return f_to_ioc
+  # - move from local to global f_to_tag (f_to_stlf) for f_to_ioc \in (IN,OUT)
+  #  - f_to_tag = c_to_f[f_to_bgc][f_to_tag]
+
 
   propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
   set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
@@ -79,6 +86,9 @@ function subtriangulate(
   delete_small_subcells!(bgmodel,T,X,k_to_io,k_to_bgcell)
   delete_small_subfacets!(bgmodel,F,Xf,f_to_bgcell,f_to_stlf,f_to_ios)
 
+  # TODO:
+  # 1st option: filter face_grids -> in out cut
+  # 2nd option: remove face_grids if (cutfacets==false) -> in out
   cell_grid = compute_grid(Table(T),X,TET)
   face_grid = compute_grid(Table(F),Xf,TRI)
   labels = SubtriangulationLabels(
@@ -86,7 +96,7 @@ function subtriangulate(
     f_to_stlf, f_to_bgcell, f_to_ios,
     bgcell_to_ioc, bgfacet_to_ioc)
 
-  cell_grid, face_grid, labels
+  cell_grid, face_grid, labels #, face_grid_io, f_to_io, f_to_bgc (1st option)
 end
 
 function subtriangulate(bgmodel::DiscreteModel,args...;kwargs...)
@@ -185,8 +195,8 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
   Tin,Xin = simplexify(Kn_in)
   Tout,Xout = simplexify(Kn_out)
   B = _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
-  T_Fin,X_Fin,f_to_lbgf = simplexify_cell_boundary(Kin,p)
-  T_Fout,X_Fout,f_to_lbgf = simplexify_cell_boundary(Kout,p)
+  T_Fin,X_Fin,fin_to_lbgf = simplexify_cell_boundary(Kn_in,p)
+  T_Fout,X_Fout,fout_to_lbgf = simplexify_cell_boundary(Kn_out,p)
   T_Γ,X_Γ,f_to_f,f_to_ios = B
   bgcell_to_ioc[cell] = _get_cell_io(T_Γ,Kn_in,Kn_out)
   bgcell_to_ioc[cell] == FACE_CUT || return
@@ -202,6 +212,7 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
     end
   end
 
+  # TODO: add T_Fin,X_Fin,f_to_lbgf ...
   _append_submesh!(submesh,Xin,Tin,Xout,Tout,X_Γ,T_Γ,f_to_f,f_to_ios,cell)
   for i in 1:num_vertices(p)
     bgcell_node_to_io[i,cell] = n_to_io[i]
@@ -373,6 +384,7 @@ function _get_empty_arrays(stl::STL)
   f_to_bgcell = Int32[]
   f_to_stlf = Int32[]
   f_to_ios = Int8[]
+  # f_to_ioc = Int8[]
   T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios
 end
 
@@ -448,6 +460,8 @@ function _append_submesh!(submesh,Xin,Tin,Xout,Tout,Xfn,Tfn,fn_to_f,fn_to_ios,bg
   _append_subcells!(_submesh,Xin,Tin,FACE_IN,bgcell)
   _append_subcells!(_submesh,Xout,Tout,FACE_OUT,bgcell)
   _append_subfacets!(_submesh,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
+  # _append_subfacets!(_submesh,Xfin,Tfin,fin_to_lbgf,FACE_IN,FACE_IN,bgcell)
+  # _append_subfacets!(_submesh,Xfin,Tfin,fin_to_lbgf,FACE_OUT,FACE_OUT,bgcell)
 end
 
 function _append_subcells!(submesh_arrays,Xn,Tn,io,bgcell)
@@ -459,6 +473,7 @@ function _append_subcells!(submesh_arrays,Xn,Tn,io,bgcell)
   submesh_arrays
 end
 
+# TODO: add f_to_ioc
 function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
   T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios = submesh_arrays
   append!(F, map(i->i.+length(Xf),Tfn) )
