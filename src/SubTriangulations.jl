@@ -437,7 +437,9 @@ function _get_cell_io(T_Γ,Kn_in,Kn_out)
     elseif length(Kn_in) == 0 && length(Kn_out) > 0
       FACE_OUT
     else
-      UNSET
+      vin = volume(Kn_in)
+      vout = volume(Kn_out)
+      vin > vout ? FACE_IN : FACE_OUT
     end
   end
 end

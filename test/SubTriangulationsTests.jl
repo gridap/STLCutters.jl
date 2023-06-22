@@ -436,5 +436,50 @@ println("Num subcells: $(num_cells(subcells))")
 @test surface(get_grid(stl)) ≈ surface(subfaces)
 @test submesh_in_vol + submesh_out_vol ≈ cut_volume
 @test in_volume + out_volume ≈ volume(grid)
-@test in_volume ≈ 74.12595970214333 
+@test in_volume ≈ 74.12595970214333
+
+# Test simplexify in cube
+
+X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
+stl = compute_stl_model(T,X)
+stl = merge_nodes(stl)
+
+p = HEX
+δ = 1.5
+n = 8
+D = 3
+
+pmin,pmax = get_bounding_box(stl)
+Δ = (pmax-pmin)*δ
+pmin = pmin - Δ
+pmax = pmax + Δ
+partition = (n,n,n)
+
+model = CartesianDiscreteModel(pmin,pmax,partition)
+model = simplexify(model,positive=true)
+grid = get_grid(model)
+
+@time subcells, subfaces, labels = subtriangulate(model,stl)
+
+k_to_io = labels.cell_to_io
+k_to_bgcell = labels.cell_to_bgcell
+bgcell_to_ioc = labels.bgcell_to_ioc
+writevtk(subcells,"submesh",celldata=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
+writevtk(grid,"bgmesh",celldata=["inoutcut"=>bgcell_to_ioc])
+
+bgmesh_in_vol = volume(grid,labels.bgcell_to_ioc,:in)
+bgmesh_out_vol  = volume(grid,labels.bgcell_to_ioc,:out)
+bgmesh_cut_vol  = volume(grid,labels.bgcell_to_ioc,:cut)
+submesh_in_vol  = volume(subcells,labels.cell_to_io,:in)
+submesh_out_vol = volume(subcells,labels.cell_to_io,:out)
+submesh_surf = surface(subfaces)
+
+in_volume = bgmesh_in_vol + submesh_in_vol
+out_volume = bgmesh_out_vol + submesh_out_vol
+
+@test submesh_surf ≈ 6
+@test in_volume ≈ 1
+@test in_volume + out_volume ≈ volume(grid)
+
+
 end # module
