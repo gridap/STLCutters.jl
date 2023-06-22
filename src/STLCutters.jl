@@ -42,6 +42,7 @@ import Gridap.Geometry: get_cell_vertices
 import Gridap.Geometry: get_polytopes
 
 import GridapEmbedded.Interfaces: cut
+import GridapEmbedded.Interfaces: cut_facets
 import GridapEmbedded.CSG: get_tree
 import GridapEmbedded.CSG: compatible_geometries
 import GridapEmbedded.CSG: similar_geometry
