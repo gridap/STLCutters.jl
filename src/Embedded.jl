@@ -54,6 +54,7 @@ end
 
 function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   subcell_grid, subface_grid, labels = subtriangulate(model,geom;kwargs...)
+  #TODO: extract subface_grid_io, f_to_io, f_to_bg
 
   inout_dict = Dict{Int8,Int8}(
     FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT, UNSET => OUT )
@@ -74,6 +75,24 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   data = face_to_points,face_to_normal,face_to_bgcell,point_to_coords,point_to_rcoords
   subfacets = SubFacetData(data...)
 
+  # bface_to_bgcell = labels.face_to_bgcell
+  # bface_to_points = get_cell_node_ids( subface_grid_io )
+  # point_to_coords = get_node_coordinates( subface_grid io)
+  # point_to_rcoords = send_to_ref_space(model,f_to_bgcell,subface_grid)
+  # # bface_to_normal = _normals(geom,labels.face_to_stlface) # get normals from bgfacets
+  # data = face_to_points,face_to_normal,face_to_bgcell,point_to_coords,point_to_rcoords
+  # bsubfacets = SubFacetData(data...)
+
+  # struct EmbeddedFacetDiscretization{Dc,Dp,T} <: GridapType
+  #   bgmodel
+  #   ls_to_facet_to_inoutcut -> [bgface_to_ioc]
+  #   subfacets -> bsubfacets
+  #   ls_to_subfacet_to_inout -> [ f_to_io ]
+  #   oid_to_ls -> oid_to_ls
+  #   geo -> geom
+  # end
+
+
   face_to_io = [ fill(Int8(INTERFACE),num_cells(subface_grid)) ]
 
   bgface_to_ioc = replace( labels.bgface_to_ioc, inout_dict... )
@@ -81,6 +100,7 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
   (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc,(face2_to_io,subfacets2,subface2_to_io,oid_to_ls)
+  #, EmbeddedFacetDiscretization data
 end
 
 # function _cut_stl_facets(model::DiscreteModel,geom::STLGeometry;kwargs...)
