@@ -16,9 +16,9 @@ using STLCutters
 g = 9.81        # [kg/s²] gravitational constant
 L = 2.0        # [m] length of domain
 d = 1.0        # [m] depth
-nx = 28        # [-] number of elements horizontally
-ny = 28
-nz = 28         # [-] number of elements vertically
+nx = 5        # [-] number of elements horizontally
+ny = 5
+nz = 5         # [-] number of elements vertically
 
 
 # background model ~ reference domain
@@ -43,13 +43,16 @@ uᵢ(t::Real) = x -> uᵢ(x,t)
 ηᵢ(t) = x -> ηᵢ(x,t)    
 
 # define geometry & apply embedded boundary 
-geo = STLGeometry("/Users/jmodderman1/Documents/meshes/shrunk2.stl")
+# geo = STLGeometry("/Users/jmodderman1/Documents/meshes/shrunk2.stl")
 # pmin,pmax = get_bounding_box(geo)
 # δ = 0.2
 # diagonal = pmax-pmin
 # pmin = pmin - diagonal*δ
 # pmax = pmax + diagonal*δ
 model = CartesianDiscreteModel(pmax, pmin, partition)
+pmid = 0.5*(pmin+pmax)+VectorValue(0.0,0.0,d/2)
+# geo = sphere(0.5;x0=pmid,name="sphere")
+geo = STLGeometry("/Users/jmodderman1/Documents/meshes/spherestl_debug.stl")
 
 
 
@@ -66,10 +69,21 @@ add_tag_from_tags!(labels,"outlet",[26])
 
 
 
-writevtk(geo,"data/sims/issue_22/geo")
+# writevtk(geo,"data/sims/issue_22/geo")
 
-cutgeo, facet_to_inoutcut = cut(model, geo)
-cutgeo_facets = STLCutters._cut_stl(model, geo)
+# cutgeo, facet_to_inoutcut = cut(model, geo)
+# cutgeo_facets = STLCutters._cut_stl(model, geo)
+cutgeo = cut(model, geo)
+
+println("CUTGEO")
+println(cutgeo.ls_to_bgcell_to_inoutcut)
+# println(cutgeo.subcells.cell_to_points)
+# println(cutgeo.subcells.cell_to_bgcell)
+println(cutgeo.ls_to_subcell_to_inout)
+println(cutgeo.subfacets)
+println(cutgeo.ls_to_subfacet_to_inout)
+# println(cutgeo.oid_to_ls)
+
 
 Ω = Interior(model) 
 writevtk(model,"data/sims/issue_22/model")
@@ -85,6 +99,13 @@ facets = BoundaryTriangulation(cutgeo.bgmodel;tags=["surface"])
 writevtk(facets,"data/sims/issue_22/Gammaf")
 #Γf = BoundaryTriangulation(cutgeo, PHYSICAL_OUT, tags=["surface"])
 cutgeo_facets = cut_facets(model, geo)
+println("FACETS")
+println(cutgeo_facets.ls_to_facet_to_inoutcut)
+# println(cutgeo_facets.subfacets.cell_to_points)
+# println(cutgeo_facets.subfacets.cell_to_bgcell)
+println(cutgeo_facets.ls_to_subfacet_to_inout)
+# println(cutgeo_facets.oid_to_ls)
+
 
 stop
 Γw = BoundaryTriangulation(model, tags=["wall"])
@@ -214,21 +235,21 @@ stop
 # solve
 ϕhₜ = Gridap.solve(ode_solver, op, (x₀, v₀, a₀), t₀, Tf)
 
-pvd = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1") 
-pvd1 = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_g")
-pvd2 = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_u") 
+# pvd = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1") 
+# pvd1 = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_g")
+# pvd2 = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_u") 
 
 
-    pvd[0] = createvtk(Ω⁻, "GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_0.vtu", cellfields=[ "phih"=>ϕᵢ(0.0) ])
-    pvd1[0] = createvtk(Γf⁻, "GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_g_0.vtu", cellfields=["etah"=>ηᵢ(0.0)])
-    pvd2[0] = createvtk(Γ, "GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_u_0.vtu", cellfields=["uh"=>uᵢ(0.0)])
+#     pvd[0] = createvtk(Ω⁻, "GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_0.vtu", cellfields=[ "phih"=>ϕᵢ(0.0) ])
+#     pvd1[0] = createvtk(Γf⁻, "GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_g_0.vtu", cellfields=["etah"=>ηᵢ(0.0)])
+#     pvd2[0] = createvtk(Γ, "GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_u_0.vtu", cellfields=["uh"=>uᵢ(0.0)])
 
-    for ((ϕh,ηh,uh),t) in ϕhₜ
-      pvd[t] = createvtk(Ω⁻,"GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_$t"*".vtu",cellfields=["phih"=>ϕh])
-      pvd1[t] = createvtk(Γf⁻,"GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_g_$t"*".vtu",cellfields=["etah"=>ηh])
-      pvd2[t] = createvtk(Γ,"GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_u_$t"*".vtu",cellfields=["uh"=>uh])
-    end
-vtk_save(pvd)
-vtk_save(pvd1)
-vtk_save(pvd2)
+#     for ((ϕh,ηh,uh),t) in ϕhₜ
+#       pvd[t] = createvtk(Ω⁻,"GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_$t"*".vtu",cellfields=["phih"=>ϕh])
+#       pvd1[t] = createvtk(Γf⁻,"GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_g_$t"*".vtu",cellfields=["etah"=>ηh])
+#       pvd2[t] = createvtk(Γ,"GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_u_$t"*".vtu",cellfields=["uh"=>uh])
+#     end
+# vtk_save(pvd)
+# vtk_save(pvd1)
+# vtk_save(pvd2)
 end

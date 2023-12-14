@@ -185,8 +185,8 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
   Tin,Xin = simplexify(Kn_in)
   Tout,Xout = simplexify(Kn_out)
   B = _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
-  T_Fin,X_Fin,f_to_lbgf = simplexify_cell_boundary(Kn_in,p)
-  T_Fout,X_Fout,f_to_lbgf = simplexify_cell_boundary(Kn_out,p)
+  T_Fin,X_Fin,f_to_lbgfin = simplexify_cell_boundary(Kn_in,p)
+  T_Fout,X_Fout,f_to_lbgfout = simplexify_cell_boundary(Kn_out,p)
   T_Γ,X_Γ,f_to_f,f_to_ios = B
   bgcell_to_ioc[cell] = _get_cell_io(T_Γ,Kn_in,Kn_out)
   bgcell_to_ioc[cell] == FACE_CUT || return
@@ -202,7 +202,7 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
     end
   end
 
-  _append_submesh!(submesh,Xin,Tin,Xout,Tout,X_Γ,T_Γ,f_to_f,f_to_ios,cell)
+  _append_submesh!(submesh,Xin,Tin,Xout,Tout,X_Γ,T_Γ,f_to_f,f_to_ios,cell,X_Fin,T_Fin,f_to_lbgfin,X_Fout,T_Fout,f_to_lbgfout)
   for i in 1:num_vertices(p)
     bgcell_node_to_io[i,cell] = n_to_io[i]
   end
@@ -373,7 +373,13 @@ function _get_empty_arrays(stl::STL)
   f_to_bgcell = Int32[]
   f_to_stlf = Int32[]
   f_to_ios = Int8[]
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios
+  X_Fin = P[]
+  X_Fout = P[]
+  T_Fin = Vector{Int32}[]
+  T_Fout = Vector{Int32}[]
+  f_to_lbgfin = Int32[]
+  f_to_lbgfout = Int32[]
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios,X_Fin,T_Fin,f_to_lbgfin,X_Fout,T_Fout,f_to_lbgfout
 end
 
 function _threaded_empty_array(::Type{T}) where T
@@ -442,12 +448,15 @@ function _get_cell_io(T_Γ,Kn_in,Kn_out)
   end
 end
 
-function _append_submesh!(submesh,Xin,Tin,Xout,Tout,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
+function _append_submesh!(submesh,Xin,Tin,Xout,Tout,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell,X_Fin,T_Fin,f_to_lbgfin,X_Fout,T_Fout,f_to_lbgfout)
   i = Threads.threadid()
   _submesh = submesh[i]
   _append_subcells!(_submesh,Xin,Tin,FACE_IN,bgcell)
   _append_subcells!(_submesh,Xout,Tout,FACE_OUT,bgcell)
-  _append_subfacets!(_submesh,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
+  _append_subfacets!(_submesh,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell,X_Fin,T_Fin,f_to_lbgfin,X_Fout,T_Fout,f_to_lbgfout)
+  # _append_subfacets!(_submesh,X_Fin,T_Fin,)
+
+
 end
 
 function _append_subcells!(submesh_arrays,Xn,Tn,io,bgcell)
@@ -459,13 +468,19 @@ function _append_subcells!(submesh_arrays,Xn,Tn,io,bgcell)
   submesh_arrays
 end
 
-function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios = submesh_arrays
+function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell,X_Finn,T_Finn,fn_to_lbgfin,X_Foutn,T_Foutn,fn_to_lbgfout)
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios,X_Fin,T_Fin,f_to_lbgfin,X_Fout,T_Fout,f_to_lbgfout = submesh_arrays
   append!(F, map(i->i.+length(Xf),Tfn) )
   append!(Xf,Xfn)
   append!(f_to_bgcell,fill(bgcell,length(Tfn)))
   append!(f_to_stlf,fn_to_f)
   append!(f_to_ios,fn_to_ios)
+  append!(X_Fin,X_Finn)
+  append!(T_Fin,T_Finn)
+  append!(f_to_lbgfin,fn_to_lbgfin)
+  append!(X_Fout,X_Foutn)
+  append!(T_Fout,T_Foutn)
+  append!(f_to_lbgfout,fn_to_lbgfout)
   # add additional calls here
   submesh_arrays
 end

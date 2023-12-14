@@ -43,8 +43,8 @@ function cut(background::DiscreteModel,geom::STLGeometry)
 end
 
 function cut_facets(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
-  data,bgf_to_ioc = _cut_stl_facets(background,geom;cutter.options...)
-  EmbeddedFacetDiscretization(background, data..., geom), bgf_to_ioc
+  data,bgf_to_ioc,data2 = _cut_stl(background,geom;cutter.options...)
+  EmbeddedDiscretization(background, data..., geom), bgf_to_ioc, EmbeddedFacetDiscretization(background, data2..., geom)
 end
 
 function cut_facets(background::DiscreteModel,geom::STLGeometry)
@@ -80,39 +80,39 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ]
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
-  (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc # here return also cutgeo_facets data: ls_to_facet_to_inoutcut => Vector{Vector{Int8}}
+  (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc,(face2_to_io,subfacets2,subface2_to_io,oid_to_ls)
 end
 
-function _cut_stl_facets(model::DiscreteModel,geom::STLGeometry;kwargs...)
-  subcell_grid, subface_grid, labels = subtriangulate(model,geom;kwargs...)
+# function _cut_stl_facets(model::DiscreteModel,geom::STLGeometry;kwargs...)
+#   subcell_grid, subface_grid, labels = subtriangulate(model,geom;kwargs...)
 
-  inout_dict = Dict{Int8,Int8}(
-    FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT, UNSET => OUT )
+#   inout_dict = Dict{Int8,Int8}(
+#     FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT, UNSET => OUT )
 
-  cell_to_io = [ replace( labels.cell_to_io, inout_dict... ) ]
-  cell_to_bgcell = labels.cell_to_bgcell
-  cell_to_points = get_cell_node_ids( subcell_grid )
-  point_to_coords = get_node_coordinates( subcell_grid )
-  point_to_rcoords = send_to_ref_space(model,cell_to_bgcell,subcell_grid)
-  data = cell_to_points,cell_to_bgcell,point_to_coords,point_to_rcoords
-  subcells = SubCellData(data...)
+#   cell_to_io = [ replace( labels.cell_to_io, inout_dict... ) ]
+#   cell_to_bgcell = labels.cell_to_bgcell
+#   cell_to_points = get_cell_node_ids( subcell_grid )
+#   point_to_coords = get_node_coordinates( subcell_grid )
+#   point_to_rcoords = send_to_ref_space(model,cell_to_bgcell,subcell_grid)
+#   data = cell_to_points,cell_to_bgcell,point_to_coords,point_to_rcoords
+#   subcells = SubCellData(data...)
 
-  face_to_bgcell = labels.face_to_bgcell
-  face_to_points = get_cell_node_ids( subface_grid )
-  point_to_coords = get_node_coordinates( subface_grid )
-  point_to_rcoords = send_to_ref_space(model,face_to_bgcell,subface_grid)
-  face_to_normal = _normals(geom,labels.face_to_stlface)
-  data = face_to_points,face_to_normal,face_to_bgcell,point_to_coords,point_to_rcoords
-  subfacets = SubFacetData(data...)
+#   face_to_bgcell = labels.face_to_bgcell
+#   face_to_points = get_cell_node_ids( subface_grid )
+#   point_to_coords = get_node_coordinates( subface_grid )
+#   point_to_rcoords = send_to_ref_space(model,face_to_bgcell,subface_grid)
+#   face_to_normal = _normals(geom,labels.face_to_stlface)
+#   data = face_to_points,face_to_normal,face_to_bgcell,point_to_coords,point_to_rcoords
+#   subfacets = SubFacetData(data...)
 
-  face_to_io = [ fill(Int8(INTERFACE),num_cells(subface_grid)) ]
+#   face_to_io = [ fill(Int8(INTERFACE),num_cells(subface_grid)) ]
 
-  bgface_to_ioc = replace( labels.bgface_to_ioc, inout_dict... )
-  bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ]
+#   bgface_to_ioc = replace( labels.bgface_to_ioc, inout_dict... )
+#   bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ]
 
-  oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
-  (bgcell_to_ioc,subcells,cell_to_io,oid_to_ls),bgface_to_ioc # here return also cutgeo_facets data: ls_to_facet_to_inoutcut => Vector{Vector{Int8}}
-end
+#   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
+#   (bgcell_to_ioc,subcells,cell_to_io,oid_to_ls),bgface_to_ioc # here return also cutgeo_facets data: ls_to_facet_to_inoutcut => Vector{Vector{Int8}}
+# end
 
 function send_to_ref_space(
   model::DiscreteModel,
