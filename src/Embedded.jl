@@ -53,7 +53,7 @@ function cut_facets(background::DiscreteModel,geom::STLGeometry)
 end
 
 function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
-  subcell_grid, subface_grid, labels = subtriangulate(model,geom;kwargs...)
+  subcell_grid, subface_grid, labels, bsubface_grid = subtriangulate(model,geom;kwargs...)
   #TODO: extract subface_grid_io, f_to_io, f_to_bg
 
   inout_dict = Dict{Int8,Int8}(
@@ -75,33 +75,43 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   data = face_to_points,face_to_normal,face_to_bgcell,point_to_coords,point_to_rcoords
   subfacets = SubFacetData(data...)
 
-  # bface_to_bgcell = labels.face_to_bgcell
-  # bface_to_points = get_cell_node_ids( subface_grid_io )
-  # point_to_coords = get_node_coordinates( subface_grid io)
-  # point_to_rcoords = send_to_ref_space(model,f_to_bgcell,subface_grid)
-  # # bface_to_normal = _normals(geom,labels.face_to_stlface) # get normals from bgfacets
-  # data = face_to_points,face_to_normal,face_to_bgcell,point_to_coords,point_to_rcoords
-  # bsubfacets = SubFacetData(data...)
+  bface_to_bgcell = labels.bface_to_bgcell
+  bface_to_points = get_cell_node_ids( bsubface_grid )
+  point_to_coords = get_node_coordinates( bsubface_grid )
+  # point_to_rcoords = send_to_ref_space(model,bface_to_bgcell,bsubface_grid)
+  # data = bface_to_points,bface_to_bgcell,point_to_coords,point_to_rcoords
+  # bsubfacets = SubCellData(data...)
+  bface_to_io = [ replace( labels.bface_to_io, inout_dict... ) ]
 
-  # struct EmbeddedFacetDiscretization{Dc,Dp,T} <: GridapType
-  #   bgmodel
-  #   ls_to_facet_to_inoutcut -> [bgface_to_ioc]
-  #   subfacets -> bsubfacets
-  #   ls_to_subfacet_to_inout -> [ f_to_io ]
-  #   oid_to_ls -> oid_to_ls
-  #   geo -> geom
+  bface_to_lbgface = labels.bface_to_lbgface
+
+  # function
+    topo = get_grid_topology(model)
+    D = num_dims(model)
+    c_to_f = get_faces(topo,D,D-1)
+
+    # to be optimized
+    bface_to_bgface = map((c,lf)-> c_to_f[c][lf], bface_to_bgcell,bface_to_lbgface)
+
+    trian = Triangulation(ReferenceFE{D-1},model)
+    point_to_rcoords = send_to_ref_space(trian,bface_to_bgface,bsubface_grid)
   # end
+
+  data = bface_to_points,bface_to_bgface,point_to_coords,point_to_rcoords
+  bsubfacets = SubCellData(data...)
 
 
   face_to_io = [ fill(Int8(INTERFACE),num_cells(subface_grid)) ]
 
   bgface_to_ioc = replace( labels.bgface_to_ioc, inout_dict... )
   bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ]
+  bface_to_io = [ bgface_to_ioc ]
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
-  (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc,(face2_to_io,subfacets2,subface2_to_io,oid_to_ls)
-  #, EmbeddedFacetDiscretization data
+  (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc,
+  (bgface_to_ioc,bsubfacets,bface_to_io,oid_to_ls)
 end
+
 
 # function _cut_stl_facets(model::DiscreteModel,geom::STLGeometry;kwargs...)
 #   subcell_grid, subface_grid, labels = subtriangulate(model,geom;kwargs...)
@@ -152,6 +162,16 @@ function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
   node_invmap = lazy_map(Reindex(cell_invmap),node_cell)
   node_rcoords = lazy_map(evaluate,node_invmap,node_coords)
   _collect(node_rcoords)
+end
+
+using Gridap.Fields: AffineMap
+using Gridap.Fields: pinvJt
+function pseudo_inverse_map(f::AffineMap)
+  Jt = f.gradient
+  y0 = f.origin
+  invJt = pinvJt(Jt)
+  x0 = -y0⋅invJt
+  AffineMap(invJt,x0)
 end
 
 function _first_inverse_index_map(a_to_b,nb)

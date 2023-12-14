@@ -14,6 +14,10 @@ struct SubtriangulationLabels
   # face_to_ioc::Vector{Int8} (2nd option)
   bgcell_to_ioc::Vector{Int8}
   bgface_to_ioc::Vector{Int8}
+  # TODO: merge with prev arrays
+  bface_to_lbgface::Vector{Int32}
+  bface_to_bgcell::Vector{Int32}
+  bface_to_io::Vector{Int8}
 end
 
 function subtriangulate(
@@ -70,15 +74,32 @@ function subtriangulate(
     @unreachable
   end
 
-  submesh = _append_threaded_submesh!(submesh)
+  submesh = _append_threaded_submesh!(submesh) # TODO: fix
   io_arrays = _reduce_io_arrays(bgmodel,io_arrays)
   bgcell_to_ioc, bgnode_to_io, bgfacet_to_ioc = io_arrays
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf, f_to_ios = submesh
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf, f_to_ios,
+  X_Fin,T_Fin,f_to_lbgfin,X_Fout,T_Fout,f_to_lbgfout,
+  fin_to_bgcell, fout_to_bgcell = submesh
+
+
+  # to be in a function:
+  nnodes = length(X_Fin)
+  map!(i->map!(j->j+nnodes,i,i),T_Fout,T_Fout)
+  append!(X_Fin,X_Fout)
+  append!(T_Fin,T_Fout)
+  append!(f_to_lbgfin,f_to_lbgfout)
+  append!(fin_to_bgcell,fout_to_bgcell)
+
+  Tb = T_Fin
+  Xb = X_Fin
+  fb_to_lbg = f_to_lbgfin
+  fb_to_bgcell = fin_to_bgcell
+  fb_to_io = vcat(fill(FACE_IN,length(T_Fin)) , fill(FACE_OUT,length(T_Fout)) )
+
   # TODO:
   # - return f_to_ioc
   # - move from local to global f_to_tag (f_to_stlf) for f_to_ioc \in (IN,OUT)
   #  - f_to_tag = c_to_f[f_to_bgc][f_to_tag]
-
 
   propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
   set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
@@ -91,12 +112,16 @@ function subtriangulate(
   # 2nd option: remove face_grids if (cutfacets==false) -> in out
   cell_grid = compute_grid(Table(T),X,TET)
   face_grid = compute_grid(Table(F),Xf,TRI)
+
+  bface_grid = compute_grid(Table(Tb),Xb,TRI)
+
   labels = SubtriangulationLabels(
     k_to_bgcell, k_to_io,
     f_to_stlf, f_to_bgcell, f_to_ios,
-    bgcell_to_ioc, bgfacet_to_ioc)
+    bgcell_to_ioc, bgfacet_to_ioc,
+    fb_to_lbg,fb_to_bgcell,fb_to_io)
 
-  cell_grid, face_grid, labels #, face_grid_io, f_to_io, f_to_bgc (1st option)
+  cell_grid, face_grid, labels, bface_grid # face_grid_io, f_to_io, f_to_bgc (1st option)
 end
 
 function subtriangulate(bgmodel::DiscreteModel,args...;kwargs...)
@@ -393,7 +418,10 @@ function _get_empty_arrays(stl::STL)
   T_Fout = Vector{Int32}[]
   f_to_lbgfin = Int32[]
   f_to_lbgfout = Int32[]
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios,X_Fin,T_Fin,f_to_lbgfin,X_Fout,T_Fout,f_to_lbgfout
+  fin_to_bgcell = Int32[]
+  fout_to_bgcell = Int32[]
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios,
+  X_Fin,T_Fin,f_to_lbgfin,X_Fout,T_Fout,f_to_lbgfout, fin_to_bgcell, fout_to_bgcell
   # f_to_ioc = Int8[]
   # T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios
 end
@@ -491,7 +519,8 @@ end
 # function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
 #   T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios = submesh_arrays
 function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell,X_Finn,T_Finn,fn_to_lbgfin,X_Foutn,T_Foutn,fn_to_lbgfout)
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios,X_Fin,T_Fin,f_to_lbgfin,X_Fout,T_Fout,f_to_lbgfout = submesh_arrays
+  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios,
+  X_Fin,T_Fin,f_to_lbgfin,X_Fout,T_Fout,f_to_lbgfout,fin_to_bgcell,fout_to_bgcell = submesh_arrays
 
   append!(F, map(i->i.+length(Xf),Tfn) )
   append!(Xf,Xfn)
@@ -504,6 +533,8 @@ function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell,X_Fi
   append!(X_Fout,X_Foutn)
   append!(T_Fout,T_Foutn)
   append!(f_to_lbgfout,fn_to_lbgfout)
+  append!(fin_to_bgcell,fill(bgcell,length(T_Fin)))
+  append!(fout_to_bgcell,fill(bgcell,length(T_Fout)))
   # add additional calls here
   submesh_arrays
 end

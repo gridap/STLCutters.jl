@@ -1,18 +1,49 @@
 
-module embedded_2d_CYLINDER
+# module embedded_2d_CYLINDER
 using Gridap
 using Gridap.Geometry
 using Gridap.TensorValues
 using Gridap.Fields
 using GridapEmbedded.Interfaces
-using WriteVTK
+# using WriteVTK
 using GridapEmbedded
 using GridapEmbedded.LevelSetCutters
 using Gridap.Arrays
 using Gridap.Adaptivity
 using STLCutters
 
+
+
+# MWE
+
+geo = STLGeometry("test/data/cube.stl")
+
+pmin,pmax = get_bounding_box(geo)
+L = pmax-pmin
+
+pmin -= L/2
+pmax += L/2
+pmin = Point(pmin[1],pmin[2],0.5)
+
+
+n = 5
+partition = (n,n,n)
+model = CartesianDiscreteModel(pmax, pmin, partition)
+
+cutgeo = cut(model, geo)
+
+
+# TODO: do tests
+
+
+# TODO: reduce to a MWE to test the boundary
+aaaaa
+
+
+
+
 # variables
+
 g = 9.81        # [kg/s²] gravitational constant
 L = 2.0        # [m] length of domain
 d = 1.0        # [m] depth
@@ -40,9 +71,9 @@ uᵢ(t::Real) = x -> uᵢ(x,t)
 ϕᵢ(x,t) = 0.0               # [m²/s] velocity potential
 ϕᵢ(t::Real) = x -> ϕᵢ(x,t)
 ηᵢ(x,t) = 0.0               # [m] wave height
-ηᵢ(t) = x -> ηᵢ(x,t)    
+ηᵢ(t) = x -> ηᵢ(x,t)
 
-# define geometry & apply embedded boundary 
+# define geometry & apply embedded boundary
 # geo = STLGeometry("/Users/jmodderman1/Documents/meshes/shrunk2.stl")
 # pmin,pmax = get_bounding_box(geo)
 # δ = 0.2
@@ -85,7 +116,7 @@ println(cutgeo.ls_to_subfacet_to_inout)
 # println(cutgeo.oid_to_ls)
 
 
-Ω = Interior(model) 
+Ω = Interior(model)
 writevtk(model,"data/sims/issue_22/model")
 
 Ω⁻ = Interior(cutgeo, PHYSICAL_OUT)
@@ -183,7 +214,7 @@ R=0.1
 
 m_cyl = π*R^2 * ρᵦ/ρ /projected_area    # [kg/m] mass
 a_cyl = 0.0                             # [kg/m] hydrodynamic mass coefficient
-b_cyl = 0.0                             # [kg/ms] hydrodynamic damping coefficient 
+b_cyl = 0.0                             # [kg/ms] hydrodynamic damping coefficient
 c_cyl = g                               # [kg/s²] restoring spring coefficient
 
 println("Radius: ", R, " m")
@@ -192,32 +223,32 @@ println("Mass: ", m_cyl, " kg/m")
 println("Stiffness: ", c_cyl, " kg/s²")
 println("Frequency: ", √(c_cyl/m_cyl / (4*π^2)), " Hz")
 
-jac(t, (ϕ,η,u), (dϕ,dη,du), (w,v,r)) = ∫( ∇(dϕ)⋅∇(w) )dΩ⁻ + 
+jac(t, (ϕ,η,u), (dϕ,dη,du), (w,v,r)) = ∫( ∇(dϕ)⋅∇(w) )dΩ⁻ +
                                         ∫( v * g * dη )dΓf⁻ +
                                         ∫( (1.0) * c_cyl * r * du * (VectorValue(0.0,1.0)⋅n_Γ))dΓ
 
-jac_t(t, (ϕ,η,u), (dϕₜ,dηₜ,duₜ), (w,v,r)) = ∫( v * dϕₜ )dΓf⁻ - 
-                                        ∫( dηₜ * w )dΓf⁻ - 
-                                        ∫( w * duₜ * (VectorValue(0.0,1.0)⋅n_Γ) )dΓ + 
-                                        ∫((1.0) * b_cyl * duₜ * r * (VectorValue(0.0,1.0)⋅n_Γ))dΓ - 
+jac_t(t, (ϕ,η,u), (dϕₜ,dηₜ,duₜ), (w,v,r)) = ∫( v * dϕₜ )dΓf⁻ -
+                                        ∫( dηₜ * w )dΓf⁻ -
+                                        ∫( w * duₜ * (VectorValue(0.0,1.0)⋅n_Γ) )dΓ +
+                                        ∫((1.0) * b_cyl * duₜ * r * (VectorValue(0.0,1.0)⋅n_Γ))dΓ -
                                         ∫((-1.0) * dϕₜ * r * (VectorValue(0.0,1.0)⋅n_Γ))dΓ
 
 jac_tt(t, (ϕ,η,u), (dϕₜₜ,dηₜₜ,duₜₜ), (w,v,r)) = ∫((1.0) * duₜₜ * r  * m_cyl * (VectorValue(0.0,1.0)⋅n_Γ))dΓ
 
-res(t, (ϕ, η, u), (w, v, r)) = ∫((1.0) * ∂tt(u) * r * m_cyl * (VectorValue(0.0,1.0)⋅n_Γ))dΓ + 
-                                ∫( v * ∂t(ϕ) )dΓf⁻ - 
-                                ∫( ∂t(η) * w )dΓf⁻ - 
-                                ∫( w * ∂t(u) * (VectorValue(0.0,1.0)⋅n_Γ) )dΓ + 
-                                ∫((1.0) * b_cyl * ∂t(u) * r * (VectorValue(0.0,1.0)⋅n_Γ))dΓ - 
-                                ∫((-1.0) * ∂t(ϕ) * r * (VectorValue(0.0,1.0)⋅n_Γ))dΓ + 
-                                ∫( ∇(ϕ)⋅∇(w) )dΩ⁻ + 
+res(t, (ϕ, η, u), (w, v, r)) = ∫((1.0) * ∂tt(u) * r * m_cyl * (VectorValue(0.0,1.0)⋅n_Γ))dΓ +
+                                ∫( v * ∂t(ϕ) )dΓf⁻ -
+                                ∫( ∂t(η) * w )dΓf⁻ -
+                                ∫( w * ∂t(u) * (VectorValue(0.0,1.0)⋅n_Γ) )dΓ +
+                                ∫((1.0) * b_cyl * ∂t(u) * r * (VectorValue(0.0,1.0)⋅n_Γ))dΓ -
+                                ∫((-1.0) * ∂t(ϕ) * r * (VectorValue(0.0,1.0)⋅n_Γ))dΓ +
+                                ∫( ∇(ϕ)⋅∇(w) )dΩ⁻ +
                                 ∫( v * g * η )dΓf⁻ +
-                                ∫( (1.0) * c_cyl * r * u * (VectorValue(0.0,1.0)⋅n_Γ))dΓ - 
+                                ∫( (1.0) * c_cyl * r * u * (VectorValue(0.0,1.0)⋅n_Γ))dΓ -
                                 ∫( (1.0) * r * c_cyl * z(t) * (VectorValue(0.0,1.0)⋅n_Γ))dΓ
 
 # time integrator variables
 Δt = 1/50                          # [s]: time step
-t₀ = 0.0                            # [s]: zero time 
+t₀ = 0.0                            # [s]: zero time
 Tf = 5*Δt                           # [s]: final time
 γn = 0.5                            # [-]: γ factor Newmark
 βn = 0.25                           # [-]: β factor Newmark
@@ -225,7 +256,7 @@ Tf = 5*Δt                           # [s]: final time
 # solver definition
 ls = LUSolver()
 op = TransientFEOperator(res, jac, jac_t, jac_tt, X, Y)
-ode_solver = Newmark(ls, Δt, γn, βn) 
+ode_solver = Newmark(ls, Δt, γn, βn)
 
 # interpolate initial conditions
 x₀ = interpolate_everywhere([ϕᵢ(0.0), ηᵢ(0.0), uᵢ(0.0)], X(0.0))
@@ -235,9 +266,9 @@ stop
 # solve
 ϕhₜ = Gridap.solve(ode_solver, op, (x₀, v₀, a₀), t₀, Tf)
 
-# pvd = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1") 
+# pvd = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1")
 # pvd1 = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_g")
-# pvd2 = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_u") 
+# pvd2 = createpvd("GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_u")
 
 
 #     pvd[0] = createvtk(Ω⁻, "GridapPF.jl/data/sims/linPF_gmsh_FSI_3d/test_case_embeddedcyl1_0.vtu", cellfields=[ "phih"=>ϕᵢ(0.0) ])
@@ -252,4 +283,4 @@ stop
 # vtk_save(pvd)
 # vtk_save(pvd1)
 # vtk_save(pvd2)
-end
+# end
