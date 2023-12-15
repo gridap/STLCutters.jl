@@ -154,7 +154,7 @@ end
 
 function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
   bgcell_map = get_cell_map(grid)
-  bgcell_invmap = lazy_map(inverse_map,bgcell_map)
+  bgcell_invmap = lazy_map(pseudo_inverse_map,bgcell_map)
   cell_invmap = lazy_map(Reindex(bgcell_invmap),cell_to_bgcell)
   cell_nodes = get_cell_node_ids(subgrid)
   node_coords = get_node_coordinates(subgrid)
