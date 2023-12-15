@@ -154,7 +154,7 @@ end
 
 function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
   bgcell_map = get_cell_map(grid)
-  bgcell_invmap = lazy_map(pseudo_inverse_map,bgcell_map)
+  bgcell_invmap = lazy_map(inverse_map,bgcell_map)
   cell_invmap = lazy_map(Reindex(bgcell_invmap),cell_to_bgcell)
   cell_nodes = get_cell_node_ids(subgrid)
   node_coords = get_node_coordinates(subgrid)
@@ -162,16 +162,6 @@ function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
   node_invmap = lazy_map(Reindex(cell_invmap),node_cell)
   node_rcoords = lazy_map(evaluate,node_invmap,node_coords)
   _collect(node_rcoords)
-end
-
-using Gridap.Fields: AffineMap
-using Gridap.Fields: pinvJt
-function pseudo_inverse_map(f::AffineMap)
-  Jt = f.gradient
-  y0 = f.origin
-  invJt = pinvJt(Jt)
-  x0 = -y0⋅invJt
-  AffineMap(invJt,x0)
 end
 
 function _first_inverse_index_map(a_to_b,nb)
