@@ -1,5 +1,5 @@
 
-# module embedded_2d_CYLINDER
+module embedded_2d_CYLINDER
 using Gridap
 using Gridap.Geometry
 using Gridap.TensorValues
@@ -11,28 +11,120 @@ using GridapEmbedded.LevelSetCutters
 using Gridap.Arrays
 using Gridap.Adaptivity
 using STLCutters
-
+using GridapEmbedded.Interfaces: _restrict_boundary_triangulation,compute_subfacet_to_inout,SubFacetBoundaryTriangulation
 
 
 # MWE
 
-geo = STLGeometry("test/data/cube.stl")
+# geo1 = STLGeometry("data/cube.stl")
+geo1 = STLGeometry("data/spherestl_debug.stl")
+# geo2
 
-pmin,pmax = get_bounding_box(geo)
-L = pmax-pmin
+L = 2.0        # [m] length of domain
+d = 1.0        # [m] depth
+n = 5
 
-pmin -= L/2
-pmax += L/2
-pmin = Point(pmin[1],pmin[2],0.5)
+# background model ~ reference domain
+pmin = Point(L, L, 0.0)
+pmax = Point(0.0, 0.0, -d)
+pmid = 0.5*(pmin+pmax)+VectorValue(0.0,0.0,d/2)
+
+
+# pmin,pmax = get_bounding_box(geo1)
+# L = pmax[3]-pmin[3]
+# pmin=2*pmin;pmax=2*pmax
+# pmin = pmin - VectorValue(0.,0.,1.5*L)
+# pmax = pmax - VectorValue(0.,0.,1.5*L)
+# println(pmin,pmax)
 
 
 n = 5
 partition = (n,n,n)
 model = CartesianDiscreteModel(pmax, pmin, partition)
+cutgeo1,bgf_to_ioc,cutgeo_facets1 = cut_facets(model, geo1)
 
-cutgeo = cut(model, geo)
+# println(cutgeo1.ls_to_bgcell_to_inoutcut)
+# println(cutgeo1.subcells)
+# println(cutgeo1.ls_to_subcell_to_inout)
+# println(cutgeo1.subfacets)
+# println(cutgeo1.ls_to_subfacet_to_inout)
+# println(cutgeo1.oid_to_ls)
+
+# println(length(cutgeo_facets1.ls_to_facet_to_inoutcut[1]))
+# println(cutgeo_facets1.subfacets)
+# println(length(cutgeo_facets1.ls_to_subfacet_to_inout[1]))
+# println(cutgeo_facets1.oid_to_ls)
+
+labels = get_face_labeling(model)
+add_tag_from_tags!(labels,"top",[22])
+
+Ω = Interior(model)
+writevtk(model,"data/sims/issue_22/model")
+Ω⁻1 = Interior(cutgeo1, PHYSICAL_OUT)
+writevtk(Ω⁻1,"data/sims/issue_22/omgmin1")
+Ω⁻act1 = Interior(cutgeo1, ACTIVE_OUT)
+writevtk(Ω⁻act1,"data/sims/issue_22/omgmact1")
+Γ1 = EmbeddedBoundary(cutgeo1)
+n_Γ1 = -get_normal_vector(Γ1)
+writevtk(Γ1,"data/sims/issue_22/Gamma1")
+Γt = BoundaryTriangulation(model, tags=["top"])
+writevtk(Γt,"data/sims/issue_22/Gammat")
+
+# bgfacet_to_inoutcut = compute_bgfacet_to_inoutcut(cutgeo_facets1,geo1)
+# bgfacet_to_mask = lazy_map( a->a==OUT, bgfacet_to_inoutcut)
+# println((bgfacet_to_mask))
+# facets2 = _restrict_boundary_triangulation(cutgeo_facets1.bgmodel,BoundaryTriangulation(cutgeo_facets1.bgmodel,tags=["top"]),bgfacet_to_mask)
+# writevtk(facets2,"data/sims/issue_22/facets2")
 
 
+# bgfacet_to_inoutcut = compute_bgfacet_to_inoutcut(cutgeo_facets1,geo1)
+#   bgfacet_to_mask = lazy_map( a->a==CUT, bgfacet_to_inoutcut)
+#   facets = _restrict_boundary_triangulation(cutgeo_facets1.bgmodel,BoundaryTriangulation(cutgeo_facets1.bgmodel,tags=["top"]),bgfacet_to_mask)
+# writevtk(facets,"data/sims/issue_22/facets")
+#   facet_to_bgfacet = facets.glue.face_to_bgface
+#   println(facet_to_bgfacet)
+#   n_bgfacets = num_facets(cutgeo_facets1.bgmodel)
+#   bgfacet_to_facet = zeros(Int,n_bgfacets)
+#   println(facet_to_bgfacet)
+#   bgfacet_to_facet[facet_to_bgfacet] .= 1:length(facet_to_bgfacet)
+#   subfacet_to_inoutcut = lazy_map(Reindex(bgfacet_to_inoutcut),cutgeo_facets1.subfacets.cell_to_bgcell)
+#   println(length(subfacet_to_inoutcut))
+#   println(bgfacet_to_facet)
+#   _subfacet_to_facet = lazy_map(Reindex(bgfacet_to_facet),cutgeo_facets1.subfacets.cell_to_bgcell)
+# println(length(_subfacet_to_facet))
+# println()
+
+
+  # subfacet_to_inout = compute_subfacet_to_inout(cutgeo_facets1,geo1)
+  # println(length(subfacet_to_inout))
+  # println(subfacet_to_inout[1:600])
+  # println(subfacet_to_inoutcut[1:600])
+  # println(_subfacet_to_facet[1:600])
+  # println("BBBBB")
+  # pred(a,b,c) = c != 0 && a==0 && b==-1
+  # mask = lazy_map( pred, subfacet_to_inoutcut, subfacet_to_inout, _subfacet_to_facet )
+  # println(length(mask))
+  
+  # newsubfacets = findall(mask)
+  # println(newsubfacets)
+  # subfacets = SubCellData(cutgeo_facets1.subfacets,newsubfacets)
+  # println("=============")
+  # println(subfacets.cell_to_bgcell)
+  # subfacet_to_facet = bgfacet_to_facet[subfacets.cell_to_bgcell]
+  # println(length(subfacet_to_facet))
+  
+  # writevtk(SubFacetBoundaryTriangulation(facets,subfacets,subfacet_to_facet),"data/sims/issue_22/Gammatphy")
+
+#   SubFacetBoundaryTriangulation(facets,cutgeo_facets1.subfacets,subfacet_to_facet)
+
+
+
+
+
+
+Γt⁻1 = BoundaryTriangulation(cutgeo_facets1,PHYSICAL_OUT,tags=["top"])
+writevtk(Γt⁻1,"data/sims/issue_22/Gammafmin1")
+stop
 # TODO: do tests
 
 
@@ -83,18 +175,18 @@ uᵢ(t::Real) = x -> uᵢ(x,t)
 model = CartesianDiscreteModel(pmax, pmin, partition)
 pmid = 0.5*(pmin+pmax)+VectorValue(0.0,0.0,d/2)
 # geo = sphere(0.5;x0=pmid,name="sphere")
-geo = STLGeometry("/Users/jmodderman1/Documents/meshes/spherestl_debug.stl")
+# geo = STLGeometry("data/cube.stl")
 
 
 
 
 labels = get_face_labeling(model)
-wall_tags = union(STLCutters.get_faces(HEX)[ [23,24] ]...)
-add_tag_from_tags!(labels,"wall",wall_tags)
-add_tag_from_tags!(labels,"seabed",[21])
-add_tag_from_tags!(labels,"surface",[22])
-add_tag_from_tags!(labels,"inlet",[25])
-add_tag_from_tags!(labels,"outlet",[26])
+# wall_tags = union(STLCutters.get_faces(HEX)[ [23,24] ]...)
+# add_tag_from_tags!(labels,"wall",wall_tags)
+# add_tag_from_tags!(labels,"seabed",[21])
+add_tag_from_tags!(labels,"top",[22])
+# add_tag_from_tags!(labels,"inlet",[25])
+# add_tag_from_tags!(labels,"outlet",[26])
 
 
 
@@ -106,14 +198,14 @@ add_tag_from_tags!(labels,"outlet",[26])
 # cutgeo_facets = STLCutters._cut_stl(model, geo)
 cutgeo = cut(model, geo)
 
-println("CUTGEO")
-println(cutgeo.ls_to_bgcell_to_inoutcut)
-# println(cutgeo.subcells.cell_to_points)
-# println(cutgeo.subcells.cell_to_bgcell)
-println(cutgeo.ls_to_subcell_to_inout)
-println(cutgeo.subfacets)
-println(cutgeo.ls_to_subfacet_to_inout)
-# println(cutgeo.oid_to_ls)
+# println("CUTGEO")
+# println(cutgeo.ls_to_bgcell_to_inoutcut)
+# # println(cutgeo.subcells.cell_to_points)
+# # println(cutgeo.subcells.cell_to_bgcell)
+# println(cutgeo.ls_to_subcell_to_inout)
+# println(cutgeo.subfacets)
+# println(cutgeo.ls_to_subfacet_to_inout)
+# # println(cutgeo.oid_to_ls)
 
 
 Ω = Interior(model)
@@ -130,12 +222,12 @@ facets = BoundaryTriangulation(cutgeo.bgmodel;tags=["surface"])
 writevtk(facets,"data/sims/issue_22/Gammaf")
 #Γf = BoundaryTriangulation(cutgeo, PHYSICAL_OUT, tags=["surface"])
 cutgeo_facets = cut_facets(model, geo)
-println("FACETS")
-println(cutgeo_facets.ls_to_facet_to_inoutcut)
-# println(cutgeo_facets.subfacets.cell_to_points)
-# println(cutgeo_facets.subfacets.cell_to_bgcell)
-println(cutgeo_facets.ls_to_subfacet_to_inout)
-# println(cutgeo_facets.oid_to_ls)
+# println("FACETS")
+# println(cutgeo_facets.ls_to_facet_to_inoutcut)
+# # println(cutgeo_facets.subfacets.cell_to_points)
+# # println(cutgeo_facets.subfacets.cell_to_bgcell)
+# println(cutgeo_facets.ls_to_subfacet_to_inout)
+# # println(cutgeo_facets.oid_to_ls)
 
 
 stop
@@ -283,4 +375,4 @@ stop
 # vtk_save(pvd)
 # vtk_save(pvd1)
 # vtk_save(pvd2)
-# end
+end

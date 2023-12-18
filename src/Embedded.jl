@@ -93,7 +93,7 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
     # to be optimized
     bface_to_bgface = map((c,lf)-> c_to_f[c][lf], bface_to_bgcell,bface_to_lbgface)
 
-    trian = Triangulation(ReferenceFE{D-1},model)
+    trian = Grid(ReferenceFE{D-1},model)
     point_to_rcoords = send_to_ref_space(trian,bface_to_bgface,bsubface_grid)
   # end
 
@@ -103,9 +103,11 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
 
   face_to_io = [ fill(Int8(INTERFACE),num_cells(subface_grid)) ]
 
-  bgface_to_ioc = replace( labels.bgface_to_ioc, inout_dict... )
-  bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ]
-  bface_to_io = [ bgface_to_ioc ]
+  bgface_to_ioc = [ replace( labels.bgface_to_ioc, inout_dict... ) ]
+  bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ] 
+  # bface_to_io =  [ replace( labels.bface_to_io, inout_dict... ) ]
+  # bface_to_io =  bgface_to_io 
+   
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
   (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc,
