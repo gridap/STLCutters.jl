@@ -919,6 +919,7 @@ function compute_cell_to_facets(grid::CartesianGrid,stl)
   thread_to_stl_facets = [ Int32[] for _ in 1:n ]
   coords = get_node_coordinates(grid)
   cell_to_nodes = get_cell_node_ids(grid)
+  @check all(coords[1] .< coords[end] )
   c = [ ( get_cell_cache(stl), array_cache(cell_to_nodes) ) for _ in 1:n ]
   δ = CELL_EXPANSION_FACTOR
   Threads.@threads for stl_facet in 1:num_cells(stl)
@@ -1169,4 +1170,3 @@ function _compute_cartesian_description(
   partition = Int.(ceil.(p))
   origin,sizes,partition
 end
-

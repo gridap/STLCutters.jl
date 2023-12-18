@@ -821,4 +821,3 @@ function orthogonal(a::VectorValue{D}...) where D
       "orthogonal(::VectorValue{D}...) only defined for D-1 VectorValues{D}'s")
   orthogonal(a,)
 end
-

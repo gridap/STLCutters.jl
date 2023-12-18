@@ -14,10 +14,13 @@ using STLCutters
 using GridapEmbedded.Interfaces: _restrict_boundary_triangulation,compute_subfacet_to_inout,SubFacetBoundaryTriangulation
 
 
+simsdir(a...) = joinpath(@__DIR__,"../data/sims/issue_22",a...)
+mkpath(simsdir())
+
 # MWE
 
 # geo1 = STLGeometry("data/cube.stl")
-geo1 = STLGeometry("data/spherestl_debug.stl")
+geo1 = STLGeometry(joinpath(@__DIR__,"data/spherestl_debug.stl"))
 # geo2
 
 L = 2.0        # [m] length of domain
@@ -59,16 +62,16 @@ labels = get_face_labeling(model)
 add_tag_from_tags!(labels,"top",[22])
 
 Ω = Interior(model)
-writevtk(model,"data/sims/issue_22/model")
+writevtk(model,simsdir("model"))
 Ω⁻1 = Interior(cutgeo1, PHYSICAL_OUT)
-writevtk(Ω⁻1,"data/sims/issue_22/omgmin1")
+writevtk(Ω⁻1,simsdir("omgmin1"))
 Ω⁻act1 = Interior(cutgeo1, ACTIVE_OUT)
-writevtk(Ω⁻act1,"data/sims/issue_22/omgmact1")
+writevtk(Ω⁻act1,simsdir("omgmact1"))
 Γ1 = EmbeddedBoundary(cutgeo1)
 n_Γ1 = -get_normal_vector(Γ1)
-writevtk(Γ1,"data/sims/issue_22/Gamma1")
+writevtk(Γ1,simsdir("Gamma1"))
 Γt = BoundaryTriangulation(model, tags=["top"])
-writevtk(Γt,"data/sims/issue_22/Gammat")
+writevtk(Γt,simsdir("Gammat"))
 
 # bgfacet_to_inoutcut = compute_bgfacet_to_inoutcut(cutgeo_facets1,geo1)
 # bgfacet_to_mask = lazy_map( a->a==OUT, bgfacet_to_inoutcut)
@@ -104,7 +107,7 @@ writevtk(Γt,"data/sims/issue_22/Gammat")
   # pred(a,b,c) = c != 0 && a==0 && b==-1
   # mask = lazy_map( pred, subfacet_to_inoutcut, subfacet_to_inout, _subfacet_to_facet )
   # println(length(mask))
-  
+
   # newsubfacets = findall(mask)
   # println(newsubfacets)
   # subfacets = SubCellData(cutgeo_facets1.subfacets,newsubfacets)
@@ -112,7 +115,7 @@ writevtk(Γt,"data/sims/issue_22/Gammat")
   # println(subfacets.cell_to_bgcell)
   # subfacet_to_facet = bgfacet_to_facet[subfacets.cell_to_bgcell]
   # println(length(subfacet_to_facet))
-  
+
   # writevtk(SubFacetBoundaryTriangulation(facets,subfacets,subfacet_to_facet),"data/sims/issue_22/Gammatphy")
 
 #   SubFacetBoundaryTriangulation(facets,cutgeo_facets1.subfacets,subfacet_to_facet)
@@ -123,7 +126,7 @@ writevtk(Γt,"data/sims/issue_22/Gammat")
 
 
 Γt⁻1 = BoundaryTriangulation(cutgeo_facets1,PHYSICAL_OUT,tags=["top"])
-writevtk(Γt⁻1,"data/sims/issue_22/Gammafmin1")
+writevtk(Γt⁻1,simsdir("Gammafmin1"))
 stop
 # TODO: do tests
 

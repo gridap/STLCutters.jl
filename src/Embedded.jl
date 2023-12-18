@@ -104,10 +104,10 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   face_to_io = [ fill(Int8(INTERFACE),num_cells(subface_grid)) ]
 
   bgface_to_ioc = [ replace( labels.bgface_to_ioc, inout_dict... ) ]
-  bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ] 
+  bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ]
   # bface_to_io =  [ replace( labels.bface_to_io, inout_dict... ) ]
-  # bface_to_io =  bgface_to_io 
-   
+  # bface_to_io =  bgface_to_io
+
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
   (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc,
