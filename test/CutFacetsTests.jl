@@ -1,4 +1,5 @@
-module cutgeo_facetstest
+module CutFacetsTests
+
 using Gridap
 using GridapEmbedded
 using STLCutters
@@ -14,7 +15,7 @@ nz = 3
 partition = (n,n,nz)
 
 model = CartesianDiscreteModel(pmin, pmax, partition)
-cutgeo,bgf_to_ioc,cutgeo_facets = cut_facets(model, geo)
+cutgeo_facets = cut_facets(model, geo)
 cutgeo_facetsₐ = cut_facets(model, geoₐ)
 
 labels = get_face_labeling(model)
@@ -30,7 +31,6 @@ add_tag_from_tags!(labels,"top",[21])
 Λinₐ =  SkeletonTriangulation(cutgeo_facetsₐ,CUT_IN)
 Λoutₐ = SkeletonTriangulation(cutgeo_facetsₐ,CUT_OUT)
 
-Γ = EmbeddedBoundary(cutgeo)
 Γt = BoundaryTriangulation(model,tags=["top"])
 
 Γ⁺_act = BoundaryTriangulation(cutgeo_facets,ACTIVE_OUT,tags=["top"])
@@ -50,7 +50,6 @@ add_tag_from_tags!(labels,"top",[21])
 Γ⁻_phyₐ = BoundaryTriangulation(cutgeo_facetsₐ,PHYSICAL_IN,tags=["top"])
 
 degree = 2
-dΓ = Measure(Γ,degree)
 dΓt = Measure(Γt,degree)
 
 dΓ⁺_act = Measure(Γ⁺_act,degree)

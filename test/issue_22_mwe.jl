@@ -14,7 +14,8 @@ nz = 3
 partition = (n,n,nz)
 
 model = CartesianDiscreteModel(pmin, pmax, partition)
-cutgeo,bgf_to_ioc,cutgeo_facets = cut_facets(model, geo)
+cutgeo = cut_facets(model, geo)
+cutgeo_facets = cut_facets(cutgeo)
 
 labels = get_face_labeling(model)
 add_tag_from_tags!(labels,"top",[21])

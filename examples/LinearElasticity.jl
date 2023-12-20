@@ -39,10 +39,10 @@ function main(filename;n=20,δ=0.2,force=(0,0,-1)::NTuple{3},output=nothing)
 
   # Cut the background model
 
-  cutgeo,facet_to_inoutcut = cut(bgmodel,geo)
+  cutgeo = cut(bgmodel,geo)
 
   strategy = AggregateAllCutCells()
-  aggregates = aggregate(strategy,cutgeo,facet_to_inoutcut)
+  aggregates = aggregate(strategy,cutgeo)
 
   # Setup integration meshes
   Ω_bg = Triangulation(bgmodel)

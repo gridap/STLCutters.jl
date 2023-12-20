@@ -549,7 +549,7 @@ end
 
 function _append_threaded_submesh!(submesh)
   n = Threads.nthreads()
-  @notimplementedif n > 1 "TODO: extend append submeshes"
+  @notimplementedif n > 1 "multithreading is not working yet"
   for i in 2:n
     _append!(submesh[1],submesh[i])
   end

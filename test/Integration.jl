@@ -29,7 +29,7 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
 
-cutgeo, = cut(bgmodel,geo)
+cutgeo = cut(bgmodel,geo)
 
 # Setup integration meshes
 Ω = Triangulation(cutgeo,PHYSICAL)
@@ -78,7 +78,7 @@ bgmodel = simplexify(bgmodel,positive=true)
 
 # Cut the background model
 
-cutgeo, = cut(bgmodel,geo)
+cutgeo = cut(bgmodel,geo)
 
 # Setup integration meshes
 Ω = Triangulation(cutgeo,PHYSICAL)

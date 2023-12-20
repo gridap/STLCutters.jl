@@ -40,7 +40,7 @@ function main(filename;n,output=nothing)
   add_tag_from_tags!(labels,"inlet",23)
 
   # Cut the background model
-  cutgeo,facet_to_inoutcut = cut(bgmodel,geo)
+  cutgeo = cut(bgmodel,geo)
 
   Ωb = Triangulation(bgmodel)
   Ω = Triangulation(cutgeo,PHYSICAL_OUT)
@@ -56,7 +56,7 @@ function main(filename;n,output=nothing)
 
   threshold = 0.5
   strategy = AggregateCutCellsByThreshold(threshold)
-  aggregates = aggregate(strategy,cutgeo,geo,OUT,facet_to_inoutcut)
+  aggregates = aggregate(strategy,cutgeo,geo,OUT)
   V = AgFEMSpace(Vstd,aggregates)
   Q = AgFEMSpace(Qstd,aggregates)
 

@@ -27,14 +27,62 @@ end
 
 get_bounding_box(a::STLGeometry) = get_bounding_box( get_stl(a) )
 
+struct STLEmbeddedDiscretization <: Interfaces.AbstractEmbeddedDiscretization
+  cut::EmbeddedDiscretization
+  cutfacets::EmbeddedFacetDiscretization
+end
+
+function get_background_model(cut::STLEmbeddedDiscretization)
+  get_background_model(cut.cut)
+end
+
+function get_geometry(cut::STLEmbeddedDiscretization)
+  get_geometry(cut.cut)
+end
+
+function compute_bgcell_to_inoutcut(
+  cut::STLEmbeddedDiscretization,
+  geo::STLGeometry)
+
+  compute_bgcell_to_inoutcut(cut.cut,geo)
+end
+
+function compute_bgfacet_to_inoutcut(
+  cut::STLEmbeddedDiscretization,
+  geo::STLGeometry)
+
+  compute_bgfacet_to_inoutcut(cut.cut_facets,geo)
+end
+
+function Triangulation(cut::STLEmbeddedDiscretization,args...)
+  Triangulation(cut.cut,args...)
+end
+
+function compute_subcell_to_inout(
+  cut::STLEmbeddedDiscretization,
+  geo::STLGeometry)
+
+  compute_subcell_to_inout(cut.cut,geo)
+end
+
+function EmbeddedBoundary(cut::STLEmbeddedDiscretization,args...)
+  EmbeddedBoundary(cut.cut,args...)
+end
+
+function GhostSkeleton(cut::STLEmbeddedDiscretization,args...)
+  GhostSkeleton(cut.cut,args...)
+end
+
 struct STLCutter <: Interfaces.Cutter
   options::Dict{Symbol,Any}
   STLCutter(;options...) = new(options)
 end
 
 function cut(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
-  data,bgf_to_ioc = _cut_stl(background,geom;cutter.options...)
-  EmbeddedDiscretization(background, data..., geom), bgf_to_ioc#, EmbeddedFacetDiscretization(background, data..., geom)
+  data,facet_data = _cut_stl(background,geom;cutter.options...)
+  STLEmbeddedDiscretization(
+    EmbeddedDiscretization(background, data..., geom),
+    EmbeddedFacetDiscretization(background, facet_data..., geom) )
 end
 
 function cut(background::DiscreteModel,geom::STLGeometry)
@@ -43,13 +91,40 @@ function cut(background::DiscreteModel,geom::STLGeometry)
 end
 
 function cut_facets(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
-  data,bgf_to_ioc,data2 = _cut_stl(background,geom;cutter.options...)
-  EmbeddedDiscretization(background, data..., geom), bgf_to_ioc, EmbeddedFacetDiscretization(background, data2..., geom)
+  cutgeo = cut(background,geom;cutter.options...)
+  cut_facets(cutgeo)
 end
 
 function cut_facets(background::DiscreteModel,geom::STLGeometry)
   cutter = STLCutter()
   cut_facets(cutter,background,geom)
+end
+
+function cut_facets(cut::STLEmbeddedDiscretization,args...)
+  cut.cutfacets
+end
+
+function aggregate(strategy,cut::STLEmbeddedDiscretization)
+  aggregate(strategy,cut,cut.geo)
+end
+
+function aggregate(strategy,cut::STLEmbeddedDiscretization,geo)
+  aggregate(strategy,cut,geo,IN)
+end
+
+function aggregate(strategy,cut::STLEmbeddedDiscretization,name::String,in_or_out)
+  geo = get_geometry(cut.geo,name)
+  aggregate(strategy,cut,geo,in_or_out)
+end
+
+function aggregate(
+  strategy,
+  cut::STLEmbeddedDiscretization,
+  geo::STLGeometry,
+  in_or_out)
+
+  facet_to_inoutcut = compute_bgfacet_to_inoutcut(cut)
+  aggregate(strategy,cut.cut,geo,in_or_out,facet_to_inoutcut)
 end
 
 function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
@@ -110,7 +185,7 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
 
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
-  (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc,
+  (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),
   (bgface_to_ioc,bsubfacets,bface_to_io,oid_to_ls)
 end
 

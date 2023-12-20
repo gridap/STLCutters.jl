@@ -44,7 +44,8 @@ pmid = 0.5*(pmin+pmax)+VectorValue(0.0,0.0,d/2)
 n = 5
 partition = (n,n,n)
 model = CartesianDiscreteModel(pmax, pmin, partition)
-cutgeo1,bgf_to_ioc,cutgeo_facets1 = cut_facets(model, geo1)
+cutgeo1 = cut(model, geo1)
+cutgeo_facets1 = cut_facets(cutgeo1)
 
 # println(cutgeo1.ls_to_bgcell_to_inoutcut)
 # println(cutgeo1.subcells)
@@ -197,7 +198,7 @@ add_tag_from_tags!(labels,"top",[22])
 
 # writevtk(geo,"data/sims/issue_22/geo")
 
-# cutgeo, facet_to_inoutcut = cut(model, geo)
+# cutgeo = cut(model, geo)
 # cutgeo_facets = STLCutters._cut_stl(model, geo)
 cutgeo = cut(model, geo)
 
@@ -281,7 +282,7 @@ Dstd = ConstantFESpace(model)
 Rstd = TransientTrialFESpace(Dstd)
 
 strategy = AggregateAllCutCells()
-aggregates = aggregate(strategy, cutgeo, facet_to_inoutcut)
+aggregates = aggregate(strategy, cutgeo )
 
 # final FE spaces
 W = AgFEMSpace(Wstd, aggregates)

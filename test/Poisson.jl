@@ -39,7 +39,7 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 cutter = STLCutter(threading=:threads,tolfactor=10^4)
 
-@time cutgeo, = cut(cutter,bgmodel,geo)
+@time cutgeo = cut(cutter,bgmodel,geo)
 
 # Setup integration meshes
 Ω = Triangulation(cutgeo,PHYSICAL)
