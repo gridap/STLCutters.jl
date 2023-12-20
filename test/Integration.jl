@@ -4,6 +4,7 @@ using STLCutters
 using Gridap
 import Gridap: ∇
 using GridapEmbedded
+using Gridap.ReferenceFEs
 using Test
 
 using STLCutters: compute_stl_model
@@ -69,6 +70,17 @@ a = sum( ∫( ∇(v)⋅∇(u) ) * dΩ )
 b = sum( ∫( v⋅n_Γd⋅∇(u) ) * dΓd )
 @test abs( a-b ) < 1e-9
 
+# Moment fitted
+Ω_act_in = Triangulation(cutgeo,ACTIVE_IN,geo)
+Ω_act_out = Triangulation(cutgeo,ACTIVE_OUT,geo)
+
+dΩᵐ_in = Measure(Ω_act_in,Quadrature(momentfitted,cutgeo,degree,in_or_out=IN))
+dΩᵐ_out = Measure(Ω_act_out,Quadrature(momentfitted,cutgeo,degree,in_or_out=OUT))
+
+f = x -> x[1] + 1
+f = 1
+@show ∑(∫(f)dΩᵐ_in) ≈ ∑(∫(f)dΩ)
+
 
 # Simplex background
 #
@@ -118,6 +130,6 @@ a = sum( ∫( ∇(v)⋅∇(u) ) * dΩ )
 b = sum( ∫( v⋅n_Γd⋅∇(u) ) * dΓd )
 @test abs( a-b ) < 1e-9
 
-
+# Moment fitted
 
 end
