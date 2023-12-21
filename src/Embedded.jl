@@ -51,7 +51,7 @@ function compute_bgfacet_to_inoutcut(
   cut::STLEmbeddedDiscretization,
   geo::STLGeometry)
 
-  compute_bgfacet_to_inoutcut(cut.cut_facets,geo)
+  compute_bgfacet_to_inoutcut(cut.cutfacets,geo)
 end
 
 function Triangulation(cut::STLEmbeddedDiscretization,args...)
@@ -123,7 +123,7 @@ function aggregate(
   geo::STLGeometry,
   in_or_out)
 
-  facet_to_inoutcut = compute_bgfacet_to_inoutcut(cut)
+  facet_to_inoutcut = compute_bgfacet_to_inoutcut(cut,geo)
   aggregate(strategy,cut.cut,geo,in_or_out,facet_to_inoutcut)
 end
 
