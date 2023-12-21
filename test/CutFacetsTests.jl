@@ -6,7 +6,7 @@ using STLCutters
 using Test
 
 geo = STLGeometry(joinpath(@__DIR__,"data/cube.stl"))
-geoₐ = cube(x0=Point(0.0,0.0,0.0))
+geoₐ = cube(x0=Point(0.0,0.0,0.5))
 
 pmin = Point(-1.0, -1.0, 0.5)
 pmax = Point(1.0, 1.0, 1.5)
@@ -68,25 +68,25 @@ dΓ⁻_phyₐ = Measure(Γ⁻_phyₐ,degree)
 
 dΓbin = Measure(Γbin,degree)
 dΓbout = Measure(Γbout,degree)
-dΛin = Measure(Λin,degree)
-dΛout = Measure(Λout,degree)
+dΛin⁺ = Measure(Λin.⁺,degree)
+dΛin⁻ = Measure(Λin.⁻,degree)
+dΛout⁺ = Measure(Λout.⁺,degree)
+dΛout⁻ = Measure(Λout.⁻,degree)
 
 dΓbinₐ = Measure(Γbinₐ,degree)
 dΓboutₐ = Measure(Γboutₐ,degree)
-dΛinₐ = Measure(Λinₐ,degree)
-dΛoutₐ = Measure(Λoutₐ,degree)
+dΛinₐ⁺ = Measure(Λinₐ.⁺,degree)
+dΛinₐ⁻ = Measure(Λinₐ.⁻,degree)
+dΛoutₐ⁺ = Measure(Λoutₐ.⁺,degree)
+dΛoutₐ⁻ = Measure(Λoutₐ.⁻,degree)
 
 # test area vs. known value
+@test sum(∫(1)dΓt) ≈ 4
 @test sum(∫(1)dΓ⁺_phy) + sum(∫(1)dΓ⁻_phy) ≈ 4
-@test sum(∫(1)dΓ⁺_act) + sum(∫(1)dΓ⁻_act) - sum(∫(1)dΓ⁺_cut) - sum(∫(1)dΓ⁻_cut)  ≈ 4
 @test sum(∫(1)dΓ⁺_phy) ≈ 3
 @test sum(∫(1)dΓ⁺_act) - sum(∫(1)dΓ⁻_cut) ≈ 3
 @test sum(∫(1)dΓ⁻_phy) ≈ 1
 @test sum(∫(1)dΓ⁻_act) - sum(∫(1)dΓ⁺_cut) ≈ 1
-
-# test area contributions vs. total value
-@test sum(∫(1)dΓ⁺_phy) + sum(∫(1)dΓ⁻_phy) ≈ sum(∫(1)dΓt)
-@test sum(∫(1)dΓ⁺_act) + sum(∫(1)dΓ⁻_act) - sum(∫(1)dΓ⁺_cut) - sum(∫(1)dΓ⁻_cut)  ≈ sum(∫(1)dΓt)
 
 # test STLCutter vs GridapEmbedded
 @test sum(∫(1)dΓ⁺_phy) ≈ sum(∫(1)dΓ⁺_phyₐ)
@@ -97,7 +97,9 @@ dΛoutₐ = Measure(Λoutₐ,degree)
 @test sum(∫(1)dΓ⁻_phy) ≈ sum(∫(1)dΓ⁻_phyₐ)
 @test sum(∫(1)dΓbin) ≈ sum(∫(1)dΓbinₐ)
 @test sum(∫(1)dΓbout) ≈ sum(∫(1)dΓboutₐ)
-# @test sum(∫(1)dΛin) ≈ sum(∫(1)dΛinₐ)
-# @test sum(∫(1)dΛout) ≈ sum(∫(1)dΛoutₐ)
+@test sum(∫(1)dΛin⁺) ≈ sum(∫(1)dΛinₐ⁺)
+@test sum(∫(1)dΛin⁻) ≈ sum(∫(1)dΛinₐ⁻)
+@test sum(∫(1)dΛout⁺) ≈ sum(∫(1)dΛoutₐ⁺)
+@test sum(∫(1)dΛout⁻) ≈ sum(∫(1)dΛoutₐ⁻)
 
 end # module

@@ -73,14 +73,12 @@ b = sum( ∫( v⋅n_Γd⋅∇(u) ) * dΓd )
 # Moment fitted
 Ω_act_in = Triangulation(cutgeo,ACTIVE_IN,geo)
 Ω_act_out = Triangulation(cutgeo,ACTIVE_OUT,geo)
-
 dΩᵐ_in = Measure(Ω_act_in,Quadrature(momentfitted,cutgeo,degree,in_or_out=IN))
 dΩᵐ_out = Measure(Ω_act_out,Quadrature(momentfitted,cutgeo,degree,in_or_out=OUT))
 
 f = x -> x[1] + 1
 f = 1
-@show ∑(∫(f)dΩᵐ_in) ≈ ∑(∫(f)dΩ)
-
+# @test ∑(∫(f)dΩᵐ_in) ≈ ∑(∫(f)dΩ)
 
 # Simplex background
 #

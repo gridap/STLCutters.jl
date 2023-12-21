@@ -105,7 +105,7 @@ function cut_facets(cut::STLEmbeddedDiscretization,args...)
 end
 
 function aggregate(strategy,cut::STLEmbeddedDiscretization)
-  aggregate(strategy,cut,cut.geo)
+  aggregate(strategy,cut,cut.cut.geo)
 end
 
 function aggregate(strategy,cut::STLEmbeddedDiscretization,geo)
@@ -153,12 +153,7 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   bface_to_bgcell = labels.bface_to_bgcell
   bface_to_points = get_cell_node_ids( bsubface_grid )
   point_to_coords = get_node_coordinates( bsubface_grid )
-  # point_to_rcoords = send_to_ref_space(model,bface_to_bgcell,bsubface_grid)
-  # data = bface_to_points,bface_to_bgcell,point_to_coords,point_to_rcoords
-  # bsubfacets = SubCellData(data...)
-  bface_to_io = [ replace( labels.bface_to_io, inout_dict... ) ]
 
-  bface_to_lbgface = labels.bface_to_lbgface
 
   # function
     topo = get_grid_topology(model)
@@ -166,10 +161,27 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
     c_to_f = get_faces(topo,D,D-1)
 
     # to be optimized
+    bface_to_lbgface = labels.bface_to_lbgface
     bface_to_bgface = map((c,lf)-> c_to_f[c][lf], bface_to_bgcell,bface_to_lbgface)
+    bgface_to_bgcell_owner = fill(UNSET,num_facets(topo))
+    for (bgcell,bgface) in zip(bface_to_bgcell,bface_to_bgface)
+      if bgface_to_bgcell_owner[bgface] == UNSET
+        bgface_to_bgcell_owner[bgface] = bgcell
+      end
+    end
 
+    bface_to_bgcell_owner = map(Reindex(bgface_to_bgcell_owner),bface_to_bgface)
+    bface_mask = map(==,bface_to_bgcell,bface_to_bgcell_owner)
+    newbfaces = findall(bface_mask)
     trian = Grid(ReferenceFE{D-1},model)
     point_to_rcoords = send_to_ref_space(trian,bface_to_bgface,bsubface_grid)
+
+    bface_to_points = bface_to_points[newbfaces]
+    bface_to_bgface = bface_to_bgface[newbfaces]
+    bface_to_io = labels.bface_to_io[newbfaces]
+
+    bface_to_io = [ replace( bface_to_io, inout_dict... ) ]
+
   # end
 
   data = bface_to_points,bface_to_bgface,point_to_coords,point_to_rcoords
