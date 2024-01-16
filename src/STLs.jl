@@ -270,6 +270,39 @@ function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
   get_dface(stl,cell,Val{Dc}())
 end
 
+function closest_point!(cache,p::Point,stl::DiscreteModel,cells=1:num_cells(stl))
+  dist = Inf
+  closest_p = p
+  for c in cells
+    cell = get_cell!(cache,stl,c)
+    cp = closest_point(p,cell)
+    d = distance(p,cp)
+    if d < dist
+      closest_p = cp
+      dist = d
+    end
+  end
+  closest_p
+end
+
+function closest_point(coords::AbstractVector{<:Point},stl::DiscreteModel)
+  cache = get_cell_cache(stl)
+  map(coords) do x
+    closest_point!(cache,x,stl)
+  end
+end
+
+function closest_point(
+  coords::AbstractVector{<:Point},
+  stl::DiscreteModel,
+  point_to_cells)
+
+  cache = get_cell_cache(stl)
+  map(coords,point_to_cells) do x,cells
+    closest_point!(cache,x,stl,cells)
+  end
+end
+
 function Base.eps(T::Type{<:AbstractFloat},grid::Grid)
   pmin,pmax = get_bounding_box(grid)
   vmax = max(abs.(Tuple(pmin))...,abs.(Tuple(pmax))...)

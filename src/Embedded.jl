@@ -25,6 +25,10 @@ function similar_geometry(a::STLGeometry,tree::Leaf)
   STLGeometry(tree)
 end
 
+function closest_point(x::AbstractVector,geo::STLGeometry,args...)
+  closest_point(x,get_stl(geo),args...)
+end
+
 get_bounding_box(a::STLGeometry) = get_bounding_box( get_stl(a) )
 
 struct STLEmbeddedDiscretization <: Interfaces.AbstractEmbeddedDiscretization
