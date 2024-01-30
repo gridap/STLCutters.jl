@@ -37,7 +37,7 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
 
-cutter = STLCutter(threading=:threads,tolfactor=10^4)
+cutter = STLCutter(tolfactor=10^4)
 
 @time cutgeo = cut(cutter,bgmodel,geo)
 
