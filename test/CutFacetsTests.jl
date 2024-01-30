@@ -102,4 +102,19 @@ dΛoutₐ⁻ = Measure(Λoutₐ.⁻,degree)
 @test sum(∫(1)dΛout⁺) ≈ sum(∫(1)dΛoutₐ⁺)
 @test sum(∫(1)dΛout⁻) ≈ sum(∫(1)dΛoutₐ⁻)
 
+
+using Gridap.ReferenceFEs
+cutgeo = cut(model, geo)
+Ω = Triangulation(cutgeo,PHYSICAL)
+Ω_act_in = Triangulation(cutgeo,ACTIVE_IN,geo)
+Ω_act_out = Triangulation(cutgeo,ACTIVE_OUT,geo)
+dΩᵐ_in = Measure(Ω_act_in,Quadrature(momentfitted,cutgeo,degree,in_or_out=IN))
+dΩᵐ_out = Measure(Ω_act_out,Quadrature(momentfitted,cutgeo,degree,in_or_out=OUT))
+
+dΩ = Measure(Ω,degree)
+f = x -> x[1] + 1
+f = 1
+# @test ∑(∫(f)dΩᵐ_in) ≈ ∑(∫(f)dΩ)
+
+
 end # module
