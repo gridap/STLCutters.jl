@@ -132,8 +132,7 @@ function aggregate(
 end
 
 function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
-  subcell_grid, subface_grid, labels, bsubface_grid = subtriangulate(model,geom;kwargs...)
-  #TODO: extract subface_grid_io, f_to_io, f_to_bg
+  subcell_grid, subface_grid, bsubface_grid, labels = subtriangulate(model,geom;kwargs...)
 
   inout_dict = Dict{Int8,Int8}(
     FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT, UNSET => OUT )

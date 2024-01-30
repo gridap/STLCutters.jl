@@ -247,7 +247,7 @@ function simplexify(poly::Polyhedron{3})
       end
     end
   end
-  T,X
+  X,T
 end
 
 function simplexify_surface(poly::Polyhedron{3})
@@ -277,7 +277,7 @@ function simplexify_surface(poly::Polyhedron{3})
       end
     end
   end
-  T,get_vertex_coordinates(poly)
+  get_vertex_coordinates(poly),T
 end
 
 function simplexify_boundary(poly::Polyhedron{3},stl::GridTopology)
@@ -330,7 +330,7 @@ function simplexify_boundary(poly::Polyhedron{3},stl::GridTopology)
       end
     end
   end
-  T,X,f_to_stlf
+  X,T,f_to_stlf
 end
 
 function simplexify_boundary(::Nothing,args...)
@@ -341,11 +341,11 @@ function simplexify(polys::AbstractVector{<:Polyhedron{Dp,Tp}}) where {Dp,Tp}
   T = Vector{Int32}[]
   X = Point{Dp,Tp}[]
   for poly in polys
-    Ti,Xi = simplexify(poly)
+    Xi,Ti = simplexify(poly)
     append!(T, map(i->i.+length(X),Ti) )
     append!(X,Xi)
   end
-  T,X
+  X,T
 end
 
 function simplexify_boundary(
@@ -356,12 +356,12 @@ function simplexify_boundary(
   X = Point{Dp,Tp}[]
   f_to_stlf = Int32[]
   for poly in polys
-    Ti,Xi,f_to_f_i = simplexify_boundary(poly,stl)
+    Xi,Ti,f_to_f_i = simplexify_boundary(poly,stl)
     append!(T, map(i->i.+length(X),Ti) )
     append!(X,Xi)
     append!(f_to_stlf,f_to_f_i)
   end
-  T,X,f_to_stlf
+  X,T,f_to_stlf
 end
 
 function simplexify_boundary(::NTuple{N,Nothing},args...) where N
@@ -377,7 +377,7 @@ function simplexify_boundary(p::Tuple,labels::Tuple,stl::GridTopology)
   f_to_stlf = Int32[]
   f_to_ios = Int8[]
   for (p_i,ios) in zip( p, labels )
-    Ti, Xi, f_to_f_i = simplexify_boundary(p_i,stl)
+    Xi, Ti, f_to_f_i = simplexify_boundary(p_i,stl)
     if !isnothing(Ti)
       append!(T, map(i->i.+length(X),Ti) )
       append!(X,Xi)
@@ -385,7 +385,7 @@ function simplexify_boundary(p::Tuple,labels::Tuple,stl::GridTopology)
       append!(f_to_ios, fill(Int8(ios),length(Ti)) )
     end
   end
-  T,X,f_to_stlf,f_to_ios
+  X,T,f_to_stlf,f_to_ios
 end
 
 function simplexify_cell_boundary(P::Polyhedron,p::Polytope)
@@ -393,7 +393,7 @@ function simplexify_cell_boundary(P::Polyhedron,p::Polytope)
 end
 
 function simplexify_cell_boundary(p::Polyhedron,nf::Integer)
-  T,X = simplexify_surface(p)
+  X,T = simplexify_surface(p)
   v_to_planes = p.data.vertex_to_planes
   T_to_planes = lazy_map(Broadcasting(Reindex(v_to_planes)),T)
   c_to_planes = map(i->reduce(intersect,i),T_to_planes)
@@ -402,7 +402,7 @@ function simplexify_cell_boundary(p::Polyhedron,nf::Integer)
   mask_one = lazy_map(==(1)∘length,c_to_planes)
   mask_bg = lazy_map( i-> -nf ≤ i < 0, c_to_plane )
   mask = map(&,mask_one,mask_bg)
-  T[mask],X,c_to_facet[mask]
+  X,T[mask],c_to_facet[mask]
 end
 
 function simplexify_cell_boundary(
@@ -413,28 +413,28 @@ function simplexify_cell_boundary(
   X = Point{Dp,Tp}[]
   c_to_bgf = Int32[]
   for poly in polys
-    Ti,Xi,c_to_bgf_i = simplexify_cell_boundary(poly,args...)
+    Xi,Ti,c_to_bgf_i = simplexify_cell_boundary(poly,args...)
     append!(T, map(i->i.+length(X),Ti) )
     append!(X,Xi)
     append!(c_to_bgf,c_to_bgf_i)
   end
-  T,X,c_to_bgf
+  X,T,c_to_bgf
 end
 
 function surface(poly::Polyhedron{3})
-  T,X = simplexify_surface(poly)
+  X,T = simplexify_surface(poly)
   p = TRI
   c = array_cache(T)
   !isempty(T) || return 0.0
-  sum( i -> measure(get_cell!(c,T,X,p,i)), 1:length(T) )
+  sum( i -> measure(get_cell!(c,X,T,p,i)), 1:length(T) )
 end
 
 function surface(poly::Polyhedron{3},stl::GridTopology)
-  T,X, = simplexify_boundary(poly,stl)
+  X,T = simplexify_boundary(poly,stl)
   p = TRI
   c = array_cache(T)
   !isempty(T) || return 0.0
-  sum( i -> measure(get_cell!(c,T,X,p,i)), 1:length(T) )
+  sum( i -> measure(get_cell!(c,X,T,p,i)), 1:length(T) )
 end
 
 function surface(polys::AbstractVector{<:Polyhedron},args...)
@@ -446,10 +446,10 @@ function surface(polys::AbstractVector{<:Polyhedron},args...)
 end
 
 function volume(poly::Polyhedron{3})
-  T,X = simplexify(poly)
+  X,T = simplexify(poly)
   p = TET
   c = array_cache(T)
-  sum( i -> measure(get_cell!(c,T,X,p,i)), 1:length(T) )
+  sum( i -> measure(get_cell!(c,X,T,p,i)), 1:length(T) )
 end
 
 function volume(polys::AbstractVector{<:Polyhedron},args...)

@@ -57,7 +57,7 @@ vertices = [
 facet_to_vertices =
 [[1,2,3]]
 
-stlmodel = compute_stl_model( Table(facet_to_vertices), vertices )
+stlmodel = compute_stl_model( vertices, Table(facet_to_vertices) )
 stl = STL(stlmodel)
 
 Πf = get_facet_planes(stl)
@@ -68,15 +68,15 @@ p⁻,p⁺ = split(p,Π[1])
 
 pn = [p⁻,p⁺]
 
-T,X,bgf = simplexify_cell_boundary(pn,HEX)
+X,T,bgf = simplexify_cell_boundary(pn,HEX)
 
-@test surface(compute_grid(T,X,TRI)) ≈ 6
+@test surface(compute_grid(X,T,TRI)) ≈ 6
 @test volume(pn) ≈ 2*volume(p⁻) ≈ 1
 @test surface(pn) ≈ 2*surface(p⁻) ≈ 8
 @test surface(p⁻,stl) ≈ 1
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
-stlmodel = compute_stl_model(T,X)
+stlmodel = compute_stl_model(X,T)
 stlmodel = merge_nodes(stlmodel)
 stltopo = get_grid_topology(stlmodel)
 stl = STL(stlmodel)

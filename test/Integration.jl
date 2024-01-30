@@ -14,7 +14,7 @@ using STLCutters: read_stl, merge_nodes, get_bounding_box
 u0(x) = x[1] + x[2] - x[3]
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
-stl = compute_stl_model(T,X)
+stl = compute_stl_model(X,T)
 stl = merge_nodes(stl)
 # writevtk(stl,"geo")
 n = 10

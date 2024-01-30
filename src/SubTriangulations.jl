@@ -69,13 +69,13 @@ function subtriangulate(
   propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
   set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
 
-  delete_small_subcells!(bgmodel,T,X,k_to_io,k_to_bgcell)
-  delete_small_subfacets!(bgmodel,F,Xf,f_to_stlf,f_to_ios,f_to_bgcell)
-  delete_small_subfacets!(bgmodel,Tb,Xb,fb_to_lbg,fb_to_io,fb_to_bgcell)
+  delete_small_subcells!(bgmodel,X,T,k_to_io,k_to_bgcell)
+  delete_small_subfacets!(bgmodel,Xf,F,f_to_stlf,f_to_ios,f_to_bgcell)
+  delete_small_subfacets!(bgmodel,Xb,Tb,fb_to_lbg,fb_to_io,fb_to_bgcell)
 
-  cell_grid = compute_grid(Table(T),X,TET)
-  face_grid = compute_grid(Table(F),Xf,TRI)
-  bface_grid = compute_grid(Table(Tb),Xb,TRI)
+  cell_grid = compute_grid(X,Table(T),TET)
+  face_grid = compute_grid(Xf,Table(F),TRI)
+  bface_grid = compute_grid(Xb,Table(Tb),TRI)
 
   labels = SubtriangulationLabels(
     k_to_bgcell, k_to_io,
@@ -83,7 +83,7 @@ function subtriangulate(
     bgcell_to_ioc, bgfacet_to_ioc,
     fb_to_lbg,fb_to_bgcell,fb_to_io)
 
-  cell_grid, face_grid, labels, bface_grid # face_grid_io, f_to_io, f_to_bgc (1st option)
+  cell_grid, face_grid, bface_grid, labels
 end
 
 function subtriangulate(bgmodel::DiscreteModel,args...;kwargs...)
@@ -93,7 +93,7 @@ end
 
 function _to_stl_model(filename::AbstractString)
   X,T,N = read_stl(filename)
-  stl = compute_stl_model(T,X)
+  stl = compute_stl_model(X,T)
   stl = merge_and_collapse(stl)
   stl
 end
@@ -179,12 +179,12 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
 
   !isnothing(Kn_in) || return
   bgcell_to_ioc, bgcell_node_to_io, bgcell_facet_to_ioc = io_arrays
-  Tin,Xin = simplexify(Kn_in)
-  Tout,Xout = simplexify(Kn_out)
+  Xin,Tin = simplexify(Kn_in)
+  Xout,Tout = simplexify(Kn_out)
   B = _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
-  T_Fin,X_Fin,f_to_lbgfin = simplexify_cell_boundary(Kn_in,p)
-  T_Fout,X_Fout,f_to_lbgfout = simplexify_cell_boundary(Kn_out,p)
-  T_Γ,X_Γ,f_to_f,f_to_ios = B
+  X_Fin,T_Fin,f_to_lbgfin = simplexify_cell_boundary(Kn_in,p)
+  X_Fout,T_Fout,f_to_lbgfout = simplexify_cell_boundary(Kn_out,p)
+  X_Γ,T_Γ,f_to_f,f_to_ios = B
   bgcell_to_ioc[cell] = _get_cell_io(T_Γ,Kn_in,Kn_out)
   bgcell_to_ioc[cell] == FACE_CUT || return
   D = num_dims(stl)
@@ -269,22 +269,22 @@ function set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
 end
 
 
-function delete_small_subcells!(bgmodel,T,X,arrays...)
-  delete_small_subfaces!(bgmodel,T,X,TET,arrays...)
+function delete_small_subcells!(bgmodel,X,T,arrays...)
+  delete_small_subfaces!(bgmodel,X,T,TET,arrays...)
 end
 
-function delete_small_subfacets!(bgmodel,T,X,arrays...)
-  delete_small_subfaces!(bgmodel,T,X,TRI,arrays...)
+function delete_small_subfacets!(bgmodel,X,T,arrays...)
+  delete_small_subfaces!(bgmodel,X,T,TRI,arrays...)
 end
 
 function max_length(model::CartesianDiscreteModel)
   float(get_cartesian_descriptor(model).sizes[1])
 end
 
-function delete_small_subfaces!(bgmodel,T,X,p::Polytope{D},arrays...) where D
+function delete_small_subfaces!(bgmodel,X,T,p::Polytope{D},arrays...) where D
   h = max_length(bgmodel)
   c = array_cache(T)
-  ids = findall( i -> measure(get_cell!(c,T,X,p,i)) < eps(h^D), 1:length(T) )
+  ids = findall( i -> measure(get_cell!(c,X,T,p,i)) < eps(h^D), 1:length(T) )
   deleteat!(T,ids)
   for array in arrays
     deleteat!(array,ids)
@@ -574,7 +574,7 @@ function _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
   if surfacesource == :both
     S = (Kn_in,Kn_out,Γk)
     l = (FACE_IN,FACE_OUT,FACE_CUT)
-    T_Γ,X_Γ,f_to_f,f_to_ios = simplexify_boundary(S,l,stl)
+    X_Γ,T_Γ,f_to_f,f_to_ios = simplexify_boundary(S,l,stl)
   else
     if surfacesource == :skin
       S = Γk
@@ -588,10 +588,10 @@ function _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
     else
       @notimplemented "surfacesource=$surfacesource is not implemented"
     end
-    T_Γ,X_Γ,f_to_f = simplexify_boundary(S,stl)
+    X_Γ,T_Γ,f_to_f = simplexify_boundary(S,stl)
     f_to_ios = isnothing(T_Γ) ? nothing : fill(Int8(ios),length(T_Γ))
   end
-  T_Γ,X_Γ,f_to_f,f_to_ios
+  X_Γ,T_Γ,f_to_f,f_to_ios
 end
 
 function _get_cell_facets_to_iscut(Γk,p;surfacesource)

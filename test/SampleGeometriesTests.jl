@@ -29,7 +29,7 @@ function main(filename;
 
   @test check_requisites(stl,model)
 
-  t = @timed subcells,subfaces,labels = subtriangulate(model,stl;tolfactor,kdtree)
+  t = @timed subcells,subfaces,_,labels = subtriangulate(model,stl;tolfactor,kdtree)
 
   grid = get_grid(model)
 
