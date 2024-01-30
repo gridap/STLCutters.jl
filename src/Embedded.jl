@@ -158,83 +158,52 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   point_to_coords = get_node_coordinates( bsubface_grid )
 
 
-  # function
-    topo = get_grid_topology(model)
-    D = num_dims(model)
-    c_to_f = get_faces(topo,D,D-1)
-
-    # to be optimized
-    bface_to_lbgface = labels.bface_to_lbgface
-    bface_to_bgface = map((c,lf)-> c_to_f[c][lf], bface_to_bgcell,bface_to_lbgface)
-    bgface_to_bgcell_owner = fill(UNSET,num_facets(topo))
-    for (bgcell,bgface) in zip(bface_to_bgcell,bface_to_bgface)
-      if bgface_to_bgcell_owner[bgface] == UNSET
-        bgface_to_bgcell_owner[bgface] = bgcell
-      end
-    end
-
-    bface_to_bgcell_owner = map(Reindex(bgface_to_bgcell_owner),bface_to_bgface)
-    bface_mask = map(==,bface_to_bgcell,bface_to_bgcell_owner)
-    newbfaces = findall(bface_mask)
-    trian = Grid(ReferenceFE{D-1},model)
-    point_to_rcoords = send_to_ref_space(trian,bface_to_bgface,bsubface_grid)
-
-    bface_to_points = bface_to_points[newbfaces]
-    bface_to_bgface = bface_to_bgface[newbfaces]
-    bface_to_io = labels.bface_to_io[newbfaces]
-
-    bface_to_io = [ replace( bface_to_io, inout_dict... ) ]
-
-  # end
-
+  bface_to_bgface = boundary_facet_to_background_facet(
+    model,bface_to_bgcell,labels.bface_to_lbgface)
+  ftrian = Grid(ReferenceFE{num_dims(model)-1},model)
+  point_to_rcoords = send_to_ref_space(ftrian,bface_to_bgface,bsubface_grid)
+  newbfaces = unique_boundary_facets(bface_to_bgcell,bface_to_bgface)
+  bface_to_points = bface_to_points[newbfaces]
+  bface_to_bgface = bface_to_bgface[newbfaces]
+  bface_to_io = labels.bface_to_io[newbfaces]
+  bface_to_io = [ replace( bface_to_io, inout_dict... ) ]
   data = bface_to_points,bface_to_bgface,point_to_coords,point_to_rcoords
   bsubfacets = SubCellData(data...)
-
 
   face_to_io = [ fill(Int8(INTERFACE),num_cells(subface_grid)) ]
 
   bgface_to_ioc = [ replace( labels.bgface_to_ioc, inout_dict... ) ]
   bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ]
-  # bface_to_io =  [ replace( labels.bface_to_io, inout_dict... ) ]
-  # bface_to_io =  bgface_to_io
-
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
   (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),
   (bgface_to_ioc,bsubfacets,bface_to_io,oid_to_ls)
 end
 
+function boundary_facet_to_background_facet(model::DiscreteModel,f_to_bgc,f_to_lbgf)
+  topo = get_grid_topology(model)
+  D = num_dims(model)
+  c_to_f = get_faces(topo,D,D-1)
+  cache = array_cache(c_to_f)
+  f_to_bgf = fill(Int32(UNSET),length(f_to_bgc))
+  for (i,(c,lf)) in enumerate(zip(f_to_bgc,f_to_lbgf))
+    f_to_bgf[i] = getindex!(cache,c_to_f,c)[lf]
+  end
+  f_to_bgf
+end
 
-# function _cut_stl_facets(model::DiscreteModel,geom::STLGeometry;kwargs...)
-#   subcell_grid, subface_grid, labels = subtriangulate(model,geom;kwargs...)
-
-#   inout_dict = Dict{Int8,Int8}(
-#     FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT, UNSET => OUT )
-
-#   cell_to_io = [ replace( labels.cell_to_io, inout_dict... ) ]
-#   cell_to_bgcell = labels.cell_to_bgcell
-#   cell_to_points = get_cell_node_ids( subcell_grid )
-#   point_to_coords = get_node_coordinates( subcell_grid )
-#   point_to_rcoords = send_to_ref_space(model,cell_to_bgcell,subcell_grid)
-#   data = cell_to_points,cell_to_bgcell,point_to_coords,point_to_rcoords
-#   subcells = SubCellData(data...)
-
-#   face_to_bgcell = labels.face_to_bgcell
-#   face_to_points = get_cell_node_ids( subface_grid )
-#   point_to_coords = get_node_coordinates( subface_grid )
-#   point_to_rcoords = send_to_ref_space(model,face_to_bgcell,subface_grid)
-#   face_to_normal = _normals(geom,labels.face_to_stlface)
-#   data = face_to_points,face_to_normal,face_to_bgcell,point_to_coords,point_to_rcoords
-#   subfacets = SubFacetData(data...)
-
-#   face_to_io = [ fill(Int8(INTERFACE),num_cells(subface_grid)) ]
-
-#   bgface_to_ioc = replace( labels.bgface_to_ioc, inout_dict... )
-#   bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ]
-
-#   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
-#   (bgcell_to_ioc,subcells,cell_to_io,oid_to_ls),bgface_to_ioc # here return also cutgeo_facets data: ls_to_facet_to_inoutcut => Vector{Vector{Int8}}
-# end
+function unique_boundary_facets(bface_to_bgcell,bface_to_bgface)
+  num_facets = maximum(bface_to_bgface,init=0)
+  bgface_to_bgcell_owner = fill(UNSET,num_facets)
+  for (bgcell,bgface) in zip(bface_to_bgcell,bface_to_bgface)
+    if bgface_to_bgcell_owner[bgface] == UNSET
+      bgface_to_bgcell_owner[bgface] = bgcell
+    end
+  end
+  bface_to_bgcell_owner = lazy_map(Reindex(bgface_to_bgcell_owner),bface_to_bgface)
+  bface_mask = lazy_map(==,bface_to_bgcell,bface_to_bgcell_owner)
+  findall(bface_mask)
+end
 
 function send_to_ref_space(
   model::DiscreteModel,
