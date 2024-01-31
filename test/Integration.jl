@@ -1,4 +1,4 @@
-#module IntegrationTests
+module IntegrationTests
 
 using STLCutters
 using Gridap
@@ -77,8 +77,7 @@ dΩᵐ_in = Measure(Ω_act_in,Quadrature(momentfitted,cutgeo,degree,in_or_out=IN
 dΩᵐ_out = Measure(Ω_act_out,Quadrature(momentfitted,cutgeo,degree,in_or_out=OUT))
 
 f = x -> x[1] + 1
-f = 1
-# @test ∑(∫(f)dΩᵐ_in) ≈ ∑(∫(f)dΩ)
+@test ∑(∫(f)dΩᵐ_in) ≈ ∑(∫(f)dΩ)
 
 # Simplex background
 #
@@ -130,4 +129,7 @@ b = sum( ∫( v⋅n_Γd⋅∇(u) ) * dΓd )
 
 # Moment fitted
 
-#end
+# Not working until GridapEmbedded #74 is fixed
+# https://github.com/gridap/GridapEmbedded.jl/issues/74
+
+end

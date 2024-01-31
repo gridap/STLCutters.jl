@@ -134,6 +134,7 @@ end
 function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   subcell_grid, subface_grid, bsubface_grid, labels = subtriangulate(model,geom;kwargs...)
 
+  D = num_dims(model)
   inout_dict = Dict{Int8,Int8}(
     FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT, UNSET => OUT )
 
@@ -154,18 +155,15 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   subfacets = SubFacetData(data...)
 
   bface_to_bgcell = labels.bface_to_bgcell
-  bface_to_points = get_cell_node_ids( bsubface_grid )
-  point_to_coords = get_node_coordinates( bsubface_grid )
-
-
-  bface_to_bgface = boundary_facet_to_background_facet(
-    model,bface_to_bgcell,labels.bface_to_lbgface)
-  ftrian = Grid(ReferenceFE{num_dims(model)-1},model)
-  point_to_rcoords = send_to_ref_space(ftrian,bface_to_bgface,bsubface_grid)
+  bface_to_lbgface = labels.bface_to_lbgface
+  bface_to_bgface = boundary_facet_to_background_facet(model,bface_to_bgcell,bface_to_lbgface)
   newbfaces = unique_boundary_facets(bface_to_bgcell,bface_to_bgface)
-  bface_to_points = bface_to_points[newbfaces]
+  bsubface_grid = isolate_cell_coordinates(bsubface_grid,newbfaces)
   bface_to_bgface = bface_to_bgface[newbfaces]
   bface_to_io = labels.bface_to_io[newbfaces]
+  bface_to_points = get_cell_node_ids( bsubface_grid )
+  point_to_coords = get_node_coordinates( bsubface_grid )
+  point_to_rcoords = send_to_ref_space(Val{D-1}(),model,bface_to_bgface,bsubface_grid)
   bface_to_io = [ replace( bface_to_io, inout_dict... ) ]
   data = bface_to_points,bface_to_bgface,point_to_coords,point_to_rcoords
   bsubfacets = SubCellData(data...)
@@ -178,6 +176,18 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
   (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),
   (bgface_to_ioc,bsubfacets,bface_to_io,oid_to_ls)
+end
+
+
+function isolate_cell_coordinates(grid::Grid,cells=1:num_cells(grid))
+  cell_coords = Table(get_cell_coordinates(grid)[cells])
+  coords = cell_coords.data
+  data = 1:length(cell_coords.data)
+  ptrs = cell_coords.ptrs
+  cell_nodes = Table(data,ptrs)
+  reffes = get_reffes(grid)
+  cell_types = get_cell_type(grid)[cells]
+  UnstructuredGrid(coords,cell_nodes,reffes,cell_types)
 end
 
 function boundary_facet_to_background_facet(model::DiscreteModel,f_to_bgc,f_to_lbgf)
@@ -211,6 +221,16 @@ function send_to_ref_space(
   subgrid::Grid)
 
   send_to_ref_space(get_grid(model),cell_to_bgcell,subgrid)
+end
+
+function send_to_ref_space(
+  ::Val{D},
+  model::DiscreteModel,
+  cell_to_bgcell::Vector,
+  subgrid::Grid) where D
+
+  grid = Grid(ReferenceFE{D},model)
+  send_to_ref_space(grid,cell_to_bgcell,subgrid)
 end
 
 function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)

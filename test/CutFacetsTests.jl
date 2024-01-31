@@ -4,6 +4,8 @@ using Gridap
 using GridapEmbedded
 using STLCutters
 using Test
+using Gridap.ReferenceFEs
+
 
 geo = STLGeometry(joinpath(@__DIR__,"data/cube.stl"))
 geoₐ = cube(x0=Point(0.0,0.0,0.5))
@@ -103,7 +105,6 @@ dΛoutₐ⁻ = Measure(Λoutₐ.⁻,degree)
 @test sum(∫(1)dΛout⁻) ≈ sum(∫(1)dΛoutₐ⁻)
 
 
-using Gridap.ReferenceFEs
 cutgeo = cut(model, geo)
 Ω = Triangulation(cutgeo,PHYSICAL)
 Ω_act_in = Triangulation(cutgeo,ACTIVE_IN,geo)
@@ -113,8 +114,6 @@ dΩᵐ_out = Measure(Ω_act_out,Quadrature(momentfitted,cutgeo,degree,in_or_out=
 
 dΩ = Measure(Ω,degree)
 f = x -> x[1] + 1
-f = 1
-# @test ∑(∫(f)dΩᵐ_in) ≈ ∑(∫(f)dΩ)
-
+@test ∑(∫(f)dΩᵐ_in) ≈ ∑(∫(f)dΩ)
 
 end # module
