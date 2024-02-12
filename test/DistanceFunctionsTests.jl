@@ -51,9 +51,12 @@ point_to_facets = point_to_facets[newpoints]
 
 Xc = closest_point(X,geo,point_to_facets)
 dist = map(-,X,Xc)
-d = map(norm,dist)
-n = map(/,dist,d)
+D = map(norm,dist)
+N = map(/,dist,d)
 
+H = Tuple(pmax-pmin) ./ (n,n,n)
+
+@test maximum(D) < norm(H)
 
 writevtk(X,"points")
 writevtk(Xc,"closest_points")
