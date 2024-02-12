@@ -1164,7 +1164,7 @@ function download_thingi10k(id;path="")
     filename = joinpath(path,"$id$ext")
     Downloads.download(url,filename)
   else
-    @warn "$id is no longer available on Thingiverse."
+    @warn "$id is no longer available on Thingiverse (ERROR $(r.status))"
     filename = nothing
   end
   filename
