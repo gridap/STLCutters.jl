@@ -500,45 +500,6 @@ end
 
 # Printers
 
-function plot(p::Polyhedron,filename=nothing)
-  vertices = Int32[]
-  for i in 1:num_vertices(p)
-    if isactive(p,i)
-      push!(vertices,i)
-    end
-  end
-  vertex_to_node = Dict( zip( vertices, 1:length(vertices) ) )
-  g = empty( get_graph(p) )
-  for (i,vneigs) in enumerate( get_graph(p) )
-    isactive(p,i) || continue
-    nodes = Int32[]
-    for (j,vneig) in enumerate(vneigs)
-      if vneig ∈ (UNSET,OPEN)
-        push!(vertices,UNSET)
-        n = length(vertices)
-      else
-        n = vertex_to_node[vneig]
-      end
-      push!(nodes,n)
-    end
-    push!(g,nodes)
-  end
-  v_to_pv = p.data.vertex_to_parent_vertex
-  names = String[]
-  for v in vertices
-    if v == UNSET
-      name = ""
-    else
-      name =  v_to_pv[v] == v ? "$v" : "$v($(v_to_pv[v]))"
-    end
-    push!(names,name)
-  end
-  kwargs = (fontsize=10,node_size=0,line=(:dot,0.5,1),thickness_scaling=0.5)
-  GraphRecipes.graphplot(g,names=names,curves=false;kwargs...)
-  isnothing(filename) || Plots.savefig(filename)
-  Plots.plot!()
-end
-
 function writevtk(p::Polyhedron,filename;kwargs...)
   writevtk(edge_mesh(p),filename;kwargs...)
 end

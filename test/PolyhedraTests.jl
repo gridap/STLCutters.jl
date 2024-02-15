@@ -16,7 +16,6 @@ using STLCutters: split
 using STLCutters: surface, volume
 using STLCutters: get_facet_planes
 using STLCutters: compute_distances!
-using STLCutters: plot
 using STLCutters: check_graph
 using STLCutters: compute_stl_model
 using STLCutters: read_stl
@@ -43,8 +42,6 @@ p = Polyhedron(HEX)
 @test check_graph(p)
 @test volume(p) ≈ 1
 @test surface(p) ≈ 6
-
-plot(p)
 
 f, = writevtk(p,"p")
 rm.(f)

@@ -1,8 +1,6 @@
 module STLCutters
 
 import MeshIO
-import Plots
-import GraphRecipes
 import Downloads
 
 using Gridap
@@ -57,8 +55,6 @@ import GridapEmbedded.CSG: get_tree
 import GridapEmbedded.CSG: compatible_geometries
 import GridapEmbedded.CSG: similar_geometry
 import GridapEmbedded.AgFEM: aggregate
-
-import Plots: plot
 
 import Base: split
 
