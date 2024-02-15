@@ -17,8 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cut()` interface has been changed to align with `GridapEmbeded`
 - `subtriangulate()` also returns cut facet data
 - The output order of _simplexify_ functions has changed: (1st) coordinates, (2nd) connectivities
-
+  
 ### Removed
+
+- `plot(::Polyhedron)` is removed to reduce dependencies #28
 
 
 ## [0.1.0] - 2021-09-04
