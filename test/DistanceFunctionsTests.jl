@@ -52,7 +52,7 @@ point_to_facets = point_to_facets[newpoints]
 Xc = closest_point(X,geo,point_to_facets)
 dist = map(-,X,Xc)
 D = map(norm,dist)
-N = map(/,dist,d)
+N = map(/,dist,D)
 
 H = Tuple(pmax-pmin) ./ (n,n,n)
 
