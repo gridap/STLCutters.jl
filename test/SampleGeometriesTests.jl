@@ -81,6 +81,7 @@ filename = joinpath(@__DIR__,"../test/data/47076_sf.obj")
 main(filename,nmax=50)
 
 filename = download(293137)
+filename = joinpath(@__DIR__,"../test/data/293137.stl")
 main(filename,nmax=50)
 rm(filename)
 
