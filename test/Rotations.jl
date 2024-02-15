@@ -18,7 +18,7 @@ using STLCutters: surface, volume, surfaces, volumes
 using STLCutters:  FACE_IN, FACE_OUT, FACE_CUT
 
 function test_stl_cut(model,stl,vol)
-  subcells,subfaces,labels = subtriangulate(model,stl,surfacesource=:both)
+  subcells,subfaces,_,labels = subtriangulate(model,stl,surfacesource=:both)
 
   grid = get_grid(model)
 
@@ -79,7 +79,7 @@ R(θ) = R(θ,θ,θ)
 #X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
 X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
 
-stl0 = compute_stl_model(T,X)
+stl0 = compute_stl_model(X,T)
 stl0 = merge_nodes(stl0)
 
 X0 = get_node_coordinates(get_grid(stl0))
@@ -109,7 +109,7 @@ for θ in θs
   Oi = O + Δx
   Xi = map(p-> p + Δx,X0)
   Xi = map(p-> Oi + Rz(θ)⋅(p-Oi),Xi)
-  stl = compute_stl_model(Table(T0),Xi)
+  stl = compute_stl_model(Xi,Table(T0))
   #writevtk(stl.grid,"stl")
   test_stl_cut(model,stl,1)
 end
@@ -139,7 +139,7 @@ model = CartesianDiscreteModel(pmin,pmax,partition)
 for Δx in Δxs
   println("Testing Δx = $Δx ...")
   Xi = map(p-> p + Δx,X0)
-  stl = compute_stl_model(Table(T0),Xi)
+  stl = compute_stl_model(Xi,Table(T0))
   #writevtk(stl.grid,"stl")
   test_stl_cut(model,stl,1)
 end
@@ -168,7 +168,7 @@ for O in origins
   for θ in θs
     println("Testing θ = $θ over $O ...")
     Xi = map(p-> O + R(θ)⋅(p-O),X0)
-    stl = compute_stl_model(Table(T0),Xi)
+    stl = compute_stl_model(Xi,Table(T0))
     #writevtk(stl,"stl")
     test_stl_cut(model,stl,1)
   end

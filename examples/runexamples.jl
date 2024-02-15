@@ -9,8 +9,9 @@ using Test
   SubTriangulation.main(filename,n=50)
 
   filename = SubTriangulation.download(37384)
+  filename = joinpath(@__DIR__,"..","test/data/37384.stl")
   SubTriangulation.main(filename,n=50)
-  rm(filename)
+  # rm(filename)
 
 end
 

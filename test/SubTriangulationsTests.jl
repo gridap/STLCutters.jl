@@ -45,7 +45,7 @@ facet_to_vertices =
  [3,5,6],
  [6,7,2] ]
 
-stlmodel = compute_stl_model( Table(facet_to_vertices), vertices )
+stlmodel = compute_stl_model( vertices, Table(facet_to_vertices) )
 stl = STL(stlmodel)
 
 # Global setup
@@ -73,18 +73,18 @@ compute_distances!(K,Πf,Πf_ids)
 Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,inside=true)
 Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,inside=false)
 
-T_in,X_in = simplexify(Kn_in)
-T_out,X_out = simplexify(Kn_out)
-T_Γ,X_Γ = simplexify(Γk)
+X_in,T_in = simplexify(Kn_in)
+X_out,T_out = simplexify(Kn_out)
+X_Γ,T_Γ = simplexify(Γk)
 
 n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
 
 # Test and Write
 
 @test n_to_io == [fill(FACE_OUT,num_vertices(HEX)÷2);fill(FACE_IN,num_vertices(HEX)÷2)]
-mesh_in = compute_grid(T_in,X_in,TET)
-mesh_out = compute_grid(T_out,X_out,TET)
-mesh_Γ = compute_grid(T_Γ,X_Γ,TRI)
+mesh_in = compute_grid(X_in,T_in,TET)
+mesh_out = compute_grid(X_out,T_out,TET)
+mesh_Γ = compute_grid(X_Γ,T_Γ,TRI)
 
 #  writevtk(Γk,"Gk")
 #  writevtk(Kn_in,"Kin")
@@ -114,7 +114,7 @@ facet_to_vertices =
  [3,5,6],
  [6,7,2] ]
 
-stlmodel = compute_stl_model( Table(facet_to_vertices), vertices )
+stlmodel = compute_stl_model( vertices, Table(facet_to_vertices) )
 stl = STL(stlmodel)
 
 # Global setup
@@ -142,9 +142,9 @@ compute_distances!(K,Πf,Πf_ids)
 Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,inside=true)
 Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,inside=false)
 
-T_in,X_in = simplexify(Kn_in)
-T_out,X_out = simplexify(Kn_out)
-T_Γ,X_Γ = simplexify(Γk)
+X_in,T_in = simplexify(Kn_in)
+X_out,T_out = simplexify(Kn_out)
+X_Γ,T_Γ = simplexify(Γk)
 
 n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
 
@@ -152,8 +152,8 @@ n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
 
 @test n_to_io == fill(FACE_IN,num_vertices(HEX))
 
-mesh_in = compute_grid(T_in,X_in,TET)
-mesh_out = compute_grid(T_out,X_out,TET)
+mesh_in = compute_grid(X_in,T_in,TET)
+mesh_out = compute_grid(X_out,T_out,TET)
 
 #  writevtk(Γk,"Gk")
 #  writevtk(Kn_in,"Kin")
@@ -167,7 +167,7 @@ mesh_out = compute_grid(T_out,X_out,TET)
 ## Real STL
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
-stl = compute_stl_model(T,X)
+stl = compute_stl_model(X,T)
 stl = merge_nodes(stl)
 
 #writevtk(get_grid(stl),"stl")
@@ -186,7 +186,7 @@ partition = (n,n,n)
 model = CartesianDiscreteModel(pmin,pmax,partition)
 grid = get_grid(model)
 
-@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=false)
+@time subcells, subfaces, _, labels = subtriangulate(model,stl,kdtree=false)
 
 #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
@@ -218,7 +218,7 @@ println("Num subcells: $(num_cells(subcells))")
 @test in_volume ≈ 273280.03374196636
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
-stl = compute_stl_model(T,X)
+stl = compute_stl_model(X,T)
 stl = merge_nodes(stl)
 
 #writevtk(get_grid(stl),"stl")
@@ -237,7 +237,7 @@ partition = (n,n,n)
 model = CartesianDiscreteModel(pmin,pmax,partition)
 grid = get_grid(model)
 
-@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=false)
+@time subcells, subfaces, _, labels = subtriangulate(model,stl,kdtree=false)
 
 #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
@@ -261,7 +261,7 @@ println("Num subcells: $(num_cells(subcells))")
 # Simplex background grid
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
-stl = compute_stl_model(T,X)
+stl = compute_stl_model(X,T)
 stl = merge_nodes(stl)
 
 #writevtk(get_grid(stl),"stl")
@@ -281,7 +281,7 @@ model = CartesianDiscreteModel(pmin,pmax,partition)
 model = simplexify(model,positive=true)
 grid = get_grid(model)
 
-@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=false)
+@time subcells, subfaces, _, labels = subtriangulate(model,stl,kdtree=false)
 
 #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
@@ -313,7 +313,7 @@ println("Num subcells: $(num_cells(subcells))")
 @test in_volume ≈ 273280.03374196636
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
-stl = compute_stl_model(T,X)
+stl = compute_stl_model(X,T)
 stl = merge_nodes(stl)
 
 #writevtk(get_grid(stl),"stl")
@@ -333,7 +333,7 @@ model = CartesianDiscreteModel(pmin,pmax,partition)
 model = simplexify(model,positive=true)
 grid = get_grid(model)
 
-@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=false)
+@time subcells, subfaces, _, labels = subtriangulate(model,stl,kdtree=false)
 
 #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
@@ -356,7 +356,7 @@ println("Num subcells: $(num_cells(subcells))")
 ## Kd-Tree
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
-stl = compute_stl_model(T,X)
+stl = compute_stl_model(X,T)
 stl = merge_nodes(stl)
 
 #writevtk(get_grid(stl),"stl")
@@ -375,7 +375,7 @@ partition = (n,n,n)
 model = CartesianDiscreteModel(pmin,pmax,partition)
 grid = get_grid(model)
 
-@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=true)
+@time subcells, subfaces, _, labels = subtriangulate(model,stl,kdtree=true)
 
 #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
@@ -397,7 +397,7 @@ println("Num subcells: $(num_cells(subcells))")
 @test in_volume ≈ 273280.03374196636
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/wine_glass.stl"))
-stl = compute_stl_model(T,X)
+stl = compute_stl_model(X,T)
 stl = merge_nodes(stl)
 
 #writevtk(get_grid(stl),"stl")
@@ -416,7 +416,7 @@ partition = (n,n,n)
 model = CartesianDiscreteModel(pmin,pmax,partition)
 grid = get_grid(model)
 
-@time subcells, subfaces, labels = subtriangulate(model,stl,kdtree=true)
+@time subcells, subfaces, _, labels = subtriangulate(model,stl,kdtree=true)
 
 #writevtk(submesh,"submesh",cellfields=["inout"=>k_to_io,"bgcell"=>k_to_bgcell])
 #writevtk(grid,"bgmesh",cellfields=["inoutcut"=>bgcell_to_ioc])
@@ -441,7 +441,7 @@ println("Num subcells: $(num_cells(subcells))")
 # Test simplexify in cube
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
-stl = compute_stl_model(T,X)
+stl = compute_stl_model(X,T)
 stl = merge_nodes(stl)
 
 p = HEX
@@ -459,7 +459,7 @@ model = CartesianDiscreteModel(pmin,pmax,partition)
 model = simplexify(model,positive=true)
 grid = get_grid(model)
 
-@time subcells, subfaces, labels = subtriangulate(model,stl)
+@time subcells, subfaces, _, labels = subtriangulate(model,stl)
 
 k_to_io = labels.cell_to_io
 k_to_bgcell = labels.cell_to_bgcell

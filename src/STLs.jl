@@ -84,7 +84,7 @@ function get_dface!(c,stl::STL,i::Integer,::Val{d}) where d
   T = get_face_vertices(stl,d)
   X = get_vertex_coordinates(stl)
   p = get_polytope(stl)
-  get_dface!(c,T,X,p,i,Val{d}())
+  get_dface!(c,X,T,p,i,Val{d}())
 end
 
 function get_cell(stl::STL,i::Integer)
@@ -101,16 +101,16 @@ function get_dface_cache(stl::STL,d::Integer)
   array_cache(T)
 end
 
-function get_cell!(cache,T,X,p::Polytope{D},i::Integer) where D
-  get_dface!(cache,T,X,p,i,Val{D}())
+function get_cell!(cache,X,T,p::Polytope{D},i::Integer) where D
+  get_dface!(cache,X,T,p,i,Val{D}())
 end
 
-function get_dface!(cache,T,X,p::Polytope,i::Integer,::Val{d}) where d
+function get_dface!(cache,X,T,p::Polytope,i::Integer,::Val{d}) where d
   @notimplementedif !is_simplex(p)
-  get_simplex_dface!(cache,T,X,i,Val{d}())
+  get_simplex_dface!(cache,X,T,i,Val{d}())
 end
 
-function get_simplex_dface!(cache,T,X,i::Integer,::Val{d}) where d
+function get_simplex_dface!(cache,X,T,i::Integer,::Val{d}) where d
   nodes = getindex!(cache,T,i)
   vertices = ntuple( i -> X[nodes[i]], Val{d+1}() )
   simplex_face( vertices )
@@ -221,7 +221,7 @@ function get_cell!(c,grid::Grid,i)
   T = get_cell_node_ids(grid)
   X = get_node_coordinates(grid)
   p = get_polytope( only(get_reffes(grid)) )
-  get_cell!(c,T,X,p,i)
+  get_cell!(c,X,T,p,i)
 end
 
 function get_facet_cache(model::DiscreteModel)
@@ -246,7 +246,7 @@ function get_dface!(c,model::DiscreteModel,i,::Val{d}) where d
   T = get_face_vertices(topo,d)
   X = get_vertex_coordinates(topo)
   p = get_polytope( only(get_reffes(model)) )::PT
-  get_dface!(c,T,X,p,i,Val{d}())
+  get_dface!(c,X,T,p,i,Val{d}())
 end
 
 function get_dface(model::DiscreteModel,i,::Val{d}) where d
@@ -270,6 +270,39 @@ function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
   get_dface(stl,cell,Val{Dc}())
 end
 
+function closest_point!(cache,p::Point,stl::DiscreteModel,cells=1:num_cells(stl))
+  dist = Inf
+  closest_p = p
+  for c in cells
+    cell = get_cell!(cache,stl,c)
+    cp = closest_point(p,cell)
+    d = distance(p,cp)
+    if d < dist
+      closest_p = cp
+      dist = d
+    end
+  end
+  closest_p
+end
+
+function closest_point(coords::AbstractVector{<:Point},stl::DiscreteModel)
+  cache = get_cell_cache(stl)
+  map(coords) do x
+    closest_point!(cache,x,stl)
+  end
+end
+
+function closest_point(
+  coords::AbstractVector{<:Point},
+  stl::DiscreteModel,
+  point_to_cells)
+
+  cache = get_cell_cache(stl)
+  map(coords,point_to_cells) do x,cells
+    closest_point!(cache,x,stl,cells)
+  end
+end
+
 function Base.eps(T::Type{<:AbstractFloat},grid::Grid)
   pmin,pmax = get_bounding_box(grid)
   vmax = max(abs.(Tuple(pmin))...,abs.(Tuple(pmax))...)
@@ -281,25 +314,25 @@ Base.eps(grid::Grid) = eps(Float64,grid)
 Base.eps(model::DiscreteModel) = eps(get_grid(model))
 
 function compute_stl_model(
-  cell_to_vertices::Table,
-  vertex_to_coordinates::Vector{<:Point{D}}) where D
+  vertex_to_coordinates::Vector{<:Point{D}},
+  cell_to_vertices::Table) where D
 
   p = Polytope( tfill(TET_AXIS,Val{D-1}()) )
-  compute_model(cell_to_vertices,vertex_to_coordinates,p)
+  compute_model(vertex_to_coordinates,cell_to_vertices,p)
 end
 
 function compute_model(
-  cell_to_vertices::Table,
   vertex_to_coordinates::Vector{<:Point},
+  cell_to_vertices::Table,
   p::Polytope)
 
-  grid = compute_grid(cell_to_vertices,vertex_to_coordinates,p)
+  grid = compute_grid(vertex_to_coordinates,cell_to_vertices,p)
   UnstructuredDiscreteModel(grid)
 end
 
 function compute_grid(
-  cell_to_nodes::AbstractArray,
   node_to_coordinates::Vector{<:Point},
+  cell_to_nodes::AbstractArray,
   p::Polytope)
 
   T = Table(cell_to_nodes)
@@ -347,7 +380,7 @@ end
 
 function merge_nodes(stl::DiscreteModel;atol=eps(Float32,stl))
   X,T = delete_repeated_vertices(stl;atol)
-  compute_stl_model(T,X)
+  compute_stl_model(X,T)
 end
 
 function delete_repeated_vertices(stl::DiscreteModel;atol)
@@ -515,7 +548,7 @@ function _preprocess_small_facets(stl::DiscreteModel{Dc};atol) where Dc
     deleteat!(T,touched)
     append!(T,Tnew)
     _delete_empty_cells!(T)
-    _stl = compute_stl_model(Table(T),X)
+    _stl = compute_stl_model(X,Table(T))
     _stl = merge_nodes(_stl;atol)
     _stl = delete_duplicated_faces(_stl)
     if !is_water_tight(_stl)
@@ -551,7 +584,7 @@ function delete_duplicated_faces(stl::DiscreteModel)
   facets = findall(d->!d,is_duplicated)
   T = f_to_v[facets]
   X = get_vertex_coordinates(topo)
-  compute_stl_model(T,X)
+  compute_stl_model(X,T)
 end
 
 function split_face!(fv,ev,f_to_v,e_to_v,f,e,v)
@@ -638,7 +671,7 @@ function split_disconnected_parts(stl::DiscreteModel)
     v_to_part_v[vertices] = 1:length(vertices)
     _f_to_v = Table(map(i->v_to_part_v[i],f_to_v[faces]))
     _coords = coords[vertices]
-    _stl = compute_stl_model(_f_to_v,_coords)
+    _stl = compute_stl_model(_coords,_f_to_v)
     push!(stls,_stl)
   end
   stls
@@ -810,7 +843,7 @@ function measure(a::Grid,mask)
   c = array_cache(T)
   for i in 1:num_cells(a)
     if mask[i]
-      f = get_cell!(c,T,X,p,i)
+      f = get_cell!(c,X,T,p,i)
       m += measure(f)
     end
   end
@@ -919,6 +952,7 @@ function compute_cell_to_facets(grid::CartesianGrid,stl)
   thread_to_stl_facets = [ Int32[] for _ in 1:n ]
   coords = get_node_coordinates(grid)
   cell_to_nodes = get_cell_node_ids(grid)
+  @check all(coords[1] .< coords[end] )
   c = [ ( get_cell_cache(stl), array_cache(cell_to_nodes) ) for _ in 1:n ]
   δ = CELL_EXPANSION_FACTOR
   Threads.@threads for stl_facet in 1:num_cells(stl)
@@ -1130,7 +1164,7 @@ function download_thingi10k(id;path="")
     filename = joinpath(path,"$id$ext")
     Downloads.download(url,filename)
   else
-    @warn "$id is no longer available on Thingiverse."
+    @warn "$id is no longer available on Thingiverse (ERROR $(r.status))"
     filename = nothing
   end
   filename
@@ -1169,4 +1203,3 @@ function _compute_cartesian_description(
   partition = Int.(ceil.(p))
   origin,sizes,partition
 end
-

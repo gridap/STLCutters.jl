@@ -32,10 +32,10 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
 cutter = STLCutter()
-@time cutgeo,facet_to_inoutcut = cut(cutter,bgmodel,geo)
+@time cutgeo = cut(cutter,bgmodel,geo)
 
 strategy = AggregateAllCutCells()
-aggregates = aggregate(strategy,cutgeo,facet_to_inoutcut)
+aggregates = aggregate(strategy,cutgeo)
 
 # Setup integration meshes
 Ω_bg = Triangulation(bgmodel)

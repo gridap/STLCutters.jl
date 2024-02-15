@@ -18,7 +18,7 @@ using STLCutters: STL
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
 
-stlmodel = compute_stl_model(T,X)
+stlmodel = compute_stl_model(X,T)
 @test !is_water_tight(stlmodel)
 #writevtk(stl.grid,"cube",cellfields=["normals"=>N])
 
@@ -45,7 +45,7 @@ X1,T1,N1 = read_stl(f)
 rm(f)
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/65904.stl"))
-stlmodel = compute_stl_model(T,X)
+stlmodel = compute_stl_model(X,T)
 stlmodel = merge_nodes(stlmodel)
 
 stls = split_disconnected_parts(stlmodel)

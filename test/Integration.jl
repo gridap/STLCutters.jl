@@ -4,6 +4,7 @@ using STLCutters
 using Gridap
 import Gridap: ∇
 using GridapEmbedded
+using Gridap.ReferenceFEs
 using Test
 
 using STLCutters: compute_stl_model
@@ -13,7 +14,7 @@ using STLCutters: read_stl, merge_nodes, get_bounding_box
 u0(x) = x[1] + x[2] - x[3]
 
 X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
-stl = compute_stl_model(T,X)
+stl = compute_stl_model(X,T)
 stl = merge_nodes(stl)
 # writevtk(stl,"geo")
 n = 10
@@ -29,7 +30,7 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
 
-cutgeo, = cut(bgmodel,geo)
+cutgeo = cut(bgmodel,geo)
 
 # Setup integration meshes
 Ω = Triangulation(cutgeo,PHYSICAL)
@@ -69,6 +70,14 @@ a = sum( ∫( ∇(v)⋅∇(u) ) * dΩ )
 b = sum( ∫( v⋅n_Γd⋅∇(u) ) * dΓd )
 @test abs( a-b ) < 1e-9
 
+# Moment fitted
+Ω_act_in = Triangulation(cutgeo,ACTIVE_IN,geo)
+Ω_act_out = Triangulation(cutgeo,ACTIVE_OUT,geo)
+dΩᵐ_in = Measure(Ω_act_in,Quadrature(momentfitted,cutgeo,degree,in_or_out=IN))
+dΩᵐ_out = Measure(Ω_act_out,Quadrature(momentfitted,cutgeo,degree,in_or_out=OUT))
+
+f = x -> x[1] + 1
+@test ∑(∫(f)dΩᵐ_in) ≈ ∑(∫(f)dΩ)
 
 # Simplex background
 #
@@ -78,7 +87,7 @@ bgmodel = simplexify(bgmodel,positive=true)
 
 # Cut the background model
 
-cutgeo, = cut(bgmodel,geo)
+cutgeo = cut(bgmodel,geo)
 
 # Setup integration meshes
 Ω = Triangulation(cutgeo,PHYSICAL)
@@ -118,6 +127,9 @@ a = sum( ∫( ∇(v)⋅∇(u) ) * dΩ )
 b = sum( ∫( v⋅n_Γd⋅∇(u) ) * dΓd )
 @test abs( a-b ) < 1e-9
 
+# Moment fitted
 
+# Not working until GridapEmbedded #74 is fixed
+# https://github.com/gridap/GridapEmbedded.jl/issues/74
 
 end

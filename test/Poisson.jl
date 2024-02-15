@@ -21,7 +21,7 @@ ud(x) = u(x)
 @time X,T,N = read_stl(joinpath(@__DIR__,"data/Bunny-LowPoly.stl"))
 #X,T,N = read_stl(joinpath(@__DIR__,"data/cube.stl"))
 #@time X,T,N = read_stl(joinpath(@__DIR__,"data/441708_sf.obj"))
-@time stl = compute_stl_model(T,X)
+@time stl = compute_stl_model(X,T)
 @time stl = merge_nodes(stl)
 # writevtk(stl,"geo")
 n = 20
@@ -37,9 +37,9 @@ bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
 
 # Cut the background model
 
-cutter = STLCutter(threading=:threads,tolfactor=10^4)
+cutter = STLCutter(tolfactor=10^4)
 
-@time cutgeo, = cut(cutter,bgmodel,geo)
+@time cutgeo = cut(cutter,bgmodel,geo)
 
 # Setup integration meshes
 Ω = Triangulation(cutgeo,PHYSICAL)

@@ -13,16 +13,19 @@ struct SubtriangulationLabels
   face_to_ios::Vector{Int8}
   bgcell_to_ioc::Vector{Int8}
   bgface_to_ioc::Vector{Int8}
+  bface_to_lbgface::Vector{Int32}
+  bface_to_bgcell::Vector{Int32}
+  bface_to_io::Vector{Int8}
 end
 
 function subtriangulate(
   bgmodel::DiscreteModel,
   stlmodel::DiscreteModel;
-  threading=:spawn,
   kdtree=false,
   tolfactor=DEFAULT_TOL_FACTOR,
   surfacesource=:skin,
   showprogress=true)
+  # cutfacets = false)
 
   grid = get_grid(bgmodel)
   grid_topology = get_grid_topology(bgmodel)
@@ -48,45 +51,39 @@ function subtriangulate(
 
   cut_cells = filter(i->!isempty(c_to_stlf[i]),1:num_cells(grid))
   progress = progress_bar(cut_cells;showprogress)
-  if threading == :threads || Threads.nthreads() == 1
-    Threads.@threads for cell in cut_cells
-      save_cell_submesh!(submesh,io_arrays,stl,p,cell,
-        compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
-          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)...
-          ;surfacesource )
-      next!(progress)
-    end
-  elseif threading == :spawn
-    @sync for cell in cut_cells
-      Threads.@spawn save_cell_submesh!(submesh,io_arrays,stl,p,cell,
-        compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
-          c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)...
-          ;surfacesource )
-      next!(progress)
-    end
-  else
-    @unreachable
+  Threads.@threads for cell in cut_cells
+    save_cell_submesh!(submesh,io_arrays,stl,p,cell,
+      compute_polyhedra!(caches,Γ0,stl,p,f_to_isempty,Πf,Πr,
+        c_to_stlf,node_to_coords,cell_to_nodes,cell;atol,kdtree)...
+        ;surfacesource )
+    next!(progress)
   end
 
   submesh = _append_threaded_submesh!(submesh)
   io_arrays = _reduce_io_arrays(bgmodel,io_arrays)
   bgcell_to_ioc, bgnode_to_io, bgfacet_to_ioc = io_arrays
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf, f_to_ios = submesh
+
+  (X,T,k_to_io,k_to_bgcell), (Xf,F,f_to_stlf,f_to_ios,f_to_bgcell),
+  (Xb,Tb,fb_to_lbg,fb_to_io,fb_to_bgcell) = submesh
 
   propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
   set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
 
-  delete_small_subcells!(bgmodel,T,X,k_to_io,k_to_bgcell)
-  delete_small_subfacets!(bgmodel,F,Xf,f_to_bgcell,f_to_stlf,f_to_ios)
+  delete_small_subcells!(bgmodel,X,T,k_to_io,k_to_bgcell)
+  delete_small_subfacets!(bgmodel,Xf,F,f_to_stlf,f_to_ios,f_to_bgcell)
+  delete_small_subfacets!(bgmodel,Xb,Tb,fb_to_lbg,fb_to_io,fb_to_bgcell)
 
-  cell_grid = compute_grid(Table(T),X,TET)
-  face_grid = compute_grid(Table(F),Xf,TRI)
+  cell_grid = compute_grid(X,Table(T),TET)
+  face_grid = compute_grid(Xf,Table(F),TRI)
+  bface_grid = compute_grid(Xb,Table(Tb),TRI)
+
   labels = SubtriangulationLabels(
     k_to_bgcell, k_to_io,
     f_to_stlf, f_to_bgcell, f_to_ios,
-    bgcell_to_ioc, bgfacet_to_ioc)
+    bgcell_to_ioc, bgfacet_to_ioc,
+    fb_to_lbg,fb_to_bgcell,fb_to_io)
 
-  cell_grid, face_grid, labels
+  cell_grid, face_grid, bface_grid, labels
 end
 
 function subtriangulate(bgmodel::DiscreteModel,args...;kwargs...)
@@ -96,7 +93,7 @@ end
 
 function _to_stl_model(filename::AbstractString)
   X,T,N = read_stl(filename)
-  stl = compute_stl_model(T,X)
+  stl = compute_stl_model(X,T)
   stl = merge_and_collapse(stl)
   stl
 end
@@ -182,10 +179,12 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
 
   !isnothing(Kn_in) || return
   bgcell_to_ioc, bgcell_node_to_io, bgcell_facet_to_ioc = io_arrays
-  Tin,Xin = simplexify(Kn_in)
-  Tout,Xout = simplexify(Kn_out)
+  Xin,Tin = simplexify(Kn_in)
+  Xout,Tout = simplexify(Kn_out)
   B = _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
-  T_Γ,X_Γ,f_to_f,f_to_ios = B
+  X_Fin,T_Fin,f_to_lbgfin = simplexify_cell_boundary(Kn_in,p)
+  X_Fout,T_Fout,f_to_lbgfout = simplexify_cell_boundary(Kn_out,p)
+  X_Γ,T_Γ,f_to_f,f_to_ios = B
   bgcell_to_ioc[cell] = _get_cell_io(T_Γ,Kn_in,Kn_out)
   bgcell_to_ioc[cell] == FACE_CUT || return
   D = num_dims(stl)
@@ -200,7 +199,13 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
     end
   end
 
-  _append_submesh!(submesh,Xin,Tin,Xout,Tout,X_Γ,T_Γ,f_to_f,f_to_ios,cell)
+  cells_in = (Xin,Tin)
+  cells_out = (Xout,Tout)
+  faces = (X_Γ,T_Γ,f_to_f,f_to_ios)
+  bfaces_in = (X_Fin,T_Fin,f_to_lbgfin)
+  bfaces_out = (X_Fout,T_Fout,f_to_lbgfout)
+  _append_submesh!(submesh,cells_in,cells_out,faces,bfaces_in,bfaces_out,cell)
+
   for i in 1:num_vertices(p)
     bgcell_node_to_io[i,cell] = n_to_io[i]
   end
@@ -264,22 +269,22 @@ function set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
 end
 
 
-function delete_small_subcells!(bgmodel,T,X,arrays...)
-  delete_small_subfaces!(bgmodel,T,X,TET,arrays...)
+function delete_small_subcells!(bgmodel,X,T,arrays...)
+  delete_small_subfaces!(bgmodel,X,T,TET,arrays...)
 end
 
-function delete_small_subfacets!(bgmodel,T,X,arrays...)
-  delete_small_subfaces!(bgmodel,T,X,TRI,arrays...)
+function delete_small_subfacets!(bgmodel,X,T,arrays...)
+  delete_small_subfaces!(bgmodel,X,T,TRI,arrays...)
 end
 
 function max_length(model::CartesianDiscreteModel)
   float(get_cartesian_descriptor(model).sizes[1])
 end
 
-function delete_small_subfaces!(bgmodel,T,X,p::Polytope{D},arrays...) where D
+function delete_small_subfaces!(bgmodel,X,T,p::Polytope{D},arrays...) where D
   h = max_length(bgmodel)
   c = array_cache(T)
-  ids = findall( i -> measure(get_cell!(c,T,X,p,i)) < eps(h^D), 1:length(T) )
+  ids = findall( i -> measure(get_cell!(c,X,T,p,i)) < eps(h^D), 1:length(T) )
   deleteat!(T,ids)
   for array in arrays
     deleteat!(array,ids)
@@ -362,16 +367,27 @@ end
 
 function _get_empty_arrays(stl::STL)
   P = eltype( get_vertex_coordinates(stl) )
-  T = Vector{Int32}[]
-  F = Vector{Int32}[]
+
   X = P[]
-  Xf = P[]
+  T = Vector{Int32}[]
   k_to_io = Int8[]
   k_to_bgcell = Int32[]
+
+  Xf = P[]
+  Tf = Vector{Int32}[]
   f_to_bgcell = Int32[]
   f_to_stlf = Int32[]
   f_to_ios = Int8[]
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios
+
+  Xb = P[]
+  Tb = Vector{Int32}[]
+  fb_to_lbgf = Int32[]
+  fb_to_io = Int8[]
+  fb_to_bgcell = Int32[]
+
+  (X,T,k_to_io,k_to_bgcell),
+  (Xf,Tf,f_to_stlf,f_to_ios,f_to_bgcell),
+  (Xb,Tb,fb_to_lbgf,fb_to_io,fb_to_bgcell)
 end
 
 function _threaded_empty_array(::Type{T}) where T
@@ -442,52 +458,66 @@ function _get_cell_io(T_Γ,Kn_in,Kn_out)
   end
 end
 
-function _append_submesh!(submesh,Xin,Tin,Xout,Tout,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
+function _append_submesh!(submesh,cells_in,cells_out,faces,bfaces_in,bfaces_out,bgcell)
+
   i = Threads.threadid()
   _submesh = submesh[i]
-  _append_subcells!(_submesh,Xin,Tin,FACE_IN,bgcell)
-  _append_subcells!(_submesh,Xout,Tout,FACE_OUT,bgcell)
-  _append_subfacets!(_submesh,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
+  _append_subcells!(_submesh,cells_in...,FACE_IN,bgcell)
+  _append_subcells!(_submesh,cells_out...,FACE_OUT,bgcell)
+  _append_subfacets!(_submesh,faces...,bgcell)
+  _append_boundary_facets!(_submesh,bfaces_in...,FACE_IN,bgcell)
+  _append_boundary_facets!(_submesh,bfaces_out...,FACE_OUT,bgcell)
 end
 
 function _append_subcells!(submesh_arrays,Xn,Tn,io,bgcell)
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf = submesh_arrays
-  append!(T, map(i->i.+length(X),Tn) )
-  append!(X,Xn)
-  append!(k_to_io,fill(io,length(Tn)))
-  append!(k_to_bgcell,fill(bgcell,length(Tn)))
+  subcells,subfacets,bfacets = submesh_arrays
+  sc = (Xn,Tn,Fill(io,length(Tn)),Fill(bgcell,length(Tn)))
+  _append_grids!(subcells,sc)
   submesh_arrays
 end
 
 function _append_subfacets!(submesh_arrays,Xfn,Tfn,fn_to_f,fn_to_ios,bgcell)
-  T,F,X,Xf,k_to_io,k_to_bgcell,f_to_bgcell,f_to_stlf,f_to_ios = submesh_arrays
-  append!(F, map(i->i.+length(Xf),Tfn) )
-  append!(Xf,Xfn)
-  append!(f_to_bgcell,fill(bgcell,length(Tfn)))
-  append!(f_to_stlf,fn_to_f)
-  append!(f_to_ios,fn_to_ios)
+  subcells,subfacets,bfacets = submesh_arrays
+  sf = (Xfn,Tfn,fn_to_f,fn_to_ios,Fill(bgcell,length(Tfn)))
+  _append_grids!(subfacets,sf)
+end
+
+function _append_boundary_facets!(submesh_arrays,X,T,f_to_lbgf,io,bgcell)
+  subcells,subfacets,bfacets = submesh_arrays
+  bf = X,T,f_to_lbgf,Fill(io,length(T)),Fill(bgcell,length(T))
+  _append_grids!(bfacets,bf)
   submesh_arrays
 end
 
 function _append_threaded_submesh!(submesh)
   n = Threads.nthreads()
   for i in 2:n
-    _append!(submesh[1],submesh[i])
+    _append_submesh_arrays!(submesh[1],submesh[i])
   end
   submesh[1]
 end
 
-function _append!(submesh_a,submesh_b)
-  T,F,X,Xf, = submesh_a
-  T,F, = submesh_b
-  nnodes_cells_a = length(X)
-  nnodes_facets_a = length(Xf)
-  map!(i->map!(j->j+nnodes_cells_a,i,i),T,T)
-  map!(i->map!(j->j+nnodes_facets_a,i,i),F,F)
-  for (a,b) in zip(submesh_a,submesh_b)
-    append!(a,b)
+function _append_submesh_arrays!(a,b)
+  for (ai,bi) in zip(a,b)
+    _append_grids!(ai,bi)
   end
-  submesh_a
+  a
+end
+
+function _append_grids!(
+  a::Tuple{Vector{<:VectorValue},Vector{<:Vector},Vararg{<:Vector}},
+  b::Tuple{AbstractVector{<:VectorValue},AbstractVector,Vararg})
+
+  Xa,Ta,Va... = a
+  Xb,Tb,Vb... = b
+  nnodes = length(Xa)
+  map!(i->map!(j->j+nnodes,i,i),Tb,Tb)
+  append!(Ta,Tb)
+  append!(Xa,Xb)
+  for (va,vb) in zip(Va,Vb)
+    append!(va,vb)
+  end
+  a
 end
 
 function _reduce_io_arrays(model::DiscreteModel,io_arrays)
@@ -544,7 +574,7 @@ function _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
   if surfacesource == :both
     S = (Kn_in,Kn_out,Γk)
     l = (FACE_IN,FACE_OUT,FACE_CUT)
-    T_Γ,X_Γ,f_to_f,f_to_ios = simplexify_boundary(S,l,stl)
+    X_Γ,T_Γ,f_to_f,f_to_ios = simplexify_boundary(S,l,stl)
   else
     if surfacesource == :skin
       S = Γk
@@ -558,10 +588,10 @@ function _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
     else
       @notimplemented "surfacesource=$surfacesource is not implemented"
     end
-    T_Γ,X_Γ,f_to_f = simplexify_boundary(S,stl)
+    X_Γ,T_Γ,f_to_f = simplexify_boundary(S,stl)
     f_to_ios = isnothing(T_Γ) ? nothing : fill(Int8(ios),length(T_Γ))
   end
-  T_Γ,X_Γ,f_to_f,f_to_ios
+  X_Γ,T_Γ,f_to_f,f_to_ios
 end
 
 function _get_cell_facets_to_iscut(Γk,p;surfacesource)

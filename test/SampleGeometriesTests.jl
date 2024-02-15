@@ -29,7 +29,7 @@ function main(filename;
 
   @test check_requisites(stl,model)
 
-  t = @timed subcells,subfaces,labels = subtriangulate(model,stl;tolfactor,kdtree)
+  t = @timed subcells,subfaces,_,labels = subtriangulate(model,stl;tolfactor,kdtree)
 
   grid = get_grid(model)
 
@@ -72,6 +72,31 @@ function main(filename;
 
 end
 
+function download_or_local(id;download=true)
+  filename_dwl = download_thingi10k(id)
+  filename_stl = joinpath(@__DIR__,"../test/data/$(id).stl")
+  filename_obj = joinpath(@__DIR__,"../test/data/$(id).obj")
+  if !isnothing(filename_dwl) && download
+    println("Downloaded: $(basename(filename_dwl))")
+    filename = filename_dwl
+  elseif isfile(filename_stl)
+    println("Local: $(basename(filename_stl))")
+    filename = filename_stl
+  elseif isfile(filename_obj)
+    println("Local: $(basename(filename_obj))")
+    filename = filename_obj
+  else
+    error("File id:$(id) not found")
+  end
+  filename
+end
+
+function rm_dwl(filename)
+  if match(r"test/data$",dirname(filename)) === nothing
+    rm(filename)
+  end
+end
+
 filename = joinpath(@__DIR__,"../test/data/47076.stl")
 main(filename,nmax=50)
 main(filename,nmax=10,nmin=10,kdtree=true)
@@ -80,45 +105,44 @@ main(filename,nmax=50,nmin=10,simplex=true)
 filename = joinpath(@__DIR__,"../test/data/47076_sf.obj")
 main(filename,nmax=50)
 
-filename = download(293137)
+filename = download_or_local(293137)
 main(filename,nmax=50)
-rm(filename)
+rm_dwl(filename)
 
-filename = download(80084)
+filename = download_or_local(80084)
 main(filename,nmax=20,nmin=5)
-rm(filename)
+rm_dwl(filename)
 
-filename = download(65395)
+filename = download_or_local(65395)
 main(filename,nmax=20,nmin=5)
-rm(filename)
+rm_dwl(filename)
 
-filename = download(77343)
+filename = download_or_local(77343)
 main(filename,nmax=20,nmin=5)
-rm(filename)
+rm_dwl(filename)
 
-filename = download(95436)
+filename = download_or_local(95436)
 main(filename,nmax=20,nmin=5)
-rm(filename)
+rm_dwl(filename)
 
-filename = download(243015)
+filename = download_or_local(243015)
 main(filename,nmax=20,nmin=5)
-rm(filename)
+rm_dwl(filename)
 
-filename = download(57657)
+filename = download_or_local(57657)
 main(filename,nmax=100,nmin=5,tolfactor=10^5)
-rm(filename)
+rm_dwl(filename)
 
-filename = download(1452677)
+filename = download_or_local(1452677)
 main(filename,nmax=20,nmin=5)
-rm(filename)
+rm_dwl(filename)
 
-filename = download(93703)
+filename = download_or_local(93703)
 main(filename,nmax=20,nmin=5)
-rm(filename)
+rm_dwl(filename)
 
-filename = download(94492)
+filename = download_or_local(94492)
 main(filename,nmax=100)
-rm(filename)
-
+rm_dwl(filename)
 
 end # module

@@ -13,6 +13,9 @@ using Test
 @testset "Poisson" begin include("Poisson.jl") end
 @testset "PoissonAgFEM" begin include("PoissonAgFEM.jl") end
 
+@testset "CutFacets" begin include("CutFacetsTests.jl") end
+@testset "DistanceFunctions" begin include("DistanceFunctionsTests.jl") end
+
 include(joinpath(@__DIR__,"..","examples","runexamples.jl"))
 
 end # module

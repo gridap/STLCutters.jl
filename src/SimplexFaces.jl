@@ -405,6 +405,34 @@ function distance_to_boundary(a::Face,b::Point)
   min_dist
 end
 
+function closest_point(p::Point{Dp},f::Face{Df,Dp}) where {Df,Dp}
+  if contains_projection(f,p)
+    projection(p,f)
+  else
+    closest_point_to_boundary(f,p)
+  end
+end
+
+closest_point(p::Point,f::Point) = f
+
+function closest_point_to_boundary(a::Face,b::Point)
+  min_dist = Inf
+  closest_p = b
+  for i in 1:num_facets(a)
+    facet = get_facet(a,i)
+    if isa(facet,Point) || measure(facet) ≠ 0
+      p = closest_point(b,facet)
+      dist = distance(b,p)
+      if dist < min_dist
+        min_dist = dist
+        closest_p = p
+      end
+    end
+  end
+  closest_p
+end
+
+
 # Projections
 
 function projection(p::Point{D},q::Point{D}) where D
@@ -821,4 +849,3 @@ function orthogonal(a::VectorValue{D}...) where D
       "orthogonal(::VectorValue{D}...) only defined for D-1 VectorValues{D}'s")
   orthogonal(a,)
 end
-

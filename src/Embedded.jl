@@ -25,7 +25,57 @@ function similar_geometry(a::STLGeometry,tree::Leaf)
   STLGeometry(tree)
 end
 
+function closest_point(x::AbstractVector,geo::STLGeometry,args...)
+  closest_point(x,get_stl(geo),args...)
+end
+
 get_bounding_box(a::STLGeometry) = get_bounding_box( get_stl(a) )
+
+struct STLEmbeddedDiscretization <: Interfaces.AbstractEmbeddedDiscretization
+  cut::EmbeddedDiscretization
+  cutfacets::EmbeddedFacetDiscretization
+end
+
+function get_background_model(cut::STLEmbeddedDiscretization)
+  get_background_model(cut.cut)
+end
+
+function get_geometry(cut::STLEmbeddedDiscretization)
+  get_geometry(cut.cut)
+end
+
+function compute_bgcell_to_inoutcut(
+  cut::STLEmbeddedDiscretization,
+  geo::STLGeometry)
+
+  compute_bgcell_to_inoutcut(cut.cut,geo)
+end
+
+function compute_bgfacet_to_inoutcut(
+  cut::STLEmbeddedDiscretization,
+  geo::STLGeometry)
+
+  compute_bgfacet_to_inoutcut(cut.cutfacets,geo)
+end
+
+function Triangulation(cut::STLEmbeddedDiscretization,args...)
+  Triangulation(cut.cut,args...)
+end
+
+function compute_subcell_to_inout(
+  cut::STLEmbeddedDiscretization,
+  geo::STLGeometry)
+
+  compute_subcell_to_inout(cut.cut,geo)
+end
+
+function EmbeddedBoundary(cut::STLEmbeddedDiscretization,args...)
+  EmbeddedBoundary(cut.cut,args...)
+end
+
+function GhostSkeleton(cut::STLEmbeddedDiscretization,args...)
+  GhostSkeleton(cut.cut,args...)
+end
 
 struct STLCutter <: Interfaces.Cutter
   options::Dict{Symbol,Any}
@@ -33,8 +83,10 @@ struct STLCutter <: Interfaces.Cutter
 end
 
 function cut(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
-  data,bgf_to_ioc = _cut_stl(background,geom;cutter.options...)
-  EmbeddedDiscretization(background, data..., geom), bgf_to_ioc
+  data,facet_data = _cut_stl(background,geom;cutter.options...)
+  STLEmbeddedDiscretization(
+    EmbeddedDiscretization(background, data..., geom),
+    EmbeddedFacetDiscretization(background, facet_data..., geom) )
 end
 
 function cut(background::DiscreteModel,geom::STLGeometry)
@@ -42,9 +94,47 @@ function cut(background::DiscreteModel,geom::STLGeometry)
   cut(cutter,background,geom)
 end
 
-function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
-  subcell_grid, subface_grid, labels = subtriangulate(model,geom;kwargs...)
+function cut_facets(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
+  cutgeo = cut(background,geom;cutter.options...)
+  cut_facets(cutgeo)
+end
 
+function cut_facets(background::DiscreteModel,geom::STLGeometry)
+  cutter = STLCutter()
+  cut_facets(cutter,background,geom)
+end
+
+function cut_facets(cut::STLEmbeddedDiscretization,args...)
+  cut.cutfacets
+end
+
+function aggregate(strategy,cut::STLEmbeddedDiscretization)
+  aggregate(strategy,cut,cut.cut.geo)
+end
+
+function aggregate(strategy,cut::STLEmbeddedDiscretization,geo)
+  aggregate(strategy,cut,geo,IN)
+end
+
+function aggregate(strategy,cut::STLEmbeddedDiscretization,name::String,in_or_out)
+  geo = get_geometry(cut.geo,name)
+  aggregate(strategy,cut,geo,in_or_out)
+end
+
+function aggregate(
+  strategy,
+  cut::STLEmbeddedDiscretization,
+  geo::STLGeometry,
+  in_or_out)
+
+  facet_to_inoutcut = compute_bgfacet_to_inoutcut(cut,geo)
+  aggregate(strategy,cut.cut,geo,in_or_out,facet_to_inoutcut)
+end
+
+function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
+  subcell_grid, subface_grid, bsubface_grid, labels = subtriangulate(model,geom;kwargs...)
+
+  D = num_dims(model)
   inout_dict = Dict{Int8,Int8}(
     FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT, UNSET => OUT )
 
@@ -64,13 +154,65 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   data = face_to_points,face_to_normal,face_to_bgcell,point_to_coords,point_to_rcoords
   subfacets = SubFacetData(data...)
 
+  bface_to_bgcell = labels.bface_to_bgcell
+  bface_to_lbgface = labels.bface_to_lbgface
+  bface_to_bgface = boundary_facet_to_background_facet(model,bface_to_bgcell,bface_to_lbgface)
+  newbfaces = unique_boundary_facets(bface_to_bgcell,bface_to_bgface)
+  bsubface_grid = isolate_cell_coordinates(bsubface_grid,newbfaces)
+  bface_to_bgface = bface_to_bgface[newbfaces]
+  bface_to_io = labels.bface_to_io[newbfaces]
+  bface_to_points = get_cell_node_ids( bsubface_grid )
+  point_to_coords = get_node_coordinates( bsubface_grid )
+  point_to_rcoords = send_to_ref_space(Val{D-1}(),model,bface_to_bgface,bsubface_grid)
+  bface_to_io = [ replace( bface_to_io, inout_dict... ) ]
+  data = bface_to_points,bface_to_bgface,point_to_coords,point_to_rcoords
+  bsubfacets = SubCellData(data...)
+
   face_to_io = [ fill(Int8(INTERFACE),num_cells(subface_grid)) ]
 
-  bgface_to_ioc = replace( labels.bgface_to_ioc, inout_dict... )
+  bgface_to_ioc = [ replace( labels.bgface_to_ioc, inout_dict... ) ]
   bgcell_to_ioc = [ replace( labels.bgcell_to_ioc, inout_dict... ) ]
 
   oid_to_ls = Dict{UInt,Int}( objectid( get_stl(geom) ) => 1  )
-  (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),bgface_to_ioc
+  (bgcell_to_ioc,subcells,cell_to_io,subfacets,face_to_io,oid_to_ls),
+  (bgface_to_ioc,bsubfacets,bface_to_io,oid_to_ls)
+end
+
+
+function isolate_cell_coordinates(grid::Grid,cells=1:num_cells(grid))
+  cell_coords = Table(get_cell_coordinates(grid)[cells])
+  coords = cell_coords.data
+  data = 1:length(cell_coords.data)
+  ptrs = cell_coords.ptrs
+  cell_nodes = Table(data,ptrs)
+  reffes = get_reffes(grid)
+  cell_types = get_cell_type(grid)[cells]
+  UnstructuredGrid(coords,cell_nodes,reffes,cell_types)
+end
+
+function boundary_facet_to_background_facet(model::DiscreteModel,f_to_bgc,f_to_lbgf)
+  topo = get_grid_topology(model)
+  D = num_dims(model)
+  c_to_f = get_faces(topo,D,D-1)
+  cache = array_cache(c_to_f)
+  f_to_bgf = fill(Int32(UNSET),length(f_to_bgc))
+  for (i,(c,lf)) in enumerate(zip(f_to_bgc,f_to_lbgf))
+    f_to_bgf[i] = getindex!(cache,c_to_f,c)[lf]
+  end
+  f_to_bgf
+end
+
+function unique_boundary_facets(bface_to_bgcell,bface_to_bgface)
+  num_facets = maximum(bface_to_bgface,init=0)
+  bgface_to_bgcell_owner = fill(UNSET,num_facets)
+  for (bgcell,bgface) in zip(bface_to_bgcell,bface_to_bgface)
+    if bgface_to_bgcell_owner[bgface] == UNSET
+      bgface_to_bgcell_owner[bgface] = bgcell
+    end
+  end
+  bface_to_bgcell_owner = lazy_map(Reindex(bgface_to_bgcell_owner),bface_to_bgface)
+  bface_mask = lazy_map(==,bface_to_bgcell,bface_to_bgcell_owner)
+  findall(bface_mask)
 end
 
 function send_to_ref_space(
@@ -79,6 +221,16 @@ function send_to_ref_space(
   subgrid::Grid)
 
   send_to_ref_space(get_grid(model),cell_to_bgcell,subgrid)
+end
+
+function send_to_ref_space(
+  ::Val{D},
+  model::DiscreteModel,
+  cell_to_bgcell::Vector,
+  subgrid::Grid) where D
+
+  grid = Grid(ReferenceFE{D},model)
+  send_to_ref_space(grid,cell_to_bgcell,subgrid)
 end
 
 function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)

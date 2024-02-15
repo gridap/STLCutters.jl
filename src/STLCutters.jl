@@ -40,11 +40,23 @@ import Gridap.ReferenceFEs: get_bounding_box
 import Gridap.Geometry: num_cells
 import Gridap.Geometry: get_cell_vertices
 import Gridap.Geometry: get_polytopes
+import Gridap.Geometry: Triangulation
 
 import GridapEmbedded.Interfaces: cut
+import GridapEmbedded.Interfaces: cut_facets
+import GridapEmbedded.Interfaces: get_background_model
+import GridapEmbedded.Interfaces: get_geometry
+import GridapEmbedded.Interfaces: compute_bgcell_to_inoutcut
+import GridapEmbedded.Interfaces: compute_bgfacet_to_inoutcut
+import GridapEmbedded.Interfaces: compute_subcell_to_inout
+import GridapEmbedded.Interfaces: EmbeddedBoundary
+import GridapEmbedded.Interfaces: GhostSkeleton
+import GridapEmbedded.Interfaces: cut_facets
+import GridapEmbedded.Interfaces: cut_facets
 import GridapEmbedded.CSG: get_tree
 import GridapEmbedded.CSG: compatible_geometries
 import GridapEmbedded.CSG: similar_geometry
+import GridapEmbedded.AgFEM: aggregate
 
 import Plots: plot
 
