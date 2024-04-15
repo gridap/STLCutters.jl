@@ -281,6 +281,10 @@ function max_length(model::CartesianDiscreteModel)
   float(get_cartesian_descriptor(model).sizes[1])
 end
 
+function max_length(model::DiscreteModelPortion)
+  max_length(model.parent_model)
+end
+
 function delete_small_subfaces!(bgmodel,X,T,p::Polytope{D},arrays...) where D
   h = max_length(bgmodel)
   c = array_cache(T)

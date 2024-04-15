@@ -234,7 +234,7 @@ function send_to_ref_space(
 end
 
 function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
-  bgcell_map = get_cell_map(grid)
+  bgcell_map = _get_cell_affine_map(grid)
   bgcell_invmap = lazy_map(inverse_map,bgcell_map)
   cell_invmap = lazy_map(Reindex(bgcell_invmap),cell_to_bgcell)
   cell_nodes = get_cell_node_ids(subgrid)
@@ -292,4 +292,67 @@ function _collect(a::LazyArray)
     b[i] = getindex!(c,a,i)
   end
   b
+end
+
+function _get_cell_affine_map(grid::Grid)
+  @assert all(==(1),map(get_order,get_reffes(grid)))
+  D = num_dims(grid)
+  x0 = Point(tfill(0.0,Val{D}()))
+  ncells = num_cells(grid)
+  cell_map = get_cell_map(grid)
+  cell_map_gradient = lazy_map(∇,cell_map)
+  origins = lazy_map(evaluate,cell_map,Fill(x0,ncells))
+  gradiens = lazy_map(evaluate,cell_map_gradient,Fill(x0,ncells))
+  lazy_map(affine_map,gradiens,origins)
+end
+
+
+function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
+  D = map(num_dims,local_views(bgmodel)) |> PartitionedArrays.getany
+  cell_gids = get_cell_gids(bgmodel)
+  facet_gids = get_face_gids(bgmodel,D-1)
+  cuts = map(
+    local_views(bgmodel),
+    local_views(cell_gids),
+    local_views(facet_gids)) do bgmodel,cell_gids,facet_gids
+    ownmodel = remove_ghost_cells(bgmodel,cell_gids)
+    cell_to_pcell = get_cell_to_parent_cell(ownmodel)
+    facet_to_pfacet = get_face_to_parent_face(ownmodel,D-1)
+    cutgeo = cut(cutter,ownmodel,args...)
+    cutgeo = change_bgmodel(cutgeo,bgmodel,cell_to_pcell,facet_to_pfacet)
+    remove_ghost_subfacets(cutgeo,facet_gids)
+  end
+  consistent_bgcell_to_inoutcut!(cuts,cell_gids)
+  consistent_bgfacet_to_inoutcut!(cuts,facet_gids)
+  DistributedEmbeddedDiscretization(cuts,bgmodel)
+end
+
+function cut_facets(cut::DistributedEmbeddedDiscretization)
+  bgmodel = get_background_model(cut)
+  cutfacets = map(cut_facets,local_views(cut))
+  DistributedEmbeddedDiscretization(cutfacets,bgmodel)
+end
+
+function change_bgmodel(
+  cutgeo::STLEmbeddedDiscretization,
+  model::DiscreteModel,
+  cell_to_newcell=1:num_cells(get_background_model(cutgeo)),
+  facet_to_newfacet=1:num_facets(get_background_model(cutgeo)))
+
+  _cut = change_bgmodel(cutgeo.cut,model,cell_to_newcell)
+  _cutfacets = change_bgmodel(cutgeo.cutfacets,model,facet_to_newfacet)
+  STLEmbeddedDiscretization(_cut,_cutfacets)
+end
+
+function remove_ghost_subfacets(cut::STLEmbeddedDiscretization,facet_gids)
+  cutfacets = remove_ghost_subfacets(cut.cutfacets,facet_gids)
+  STLEmbeddedDiscretization(cut.cut,cutfacets)
+end
+
+function get_ls_to_bgcell_to_inoutcut(cut::STLEmbeddedDiscretization)
+  get_ls_to_bgcell_to_inoutcut(cut.cut)
+end
+
+function get_ls_to_bgfacet_to_inoutcut(cut::STLEmbeddedDiscretization)
+  get_ls_to_bgfacet_to_inoutcut(cut.cutfacets)
 end

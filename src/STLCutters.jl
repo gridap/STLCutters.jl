@@ -6,6 +6,7 @@ import Downloads
 using Gridap
 using Gridap.Arrays
 using Gridap.Geometry
+using Gridap.Fields
 using Gridap.Helpers
 using Gridap.ReferenceFEs
 using GridapEmbedded
@@ -16,6 +17,16 @@ using LinearAlgebra
 using FillArrays
 using FileIO
 using ProgressMeter
+using GridapDistributed
+using PartitionedArrays
+
+using Gridap.Geometry: get_face_to_parent_face
+using Gridap.Geometry: get_cell_to_parent_cell
+using GridapEmbedded.Distributed: consistent_bgcell_to_inoutcut!
+using GridapEmbedded.Distributed: consistent_bgfacet_to_inoutcut!
+using GridapEmbedded.Distributed: DistributedEmbeddedDiscretization
+using GridapDistributed: DistributedDiscreteModel
+using GridapDistributed: remove_ghost_cells
 
 import Gridap: writevtk
 import Gridap.ReferenceFEs: get_polytope
@@ -55,6 +66,11 @@ import GridapEmbedded.CSG: get_tree
 import GridapEmbedded.CSG: compatible_geometries
 import GridapEmbedded.CSG: similar_geometry
 import GridapEmbedded.AgFEM: aggregate
+import GridapEmbedded.Distributed: change_bgmodel
+import GridapEmbedded.Distributed: get_ls_to_bgcell_to_inoutcut
+import GridapEmbedded.Distributed: get_ls_to_bgfacet_to_inoutcut
+import GridapEmbedded.Distributed: remove_ghost_subfacets
+
 
 import Base: split
 

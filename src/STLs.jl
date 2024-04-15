@@ -939,8 +939,11 @@ function compute_cell_to_facets(model_a::DiscreteModel,grid_b)
   compute_cell_to_facets(grid_a,grid_b)
 end
 
+function compute_cell_to_facets(
+  grid::CartesianGrid,
+  stl,
+  cell_mask=Trues(num_cells(grid)))
 
-function compute_cell_to_facets(grid::CartesianGrid,stl)
   CELL_EXPANSION_FACTOR = 1e-3
   desc = get_cartesian_descriptor(grid)
   @assert length(get_reffes(grid)) == 1
@@ -962,6 +965,7 @@ function compute_cell_to_facets(grid::CartesianGrid,stl)
     pmin,pmax = get_bounding_box(f)
     for cid in get_cells_around(desc,pmin,pmax)
       cell = LinearIndices(desc.partition)[cid.I...]
+      cell_mask[cell] || continue
       nodes = getindex!(nc,cell_to_nodes,cell)
       _pmin = coords[nodes[1]]
       _pmax = coords[nodes[end]]
@@ -977,6 +981,15 @@ function compute_cell_to_facets(grid::CartesianGrid,stl)
   ncells = num_cells(grid)
   assemble_threaded_sparse_map(thread_to_cells,thread_to_stl_facets,ncells)
 end
+
+function compute_cell_to_facets(grid::GridPortion,stl)
+  pgrid = grid.parent
+  pcell_mask = falses(num_cells(pgrid))
+  pcell_mask[grid.cell_to_parent_cell] .= true
+  pcell_to_facets = compute_cell_to_facets(pgrid,stl,pcell_mask)
+  map(Reindex(pcell_to_facets),grid.cell_to_parent_cell)
+end
+
 
 function compute_cell_to_facets(a::UnstructuredGrid,b)
   tmp = cartesian_bounding_model(a)
