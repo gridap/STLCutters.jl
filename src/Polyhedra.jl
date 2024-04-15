@@ -3,7 +3,15 @@
 
 const OPEN = -1
 
-struct Polyhedron{Dp,Tp,Td}
+abstract type GraphPolytope{D} <: Polytope{D} end
+
+struct Polygon{Dp,Tp,Td} <: GraphPolytope{2}
+  vertices::Vector{Point{Dp,Tp}}
+  isopen::Bool
+  data::Td
+end
+
+struct Polyhedron{Dp,Tp,Td} <: GraphPolytope{3}
   vertices::Vector{Point{Dp,Tp}}
   edge_vertex_graph::Vector{Vector{Int32}}
   isopen::Bool
@@ -511,6 +519,32 @@ function writevtk(ps::Array{<:Polyhedron},filename)
 end
 
 # Getters
+
+num_dims(::GraphPolytope{D}) where D = D
+
+num_dims(::Type{<:GraphPolytope{D}}) where D = D
+
+num_cell_dims(a::GraphPolytope) = num_dims(a)
+
+num_dims(::T) where T<:Polygon = num_dims(T)
+
+num_dims(::Type{<:Polygon{D}}) where D = D
+
+point_eltype(::T) where T<:Polygon = point_eltype(T)
+
+point_eltype(::Type{<:Polygon{D,T}}) where {D,T} = T
+
+num_vertices(a::Polygon) = length(a.vertices)
+
+get_vertex_coordinates(a::Polygon) = a.vertices
+
+Base.getindex(a::Polygon,i::Integer) = a.vertices[i]
+
+@inline get_graph(a::Polygon) = a.edge_vertex_graph
+
+get_data(a::Polygon) = a.data
+
+Base.isopen(a::Polygon) = a.isopen
 
 num_dims(::T) where T<:Polyhedron = num_dims(T)
 
@@ -1246,3 +1280,45 @@ function _append_ref_planes(poly::Polyhedron,planes)
   end
   lazy_append(planes,ref_planes)
 end
+
+# Gridap Getters
+
+is_simplex(::GraphPolytope) = false
+
+is_n_cube(::GraphPolytope) = false
+
+function Gridap_simplexify(p::GraphPolytope{D}) where D
+  @assert isopen(p)
+  X,T = simplexify(p)
+  @check X == get_vertex_coordinates(p)
+  T, simplex_polytope(Val{D}())
+end
+
+simplex_polytope(::Val{0}) = VERTEX
+
+simplex_polytope(::Val{1}) = SEGMENT
+
+simplex_polytope(::Val{2}) = TRI
+
+simplex_polytope(::Val{3}) = TET
+
+
+function get_faces(::GraphPolytope,args...)
+  @notimplemented
+end
+
+function get_dimranges(::GraphPolytope,args...)
+  @notimplemented
+end
+
+function get_facedimms(::GraphPolytope)
+  @notimplemented
+end
+
+function Polytope{N}(p::GraphPolytope,faceid::Integer) where N
+  @notimplemented
+end
+
+import Base: ==
+
+(==)(a::GraphPolytope,b::GraphPolytope) = false
