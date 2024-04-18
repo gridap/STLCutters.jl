@@ -24,7 +24,8 @@ function subtriangulate(
   kdtree=false,
   tolfactor=DEFAULT_TOL_FACTOR,
   surfacesource=:skin,
-  showprogress=true)
+  showprogress=true,
+  all_defined=true)
   # cutfacets = false)
 
   grid = get_grid(bgmodel)
@@ -66,7 +67,7 @@ function subtriangulate(
   (X,T,k_to_io,k_to_bgcell), (Xf,F,f_to_stlf,f_to_ios,f_to_bgcell),
   (Xb,Tb,fb_to_lbg,fb_to_io,fb_to_bgcell) = submesh
 
-  propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
+  propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io;all_defined)
   set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
 
   delete_small_subcells!(bgmodel,X,T,k_to_io,k_to_bgcell)
@@ -214,7 +215,17 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
   end
 end
 
-function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
+function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io;all_defined)
+  propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io,FACE_IN)
+  if all_defined
+    replace!(bgcell_to_ioc, UNSET => FACE_OUT )
+  else
+    propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io,FACE_OUT)
+  end
+  bgcell_to_ioc
+end
+
+function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io,in_or_out)
   D = num_dims(bgmodel)
   grid_topology = get_grid_topology(bgmodel)
   stack = Int32[]
@@ -224,23 +235,23 @@ function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
   neig_node_cache = array_cache(c_to_n)
   neig_cell_cache = array_cache(n_to_c)
   for cell in 1:num_cells(grid_topology)
-    if bgcell_to_ioc[cell] ∈ (FACE_CUT,FACE_IN)
+    if bgcell_to_ioc[cell] ∈ (FACE_CUT,in_or_out)
       resize!(stack,0)
       push!(stack,cell)
       while !isempty(stack)
         current_cell = pop!(stack)
         for node in getindex!(node_cache,c_to_n,current_cell)
-          if bgnode_to_io[node] == FACE_IN ||
-             ( bgcell_to_ioc[cell] == FACE_IN &&
+          if bgnode_to_io[node] == in_or_out ||
+             ( bgcell_to_ioc[cell] == in_or_out &&
                bgnode_to_io[node] == UNSET )
 
             for neig_cell in getindex!(neig_cell_cache,n_to_c,node)
               if bgcell_to_ioc[neig_cell] == UNSET
-                bgcell_to_ioc[neig_cell] = FACE_IN
+                bgcell_to_ioc[neig_cell] = in_or_out
                 push!(stack,neig_cell)
                 for neig_node in getindex!(neig_node_cache,c_to_n,neig_cell)
                   if bgnode_to_io[neig_node] == UNSET
-                    bgnode_to_io[neig_node] = FACE_IN
+                    bgnode_to_io[neig_node] = in_or_out
                   end
                 end
               end
@@ -250,9 +261,9 @@ function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io)
       end
     end
   end
-  replace!(bgcell_to_ioc, UNSET => FACE_OUT )
   bgcell_to_ioc
 end
+
 
 function set_facets_as_inout!(bgmodel,bgcell_to_ioc,bgfacet_to_ioc)
   D = num_dims(bgmodel)

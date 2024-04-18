@@ -88,5 +88,6 @@ include("Polyhedra.jl")
 include("SubTriangulations.jl")
 
 include("Embedded.jl")
+include("Distributed.jl")
 
 end # module

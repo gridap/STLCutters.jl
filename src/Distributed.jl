@@ -1,0 +1,246 @@
+function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
+  D = map(num_dims,local_views(bgmodel)) |> PartitionedArrays.getany
+  cutter = STLCutter(;all_defined=false,cutter.options...)
+  cell_gids = get_cell_gids(bgmodel)
+  facet_gids = get_face_gids(bgmodel,D-1)
+
+  # Cut touched parts (only boundary cells)
+  cuts = map(
+    local_views(bgmodel),
+    local_views(cell_gids),
+    local_views(facet_gids)) do bgmodel,cell_gids,facet_gids
+    ownmodel = remove_ghost_cells(bgmodel,cell_gids)
+    cell_to_pcell = get_cell_to_parent_cell(ownmodel)
+    facet_to_pfacet = get_face_to_parent_face(ownmodel,D-1)
+    cutgeo = cut(cutter,ownmodel,args...)
+    cutgeo = change_bgmodel(cutgeo,bgmodel,cell_to_pcell,facet_to_pfacet)
+    remove_ghost_subfacets(cutgeo,facet_gids)
+  end
+
+  # Setup coarse inout and graph
+  facet_to_inoutcut = map(compute_bgfacet_to_inoutcut,cuts)
+  facet_neighbors = map(compute_facet_neighbors,
+    local_views(bgmodel),local_views(cell_gids))
+  facet_neighbor_to_ioc = map(compute_facet_neighbor_to_inoutcut,
+    local_views(bgmodel),local_views(cell_gids),facet_to_inoutcut,facet_neighbors)
+
+  # Gathers
+  root = find_root_part(cuts)
+  part_to_parts = gather(facet_neighbors,destination=root)
+  part_to_lpart_to_ioc = gather(facet_neighbor_to_ioc,destination=root)
+
+  # Propagate at coarse level (and complete intersections)
+  part_to_ioc = map(
+      part_to_parts,
+      part_to_lpart_to_ioc,
+      local_views(cell_gids)) do part_to_parts,part_to_lpart_to_ioc,ids
+
+    part = part_id(ids)
+    if part == root
+      propagate_inout(part_to_parts,part_to_lpart_to_ioc)
+    end
+  end
+
+  # Scatter
+  part_ioc = scatter(part_to_ioc,source=root)
+
+  # Set undefined parts
+  map(cuts,part_ioc) do cut,ioc
+    if ioc != CUT
+      set_inout!(cut,ioc)
+    end
+  end
+
+  # Nearest neighbor communication
+  consistent_bgcell_to_inoutcut!(cuts,cell_gids)
+  consistent_bgfacet_to_inoutcut!(cuts,facet_gids)
+  DistributedEmbeddedDiscretization(cuts,bgmodel)
+end
+
+function find_root_part(cuts)
+  # ( SELECT AN EMPTY PART )
+  1
+end
+
+function cut_facets(cut::DistributedEmbeddedDiscretization)
+  bgmodel = get_background_model(cut)
+  cutfacets = map(cut_facets,local_views(cut))
+  DistributedEmbeddedDiscretization(cutfacets,bgmodel)
+end
+
+function change_bgmodel(
+  cutgeo::STLEmbeddedDiscretization,
+  model::DiscreteModel,
+  cell_to_newcell=1:num_cells(get_background_model(cutgeo)),
+  facet_to_newfacet=1:num_facets(get_background_model(cutgeo)))
+
+  _cut = change_bgmodel(cutgeo.cut,model,cell_to_newcell)
+  _cutfacets = change_bgmodel(cutgeo.cutfacets,model,facet_to_newfacet)
+  STLEmbeddedDiscretization(_cut,_cutfacets)
+end
+
+function remove_ghost_subfacets(cut::STLEmbeddedDiscretization,facet_gids)
+  cutfacets = remove_ghost_subfacets(cut.cutfacets,facet_gids)
+  STLEmbeddedDiscretization(cut.cut,cutfacets)
+end
+
+function get_ls_to_bgcell_to_inoutcut(cut::STLEmbeddedDiscretization)
+  get_ls_to_bgcell_to_inoutcut(cut.cut)
+end
+
+function get_ls_to_bgfacet_to_inoutcut(cut::STLEmbeddedDiscretization)
+  get_ls_to_bgfacet_to_inoutcut(cut.cutfacets)
+end
+
+function compute_facet_neighbors(
+  model::DiscreteModel,
+  ids::AbstractLocalIndices,
+  args...)
+
+  D = num_dims(model)
+  compute_face_neighbors(model,ids,D-1,args...)
+end
+
+function compute_face_neighbors(
+  model::DiscreteModel,
+  ids::AbstractLocalIndices,
+  d::Integer)
+
+  part = part_id(ids)
+  D = num_dims(model)
+  topology = get_grid_topology(model)
+  l_to_o = local_to_owner(ids)
+  f_to_c = get_faces(topology,d,D)
+  f_to_p = lazy_map(Broadcasting(Reindex(l_to_o)),f_to_c)
+  c = array_cache(f_to_p)
+  neig_parts = Int[]
+  for face in 1:length(f_to_c)
+    parts = getindex!(c,f_to_p,face)
+    if any(==(part),parts) && any(!=(part),parts)
+      for neig_part in parts
+        if neig_part != part
+          union!(neig_parts,neig_part)
+        end
+      end
+    end
+  end
+  sort(neig_parts)
+end
+
+function compute_facet_neighbor_to_inoutcut(
+  model::DiscreteModel,
+  ids::AbstractLocalIndices,
+  args...)
+
+  D = num_dims(model)
+  compute_face_neighbor_to_inoutcut(model,ids,D-1,args...)
+end
+
+function compute_face_neighbor_to_inoutcut(
+  model::DiscreteModel,
+  ids::AbstractLocalIndices,
+  d::Integer,
+  face_to_inoutcut::AbstractVector,
+  face_neighbors=compute_face_neighbors(model,ids,d))
+
+  part = part_id(ids)
+  D = num_dims(model)
+  topology = get_grid_topology(model)
+  l_to_o = local_to_owner(ids)
+  f_to_c = get_faces(topology,d,D)
+  f_to_p = lazy_map(Broadcasting(Reindex(l_to_o)),f_to_c)
+  c = array_cache(f_to_p)
+
+  n_neigs = length(face_neighbors)
+  neig_to_lneig = Dict( face_neighbors .=> 1:n_neigs )
+  lneig_to_ioc = fill(Int8(UNDEF),n_neigs)
+
+  for (face,ioc) in enumerate(face_to_inoutcut)
+    parts = getindex!(c,f_to_p,face)
+    if any(==(part),parts) && any(!=(part),parts)
+      for neig_part in parts
+        if neig_part != part
+          lneig = neig_to_lneig[neig_part]
+          neig_ioc = lneig_to_ioc[lneig]
+          if neig_ioc != ioc && neig_ioc != UNDEF
+            lneig_to_ioc[lneig] = CUT
+          else
+            lneig_to_ioc[lneig] = ioc
+          end
+        end
+      end
+    end
+  end
+  lneig_to_ioc
+end
+
+function propagate_inout(
+  part_to_parts::AbstractVector,
+  part_to_lpart_to_ioc::AbstractVector)
+
+  part_to_ioc = map(part_to_lpart_to_ioc) do ioc
+    any(==(UNDEF),ioc) ? UNDEF : CUT
+  end
+  propagate_inout!(part_to_ioc,part_to_parts,part_to_lpart_to_ioc)
+  part_to_ioc
+end
+
+function propagate_inout!(
+  part_to_ioc::AbstractVector,
+  part_to_parts::AbstractVector,
+  part_to_lpart_to_ioc::AbstractVector)
+
+  propagate_inout!(part_to_ioc,part_to_parts,part_to_lpart_to_ioc,IN)
+  replace!(part_to_ioc,UNDEF=>OUT)
+  part_to_ioc
+end
+
+function propagate_inout!(
+  part_to_ioc::AbstractVector,
+  part_to_parts::AbstractVector,
+  part_to_lpart_to_ioc::AbstractVector,
+  in_or_out::Integer)
+
+  c1 = array_cache(part_to_parts)
+  c2 = array_cache(part_to_lpart_to_ioc)
+  stack = Int32[]
+  for (part,ioc) in enumerate(part_to_ioc)
+    ioc == CUT || continue
+    resize!(stack,0)
+    push!(stack,part)
+    while !isempty(stack)
+      current_part = pop!(stack)
+      curr_ioc = part_to_ioc[current_part]
+      neig_parts = getindex!(c1,part_to_parts,current_part)
+      lneig_to_ioc = getindex!(c2,part_to_lpart_to_ioc,current_part)
+      for (neig_part,neig_ioc) in zip(neig_parts,lneig_to_ioc)
+        if part_to_ioc[neig_part] == UNDEF &&
+           (neig_ioc == in_or_out || curr_ioc != CUT)
+          part_to_ioc[neig_part] = in_or_out
+          push!(stack,neig_part)
+        end
+      end
+    end
+  end
+  part_to_ioc
+end
+
+function set_inout!(cut::STLEmbeddedDiscretization,in_or_out::Integer)
+  set_inout!(cut.cut,in_or_out)
+  set_inout!(cut.cutfacets,in_or_out)
+  cut
+end
+
+function set_inout!(cut::EmbeddedDiscretization,in_or_out::Integer)
+  ls_to_bgc_to_ioc = cut.ls_to_bgcell_to_inoutcut
+  @assert length(ls_to_bgc_to_ioc) == 1
+  ls_to_bgc_to_ioc[1] .= in_or_out
+  cut
+end
+
+function set_inout!(cut::EmbeddedFacetDiscretization,in_or_out::Integer)
+  ls_to_f_to_ioc = cut.ls_to_facet_to_inoutcut
+  @assert length(ls_to_f_to_ioc) == 1
+  ls_to_f_to_ioc[1] .= in_or_out
+  cut
+end
