@@ -9,7 +9,10 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
     local_views(bgmodel),
     local_views(cell_gids),
     local_views(facet_gids)) do bgmodel,cell_gids,facet_gids
-    ownmodel = remove_ghost_cells(bgmodel,cell_gids)
+
+    bcells = compute_boundary_cells(bgmodel,cell_gids)
+    ownmodel = DiscreteModelPortion(bgmodel,bcells)
+    # ownmodel = remove_ghost_cells(bgmodel,cell_gids)
     cell_to_pcell = get_cell_to_parent_cell(ownmodel)
     facet_to_pfacet = get_face_to_parent_face(ownmodel,D-1)
     cutgeo = cut(cutter,ownmodel,args...)
@@ -40,6 +43,12 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
       propagate_inout(part_to_parts,part_to_lpart_to_ioc)
     end
   end
+
+  # Intersect interior and merge discretizations
+  # Merge repeated facets
+  # bnd_cut, int_cut (if one of them is empty, complete with the other)
+  # define the facets between int and bnd
+  # alternative: rerun full cutter
 
   # Scatter
   part_ioc = scatter(part_to_ioc,source=root)
@@ -91,6 +100,35 @@ end
 function get_ls_to_bgfacet_to_inoutcut(cut::STLEmbeddedDiscretization)
   get_ls_to_bgfacet_to_inoutcut(cut.cutfacets)
 end
+
+function compute_boundary_cells(
+  model::DiscreteModel,
+  ids::AbstractLocalIndices)
+
+  part = part_id(ids)
+  D = num_dims(model)
+  topology = get_grid_topology(model)
+  l_to_o = local_to_owner(ids)
+  f_to_c = get_faces(topology,D-1,D)
+  c_to_f = get_faces(topology,D,D-1)
+  f_to_p = lazy_map(Broadcasting(Reindex(l_to_o)),f_to_c)
+  c1 = array_cache(c_to_f)
+  c2 = array_cache(f_to_p)
+  c_isboundary = fill(false,num_cells(model))
+  for cell in 1:num_cells(model)
+    if l_to_o[cell] == part
+      for facet in getindex!(c1,c_to_f,cell)
+        parts = getindex!(c2,f_to_p,facet)
+        if any(==(part),parts) && any(!=(part),parts)
+          c_isboundary[cell] = true
+          break
+        end
+      end
+    end
+  end
+  findall(c_isboundary)
+end
+
 
 function compute_facet_neighbors(
   model::DiscreteModel,
