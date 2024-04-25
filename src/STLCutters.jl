@@ -25,6 +25,7 @@ using Gridap.Geometry: get_cell_to_parent_cell
 using GridapEmbedded.Distributed: consistent_bgcell_to_inoutcut!
 using GridapEmbedded.Distributed: consistent_bgfacet_to_inoutcut!
 using GridapEmbedded.Distributed: DistributedEmbeddedDiscretization
+using GridapEmbedded.Distributed: AbstractEmbeddedDiscretization
 using GridapDistributed: DistributedDiscreteModel
 using GridapDistributed: remove_ghost_cells
 

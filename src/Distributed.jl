@@ -4,13 +4,17 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
   cell_gids = get_cell_gids(bgmodel)
   facet_gids = get_face_gids(bgmodel,D-1)
 
+  bcells = map(compute_boundary_cells,local_views(bgmodel),local_views(cell_gids))
+  icells = map(compute_interior_cells,local_views(bgmodel),local_views(cell_gids))
+
   # Cut touched parts (only boundary cells)
   cuts = map(
     local_views(bgmodel),
     local_views(cell_gids),
-    local_views(facet_gids)) do bgmodel,cell_gids,facet_gids
+    local_views(facet_gids),
+    bcells) do bgmodel,cell_gids,facet_gids,bcells
 
-    bcells = compute_boundary_cells(bgmodel,cell_gids)
+    # bcells = compute_boundary_cells(bgmodel,cell_gids)
     ownmodel = DiscreteModelPortion(bgmodel,bcells)
     # ownmodel = remove_ghost_cells(bgmodel,cell_gids)
     cell_to_pcell = get_cell_to_parent_cell(ownmodel)
@@ -44,11 +48,27 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
     end
   end
 
+  # Complete cut (interior cells)
+  icuts = map(
+    local_views(bgmodel),
+    local_views(cell_gids),
+    local_views(facet_gids),
+    icells) do bgmodel,cell_gids,facet_gids,icells
+
+    # icells = compute_interior_cells(bgmodel,cell_gids)
+    ownmodel = DiscreteModelPortion(bgmodel,icells)
+    cell_to_pcell = get_cell_to_parent_cell(ownmodel)
+    facet_to_pfacet = get_face_to_parent_face(ownmodel,D-1)
+    cutgeo = cut(cutter,ownmodel,args...)
+    cutgeo = change_bgmodel(cutgeo,bgmodel,cell_to_pcell,facet_to_pfacet)
+    remove_ghost_subfacets(cutgeo,facet_gids)
+  end
   # Intersect interior and merge discretizations
-  # Merge repeated facets
-  # bnd_cut, int_cut (if one of them is empty, complete with the other)
-  # define the facets between int and bnd
-  # alternative: rerun full cutter
+
+  cuts = map(cuts,icuts,bcells,icells) do bcut,icut,bcells,icells
+    complete_inout!(bcut,icut,bcells,icells)
+    merge(bcut,icut,bcells,icells)
+  end
 
   # Scatter
   part_ioc = scatter(part_to_ioc,source=root)
@@ -101,16 +121,39 @@ function get_ls_to_bgfacet_to_inoutcut(cut::STLEmbeddedDiscretization)
   get_ls_to_bgfacet_to_inoutcut(cut.cutfacets)
 end
 
+function compute_interior_cells(
+  model::DiscreteModel,
+  ids::AbstractLocalIndices,
+  args...)
+
+  part = part_id(ids)
+  cell_islocal = map(==(part),local_to_owner(ids))
+  cell_isboundary = compute_cell_to_isboundary(model,ids,args...)
+  cell_isnotboundary = map(!,cell_isboundary)
+  cell_isinterior = map(&,cell_isnotboundary,cell_islocal)
+  findall(cell_isinterior)
+end
+
 function compute_boundary_cells(
   model::DiscreteModel,
-  ids::AbstractLocalIndices)
+  ids::AbstractLocalIndices,
+  args...)
+
+  cell_isboundary = compute_cell_to_isboundary(model,ids,args...)
+  findall(cell_isboundary)
+end
+
+function compute_cell_to_isboundary(
+  model::DiscreteModel,
+  ids::AbstractLocalIndices,
+  d::Integer=0)
 
   part = part_id(ids)
   D = num_dims(model)
   topology = get_grid_topology(model)
   l_to_o = local_to_owner(ids)
-  f_to_c = get_faces(topology,D-1,D)
-  c_to_f = get_faces(topology,D,D-1)
+  f_to_c = get_faces(topology,d,D)
+  c_to_f = get_faces(topology,D,d)
   f_to_p = lazy_map(Broadcasting(Reindex(l_to_o)),f_to_c)
   c1 = array_cache(c_to_f)
   c2 = array_cache(f_to_p)
@@ -126,7 +169,7 @@ function compute_boundary_cells(
       end
     end
   end
-  findall(c_isboundary)
+  c_isboundary
 end
 
 
@@ -281,4 +324,180 @@ function set_inout!(cut::EmbeddedFacetDiscretization,in_or_out::Integer)
   @assert length(ls_to_f_to_ioc) == 1
   ls_to_f_to_ioc[1] .= in_or_out
   cut
+end
+
+function complete_inout!(
+  a::AbstractEmbeddedDiscretization,
+  b::AbstractEmbeddedDiscretization,
+  acells,bcells)
+
+  atouched = istouched(a,acells)
+  btouched = istouched(b,bcells)
+  if ( atouched || btouched ) && ( !atouched || !btouched )
+    in_or_out = define_interface(a,b,acell,bcells)
+    if atouched
+      set_inout!(a,in_or_out)
+    else
+      set_inout!(b,in_or_out)
+    end
+  end
+end
+
+function Base.merge(
+  a::STLEmbeddedDiscretization,
+  b::STLEmbeddedDiscretization,
+  acells,bcells)
+
+  afacets,bfacets = _classify_facets(a.cut.bgmodel,acells,bcells)
+  cut = merge(a.cut,b.cut,acells,bcells)
+  cutfacets = merge(a.cutfacets,b.cutfacets,afacets,bfacets)
+  STLEmbeddedDiscretization(cut,cutfacets)
+end
+
+function Base.merge(
+  a::EmbeddedDiscretization,
+  b::EmbeddedDiscretization,
+  acells,bcells)
+
+  @check a.bgmodel === b.bgmodel
+  ls_to_bgc_to_ioc = deepcopy(a.ls_to_bgcell_to_inoutcut)
+  for ls in 1:length(ls_to_bgc_to_ioc)
+    ls_to_bgc_to_ioc[ls][acells] .= a.ls_to_bgcell_to_inoutcut[ls][acells]
+    ls_to_bgc_to_ioc[ls][bcells] .= b.ls_to_bgcell_to_inoutcut[ls][bcells]
+  end
+  subcells = append(a.subcells,b.subcells)
+  subfacets = append(a.subfacets,b.subfacets)
+  ls_to_c_to_io = map(vcat,a.ls_to_subcell_to_inout,b.ls_to_subcell_to_inout)
+  ls_to_f_to_io = map(vcat,a.ls_to_subfacet_to_inout,b.ls_to_subfacet_to_inout)
+  EmbeddedDiscretization(
+    a.bgmodel,
+    ls_to_bgc_to_ioc,
+    subcells,
+    ls_to_c_to_io,
+    subfacets,
+    ls_to_f_to_io,
+    a.oid_to_ls,
+    a.geo)
+end
+
+function Base.merge(
+  a::EmbeddedFacetDiscretization,
+  b::EmbeddedFacetDiscretization,
+  afacets,bfacets)
+
+  @check a.bgmodel === b.bgmodel
+  a = _restrict(a,afacets)
+  b = _restrict(b,bfacets)
+
+  ls_to_f_to_ioc = deepcopy(a.ls_to_facet_to_inoutcut)
+  for ls in 1:length(ls_to_f_to_ioc)
+    ls_to_f_to_ioc[ls][afacets] .= a.ls_to_facet_to_inoutcut[ls][afacets]
+    ls_to_f_to_ioc[ls][bfacets] .= b.ls_to_facet_to_inoutcut[ls][bfacets]
+  end
+  subfacets = append(a.subfacets,b.subfacets)
+  ls_to_sf_to_io = map(vcat,a.ls_to_subfacet_to_inout,b.ls_to_subfacet_to_inout)
+  EmbeddedFacetDiscretization(
+    a.bgmodel,
+    ls_to_f_to_ioc,
+    subfacets,
+    ls_to_sf_to_io,
+    a.oid_to_ls,
+    a.geo)
+end
+
+function append(a::SubCellData,b::SubCellData)
+  na = length(a.point_to_coords)
+  bc_to_p = b.cell_to_points
+  T = typeof(bc_to_p.data)
+  bcell_to_points = Table(T(bc_to_p.data .+ na), bc_to_p.ptrs)
+  SubCellData(
+    append_tables_globally(a.cell_to_points,bcell_to_points),
+    vcat(a.cell_to_bgcell,b.cell_to_bgcell),
+    vcat(a.point_to_coords,b.point_to_coords),
+    vcat(a.point_to_rcoords,b.point_to_rcoords))
+end
+
+function append(a::SubFacetData,b::SubFacetData)
+  na = length(a.point_to_coords)
+  bf_to_p = b.facet_to_points
+  T = typeof(bf_to_p.data)
+  bfacet_to_points = Table(T(bf_to_p.data .+ na), bf_to_p.ptrs)
+  SubFacetData(
+    append_tables_globally(a.facet_to_points,bfacet_to_points),
+    vcat(a.facet_to_normal,b.facet_to_normal),
+    vcat(a.facet_to_bgcell,b.facet_to_bgcell),
+    vcat(a.point_to_coords,b.point_to_coords),
+    vcat(a.point_to_rcoords,b.point_to_rcoords))
+end
+
+function _restrict(cut::EmbeddedFacetDiscretization,newfacets)
+  facet_isactive = falses(num_facets(cut.bgmodel))
+  facet_isactive[newfacets] .= true
+  subfacet_to_facet = cut.subfacets.cell_to_bgcell
+  subfacet_isactive = lazy_map(Reindex(facet_isactive),subfacet_to_facet)
+  newsubfacets = findall(subfacet_isactive)
+  subfacets = SubCellData(cut.subfacets,newsubfacets)
+  ls_to_sf_to_io = map(cut.ls_to_subfacet_to_inout) do sf_to_io
+    sf_to_io[newsubfacets]
+  end
+  EmbeddedFacetDiscretization(
+    cut.bgmodel,
+    cut.ls_to_facet_to_inoutcut,
+    subfacets,
+    ls_to_sf_to_io,
+    cut.oid_to_ls,
+    cut.geo)
+end
+
+function _classify_facets(model::DiscreteModel,acells,bcells)
+  D = num_dims(model)
+  topo = get_grid_topology(model)
+  c_to_f = get_faces(topo,D,D-1)
+  f_to_ab = zeros(num_facets(model))
+  a,b = (1,2)
+  c = array_cache(c_to_f)
+  for cell in acells
+    for facet in getindex!(c,c_to_f,cell)
+      f_to_ab[facet] = a
+    end
+  end
+  for cell in bcells
+    for facet in getindex!(c,c_to_f,cell)
+      f_to_ab[facet] = b
+    end
+  end
+  afacets = findall(==(a),f_to_ab)
+  bfacets = findall(==(b),f_to_ab)
+  afacets,bfacets
+end
+
+istouched(cut::STLEmbeddedDiscretization,args...) = istouched(cut.cut,args...)
+
+function istouched(cut::EmbeddedDiscretization,cells,ls=1)
+  c_to_ioc = lazy_map(Reindex(cut.ls_to_bgcell_to_inoutcut[ls]),cells)
+  !all(==(UNDEF),c_to_ioc)
+end
+
+
+function define_interface(
+  a::EmbeddedDiscretization,
+  b::EmbeddedDiscretization,acells,bcells)
+
+  facets = interface_facets(model,acells,bcells)
+  if istouched(a,acells)
+    facet_to_ioc = compute_bgfacet_to_inoutcut(a)
+  else
+    facet_to_ioc = compute_bgfacet_to_inoutcut(b)
+  end
+  f_to_ioc = lazy_map(Reindex(bgfacet_to_ioc),facets)
+  n_in = count(==(IN),f_to_ioc)
+  n_out = count(==(OUT),f_to_ioc)
+
+  if n_in > 0
+    @assert n_out == 0
+    IN
+  else
+    @assert n_out > 0
+    OUT
+  end
 end
