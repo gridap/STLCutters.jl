@@ -32,7 +32,7 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
     local_views(bgmodel),local_views(cell_gids),facet_to_inoutcut,facet_neighbors)
 
   # Gathers
-  root = find_root_part(cuts)
+  root = find_root_part(cuts,bcells)
   part_to_parts = gather(facet_neighbors,destination=root)
   part_to_lpart_to_ioc = gather(facet_neighbor_to_ioc,destination=root)
 
@@ -86,9 +86,25 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
   DistributedEmbeddedDiscretization(cuts,bgmodel)
 end
 
-function find_root_part(cuts)
-  # ( SELECT AN EMPTY PART )
-  1
+function find_root_part(
+  cuts::AbstractArray{<:AbstractEmbeddedDiscretization},
+  cells)
+
+  # TODO: USE STL DATA, e.g. num local STL facets
+  touched = map(cuts,cells) do cut,cells
+    istouched(cut,cells)
+  end
+  part_to_touched = gather(touched)
+  root_part = map(part_to_touched) do part_to_touched
+    if !isempty(part_to_touched)
+      p = findfirst(!,part_to_touched)
+      isnothing(p) ? 1 : p
+    else
+      0
+    end
+  end
+  emit!(root_part,root_part)
+  PartitionedArrays.getany(root_part)
 end
 
 function cut_facets(cut::DistributedEmbeddedDiscretization)
@@ -306,23 +322,31 @@ function propagate_inout!(
   part_to_ioc
 end
 
-function set_inout!(cut::STLEmbeddedDiscretization,in_or_out::Integer)
-  set_inout!(cut.cut,in_or_out)
-  set_inout!(cut.cutfacets,in_or_out)
+function set_inout!(cut::STLEmbeddedDiscretization,args...)
+  set_inout!(cut.cut,args...)
+  set_inout!(cut.cutfacets,args...)
   cut
 end
 
-function set_inout!(cut::EmbeddedDiscretization,in_or_out::Integer)
+function set_inout!(
+  cut::EmbeddedDiscretization,
+  in_or_out::Integer,
+  cells=1:num_cells(cut.bgmodel))
+
   ls_to_bgc_to_ioc = cut.ls_to_bgcell_to_inoutcut
   @assert length(ls_to_bgc_to_ioc) == 1
-  ls_to_bgc_to_ioc[1] .= in_or_out
+  ls_to_bgc_to_ioc[1][cells] .= in_or_out
   cut
 end
 
-function set_inout!(cut::EmbeddedFacetDiscretization,in_or_out::Integer)
+function set_inout!(
+  cut::EmbeddedFacetDiscretization,
+  in_or_out::Integer,
+  facets=1:num_facets(cut.bgmodel))
+
   ls_to_f_to_ioc = cut.ls_to_facet_to_inoutcut
   @assert length(ls_to_f_to_ioc) == 1
-  ls_to_f_to_ioc[1] .= in_or_out
+  ls_to_f_to_ioc[1][facets] .= in_or_out
   cut
 end
 
@@ -333,12 +357,14 @@ function complete_inout!(
 
   atouched = istouched(a,acells)
   btouched = istouched(b,bcells)
-  if ( atouched || btouched ) && ( !atouched || !btouched )
-    in_or_out = define_interface(a,b,acell,bcells)
-    if atouched
-      set_inout!(a,in_or_out)
+  if ( atouched || btouched ) && ( !atouched || !btouched ) &&
+     ( length(acells) > 0 && length(bcells) > 0 )
+
+    in_or_out = define_interface(a,b,acells,bcells)
+    if !atouched
+      set_inout!(a,in_or_out,acells)
     else
-      set_inout!(b,in_or_out)
+      set_inout!(b,in_or_out,bcells)
     end
   end
 end
@@ -453,21 +479,21 @@ function _classify_facets(model::DiscreteModel,acells,bcells)
   D = num_dims(model)
   topo = get_grid_topology(model)
   c_to_f = get_faces(topo,D,D-1)
-  f_to_ab = zeros(num_facets(model))
-  a,b = (1,2)
+  f_to_ab = zeros(Int8,num_facets(model))
+  A,B = (1,2)
   c = array_cache(c_to_f)
   for cell in acells
     for facet in getindex!(c,c_to_f,cell)
-      f_to_ab[facet] = a
+      f_to_ab[facet] = A
     end
   end
   for cell in bcells
     for facet in getindex!(c,c_to_f,cell)
-      f_to_ab[facet] = b
+      f_to_ab[facet] = B
     end
   end
-  afacets = findall(==(a),f_to_ab)
-  bfacets = findall(==(b),f_to_ab)
+  afacets = findall(==(A),f_to_ab)
+  bfacets = findall(==(B),f_to_ab)
   afacets,bfacets
 end
 
@@ -480,24 +506,86 @@ end
 
 
 function define_interface(
-  a::EmbeddedDiscretization,
-  b::EmbeddedDiscretization,acells,bcells)
+  a::STLEmbeddedDiscretization,
+  b::STLEmbeddedDiscretization,acells,bcells)
 
-  facets = interface_facets(model,acells,bcells)
-  if istouched(a,acells)
-    facet_to_ioc = compute_bgfacet_to_inoutcut(a)
-  else
-    facet_to_ioc = compute_bgfacet_to_inoutcut(b)
-  end
-  f_to_ioc = lazy_map(Reindex(bgfacet_to_ioc),facets)
+  @check length(acells) > 0
+  @check length(bcells) > 0
+  amodel = get_background_model(a)
+  bmodel = get_background_model(b)
+  @check amodel === bmodel
+  facets = interface_facets(amodel,acells,bcells)
+  c = istouched(a,acells) ? a : b
+  facet_to_ioc = compute_bgfacet_to_inoutcut(c)
+  f_to_ioc = lazy_map(Reindex(facet_to_ioc),facets)
   n_in = count(==(IN),f_to_ioc)
   n_out = count(==(OUT),f_to_ioc)
-
   if n_in > 0
-    @assert n_out == 0
+    @check n_out == 0
     IN
   else
-    @assert n_out > 0
+    @check n_out > 0
     OUT
   end
+end
+
+function interface_facets(model::DiscreteModel,acells,bcells)
+  D = num_dims(model)
+  topo = get_grid_topology(model)
+  c_to_f = get_faces(topo,D,D-1)
+  f_to_a = falses(num_facets(model))
+  f_to_b = falses(num_facets(model))
+  c = array_cache(c_to_f)
+  for cell in acells
+    for facet in getindex!(c,c_to_f,cell)
+      f_to_a[facet] = true
+    end
+  end
+  for cell in bcells
+    for facet in getindex!(c,c_to_f,cell)
+      f_to_b[facet] = true
+    end
+  end
+  f_to_ab = lazy_map(&,f_to_a,f_to_b)
+  findall(f_to_ab)
+end
+
+
+# PR @ Gridap.jl
+
+using Gridap.Fields
+using Gridap.TensorValues
+function Base.zero(::Type{<:AffineMap{D1,D2,T}}) where {D1,D2,T}
+  gradient = TensorValue{D1,D2}(tfill(zero(T),Val{D1*D2}()))
+  origin = Point{D2,T}(tfill(zero(T),Val{D2}()))
+  AffineMap(gradient,origin)
+end
+
+
+# PR @ GridapDistributed.jl
+
+function Gridap.ReferenceFEs.simplexify(model::DistributedDiscreteModel{D};kwargs...) where D
+  models = map(local_views(model)) do m
+    Gridap.ReferenceFEs.simplexify(m;kwargs...)
+  end
+  face_gids = map(0:D) do d
+    map(models,local_views(model),local_views(gids)) do smodel,model,ids
+      compute_simplex_face_gids(smodel,model,ids,d)
+    end |> PRange
+  end
+  DistributedDiscreteModel(models,face_gids)
+end
+
+
+function compute_simplex_face_gids(
+  smodel::DiscreteModel,
+  model::DiscreteModel,
+  ids::AbstractLocalIndices,
+  d::Integer)
+
+  part = part_id(ids)
+  D = num_dims(model)
+
+
+  @notimplemented
 end

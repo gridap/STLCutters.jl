@@ -304,6 +304,7 @@ function closest_point(
 end
 
 function Base.eps(T::Type{<:AbstractFloat},grid::Grid)
+  num_cells(grid) > 0 || return zero(T)
   pmin,pmax = get_bounding_box(grid)
   vmax = max(abs.(Tuple(pmin))...,abs.(Tuple(pmax))...)
   eps(T(vmax))
