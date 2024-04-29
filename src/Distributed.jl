@@ -45,6 +45,8 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
     part = part_id(ids)
     if part == root
       propagate_inout(part_to_parts,part_to_lpart_to_ioc)
+    else
+      Int8[]
     end
   end
 
@@ -63,8 +65,8 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
     cutgeo = change_bgmodel(cutgeo,bgmodel,cell_to_pcell,facet_to_pfacet)
     remove_ghost_subfacets(cutgeo,facet_gids)
   end
-  # Intersect interior and merge discretizations
 
+  # Merge discretizations
   cuts = map(cuts,icuts,bcells,icells) do bcut,icut,bcells,icells
     complete_inout!(bcut,icut,bcells,icells)
     merge(bcut,icut,bcells,icells)
@@ -277,7 +279,7 @@ function propagate_inout(
   part_to_lpart_to_ioc::AbstractVector)
 
   part_to_ioc = map(part_to_lpart_to_ioc) do ioc
-    any(==(UNDEF),ioc) ? UNDEF : CUT
+    any(==(UNDEF),ioc) ? Int8(UNDEF) : Int8(CUT)
   end
   propagate_inout!(part_to_ioc,part_to_parts,part_to_lpart_to_ioc)
   part_to_ioc
@@ -500,7 +502,11 @@ end
 
 istouched(cut::STLEmbeddedDiscretization,args...) = istouched(cut.cut,args...)
 
-function istouched(cut::EmbeddedDiscretization,cells,ls=1)
+function istouched(
+  cut::EmbeddedDiscretization,
+  cells=1:num_cells(get_background_model(cut)),
+  ls=1)
+
   c_to_ioc = lazy_map(Reindex(cut.ls_to_bgcell_to_inoutcut[ls]),cells)
   !all(==(UNDEF),c_to_ioc)
 end
