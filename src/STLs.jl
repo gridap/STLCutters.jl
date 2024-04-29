@@ -935,15 +935,16 @@ function measure(a::CartesianGrid{D,T,typeof(identity)},mask) where {D,T}
   cell_vol * count(mask)
 end
 
-function compute_cell_to_facets(model_a::DiscreteModel,grid_b)
+function compute_cell_to_facets(model_a::DiscreteModel,grid_b,args...)
   grid_a = get_grid(model_a)
-  compute_cell_to_facets(grid_a,grid_b)
+  compute_cell_to_facets(grid_a,grid_b,args...)
 end
 
 function compute_cell_to_facets(
   grid::CartesianGrid,
   stl,
-  cell_mask=Trues(num_cells(grid)))
+  cell_mask=Trues(num_cells(grid)),
+  facet_mask=Trues(num_cells(stl)))
 
   CELL_EXPANSION_FACTOR = 1e-3
   desc = get_cartesian_descriptor(grid)
@@ -960,6 +961,7 @@ function compute_cell_to_facets(
   c = [ ( get_cell_cache(stl), array_cache(cell_to_nodes) ) for _ in 1:n ]
   δ = CELL_EXPANSION_FACTOR
   Threads.@threads for stl_facet in 1:num_cells(stl)
+    facet_mask[stl_facet] || continue
     i = Threads.threadid()
     cc,nc = c[i]
     f = get_cell!(cc,stl,stl_facet)
@@ -991,10 +993,9 @@ function compute_cell_to_facets(grid::GridPortion,stl)
   map(Reindex(pcell_to_facets),grid.cell_to_parent_cell)
 end
 
-
-function compute_cell_to_facets(a::UnstructuredGrid,b)
+function compute_cell_to_facets(a::UnstructuredGrid,b,a_mask)
   tmp = cartesian_bounding_model(a)
-  tmp_to_a = compute_cell_to_facets(tmp,a)
+  tmp_to_a = compute_cell_to_facets(tmp,a,Trues(num_cells(tmp)),a_mask)
   tmp_to_b = compute_cell_to_facets(tmp,b)
   a_to_tmp = inverse_index_map(tmp_to_a,num_cells(a))
   a_to_b = compose_index_map(a_to_tmp,tmp_to_b)

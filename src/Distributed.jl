@@ -74,8 +74,9 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
   part_ioc = scatter(part_to_ioc,source=root)
 
   # Set undefined parts
-  map(cuts,part_ioc) do cut,ioc
-    if ioc != CUT
+  map(cuts,part_ioc,cell_gids.partition) do cut,ioc,ids
+    own_cells = own_to_local(ids)
+    if !istouched(cut,own_cells)
       set_inout!(cut,ioc)
     end
   end
@@ -568,24 +569,24 @@ function Gridap.ReferenceFEs.simplexify(model::DistributedDiscreteModel{D};kwarg
   models = map(local_views(model)) do m
     Gridap.ReferenceFEs.simplexify(m;kwargs...)
   end
-  face_gids = map(0:D) do d
-    map(models,local_views(model),local_views(gids)) do smodel,model,ids
-      compute_simplex_face_gids(smodel,model,ids,d)
-    end |> PRange
-  end
-  DistributedDiscreteModel(models,face_gids)
+  gids = generate_simplex_cell_gids(model)
+  DistributedDiscreteModel(models,gids)
 end
 
-
-function compute_simplex_face_gids(
-  smodel::DiscreteModel,
-  model::DiscreteModel,
-  ids::AbstractLocalIndices,
-  d::Integer)
-
-  part = part_id(ids)
-  D = num_dims(model)
-
-
-  @notimplemented
+function generate_simplex_cell_gids(model::DistributedDiscreteModel)
+  gids = get_cell_gids(model)
+  ngcells = num_cells(model)
+  partition = map(local_views(model),gids.partition) do model,ids
+    s, = simplexify(get_polytope(only(get_reffes(model))))
+    ns_x_c = length(s)
+    nc = num_cells(model)
+    ngscells = ngcells*ns_x_c
+    sc_to_c = reduce(append!,lazy_map(i->Fill(i,ns_x_c),1:nc),init=Int[])
+    sc_to_i = reduce(append!,lazy_map(i->1:ns_x_c,1:nc),init=Int[])
+    sc_to_gc = map(Reindex(local_to_global(ids)),sc_to_c)
+    sc_to_gsc = map((gc,i)-> (gc-1)*ns_x_c+i,sc_to_gc,sc_to_i)
+    sc_to_o = map(Reindex(local_to_owner(ids)),sc_to_c)
+    LocalIndices(ngscells,part_id(ids),sc_to_gsc,sc_to_o)
+  end
+  PRange(partition)
 end
