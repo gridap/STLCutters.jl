@@ -18,7 +18,7 @@ PartitionedArrays = "5a9dfac6-5c52-46f7-8278-5e2210713be9"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 
 [compat]
-AlgebraicMultigrid = "0.5,0.6"
+AlgebraicMultigrid = "0.5, 0.6"
 Downloads = "1.4"
 FileIO = "1.6"
 FillArrays = "0.11, 0.13, 1"
@@ -28,6 +28,7 @@ GridapDistributed = "0.3, 0.4"
 IterativeSolvers = "0.9"
 MeshIO = "0.4"
 ProgressMeter = "1.7"
+PartitionedArrays = "0.3"
 julia = "1.5"
 
 [extras]
