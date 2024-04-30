@@ -5,6 +5,23 @@ const FACE_CUT = -1
 const FACE_IN = 1
 const FACE_OUT = 2
 
+"""
+    SubtriangulationLabels
+
+  Labels for the sub grids of [`subtriangulate`](@ref).
+
+  It stores the following fields:
+  - `cell_to_bgcell`: subcell to background cell
+  - `cell_to_io`: subcell to IN/OUT
+  - `face_to_stlface`: subface to STL face
+  - `face_to_bgcell`: subface to background cell
+  - `face_to_ios`: subface to surface source (IN,OUT,SKIN)
+  - `bgcell_to_ioc`: background cell to IN/OUT/CUT
+  - `bgface_to_ioc`: background face to IN/OUT/CUT
+  - `bface_to_lbgface`: subface to local background face
+  - `bface_to_bgcell`: subface to background cell
+  - `bface_to_io`: subface to IN/OUT
+"""
 struct SubtriangulationLabels
   cell_to_bgcell::Vector{Int32}
   cell_to_io::Vector{Int8}
@@ -18,6 +35,32 @@ struct SubtriangulationLabels
   bface_to_io::Vector{Int8}
 end
 
+
+"""
+    subtriangulate(bgmodel::DiscreteModel,stl::DiscreteModel;kwargs...)
+
+  Intersection of each background cell in `bgmodel` with domain bounded by the
+  `stl` surface.
+
+  It returns a three grids and set of lables:
+  - `cell_grid`: cell-wise volume grid of the intersection of each background cell and the interior of the domain.
+  - `face_grid`: cell-wise surface grid of the intersection of each background cell and the `stl` surface.
+  - `bface_grid`: facet-wise surface grid of the intersection of each background (d-1)-face and the interior of the domain.
+  - `labels`: [`SubtriangulationLabels`](@ref) label IN/OUT/CUT, background cell, background face or STL face.
+
+
+  # Optional keywords arguments:
+  - `kdtree`: (default `false`) if `true` it uses a kdtree as a first step
+  - `tolfactor`: (default `1e3`) relative tolerance with respect to machine
+     precision (e.g., `1e-16*max_length(bgmodel)`)
+  - `surfacesource`: (default `:skin`) source of the `face_grid`.
+      - `:skin`: the `face_grid` is the intersection of the `stl` surface
+      - `:interior`: the `face_grid` is extracted of the interior `cell_grid`
+      - `:exterior`: the `face_grid` is extracted of the exterior `cell_grid
+      - `:both`: retunrs boths `:interior` and `:exterior` `face_grid`. It must be filtered (only used for debugging purposes).
+  - `showprogress`: (default `true`) show progress bar
+  - `all_defined`: (default `true`) if `true` all cells are defined as `IN`, `OUT` or `CUT`. If `false` undefined cells are allowed (only used for distributed meshes)
+"""
 function subtriangulate(
   bgmodel::DiscreteModel,
   stlmodel::DiscreteModel;
@@ -225,6 +268,17 @@ function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io;all_defined)
   bgcell_to_ioc
 end
 
+"""
+    propagate_inout!(bgmocel,bgcell_to_inoutcut,bgnode_to_inoutcut,in_or_out)
+
+  Propagates IN or OUT (`in_or_out`) label of each backgroun cell
+  (`bgcell_to_inoutcut`) through the nodes of the background
+  model (`bgnode_to_inoutcut`).
+  It overwrites `bgcell_to_inoutcut``.
+
+
+  It is implemented with a deep-first search algorithm that stops at CUT cells.
+"""
 function propagate_inout!(bgmodel,bgcell_to_ioc,bgnode_to_io,in_or_out)
   D = num_dims(bgmodel)
   grid_topology = get_grid_topology(bgmodel)

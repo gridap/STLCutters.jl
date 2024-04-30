@@ -1,4 +1,12 @@
 
+
+"""
+    struct STLTopology{Dc,Dp,T} <: GridTopology{Dc,D}
+
+  [`STLTopology`](@ref) is a `Gridap.GridTopology` without lazy arrays.
+  It reduces computations when accessing their properties. It is used to
+  save the STL geometries. It is alliased as [`STL`](@ref).
+"""
 struct STLTopology{Dc,Dp,T} <: GridTopology{Dc,Dp}
   vertex_to_coordinates::Vector{Point{Dp,T}}
   n_m_to_nface_to_mfaces::Matrix{Table{Int32,Vector{Int32},Vector{Int32}}}
@@ -7,6 +15,11 @@ struct STLTopology{Dc,Dp,T} <: GridTopology{Dc,Dp}
   offsets::Vector{Int32}
 end
 
+"""
+    const STL = STLTopology
+
+  Alias [`STLTopology`](@ref) as `STL`.
+"""
 const STL = STLTopology
 
 function STL(model::DiscreteModel)
@@ -76,10 +89,21 @@ function get_face_vertices(stl::STL{D}) where D
   f_to_v
 end
 
+"""
+    get_cell!(cache,stl::STL,i::Integer)
+
+  Get a cell as a [`Face`](@ref).
+  It requires [`get_cell_cache`](@ref) to be allocate the cache.
+"""
 function get_cell!(c,stl::STL{Dc},i::Integer) where Dc
   get_dface!(c,stl,i,Val{Dc}())
 end
 
+"""
+    get_dface!(cache,stl::STL,i::Integer,::Val{d})
+
+  Get a face as a [`Face`](@ref)
+"""
 function get_dface!(c,stl::STL,i::Integer,::Val{d}) where d
   T = get_face_vertices(stl,d)
   X = get_vertex_coordinates(stl)
@@ -87,15 +111,30 @@ function get_dface!(c,stl::STL,i::Integer,::Val{d}) where d
   get_dface!(c,X,T,p,i,Val{d}())
 end
 
+"""
+    get_cell(stl::STL,i::Integer)
+
+  Get a cell as a [`Face`](@ref).
+"""
 function get_cell(stl::STL,i::Integer)
   c = get_cell_cache(stl)
   get_cell!(c,stl,i)
 end
 
+"""
+    get_cell_cache(stl::STL)
+
+  Allocate cache for [`get_cell!`](@ref).
+"""
 function get_cell_cache(stl::STL{Dc}) where Dc
   get_dface_cache(stl,Dc)
 end
 
+"""
+    get_dface_cache(stl::STL,d::Integer)
+
+  Allocate cache for [`get_dface!`](@ref).
+"""
 function get_dface_cache(stl::STL,d::Integer)
   T = get_face_vertices(stl,d)
   array_cache(T)
@@ -116,6 +155,11 @@ function get_simplex_dface!(cache,X,T,i::Integer,::Val{d}) where d
   simplex_face( vertices )
 end
 
+"""
+    is_open_surface(topo::GridTopology)
+
+  Predicate to check if a surface is water tight.
+"""
 function is_open_surface(stl::GridTopology)
   Dc = num_dims(stl)
   e_to_f = get_faces(stl,Dc-1,Dc)
@@ -124,8 +168,14 @@ function is_open_surface(stl::GridTopology)
   true
 end
 
-# Read STL from file
+"""
+    read_stl(filename)
 
+  Read STL file with `MeshIO.jl` and `Gridap.jl` arrays:
+  - `vertex_to_coordinates` is a vector of `Point{3,Float64}`
+  - `facet_to_vertices` is a `Gridap.Table` of `Int`
+  - `facet_to_normals` is a vector of `VectorValue{3,Float64}`
+"""
 function read_stl(filename::String)
   mesh = _load(filename)
   vertex_to_coordinates = MeshIO.decompose(MeshIO.Point3,mesh)
@@ -174,7 +224,11 @@ function Base.convert(::Type{Vector{T}},x::MeshIO.TriangleFace) where T
 end
 
 # Save STL to file
+"""
+    save_as_stl(stl::DiscreteModel,filename)
 
+  Save `DiscreteModel{2,3}` into a STL file.
+"""
 function save_as_stl(stl::DiscreteModel{Dc,Dp},filename) where {Dc,Dp}
   (Dc == 2 && Dp == 3 ) || error("Geometry incompatible with STL format")
   filename *= ".stl"
@@ -201,6 +255,13 @@ function save_as_stl(stl::DiscreteModel{Dc,Dp},filename) where {Dc,Dp}
   filename
 end
 
+
+"""
+    save_as_stl(stl::Vector{<:DiscreteModel},filename)
+
+  Save a list of `DiscreteModel{2,3}` into STL files. It save the files as
+  `filename_1.stl`, `filename_2.stl`,..., `filename_n.stl``.
+"""
 function save_as_stl(stls::Vector{<:DiscreteModel},filename)
   files = []
   for (i,stl) in enumerate(stls)
@@ -1163,12 +1224,11 @@ end
 # Testing helpers
 
 """
-  download_thingi10k(id;path"")
+    download_thingi10k(id;path"")
 
 Dowloads surface model from [thingiverse](https://www.thingiverse.com)
 indexed by FileID at [Thingi10K](https://ten-thousand-models.appspot.com)
 """
-
 function download_thingi10k(id;path="")
   url = "https://www.thingiverse.com/download:$id"
   r = Downloads.request(url)

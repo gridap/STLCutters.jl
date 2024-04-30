@@ -1,17 +1,15 @@
-using Documenter, STLCutters
+using Revise
+using Documenter
+using Literate
+using STLCutters
 
 makedocs(;
     modules=[STLCutters],
     format=Documenter.HTML(),
     pages=[
-        "Home" => "index.md",
+        "Introduction" => "index.md",
+        "Usage" => "usage.md",
+        "Distributed" => "distributed.md",
     ],
-    repo="https://github.com/pmartorell/STLCutters.jl/blob/{commit}{path}#L{line}",
     sitename="STLCutters.jl",
-    authors="Pere Antoni Martorell, Large Scale Scientific Computing",
-    assets=String[],
 )
-
-# deploydocs(;
-#     repo="github.com/pmartorell/STLCutters.jl",
-# )

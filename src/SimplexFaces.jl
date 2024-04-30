@@ -1,4 +1,9 @@
 
+"""
+   abstract type Face{Df,Dp}
+
+  Face type used to compute intersections with multiple dispatching.
+"""
 abstract type Face{Df,Dp} end
 
 struct Segment{D,T}<:Face{1,D}
