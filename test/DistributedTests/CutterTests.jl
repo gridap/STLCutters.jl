@@ -68,17 +68,17 @@ function main(distribute;
     writevtk(Γ,"Γ")
   end
 
-  @test vol_in + vol_out - vol_box < 1e-10
+  @test vol_in + vol_out - vol_box < 1e-9
   ref_vol,ref_surf = reference_volume_and_surface(geoname)
   if ref_vol > 0
-    @test abs(vol_in - ref_vol) < 1e-10
-    @test abs(surf - ref_surf) < 1e-10
+    @test abs(vol_in - ref_vol) < 1e-9
+    @test abs(surf - ref_surf) < 1e-9
   end
 end
 
 function reference_volume_and_surface(geoname)
-  volumes = Dict("cube"=>1.0,)
-  surfaces = Dict("cube"=>6.0,)
+  volumes = Dict("cube"=>1.0,"Bunny-LowPoly"=>273280.03374196636)
+  surfaces = Dict("cube"=>6.0,"Bunny-LowPoly"=>29490.7154966073)
   if haskey(volumes,geoname)
     volumes[geoname],surfaces[geoname]
   else

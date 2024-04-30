@@ -14,10 +14,12 @@ with_debug() do distribute
   main(distribute,np=(2,2,2),nc=(8,8,8))
   main(distribute,np=(2,2,2),nc=(4,4,4),simplex=true)
   main(distribute,np=(2,2,2),nc=(8,8,8),simplex=true)
+  main(distribute,np=(2,2,2),nc=(8,8,8),geoname="Bunny-LowPoly")
 
   # Distributed with propagation
   main(distribute,np=(3,3,3),nc=(9,9,9))
   main(distribute,np=(3,3,3),nc=(9,9,9),simplex=true)
+  main(distribute,np=(3,3,3),nc=(9,9,9),geoname="Bunny-LowPoly")
 
   # Untouched subdomain interiors
   main(distribute,np=(3,3,3),nc=(9,9,9),δ=0.5)
