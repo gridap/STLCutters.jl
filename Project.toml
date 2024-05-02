@@ -23,16 +23,17 @@ Downloads = "1.4"
 FileIO = "1.6"
 FillArrays = "0.11, 0.13, 1"
 Gridap = "0.17.16, 0.18"
-GridapEmbedded = "0.8, 0.9"
 GridapDistributed = "0.3, 0.4"
+GridapEmbedded = "0.8, 0.9"
 IterativeSolvers = "0.9"
 MeshIO = "0.4"
-ProgressMeter = "1.7"
 PartitionedArrays = "0.3"
+ProgressMeter = "1.7"
 julia = "1.5"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 
 [targets]
-test = ["Test"]
+test = ["Test", "MPI"]
