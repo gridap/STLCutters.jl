@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Distributed cutter (`cut()`) using `GridapDistributed` and `PartitionedArrays` since [#28](https://github.com/gridap/STLCutters.jl/pull/28).
 
 
-
 ## [0.2.0] - 2024-02-15
 
 ### Added

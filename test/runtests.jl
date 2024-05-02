@@ -16,7 +16,7 @@ using Test
 @testset "CutFacets" begin include("CutFacetsTests.jl") end
 @testset "DistanceFunctions" begin include("DistanceFunctionsTests.jl") end
 
-@testset "Distributed" begin include("DistributedTests/CutterTests.jl") end
+@testset "Distributed" begin include("DistributedTests/runtests.jl") end
 
 include(joinpath(@__DIR__,"..","examples","runexamples.jl"))
 
