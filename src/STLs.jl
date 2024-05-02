@@ -993,7 +993,7 @@ function compute_cell_to_facets(grid::GridPortion,stl)
   map(Reindex(pcell_to_facets),grid.cell_to_parent_cell)
 end
 
-function compute_cell_to_facets(a::UnstructuredGrid,b,a_mask)
+function compute_cell_to_facets(a::UnstructuredGrid,b,a_mask=Trues(num_cells(a)))
   tmp = cartesian_bounding_model(a)
   tmp_to_a = compute_cell_to_facets(tmp,a,Trues(num_cells(tmp)),a_mask)
   tmp_to_b = compute_cell_to_facets(tmp,b)
