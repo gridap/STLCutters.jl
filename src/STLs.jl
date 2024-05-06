@@ -1047,8 +1047,19 @@ function measure(a::Grid)
   measure(a,Trues(1:num_cells(a)))
 end
 
+"""
+    volume(a::Grid)
+
+  Compute the volume of a grid. It returns the [`measure`](@ref) of the grid.
+"""
 volume(a::Grid{D,D},args...) where D = measure(a,args...)
 
+"""
+    surface(a::Grid)
+
+  Compute the surface of a grid. It returns the [`measure`](@ref) of a surface
+  grid, i.e-, Dc=D-1.
+"""
 function surface(a::Grid{Df,Dp},args...) where {Df,Dp}
   @notimplementedif Df ≠ Dp-1
   measure(a,args...)
@@ -1160,7 +1171,6 @@ function compute_cell_to_facets(
   @assert length(get_reffes(grid)) == 1
   p = get_polytope(get_cell_reffe(grid)[1])
   @notimplementedif desc.map !== identity
-  cell_to_stl_facets = [ Int32[] for _ in 1:num_cells(grid) ]
   n = Threads.nthreads()
   thread_to_cells = [ Int32[] for _ in 1:n ]
   thread_to_stl_facets = [ Int32[] for _ in 1:n ]
@@ -1407,6 +1417,13 @@ end
 
 Dowloads surface model from [thingiverse](https://www.thingiverse.com)
 indexed by FileID at [Thingi10K](https://ten-thousand-models.appspot.com)
+
+# Example
+
+```@repl
+julia> download_thingi10k(293137)
+"293137.stl"
+```
 """
 function download_thingi10k(id;path="")
   url = "https://www.thingiverse.com/download:$id"

@@ -1,6 +1,18 @@
 
 const UNDEF = -10
 
+"""
+    struct STLGeometry
+
+Object that stores the SLT geometry.
+
+# Example
+```@repl
+julia> filename = download_thingi10k(293137)
+julia> geo = STLGeometry(filename)
+julia> writevtk(geo,"geo")
+```
+"""
 struct STLGeometry <: CSG.Geometry
   tree::Leaf{Tuple{T,String,Nothing}} where T<:DiscreteModel
 end
@@ -95,6 +107,29 @@ struct STLCutter <: Interfaces.Cutter
   STLCutter(;options...) = new(options)
 end
 
+"""
+    cut([cutter::STLCutter,]model::DiscreteModel,geo::STLGeometry)
+
+
+Main interface of GridapEmbedded. It intersect each cell in `model` with the
+geometry `geo`. It returns an embedded discretization.
+
+# Usage
+The basic usage is to call `cut` with a model and a geometry.
+```@example
+cutgeo = cut(model,geo)
+```
+We can also set custom keyword arguments, see [`subtriangulate`](@ref).
+```@example
+cutter = STLCutter(;tolfactor=1e3)
+cutgeo = cut(cutter,model,geo)
+```
+Then we can extract the domain and the boundary of the embedded discretization.
+```@example
+Ω = Triangulation(cutgeo)
+Γ = EmbeddedBoundary(cutgeo)
+```
+"""
 function cut(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
   data,facet_data = _cut_stl(background,geom;cutter.options...)
   STLEmbeddedDiscretization(
