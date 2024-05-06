@@ -13,3 +13,7 @@ makedocs(;
     ],
     sitename="STLCutters.jl",
 )
+
+deploydocs(
+  repo = "github.com/gridap/STLCutters.jl.git",
+)
