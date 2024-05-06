@@ -557,18 +557,6 @@ function interface_facets(model::DiscreteModel,acells,bcells)
   findall(f_to_ab)
 end
 
-
-# PR @ Gridap.jl
-
-using Gridap.Fields
-using Gridap.TensorValues
-function Base.zero(::Type{<:AffineMap{D1,D2,T}}) where {D1,D2,T}
-  gradient = TensorValue{D1,D2}(tfill(zero(T),Val{D1*D2}()))
-  origin = Point{D2,T}(tfill(zero(T),Val{D2}()))
-  AffineMap(gradient,origin)
-end
-
-
 # PR @ GridapDistributed.jl
 
 function Gridap.ReferenceFEs.simplexify(model::DistributedDiscreteModel{D};kwargs...) where D
