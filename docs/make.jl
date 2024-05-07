@@ -1,4 +1,3 @@
-using Revise
 using Documenter
 using Literate
 using STLCutters
