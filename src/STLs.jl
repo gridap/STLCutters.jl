@@ -304,6 +304,7 @@ function closest_point(
 end
 
 function Base.eps(T::Type{<:AbstractFloat},grid::Grid)
+  num_cells(grid) > 0 || return zero(T)
   pmin,pmax = get_bounding_box(grid)
   vmax = max(abs.(Tuple(pmin))...,abs.(Tuple(pmax))...)
   eps(T(vmax))
@@ -934,13 +935,17 @@ function measure(a::CartesianGrid{D,T,typeof(identity)},mask) where {D,T}
   cell_vol * count(mask)
 end
 
-function compute_cell_to_facets(model_a::DiscreteModel,grid_b)
+function compute_cell_to_facets(model_a::DiscreteModel,grid_b,args...)
   grid_a = get_grid(model_a)
-  compute_cell_to_facets(grid_a,grid_b)
+  compute_cell_to_facets(grid_a,grid_b,args...)
 end
 
+function compute_cell_to_facets(
+  grid::CartesianGrid,
+  stl,
+  cell_mask=Trues(num_cells(grid)),
+  facet_mask=Trues(num_cells(stl)))
 
-function compute_cell_to_facets(grid::CartesianGrid,stl)
   CELL_EXPANSION_FACTOR = 1e-3
   desc = get_cartesian_descriptor(grid)
   @assert length(get_reffes(grid)) == 1
@@ -956,12 +961,14 @@ function compute_cell_to_facets(grid::CartesianGrid,stl)
   c = [ ( get_cell_cache(stl), array_cache(cell_to_nodes) ) for _ in 1:n ]
   δ = CELL_EXPANSION_FACTOR
   Threads.@threads for stl_facet in 1:num_cells(stl)
+    facet_mask[stl_facet] || continue
     i = Threads.threadid()
     cc,nc = c[i]
     f = get_cell!(cc,stl,stl_facet)
     pmin,pmax = get_bounding_box(f)
     for cid in get_cells_around(desc,pmin,pmax)
       cell = LinearIndices(desc.partition)[cid.I...]
+      cell_mask[cell] || continue
       nodes = getindex!(nc,cell_to_nodes,cell)
       _pmin = coords[nodes[1]]
       _pmax = coords[nodes[end]]
@@ -978,9 +985,17 @@ function compute_cell_to_facets(grid::CartesianGrid,stl)
   assemble_threaded_sparse_map(thread_to_cells,thread_to_stl_facets,ncells)
 end
 
-function compute_cell_to_facets(a::UnstructuredGrid,b)
+function compute_cell_to_facets(grid::GridPortion,stl)
+  pgrid = grid.parent
+  pcell_mask = falses(num_cells(pgrid))
+  pcell_mask[grid.cell_to_parent_cell] .= true
+  pcell_to_facets = compute_cell_to_facets(pgrid,stl,pcell_mask)
+  map(Reindex(pcell_to_facets),grid.cell_to_parent_cell)
+end
+
+function compute_cell_to_facets(a::UnstructuredGrid,b,a_mask=Trues(num_cells(a)))
   tmp = cartesian_bounding_model(a)
-  tmp_to_a = compute_cell_to_facets(tmp,a)
+  tmp_to_a = compute_cell_to_facets(tmp,a,Trues(num_cells(tmp)),a_mask)
   tmp_to_b = compute_cell_to_facets(tmp,b)
   a_to_tmp = inverse_index_map(tmp_to_a,num_cells(a))
   a_to_b = compose_index_map(a_to_tmp,tmp_to_b)
