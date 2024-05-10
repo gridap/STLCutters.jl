@@ -65,6 +65,53 @@ Like in GridapEmbedded, we extract the embedded triangulations as follows.
 Λ = SkeletonTriangulation(cutgeo)
 ```
 
+## Serial example
 
-!!! warning
-    Do not mix `@docs` here
+Now, we provide an example of the solution of a Poisson problem on the embedded domain.
+
+```julia
+using STLCutters
+using GridapEmbedded
+cells = (10,10,10)
+filename = "stl_file_path.stl"
+# Domain and discretization
+geo = STLGeometry(filename)
+pmin,pmax = get_bounding_box(geo)
+model = CartesianDiscreteModel(pmin,pmax,cells)
+cutgeo = cut(model,geo)
+# Cell aggregation
+aggregates = aggregate(AggregateAllCutCells(),cutgeo)
+# Triangulations
+Ω_act = Triangulation(cutgeo,ACTIVE)
+Ω = Triangulation(cutgeo)
+Γ = EmbeddedBoundary(cutgeo)
+nΓ = get_normal_vector(Γ)   
+dΩ = Measure(Ω,2)
+dΓ = Measure(Γ,2)
+# FE spaces
+Vstd = TestFESpace(Ω_act,ReferenceFE(lagrangian,Float64,1))
+V = AgFEMSpace(Vstd)
+U = TrialFESpace(V)
+# Weak form
+γ = 10.0
+h = (pmax - pmin)[1] / cells[1]
+ud(x) = x[1] - x[2]
+f = 0
+a(u,v) =
+    ∫( ∇(v)⋅∇(u) )dΩ +
+    ∫( (γ/h)*v*u  - v*(nΓ⋅∇(u)) - (nΓ⋅∇(v))*u )dΓ
+l(v) =
+    ∫( v*f )dΩ +
+    ∫( (γ/h)*v*ud - (nΓ⋅∇(v))*ud )dΓ
+# Solve
+op = AffineFEOperator(a,l,U,V)
+uh = solve(op)
+writevtk(Ω,"results",cellfields=["uh"=>uh])
+```
+
+!!! note
+    The STL file can be downloaded using [`download_thingi10k`](@ref).
+
+!!! note
+    One can consider a different stabilization of the small cut-cell problem instead of AgFEM. Then, the `aggregate` and `AgFEMSpace` need to be removed.
+    See more examples in [`GridapEmbedded`](https://github.com/gridap/GridapEmbedded.jl)
