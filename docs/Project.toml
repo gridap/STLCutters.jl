@@ -1,3 +1,5 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+GridapEmbedded = "8838a6a3-0006-4405-b874-385995508d5d"
+Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 STLCutters = "284f087d-c8bb-44c4-af3c-39d0e1f330a5"
