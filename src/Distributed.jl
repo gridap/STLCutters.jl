@@ -1,3 +1,4 @@
+
 function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
   D = map(num_dims,local_views(bgmodel)) |> PartitionedArrays.getany
   cutter = STLCutter(;all_defined=false,cutter.options...)
@@ -68,7 +69,7 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
 
   # Merge discretizations
   cuts = map(cuts,icuts,bcells,icells) do bcut,icut,bcells,icells
-    complete_inout!(bcut,icut,bcells,icells)
+    complete_in_or_out!(bcut,icut,bcells,icells)
     merge(bcut,icut,bcells,icells)
   end
 
@@ -79,7 +80,7 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
   map(cuts,part_ioc,cell_gids.partition) do cut,ioc,ids
     own_cells = own_to_local(ids)
     if !istouched(cut,own_cells)
-      set_inout!(cut,ioc)
+      set_in_or_out!(cut,ioc)
     end
   end
 
@@ -89,6 +90,13 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
   DistributedEmbeddedDiscretization(cuts,bgmodel)
 end
 
+
+"""
+    find_root_part(cuts::AbstractArray{<:AbstractEmbeddedDiscretization},cells)
+
+  This functions sets the root processor to a potentially idling processor.
+  It returns the first non-cut part.
+"""
 function find_root_part(
   cuts::AbstractArray{<:AbstractEmbeddedDiscretization},
   cells)
@@ -116,6 +124,7 @@ function cut_facets(cut::DistributedEmbeddedDiscretization)
   DistributedEmbeddedDiscretization(cutfacets,bgmodel)
 end
 
+
 function change_bgmodel(
   cutgeo::STLEmbeddedDiscretization,
   model::DiscreteModel,
@@ -140,6 +149,12 @@ function get_ls_to_bgfacet_to_inoutcut(cut::STLEmbeddedDiscretization)
   get_ls_to_bgfacet_to_inoutcut(cut.cutfacets)
 end
 
+"""
+    compute_interior_cells(model::DiscreteModel,indices[,d=0])
+
+  It returns the list of of _own cells_ not touching the subdomain interface.
+  See [`compute_cell_to_isboundary`](@ref) for more details.
+"""
 function compute_interior_cells(
   model::DiscreteModel,
   ids::AbstractLocalIndices,
@@ -153,6 +168,13 @@ function compute_interior_cells(
   findall(cell_isinterior)
 end
 
+
+"""
+    compute_boundary_cells(model::DiscreteModel,indices[,d=0])
+
+  It returns the list of of _own cells_ touching the subdomain interface.
+  See [`compute_cell_to_isboundary`](@ref) for more details.
+"""
 function compute_boundary_cells(
   model::DiscreteModel,
   ids::AbstractLocalIndices,
@@ -162,6 +184,17 @@ function compute_boundary_cells(
   findall(cell_isboundary)
 end
 
+
+"""
+    compute_cell_to_isboundary(model::DiscreteModel,indices[,d=0])
+
+  It returns a mask whether a cell touches the subdomain interface.
+
+  # Arguments
+  - `model::DiscreteModel`: Model of the subdomain.
+  - `indices::AbstractLocalIndices`: Partition indices
+  - `d::Integer=0`: Dimemension of the d-faces touching the subdomain interface.
+"""
 function compute_cell_to_isboundary(
   model::DiscreteModel,
   ids::AbstractLocalIndices,
@@ -191,7 +224,6 @@ function compute_cell_to_isboundary(
   c_isboundary
 end
 
-
 function compute_facet_neighbors(
   model::DiscreteModel,
   ids::AbstractLocalIndices,
@@ -201,6 +233,11 @@ function compute_facet_neighbors(
   compute_face_neighbors(model,ids,D-1,args...)
 end
 
+"""
+    compute_face_neighbors(model::DiscreteModel,indices,d)
+
+  It returns a neighboring graph of the subdomain's neighbors through the interfaces of dimension d.
+"""
 function compute_face_neighbors(
   model::DiscreteModel,
   ids::AbstractLocalIndices,
@@ -236,6 +273,16 @@ function compute_facet_neighbor_to_inoutcut(
   compute_face_neighbor_to_inoutcut(model,ids,D-1,args...)
 end
 
+"""
+    compute_face_neighbor_to_inoutcut(model::DiscreteModel,indices,d,face_to_inoutcut[,face_neighbors])
+
+  It returns a whether interfaces of dimension ``d`` are in, out, cut or undefined.
+
+  The number of interfaces coincides with the number of neigbors given by [`compute_face_neighbors`](@ref)
+
+!!! note
+  If the subdomain is not cut, the neighbors are considered undefined.
+"""
 function compute_face_neighbor_to_inoutcut(
   model::DiscreteModel,
   ids::AbstractLocalIndices,
@@ -325,13 +372,18 @@ function propagate_inout!(
   part_to_ioc
 end
 
-function set_inout!(cut::STLEmbeddedDiscretization,args...)
-  set_inout!(cut.cut,args...)
-  set_inout!(cut.cutfacets,args...)
+"""
+    set_in_or_out!(cut::DistributedEmbeddedDiscretization,in_or_out[,cells,facets])
+
+  Sets all the background cells and facets (or a set of `cells` and `facets`) as in or out.
+"""
+function set_in_or_out!(cut::STLEmbeddedDiscretization,args...)
+  set_in_or_out!(cut.cut,args...)
+  set_in_or_out!(cut.cutfacets,args...)
   cut
 end
 
-function set_inout!(
+function set_in_or_out!(
   cut::EmbeddedDiscretization,
   in_or_out::Integer,
   cells=1:num_cells(cut.bgmodel))
@@ -342,7 +394,7 @@ function set_inout!(
   cut
 end
 
-function set_inout!(
+function set_in_or_out!(
   cut::EmbeddedFacetDiscretization,
   in_or_out::Integer,
   facets=1:num_facets(cut.bgmodel))
@@ -353,7 +405,13 @@ function set_inout!(
   cut
 end
 
-function complete_inout!(
+"""
+    complete_in_or_out!(a::AbstractEmbeddedDiscretization,b::AbstractEmbeddedDiscretization,acells,bcells)
+
+ This function considers two discretizations of the same background model on the cells `acells` and `bcells`. These sets of cells have null intersection.
+ If only one of the discretizations is not cut it sets the other one as in or out.
+"""
+function complete_in_or_out!(
   a::AbstractEmbeddedDiscretization,
   b::AbstractEmbeddedDiscretization,
   acells,bcells)
@@ -365,9 +423,9 @@ function complete_inout!(
 
     in_or_out = define_interface(a,b,acells,bcells)
     if !atouched
-      set_inout!(a,in_or_out,acells)
+      set_in_or_out!(a,in_or_out,acells)
     else
-      set_inout!(b,in_or_out,bcells)
+      set_in_or_out!(b,in_or_out,bcells)
     end
   end
 end
@@ -502,6 +560,12 @@ end
 
 istouched(cut::STLEmbeddedDiscretization,args...) = istouched(cut.cut,args...)
 
+
+"""
+    istouched(cut::AbstractEmbeddedDiscretization[,cells])
+
+  Check is an embedded discretization `cut` (or a set of `cells`) have information about the geometry. In other words, it checks if any cell is cut.
+"""
 function istouched(
   cut::EmbeddedDiscretization,
   cells=1:num_cells(get_background_model(cut)),
@@ -511,6 +575,14 @@ function istouched(
   !all(==(UNDEF),c_to_ioc)
 end
 
+"""
+    define_interface(::STLEmbeddedDiscretization,::STLEmbeddedDiscretization,acells,bcells)
+
+  This function considers two discretizations of the same background model on the cells `acells` and `bcells`. These sets of cells have null intersection.
+  See also [`complete_in_or_out!`](@ref) for more details.
+
+  It returns whether the interface between two discretizations is in or out.
+"""
 
 function define_interface(
   a::STLEmbeddedDiscretization,

@@ -2,7 +2,7 @@
 const UNDEF = -10
 
 """
-    struct STLGeometry
+    struct STLGeometry <: GridapEmbedded.CSG.Geometry
 
 Object that stores the SLT geometry.
 
@@ -102,6 +102,12 @@ function GhostSkeleton(cut::STLEmbeddedDiscretization,args...)
   GhostSkeleton(cut.cut,args...)
 end
 
+"""
+    struct STLCutter <: GridapEmbedded.Interfaces.Cutter
+
+  Cutter type for STLGeometries, it stores the keyword arguments of
+  [`subtriangulate`](@ref).
+"""
 struct STLCutter <: Interfaces.Cutter
   options::Dict{Symbol,Any}
   STLCutter(;options...) = new(options)

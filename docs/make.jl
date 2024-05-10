@@ -9,6 +9,7 @@ makedocs(;
         "Introduction" => "index.md",
         "Usage" => "usage.md",
         "Distributed" => "distributed.md",
+        "Reference" => ["public_api.md","types.md","functions.md"]
     ],
     sitename="STLCutters.jl",
 )

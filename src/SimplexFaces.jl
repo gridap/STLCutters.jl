@@ -6,25 +6,58 @@
 """
 abstract type Face{Df,Dp} end
 
+"""
+    struct Segment{D,T}<:Face{1,D}
+
+  1-dimensional Face defined by two points.
+"""
 struct Segment{D,T}<:Face{1,D}
   vertices::Tuple{Point{D,T},Point{D,T}}
 end
 
+
+"""
+    struct Triangle{D,T}<:Face{2,D}
+
+  2-dimensional simplex Face defined by three points.
+"""
 struct Triangle{D,T}<:Face{2,D}
   vertices::Tuple{Point{D,T},Point{D,T},Point{D,T}}
 end
 
+"""
+    struct Tetrahedron{D,T}<:Face{3,D}
+
+  3-dimensional simplex Face defined by four points.
+"""
 struct Tetrahedron{D,T}<:Face{3,D}
   vertices::Tuple{Point{D,T},Point{D,T},Point{D,T},Point{D,T}}
 end
 
+
+"""
+    abstract type AbstractPlane
+
+  Plane type used to compute intersections. It can be accessed by
+  [`normal`](@ref) and [`origin`](@ref).
+"""
 abstract type AbstractPlane{D,T} end
 
+"""
+    struct Plane{D,T}<:AbstractPlane{D,T}
+
+  Plane defined by an origin point and a normal vector.
+"""
 struct Plane{D,T} <: AbstractPlane{D,T}
   origin::Point{D,T}
   normal::VectorValue{D,T}
 end
 
+"""
+    struct CartesianPlane{D,T}<:AbstractPlane{D,T}
+
+  Plane defined by a Cartesian axis and one single Cartesian coordinate.
+"""
 struct CartesianPlane{D,T} <: AbstractPlane{D,T}
   d::Int8
   value::T
@@ -52,6 +85,24 @@ function CartesianPlane(p::Point{D},d::Integer,orientation::Integer) where D
 end
 
 # Getters
+
+"""
+    origin(a::Plane)
+
+  It returns the origin point of a plane
+"""
+function origin(::AbstractPlane)
+  @abstractmethod
+end
+
+"""
+    normal(a::Plane)
+
+  It returns the normal vector of a plane
+"""
+function normal(::AbstractPlane)
+  @abstractmethod
+end
 
 origin(a::Plane) = a.origin
 
@@ -84,6 +135,11 @@ Base.getindex(a::Tetrahedron,i::Integer) = a.vertices[i]
 
 Base.lastindex(a::Face) = num_vertices(a)
 
+"""
+    get_polytope(f::Face)
+
+  It returns the Gridap Polytope that defines the Face `f`.
+"""
 function get_polytope(::Face)
   @abstractmethod
 end
@@ -136,6 +192,11 @@ get_facet(a::Face{D},facet::Integer) where D = get_dface(a,facet,Val{D-1}())
 
 get_cell(a::Face) = a
 
+"""
+    get_dface(f::Face,i::Integer,::Val{d})
+
+  It returns the `i`th d-face of a face `f`. E.g., vertex, edge, facet, cell.
+"""
 @inline function get_dface(a::Face,dface::Integer,::Val{d}) where d
   @notimplementedif !is_simplex(a)
   p = get_polytope(a)
@@ -152,6 +213,12 @@ is_simplex(a::Face) = is_simplex(get_polytope(a))
 
 is_n_cube(a::Face) = is_n_cube(get_polytope(a))
 
+"""
+    simplex_face(x::Point...)
+
+  It returns a simplex face from a list (or a tuple) of points. The dimension of
+  the simplex is N+1, where N is the number of points.
+"""
 simplex_face(v::Point...) = simplex_face(v)
 
 function simplex_face(coords::AbstractVector{<:Point{D}}) where D
@@ -178,6 +245,11 @@ function is_cartesian(f::Face)
   false
 end
 
+"""
+    center(a::Face)
+
+  It returns the centroid of a face as the average of its vertices.
+"""
 function center(a::Face)
   c = zero( typeof(a[1]) )
   for i in 1:num_vertices(a)
@@ -190,6 +262,12 @@ center(a::Point) = a
 
 center(a::Plane) = origin(a)
 
+"""
+    normal(a::Face[,i])
+
+  It returns the normal vector of a face (or its i-th facet). Note, that the
+  normal is only defined for D-1 faces.
+"""
 function normal(::Face)
   @notimplemented
 end
@@ -243,6 +321,12 @@ function normal(f::Face{2,3},facet::Integer)
   n × v
 end
 
+
+"""
+    measure(f::Face)
+
+  It returns the measure of a face. E.g., the length, the area or the volume.
+"""
 function measure(f::Face)
   @notimplementedif !is_simplex(f)
   simplex_measure(f)
@@ -293,6 +377,13 @@ end
 
 volume(f::Face{D,D}) where D = measure(f)
 
+
+"""
+    min_height(f::Face)
+
+  It returns the minimum height of a face, i.e., the minimum distance between
+  two opposite entities of the face.
+"""
 function min_height(e::Face{1})
   length(e)
 end
@@ -339,6 +430,11 @@ end
 
 # Distances
 
+"""
+    signed_distance(p::Point,Π::AbstractPlane)
+
+  It returns the signed distance between a point and a plane.
+"""
 function signed_distance(p::Point,Π::Plane)
   o = origin( Π )
   n = normal( Π )
@@ -349,6 +445,11 @@ function signed_distance(point::Point{D},Π::CartesianPlane{D}) where D
   Π.positive ? point[Π.d] - Π.value : Π.value - point[Π.d]
 end
 
+"""
+    distance(a,b)
+
+  It returns the minimum absolute distance between two entities (Face or Point).
+"""
 distance(a::Point,b::Point) =  norm( a - b )
 
 distance(s::Face{1},p::Point) = distance(p,s)
@@ -378,6 +479,13 @@ end
 
 distance(f::Face,p::Point) = distance(p,f)
 
+
+"""
+    distance_to_infinite_face(f::Face,p::Point)
+
+  It returns the minimum distance between a point and the space
+  where the face belongs.
+"""
 function distance_to_infinite_face(a::Point{D},b::Point{D}) where D
   distance(a,b)
 end
@@ -396,6 +504,11 @@ end
 
 distance_to_infinite_face(a::Face{D,D},b::Point{D}) where D = 0.0
 
+"""
+    distance_to_infinite_face(f::Face,p::Point)
+
+  It returns the minimum distance between a point and the boundary of a face.
+"""
 function distance_to_boundary(a::Face,b::Point)
   min_dist = Inf
   for i in 1:num_facets(a)
@@ -410,6 +523,12 @@ function distance_to_boundary(a::Face,b::Point)
   min_dist
 end
 
+"""
+    closest_point(p::Point,f::Face)
+
+  It returns the closest point in a face to a point. It returns the projection
+  if it is inside the face, otherwise it returns the projection to the boundary.
+"""
 function closest_point(p::Point{Dp},f::Face{Df,Dp}) where {Df,Dp}
   if contains_projection(f,p)
     projection(p,f)
@@ -420,6 +539,11 @@ end
 
 closest_point(p::Point,f::Point) = f
 
+"""
+closest_point_to_boundary(p::Point,f::Face)
+
+  It returns the closest point in in the boundary of `f` to a point `p`.
+"""
 function closest_point_to_boundary(a::Face,b::Point)
   min_dist = Inf
   closest_p = b
@@ -440,6 +564,11 @@ end
 
 # Projections
 
+"""
+    projection(p::Point,f::Face)
+
+  It returns the projection of a point `p` to the infinite space of `f`.
+"""
 function projection(p::Point{D},q::Point{D}) where D
   q
 end
@@ -468,6 +597,11 @@ function projection(p::Point,Π::CartesianPlane)
   Point( Base.setindex(Tuple(p),Π.value,Π.d) )
 end
 
+"""
+    contains_projection(f::Face,p::Point)
+
+  Check is the [`projection`](@ref) of a point `p` is inside a face `f`.
+"""
 function contains_projection(f::Face,p::Point)
   for i in 1:num_facets(f)
     facet = get_facet(f,i)
@@ -482,6 +616,13 @@ function contains_projection(f::Face,p::Point)
   true
 end
 
+"""
+    intersection_point(a,b)
+
+  It returns the intersection point of two faces, or a face and a plane. The
+  intersection point is only well defined if `num_dims(a)+num_dims(b)-D=0`,
+  where `D` is the dimension of the space.
+"""
 function intersection_point(f::Face{1,D},p::AbstractPlane{D}) where D
   v1 = f[1]
   v2 = f[2]
@@ -507,6 +648,11 @@ function _intersection_point(e::Face{1},f::Face)
   intersection_point(e,plane)
 end
 
+"""
+    expand_face(f::Face,dist)
+
+  Move the vertices of the face `f` a distance `dist` from the center of `f`
+"""
 function expand_face(f::Face,dist::Real)
   Dc = num_dims(f)
   if is_simplex(f)
@@ -543,6 +689,11 @@ end
 
 # General predicates
 
+"""
+    has_intersection(a::Face,b::Face)
+
+  Predicate that checks if two faces intersect.
+"""
 function has_intersection(a::Face,b::Face)
   Dp = num_point_dims(a)
   pa = get_polytope(a)
@@ -560,6 +711,11 @@ function has_intersection(a::Face,b::Face)
   false
 end
 
+"""
+    has_intersection(a::Face,b::Face)
+
+  Predicate that checks if two faces intersect in a point.
+"""
 function has_intersection_point(p::Point,f::Face{D,D}) where D
   contains_projection(f,p)
 end
@@ -596,6 +752,16 @@ end
 
 # Voxel predicates
 
+"""
+    voxel_intersection(f::Face,pmin::Point,pmax::Point,p::Polytope)
+
+  Predicate that checks if a face intersects by a voxel. Here, a voxel is a
+  hypercube defined by its extrema (`pmin` and `pmax`).
+
+!!! note
+      This function can return **false positives.**
+
+"""
 function voxel_intersection(f::Face{1,2},pmin::Point,pmax::Point,p::Polytope)
   D = num_point_dims(f)
   for i in 1:num_vertices(f)
@@ -725,6 +891,12 @@ end
 
 # Compute planes
 
+"""
+    bisector_plane(e::Face,Π1::AbstractPlane,Π2::AbstractPlane)
+
+  It returns the bisector plane between two planes. The bisector contains the
+  edge `e`.
+"""
 function bisector_plane(edge::Face{1,3},Π1::AbstractPlane,Π2::AbstractPlane)
   n1 = normal(Π1)
   n2 = normal(Π2)
@@ -745,6 +917,7 @@ function bisector_plane(edge::Face{1,3},Π1::AbstractPlane,Π2::AbstractPlane)
   Plane(c,n)
 end
 
+
 function get_cell_planes(p::Polytope,pmin::Point,pmax::Point)
   @notimplementedif !is_n_cube(p)
   D = num_dims(p)
@@ -758,6 +931,13 @@ function get_cell_planes(p::Polytope,pmin::Point,pmax::Point)
   Π_cell, Π_ids, Π_inout
 end
 
+"""
+    get_cell_planes(p::Polytope,coords::AbstractVector{<:Point})
+
+  It returns a list of planes bounding a cell. The cell is defind by
+  a Polytope and a list of coordinates.  If the cell is a voxel, the
+  bounding planes are [`CartesianPlane`](@ref).
+"""
 function get_cell_planes(p::Polytope,coords)
   if is_simplex(p)
     f = simplex_face(coords)
@@ -781,6 +961,12 @@ function get_cell_planes(face::Face)
   planes,ids,mask
 end
 
+"""
+    displace(plane::AbstractPlane,dist[,oriented=true])
+
+  Move a plane a distance `dist` along its normal vector.
+  If `oriented` is `false`, move a distance `-dist`.
+"""
 function displace(plane::Plane,dist,oriented=true)
   c0 = center(plane)
   n0 = normal(plane)
@@ -799,6 +985,12 @@ function displace(plane::CartesianPlane,dist,oriented=true)
   CartesianPlane(c,d,dir)
 end
 
+"""
+    explan_planes(planes::AbstractVector{<:AbstractPlane},mask,dist)
+
+  Move a list of planes a distance `dist` along their normal vectors. If the
+  mask entries are `false`, the planes are moved a distance `-dist`.
+"""
 function expand_planes(
   planes::AbstractVector{<:AbstractPlane},
   inout::AbstractVector,
@@ -823,6 +1015,11 @@ end
 
 ## Orthogonal
 
+"""
+    orthogonal(a::VectorValue{D}...)
+
+  It returns the orthogonal vector to a list of D-1 vectors.
+"""
 function orthogonal(a::VectorValue{2})
   VectorValue( -a[2], a[1] )
 end

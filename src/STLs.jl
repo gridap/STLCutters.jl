@@ -524,7 +524,7 @@ function _map_equal_vertices(stl::DiscreteModel;atol)
 end
 
 """
-   _map_equal_vertices_from_cloud(stl::DiscreteModel;atol])
+    _map_equal_vertices_from_cloud(stl::DiscreteModel;atol])
 
   Find vertices closer than a tolerance `atol`. It returns a vector from each
   vector to the index of a vertex which is closer than `atol`.
@@ -1143,8 +1143,8 @@ end
   It is designed to filter the STL faces (in `b`) colliding each background cell
   in `a`. The output is a vector of vectors.
 
-
-  Note that this function allows **false positives**.
+!!! note
+    This function allows **false positives**.
 """
 function compute_cell_to_facets(model_a::DiscreteModel,grid_b,args...)
   grid_a = get_grid(model_a)
@@ -1158,7 +1158,8 @@ end
   each cell in `a` using optimizations for a `CartesianGrid`.
   The output is a vector of vectors.
 
-  Note that this function allows **false positives**.
+  !!! note
+  This function allows **false positives**.
 """
 function compute_cell_to_facets(
   grid::CartesianGrid,
@@ -1211,7 +1212,8 @@ end
   each cell in `a:CartesianPortion`.
   The output is a vector of vectors.
 
-  Note that this function allows **false positives**.
+!!! note
+    This function allows **false positives**.
 """
 function compute_cell_to_facets(grid::GridPortion,stl)
   pgrid = grid.parent
@@ -1227,9 +1229,12 @@ end
   [`compute_cell_to_facets`](@ref) computes the cells in `b` colliding
   each cell in `a:UnstructuredGrid`. The output is a vector of vectors.
 
-  Note that this function uses a `CartesianGrid` internally. It is not optimized
+!!! note
+  This function uses a `CartesianGrid` internally. It is not optimized
   for higly irregular grids.
-  Also note that that this function allows **false positives**.
+
+!!! note
+    This function allows **false positives**.
 """
 function compute_cell_to_facets(a::UnstructuredGrid,b,a_mask=Trues(num_cells(a)))
   tmp = cartesian_bounding_model(a)
@@ -1416,7 +1421,9 @@ end
     download_thingi10k(id;path"")
 
 Dowloads surface model from [thingiverse](https://www.thingiverse.com)
-indexed by FileID at [Thingi10K](https://ten-thousand-models.appspot.com)
+indexed by FileID at [Thingi10K](https://ten-thousand-models.appspot.com).
+
+It returns the path to the downloaded file.
 
 # Example
 
