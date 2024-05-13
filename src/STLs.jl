@@ -1,4 +1,12 @@
 
+
+"""
+    struct STLTopology{Dc,Dp,T} <: GridTopology{Dc,D}
+
+  [`STLTopology`](@ref) is a `Gridap.GridTopology` without lazy arrays.
+  It reduces computations when accessing their properties. It is used to
+  save the STL geometries. It is alliased as [`STL`](@ref).
+"""
 struct STLTopology{Dc,Dp,T} <: GridTopology{Dc,Dp}
   vertex_to_coordinates::Vector{Point{Dp,T}}
   n_m_to_nface_to_mfaces::Matrix{Table{Int32,Vector{Int32},Vector{Int32}}}
@@ -7,6 +15,11 @@ struct STLTopology{Dc,Dp,T} <: GridTopology{Dc,Dp}
   offsets::Vector{Int32}
 end
 
+"""
+    const STL = STLTopology
+
+  Alias [`STLTopology`](@ref) as `STL`.
+"""
 const STL = STLTopology
 
 function STL(model::DiscreteModel)
@@ -76,10 +89,21 @@ function get_face_vertices(stl::STL{D}) where D
   f_to_v
 end
 
+"""
+    get_cell!(cache,stl::STL,i::Integer)
+
+  Get a cell as a [`Face`](@ref).
+  It requires [`get_cell_cache`](@ref) to be allocate the cache.
+"""
 function get_cell!(c,stl::STL{Dc},i::Integer) where Dc
   get_dface!(c,stl,i,Val{Dc}())
 end
 
+"""
+    get_dface!(cache,stl::STL,i::Integer,::Val{d})
+
+  Get a face as a [`Face`](@ref)
+"""
 function get_dface!(c,stl::STL,i::Integer,::Val{d}) where d
   T = get_face_vertices(stl,d)
   X = get_vertex_coordinates(stl)
@@ -87,15 +111,30 @@ function get_dface!(c,stl::STL,i::Integer,::Val{d}) where d
   get_dface!(c,X,T,p,i,Val{d}())
 end
 
+"""
+    get_cell(stl::STL,i::Integer)
+
+  Get a cell as a [`Face`](@ref).
+"""
 function get_cell(stl::STL,i::Integer)
   c = get_cell_cache(stl)
   get_cell!(c,stl,i)
 end
 
+"""
+    get_cell_cache(stl::STL)
+
+  Allocate cache for [`get_cell!`](@ref).
+"""
 function get_cell_cache(stl::STL{Dc}) where Dc
   get_dface_cache(stl,Dc)
 end
 
+"""
+    get_dface_cache(stl::STL,d::Integer)
+
+  Allocate cache for [`get_dface!`](@ref).
+"""
 function get_dface_cache(stl::STL,d::Integer)
   T = get_face_vertices(stl,d)
   array_cache(T)
@@ -116,6 +155,11 @@ function get_simplex_dface!(cache,X,T,i::Integer,::Val{d}) where d
   simplex_face( vertices )
 end
 
+"""
+    is_open_surface(topo::GridTopology)
+
+  Predicate to check if a surface is water tight.
+"""
 function is_open_surface(stl::GridTopology)
   Dc = num_dims(stl)
   e_to_f = get_faces(stl,Dc-1,Dc)
@@ -124,8 +168,14 @@ function is_open_surface(stl::GridTopology)
   true
 end
 
-# Read STL from file
+"""
+    read_stl(filename)
 
+  Read STL file with `MeshIO.jl` and `Gridap.jl` arrays:
+  - `vertex_to_coordinates` is a vector of `Point{3,Float64}`
+  - `facet_to_vertices` is a `Gridap.Table` of `Int`
+  - `facet_to_normals` is a vector of `VectorValue{3,Float64}`
+"""
 function read_stl(filename::String)
   mesh = _load(filename)
   vertex_to_coordinates = MeshIO.decompose(MeshIO.Point3,mesh)
@@ -174,7 +224,11 @@ function Base.convert(::Type{Vector{T}},x::MeshIO.TriangleFace) where T
 end
 
 # Save STL to file
+"""
+    save_as_stl(stl::DiscreteModel,filename)
 
+  Save `DiscreteModel{2,3}` into a STL file.
+"""
 function save_as_stl(stl::DiscreteModel{Dc,Dp},filename) where {Dc,Dp}
   (Dc == 2 && Dp == 3 ) || error("Geometry incompatible with STL format")
   filename *= ".stl"
@@ -201,6 +255,13 @@ function save_as_stl(stl::DiscreteModel{Dc,Dp},filename) where {Dc,Dp}
   filename
 end
 
+
+"""
+    save_as_stl(stl::Vector{<:DiscreteModel},filename)
+
+  Save a list of `DiscreteModel{2,3}` into STL files. It save the files as
+  `filename_1.stl`, `filename_2.stl`,..., `filename_n.stl``.
+"""
 function save_as_stl(stls::Vector{<:DiscreteModel},filename)
   files = []
   for (i,stl) in enumerate(stls)
@@ -270,6 +331,14 @@ function get_cell(stl::DiscreteModel{Dc},cell::Integer) where Dc
   get_dface(stl,cell,Val{Dc}())
 end
 
+"""
+    closest_point!(cache,point::Point,stl::DiscreteModel,[faces])
+
+  It returns the closest point to `point` in the `stl`.
+
+  # Optional arguments
+  - `faces::Vector{Int}`: List of faces to search the closest point.
+"""
 function closest_point!(cache,p::Point,stl::DiscreteModel,cells=1:num_cells(stl))
   dist = Inf
   closest_p = p
@@ -285,6 +354,16 @@ function closest_point!(cache,p::Point,stl::DiscreteModel,cells=1:num_cells(stl)
   closest_p
 end
 
+"""
+    closest_point(points,stl::DiscreteModel)
+
+  It returns an array of `Point` which are the
+  [`closest_point!`](@ref) in the `stl` for each
+  element in `points` .
+
+  # Optional arguments
+  - `point_to_faces`: Vector of vectors of the `stl` faces to search for each point.
+"""
 function closest_point(coords::AbstractVector{<:Point},stl::DiscreteModel)
   cache = get_cell_cache(stl)
   map(coords) do x
@@ -303,7 +382,14 @@ function closest_point(
   end
 end
 
+"""
+    Base.eps(T::Type{<:AbstractFloat},grid::Grid)
+
+  Return the machine roundoff error of a `Grid`. It returns `eps()` of the
+  maximum length of the bounding box of the `Grid`.
+"""
 function Base.eps(T::Type{<:AbstractFloat},grid::Grid)
+  num_cells(grid) > 0 || return zero(T)
   pmin,pmax = get_bounding_box(grid)
   vmax = max(abs.(Tuple(pmin))...,abs.(Tuple(pmax))...)
   eps(T(vmax))
@@ -313,6 +399,12 @@ Base.eps(grid::Grid) = eps(Float64,grid)
 
 Base.eps(model::DiscreteModel) = eps(get_grid(model))
 
+"""
+    compute_stl_model(coordinates,connectivity)
+
+  Compute a `DiscreteModel` from `coordinates` and `connectivity`. It assumes
+  that the model is surface composed of simplex faces.
+"""
 function compute_stl_model(
   vertex_to_coordinates::Vector{<:Point{D}},
   cell_to_vertices::Table) where D
@@ -321,6 +413,12 @@ function compute_stl_model(
   compute_model(vertex_to_coordinates,cell_to_vertices,p)
 end
 
+"""
+    compute_model(coordinates,connectivity,polytope)
+
+  Compute a `DiscreteModel` from `coordinates`, `connectivity` and `polytope`.
+  It assumes that all the cells of the model have the same polytope.
+"""
 function compute_model(
   vertex_to_coordinates::Vector{<:Point},
   cell_to_vertices::Table,
@@ -330,6 +428,12 @@ function compute_model(
   UnstructuredDiscreteModel(grid)
 end
 
+"""
+    compute_grid(coordinates,connectivity,polytope)
+
+  Compute a `Grid` from `coordinates`, `connectivity` and `polytope`.
+  It assumes that all the cells of the grid have the same polytope.
+"""
 function compute_grid(
   node_to_coordinates::Vector{<:Point},
   cell_to_nodes::AbstractArray,
@@ -342,6 +446,12 @@ function compute_grid(
   UnstructuredGrid(X,T,reffes,cell_types)
 end
 
+"""
+    merge_and_collapse(stl::DiscreteModel)
+
+  Merge close nodes and collapse small facets (convert into points or edges)
+  of the `stl`.
+"""
 function merge_and_collapse(stl::DiscreteModel;atol=eps(Float32,stl))
   stl = merge_nodes(stl;atol)
   collapse_small_facets!(stl;atol)
@@ -350,6 +460,11 @@ function merge_and_collapse(stl::DiscreteModel;atol=eps(Float32,stl))
   preprocess_small_facets(stl;atol)
 end
 
+"""
+    collapse_small_facets!(stl::DiscreteModel)
+
+  Convert small facets of the `stl` into edges or points.
+"""
 function collapse_small_facets!(stl::DiscreteModel;atol)
   D = num_dims(stl)
   stl_topo = get_grid_topology(stl)
@@ -378,11 +493,21 @@ function collapse_small_facets!(stl::DiscreteModel;atol)
   stl
 end
 
+"""
+    merge_nodes(stl::DiscreteModel [,atol])
+
+  Merge close nodes of the `stl` which are closer than a tolerance `atol`.
+"""
 function merge_nodes(stl::DiscreteModel;atol=eps(Float32,stl))
   X,T = delete_repeated_vertices(stl;atol)
   compute_stl_model(X,T)
 end
 
+"""
+    delete_repeated_vertices(stl::DiscreteModel [,atol])
+
+  Find vertices closer than a tolerance `atol` and delete the repeated ones.
+"""
 function delete_repeated_vertices(stl::DiscreteModel;atol)
   vertex_to_equal = _map_equal_vertices(stl;atol)
   topo = get_grid_topology(stl)
@@ -398,6 +523,15 @@ function _map_equal_vertices(stl::DiscreteModel;atol)
   _map_equal_vertices_from_cloud(stl;atol)
 end
 
+"""
+    _map_equal_vertices_from_cloud(stl::DiscreteModel;atol])
+
+  Find vertices closer than a tolerance `atol`. It returns a vector from each
+  vector to the index of a vertex which is closer than `atol`.
+
+  In order to find the vertices without quadratic complexity, it requires
+  to group the vertices in a grid  with an arbitrary tolerance `> atol`.
+"""
 function _map_equal_vertices_from_cloud(stlmodel::DiscreteModel;atol)
   stl = get_grid(stlmodel)
   group_to_vertices =  _group_vertices(stl;atol=atol*10)
@@ -458,6 +592,15 @@ function _num_uniques(a::AbstractVector)
   c
 end
 
+"""
+    _group_vertices(grid::Grid;atol)
+
+  Group a list of vertices which are closer than `atol`.
+  It returns a vector of vectors with the indices of grouped vertices.
+
+  To perform the classification, this function utilizes an auxiliar
+  `CartesianGrid` of size `h>atol`.
+"""
 function _group_vertices(stl::Grid{Dc,D};atol) where {Dc,D}
   min_length = _compute_min_length(stl;atol)
   digits = -Int(floor(log10(min_length)))
@@ -500,6 +643,14 @@ function _compute_min_length(mesh::Grid;atol)
   min_length
 end
 
+"""
+    preprocess_small_facets(stl::DiscreteModel;atol)
+
+  Fix small facet problems of a quasi-degenerated stl.
+
+  If an edge and an opposite vertes are closer than `atol`, the edge and the
+  face are split. The conformity is kept in the surrounding faces.
+"""
 function preprocess_small_facets(stl::DiscreteModel;atol)
   @notimplementedif !is_edge_manifold(stl) "The geometry is not edge manifold"
   @notimplementedif !is_water_tight(stl) "The geometry is not watter tight"
@@ -633,6 +784,12 @@ function get_hanging_vertices_and_edges(stl::DiscreteModel{Dc};atol) where Dc
   hanging_vertices,cut_edges
 end
 
+
+"""
+    split_disconnected_parts(stl::DiscreteModel)
+
+  Given a `stl` with disconnected parts, it returns an array of `DiscreteModel`.
+"""
 function split_disconnected_parts(stl::DiscreteModel)
   Dc = num_dims(stl)
   f_to_v = get_faces(get_grid_topology(stl),Dc,0)
@@ -677,6 +834,25 @@ function split_disconnected_parts(stl::DiscreteModel)
   stls
 end
 
+
+"""
+    check_requisites(stl::DiscreteModel,bgmodel::DiscreteModel)
+
+  Check if the `stl` meets the requirements to be used in the cutter.
+
+  # Keyword arguments
+  - `verbose::Bool=false`: Print the results of the check.
+  - `max_num_facets::Int=10000`: Maximum number of facets per background cell.
+
+  # The requirements are the following:
+  - Is a surface
+  - Is vertex manifold
+  - Is edge manifold
+  - Is water tight
+  - Has no sharp edges
+  - Has number of STL faces per background cell less than a `max_num_facets`
+    (default is 10000)
+"""
 function check_requisites(stl::DiscreteModel,bgmodel::DiscreteModel;
   verbose=false,max_num_facets=10000)
 
@@ -762,7 +938,6 @@ function is_edge_manifold(stlmodel::DiscreteModel{2,3})
   maximum(e->length(getindex!(c,e_to_f,e)),1:length(e_to_f)) ≤ 2
 end
 
-
 function max_num_facets_per_bgcell(stlmodel,bgmodel)
   stl = STL(stlmodel)
   grid = get_grid(bgmodel)
@@ -835,6 +1010,12 @@ function is_surface(::GridTopology{Dc,Dp}) where {Dc,Dp}
   Dc == Dp-1
 end
 
+"""
+    measure(a::Grid,mask)
+
+  Compute the sum of the cell measures of a grid. It only considers the
+  cells which are `true` in the `mask`.
+"""
 function measure(a::Grid,mask)
   m = BigFloat(0.0,precision=128)
   p = get_polytope(only(get_reffes(a)))
@@ -863,11 +1044,22 @@ function measure(a::Grid,cell_to_val,val)
 end
 
 function measure(a::Grid)
-  measure(a,lazy_map(i->true,1:num_cells(a)))
+  measure(a,Trues(1:num_cells(a)))
 end
 
+"""
+    volume(a::Grid)
+
+  Compute the volume of a grid. It returns the [`measure`](@ref) of the grid.
+"""
 volume(a::Grid{D,D},args...) where D = measure(a,args...)
 
+"""
+    surface(a::Grid)
+
+  Compute the surface of a grid. It returns the [`measure`](@ref) of a surface
+  grid, i.e-, Dc=D-1.
+"""
 function surface(a::Grid{Df,Dp},args...) where {Df,Dp}
   @notimplementedif Df ≠ Dp-1
   measure(a,args...)
@@ -888,6 +1080,11 @@ function surfaces(a::Grid{Df,Dp},args...) where {Df,Dp}
   measures(a,args...)
 end
 
+"""
+    min_height(grid::Grid)
+
+  Compute the minimum of minimum heights of the cells of a grid.
+"""
 function min_height(grid::Grid)
   min_h = Inf
   c = get_cell_cache(grid)
@@ -903,6 +1100,11 @@ end
 
 min_height(model::DiscreteModel) = min_height(get_grid(model))
 
+"""
+    max_length(grid::Grid)
+
+  Compute the maximum of maximum length of the cells of a grid.
+"""
 function max_length(grid::Grid)
   max_len = 0.0
   c = get_cell_cache(grid)
@@ -934,19 +1136,42 @@ function measure(a::CartesianGrid{D,T,typeof(identity)},mask) where {D,T}
   cell_vol * count(mask)
 end
 
-function compute_cell_to_facets(model_a::DiscreteModel,grid_b)
+"""
+    compute_cell_to_facets(a::DiscreteModel,b::Grid,args...)
+
+  Compute a map of cells in `a` to the cells in `b` which potentially intersect.
+  It is designed to filter the STL faces (in `b`) colliding each background cell
+  in `a`. The output is a vector of vectors.
+
+!!! note
+    This function allows **false positives**.
+"""
+function compute_cell_to_facets(model_a::DiscreteModel,grid_b,args...)
   grid_a = get_grid(model_a)
-  compute_cell_to_facets(grid_a,grid_b)
+  compute_cell_to_facets(grid_a,grid_b,args...)
 end
 
+"""
+    compute_cell_to_facets(a::CartesianGrid,b::Grid[,a_mask,b_mask])
 
-function compute_cell_to_facets(grid::CartesianGrid,stl)
+  [`compute_cell_to_facets`](@ref) computes the cells in `b` colliding
+  each cell in `a` using optimizations for a `CartesianGrid`.
+  The output is a vector of vectors.
+
+  !!! note
+  This function allows **false positives**.
+"""
+function compute_cell_to_facets(
+  grid::CartesianGrid,
+  stl,
+  cell_mask=Trues(num_cells(grid)),
+  facet_mask=Trues(num_cells(stl)))
+
   CELL_EXPANSION_FACTOR = 1e-3
   desc = get_cartesian_descriptor(grid)
   @assert length(get_reffes(grid)) == 1
   p = get_polytope(get_cell_reffe(grid)[1])
   @notimplementedif desc.map !== identity
-  cell_to_stl_facets = [ Int32[] for _ in 1:num_cells(grid) ]
   n = Threads.nthreads()
   thread_to_cells = [ Int32[] for _ in 1:n ]
   thread_to_stl_facets = [ Int32[] for _ in 1:n ]
@@ -956,12 +1181,14 @@ function compute_cell_to_facets(grid::CartesianGrid,stl)
   c = [ ( get_cell_cache(stl), array_cache(cell_to_nodes) ) for _ in 1:n ]
   δ = CELL_EXPANSION_FACTOR
   Threads.@threads for stl_facet in 1:num_cells(stl)
+    facet_mask[stl_facet] || continue
     i = Threads.threadid()
     cc,nc = c[i]
     f = get_cell!(cc,stl,stl_facet)
     pmin,pmax = get_bounding_box(f)
     for cid in get_cells_around(desc,pmin,pmax)
       cell = LinearIndices(desc.partition)[cid.I...]
+      cell_mask[cell] || continue
       nodes = getindex!(nc,cell_to_nodes,cell)
       _pmin = coords[nodes[1]]
       _pmax = coords[nodes[end]]
@@ -978,9 +1205,40 @@ function compute_cell_to_facets(grid::CartesianGrid,stl)
   assemble_threaded_sparse_map(thread_to_cells,thread_to_stl_facets,ncells)
 end
 
-function compute_cell_to_facets(a::UnstructuredGrid,b)
+"""
+    compute_cell_to_facets(a::CartesianPortion,b::Grid)
+
+  [`compute_cell_to_facets`](@ref) computes the cells in `b` colliding
+  each cell in `a:CartesianPortion`.
+  The output is a vector of vectors.
+
+!!! note
+    This function allows **false positives**.
+"""
+function compute_cell_to_facets(grid::GridPortion,stl)
+  pgrid = grid.parent
+  pcell_mask = falses(num_cells(pgrid))
+  pcell_mask[grid.cell_to_parent_cell] .= true
+  pcell_to_facets = compute_cell_to_facets(pgrid,stl,pcell_mask)
+  map(Reindex(pcell_to_facets),grid.cell_to_parent_cell)
+end
+
+"""
+    compute_cell_to_facets(a::UnstructuredGrid,b::Grid[,a_mask])
+
+  [`compute_cell_to_facets`](@ref) computes the cells in `b` colliding
+  each cell in `a:UnstructuredGrid`. The output is a vector of vectors.
+
+!!! note
+  This function uses a `CartesianGrid` internally. It is not optimized
+  for higly irregular grids.
+
+!!! note
+    This function allows **false positives**.
+"""
+function compute_cell_to_facets(a::UnstructuredGrid,b,a_mask=Trues(num_cells(a)))
   tmp = cartesian_bounding_model(a)
-  tmp_to_a = compute_cell_to_facets(tmp,a)
+  tmp_to_a = compute_cell_to_facets(tmp,a,Trues(num_cells(tmp)),a_mask)
   tmp_to_b = compute_cell_to_facets(tmp,b)
   a_to_tmp = inverse_index_map(tmp_to_a,num_cells(a))
   a_to_b = compose_index_map(a_to_tmp,tmp_to_b)
@@ -1127,6 +1385,18 @@ function bisector_plane!(
   bisector_plane(edge,Π1,Π2)
 end
 
+"""
+    bisector_plane(stl::STL,d::Integer,dface::Integer,Πf::AbstractArray)
+
+  Compute the bisector plane of two facets in a `STL` model. The two facets
+  must be connected by a `STL` edge (`dface`).
+
+  # Arguments
+  - `stl::STL`: The surface model.
+  - `d::Integer`: The dimension of the edge (0 for 2D, 1 for 3D).
+  - `dface::Integer`: The index of the edge.
+  - `Πf::AbstractArray`: The array of planes of the facets of the STL
+"""
 function bisector_plane(
    stl::STL,
    d::Integer,
@@ -1148,12 +1418,20 @@ end
 # Testing helpers
 
 """
-  download_thingi10k(id;path"")
+    download_thingi10k(id;path"")
 
 Dowloads surface model from [thingiverse](https://www.thingiverse.com)
-indexed by FileID at [Thingi10K](https://ten-thousand-models.appspot.com)
-"""
+indexed by FileID at [Thingi10K](https://ten-thousand-models.appspot.com).
 
+It returns the path to the downloaded file.
+
+# Example
+
+```@repl
+julia> download_thingi10k(293137)
+"293137.stl"
+```
+"""
 function download_thingi10k(id;path="")
   url = "https://www.thingiverse.com/download:$id"
   r = Downloads.request(url)
@@ -1171,14 +1449,13 @@ function download_thingi10k(id;path="")
 end
 
 """
-  compute_cartesian_descriptor(pmin,pmax;nmin,nmax)
+    compute_cartesian_descriptor(pmin,pmax;nmin,nmax)
 
 Compute `CartesianDescriptor` in a bounding box
 with the same cell size (h) in all directions:
 
   h = min( max((pmin-pmax)/nmax), min((pmax-pmin)/nmin) )
 """
-
 function compute_cartesian_descriptor(pmin::Point,pmax::Point;kwargs...)
   CartesianDescriptor( _compute_cartesian_description(pmin,pmax;kwargs...) ... )
 end

@@ -1,4 +1,18 @@
 
+const UNDEF = -10
+
+"""
+    struct STLGeometry <: GridapEmbedded.CSG.Geometry
+
+Object that stores the SLT geometry.
+
+# Example
+```@repl
+julia> filename = download_thingi10k(293137)
+julia> geo = STLGeometry(filename)
+julia> writevtk(geo,"geo")
+```
+"""
 struct STLGeometry <: CSG.Geometry
   tree::Leaf{Tuple{T,String,Nothing}} where T<:DiscreteModel
 end
@@ -51,11 +65,22 @@ function compute_bgcell_to_inoutcut(
   compute_bgcell_to_inoutcut(cut.cut,geo)
 end
 
+function compute_bgcell_to_inoutcut(cut::STLEmbeddedDiscretization)
+
+  geo = get_geometry(cut)
+  compute_bgcell_to_inoutcut(cut,geo)
+end
+
 function compute_bgfacet_to_inoutcut(
   cut::STLEmbeddedDiscretization,
   geo::STLGeometry)
 
   compute_bgfacet_to_inoutcut(cut.cutfacets,geo)
+end
+
+function compute_bgfacet_to_inoutcut(cut::STLEmbeddedDiscretization)
+  geo = get_geometry(cut)
+  compute_bgfacet_to_inoutcut(cut,geo)
 end
 
 function Triangulation(cut::STLEmbeddedDiscretization,args...)
@@ -77,11 +102,40 @@ function GhostSkeleton(cut::STLEmbeddedDiscretization,args...)
   GhostSkeleton(cut.cut,args...)
 end
 
+"""
+    struct STLCutter <: GridapEmbedded.Interfaces.Cutter
+
+  Cutter type for STLGeometries, it stores the keyword arguments of
+  [`subtriangulate`](@ref).
+"""
 struct STLCutter <: Interfaces.Cutter
   options::Dict{Symbol,Any}
   STLCutter(;options...) = new(options)
 end
 
+"""
+    cut([cutter::STLCutter,]model::DiscreteModel,geo::STLGeometry)
+
+
+Main interface of GridapEmbedded. It intersect each cell in `model` with the
+geometry `geo`. It returns an embedded discretization.
+
+# Usage
+The basic usage is to call `cut` with a model and a geometry.
+```@example
+cutgeo = cut(model,geo)
+```
+We can also set custom keyword arguments, see [`subtriangulate`](@ref).
+```@example
+cutter = STLCutter(;tolfactor=1e3)
+cutgeo = cut(cutter,model,geo)
+```
+Then we can extract the domain and the boundary of the embedded discretization.
+```@example
+Ω = Triangulation(cutgeo)
+Γ = EmbeddedBoundary(cutgeo)
+```
+"""
 function cut(cutter::STLCutter,background::DiscreteModel,geom::STLGeometry)
   data,facet_data = _cut_stl(background,geom;cutter.options...)
   STLEmbeddedDiscretization(
@@ -135,9 +189,7 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   subcell_grid, subface_grid, bsubface_grid, labels = subtriangulate(model,geom;kwargs...)
 
   D = num_dims(model)
-  inout_dict = Dict{Int8,Int8}(
-    FACE_IN => IN, FACE_OUT => OUT, FACE_CUT => CUT, UNSET => OUT )
-
+  inout_dict = inout_dictionary(;kwargs...)
   cell_to_io = [ replace( labels.cell_to_io, inout_dict... ) ]
   cell_to_bgcell = labels.cell_to_bgcell
   cell_to_points = get_cell_node_ids( subcell_grid )
@@ -178,6 +230,14 @@ function _cut_stl(model::DiscreteModel,geom::STLGeometry;kwargs...)
   (bgface_to_ioc,bsubfacets,bface_to_io,oid_to_ls)
 end
 
+function inout_dictionary(;all_defined=true,kwargs...)
+  undefined = all_defined ? OUT : UNDEF
+  Dict{Int8,Int8}(
+    FACE_IN => IN,
+    FACE_OUT => OUT,
+    FACE_CUT => CUT,
+    UNSET => undefined )
+end
 
 function isolate_cell_coordinates(grid::Grid,cells=1:num_cells(grid))
   cell_coords = Table(get_cell_coordinates(grid)[cells])
@@ -234,7 +294,7 @@ function send_to_ref_space(
 end
 
 function send_to_ref_space(grid::Grid,cell_to_bgcell::Vector,subgrid::Grid)
-  bgcell_map = get_cell_map(grid)
+  bgcell_map = _get_cell_affine_map(grid)
   bgcell_invmap = lazy_map(inverse_map,bgcell_map)
   cell_invmap = lazy_map(Reindex(bgcell_invmap),cell_to_bgcell)
   cell_nodes = get_cell_node_ids(subgrid)
@@ -292,4 +352,16 @@ function _collect(a::LazyArray)
     b[i] = getindex!(c,a,i)
   end
   b
+end
+
+function _get_cell_affine_map(grid::Grid)
+  @assert all(==(1),map(get_order,get_reffes(grid)))
+  D = num_dims(grid)
+  x0 = Point(tfill(0.0,Val{D}()))
+  ncells = num_cells(grid)
+  cell_map = get_cell_map(grid)
+  cell_map_gradient = lazy_map(∇,cell_map)
+  origins = lazy_map(evaluate,cell_map,Fill(x0,ncells))
+  gradiens = lazy_map(evaluate,cell_map_gradient,Fill(x0,ncells))
+  lazy_map(affine_map,gradiens,origins)
 end
