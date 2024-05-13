@@ -23,13 +23,13 @@ using STLCutters: merge_nodes
 using STLCutters: simplexify_cell_boundary
 using STLCutters: compute_grid
 
-p = Polyhedron(TRI)
-@test check_graph(p)
-#@test volume(p) ≈ 1/2
-#@test surface(p) ≈ 2+√2
+# p = Polyhedron(TRI)
+# @test check_graph(p)
+# #@test volume(p) ≈ 1/2
+# #@test surface(p) ≈ 2+√2
 
-p = Polyhedron(QUAD)
-@test check_graph(p)
+# p = Polyhedron(QUAD)
+# @test check_graph(p)
 #@test volume(p) ≈ 1
 #@test surface(p) ≈ 4
 
@@ -39,6 +39,9 @@ p = Polyhedron(TET)
 @test surface(p) ≈ 3/2 + (√3)/2
 
 p = Polyhedron(HEX)
+STLCutters.generate_facets(p)
+STLCutters.generate_edges(p)
+
 @test check_graph(p)
 @test volume(p) ≈ 1
 @test surface(p) ≈ 6

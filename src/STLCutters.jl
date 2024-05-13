@@ -22,6 +22,8 @@ using PartitionedArrays
 
 using Gridap.Geometry: get_face_to_parent_face
 using Gridap.Geometry: get_cell_to_parent_cell
+using Gridap.Geometry: find_cell_to_faces
+using Gridap.Geometry: generate_cells_around
 using GridapEmbedded.Distributed: consistent_bgcell_to_inoutcut!
 using GridapEmbedded.Distributed: consistent_bgfacet_to_inoutcut!
 using GridapEmbedded.Distributed: DistributedEmbeddedDiscretization
