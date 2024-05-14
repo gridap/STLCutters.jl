@@ -23,6 +23,7 @@ using STLCutters: read_stl
 using STLCutters: merge_nodes
 using STLCutters: simplexify_cell_boundary
 using STLCutters: compute_grid
+using STLCutters: clipping
 
 
 p = Polygon(TRI)
@@ -114,12 +115,14 @@ p = Polyhedron(HEX)
 
 #
 
-p = Polyhedron(TET)
+p = Polyhedron(TET,metadata=clipping)
 @test check_graph(p)
 @test volume(p) ≈ 1/6
 @test surface(p) ≈ 3/2 + (√3)/2
 
-p = Polyhedron(HEX)
+p = Polyhedron(HEX,metadata=clipping)
+p.metadata.vertex_to_planes
+
 @test check_graph(p)
 @test volume(p) ≈ 1
 @test surface(p) ≈ 6

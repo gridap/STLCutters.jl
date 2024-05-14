@@ -27,6 +27,7 @@ using STLCutters: merge_nodes
 using STLCutters: compute_stl_model
 using STLCutters: compute_grid
 using STLCutters: FACE_IN, FACE_OUT, FACE_CUT
+using STLCutters: clipping
 
 vertices = [
   Point(0.1,-0.2,0.5),
@@ -54,9 +55,9 @@ stl = STL(stlmodel)
 
 # Setup cell
 stl_facets_k = 1:num_cells(stl)
-K = Polyhedron(HEX)
+K = Polyhedron(HEX,metadata=clipping)
 
-Γ0 = Polyhedron(stl)
+Γ0 = Polyhedron(stl,metadata=clipping)
 Γk0 = restrict(Γ0,stl,stl_facets_k)
 
 stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
@@ -123,9 +124,9 @@ stl = STL(stlmodel)
 
 # Setup cell
 stl_facets_k = 1:num_cells(stl)
-K = Polyhedron(HEX)
+K = Polyhedron(HEX,metadata=clipping)
 
-Γ0 = Polyhedron(stl)
+Γ0 = Polyhedron(stl,metadata=clipping)
 Γk0 = restrict(Γ0,stl,stl_facets_k)
 
 stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
