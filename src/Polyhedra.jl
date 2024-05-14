@@ -839,6 +839,15 @@ function split(p::Polyhedron,Π,side=:both;invert=false)
   p⁻,p⁺
 end
 
+"""
+    simplexify_boundary(p::Polyhedron,t::GridTopology)
+
+  It generates a simplex mesh of the surface of the polyhedron that touches the
+  grid topology.
+
+  It returns the coordinates of the vertices, the connectivities and a mapping
+  to the topology facets.
+"""
 function simplexify_boundary(poly::Polyhedron{3},stl::GridTopology)
   D = 3
   stack = Int32[]
@@ -1300,6 +1309,13 @@ function Base.copy(data::PolyhedronData)
   PolyhedronData(args...)
 end
 
+"""
+    compute_distances!(p::Polyhedron,planes,plane_ids[;atol=0])
+
+  Compute the distances from the vertices of the polyhedron to each plane of
+  the list `planes`. If the distance is below `atol`, it sets the distance to
+  zero.
+"""
 function compute_distances!(p::Polyhedron,Π,faces;atol=0)
   data = get_data(p)
   v_to_f = get_data(p).vertex_to_original_faces
