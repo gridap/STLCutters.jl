@@ -3,15 +3,26 @@
 
 const OPEN = -1
 
-abstract type GraphPolytope{D} <: Polytope{D} end
+"""
+    struct GraphPolytope{D,Dp,Tp} <: Polytope{D}
 
-struct Polygon{Dp,Tp,Td} <: GraphPolytope{2}
-  vertices::Vector{Point{Dp,Tp}}
-  isopen::Bool
-  data::Td
-end
+  A graph polytope is a polytope defined by a set of vertices and a rototation
+  system (a planar oriented graph). This polytopal representation can represent
+  any polytope in 2 and 3 dimensions.
 
-struct Polyhedron{Dp,Tp,Td} <: GraphPolytope{3}
+  In 2 dimensions ([`Polygon`](@ref)), the representation of the polygon is a closed polyline.
+
+  In 3 dimensions ([`Polyhedron`](@ref)), the rotation system generates the connectivities, each   facet is a closed cycle of the graph.
+  This construction allows complex geometrical operations, e.g., intersecting polytopes by halfspaces.
+  See also,
+
+  > K. Sugihara, "A robust and consistent algorithm for intersecting convex polyhedra", Comput. Graph. Forum 13 (3) (1994) 45–54, doi: [10.1111/1467-8659.1330045](https://doi.org/10.1111/1467-8659.1330045)
+
+  > D. Powell, T. Abel, "An exact general remeshing scheme applied to physically conservative voxelization", J. Comput. Phys. 297 (Sept. 2015) 340–356, doi: [10.1016/j.jcp.2015.05.022](https://doi.org/10.1016/j.jcp.2015.05.022.
+
+  > S. Badia, P. A. Martorell, F. Verdugo. "Geometrical discretisations for unfitted finite elements on explicit boundary representations", J.Comput. Phys. 460 (2022): 111162. doi: [10.1016/j.jcp.2022.111162](https://doi.org/10.1016/j.jcp.2022.111162)
+"""
+struct GraphPolytope{D,Dp,Tp,Td} <: Polytope{D}
   vertices::Vector{Point{Dp,Tp}}
   edge_vertex_graph::Vector{Vector{Int32}}
   n_m_to_nface_to_mfaces::Matrix{Vector{Vector{Int32}}}
@@ -20,7 +31,40 @@ struct Polyhedron{Dp,Tp,Td} <: GraphPolytope{3}
   dface_nfaces::Vector{Vector{Int32}}
   isopen::Bool
   data::Td
+  function GraphPolytope{D}(
+    vertices::Vector{Point{Dp,Tp}},
+    edge_vertex_graph::Vector{Vector{Int32}},
+    n_m_to_nface_to_mfaces::Matrix{Vector{Vector{Int32}}},
+    facedims::Vector{Int32},
+    dimranges::Vector{UnitRange{Int}},
+    dface_nfaces::Vector{Vector{Int32}},
+    isopen::Bool,
+    data::Td) where {D,Dp,Tp,Td}
+    new{D,Dp,Tp,Td}(
+      vertices,
+      edge_vertex_graph,
+      n_m_to_nface_to_mfaces,
+      facedims,
+      dimranges,
+      dface_nfaces,
+      isopen,
+      data)
+  end
 end
+
+"""
+    Polygon = GraphPolytope{2}
+
+  A polygon is a [`GraphPolytope`](@ref) in 2 dimensions.
+"""
+const Polygon = GraphPolytope{2}
+
+"""
+    Polyhedron = GraphPolytope{3}
+
+  A polyhedron is a [`GraphPolytope`](@ref) in 3 dimensions.
+"""
+const Polyhedron = GraphPolytope{3}
 
 struct PolyhedronData
   vertex_to_planes::Vector{Vector{Int32}}
@@ -34,34 +78,18 @@ end
 
 # Constructors
 
-function Polygon(p::Polytope{2},vertices::AbstractVector{<:Point})
-  @notimplemented
-  data = polyhedron_data(p)
-  Polygon(vertices,data)
-end
-
-function Polyhedron(stl::GridTopology)
-  𝓖 = compute_graph(stl)
-  X = get_vertex_coordinates(stl)
-  isopen = is_open_surface(stl)
-  p = Polyhedron(X,𝓖;isopen)
-  set_original_faces!(p,stl)
-  p
-end
-
-function Polyhedron(
+function GraphPolytope{D}(
   vertices::Vector{<:Point},
   graph::Vector{Vector{Int32}},
   isopen::Bool,
-  data)
+  data) where D
 
-  D = 3
   n = D+1
   n_m_to_nface_to_mfaces = Matrix{Vector{Vector{Int32}}}(undef,n,n )
   dimranges = Vector{UnitRange{Int}}(undef,0)
   dface_nfaces = Vector{Vector{Int32}}(undef,0)
   facedims = Vector{Int32}(undef,0)
-  Polyhedron(
+  GraphPolytope{D}(
     vertices,
     graph,
     n_m_to_nface_to_mfaces,
@@ -72,44 +100,69 @@ function Polyhedron(
     data)
 end
 
-function Polyhedron(
+function GraphPolytope{D}(
   vertices::AbstractVector{<:Point},
   graph::Vector{<:Vector},
-  isopen,
-  data)
+  isopen::Bool,
+  data) where D
 
-  Polyhedron(collect(vertices),graph,isopen,data)
+  GraphPolytope{D}(collect(vertices),graph,isopen,data)
 end
 
-function Polyhedron(
+function GraphPolytope{D}(
   vertices::AbstractVector{<:Point},
   graph::Vector{<:Vector}
-  ;isopen=false::Bool)
+  ;isopen=false::Bool) where D
 
-  Polyhedron(vertices,graph,isopen,polyhedron_data(length(vertices)))
+  GraphPolytope{D}(vertices,graph,isopen,polyhedron_data(length(vertices)))
 end
 
-function Polyhedron(
+function GraphPolytope{D}(
   vertices::AbstractVector{<:Point},
   graph::Vector{<:Vector},
-  data)
+  data) where D
 
   isopen = false
-  Polyhedron(vertices,graph,isopen,data)
+  GraphPolytope{D}(vertices,graph,isopen,data)
 end
 
-function Polyhedron(p::Polytope{2},vertices::AbstractVector{<:Point})
+function GraphPolytope{D}(stl::GridTopology{Dc,D}) where {Dc,D}
+  graph = compute_graph(stl)
+  X = get_vertex_coordinates(stl)
+  isopen = is_open_surface(stl)
+  p = GraphPolytope{D}(X,graph;isopen)
+  set_original_faces!(p,stl)
+  p
+end
+
+function Polygon(p::Polytope{2},vertices::AbstractVector{<:Point})
   if p == TRI
     e_v_graph = [[2,3],[3,1],[1,2]]
+    perm = [1,2,3]
   elseif p == QUAD
     e_v_graph = [[2, 3],[4, 1],[1, 4],[3, 2]]
+    perm = [1,2,4,3]
   else
     @unreachable
   end
+  vertices = map(Reindex(vertices),perm)
+  e_v_graph = map(Reindex(e_v_graph),perm)
+  e_v_graph = map(i->replace(i, Dict(perm .=> 1:length(perm))...),e_v_graph)
   e_v_graph = map(i->Int32.(i),e_v_graph)
   data = polyhedron_data(p)
-  Polyhedron(vertices,e_v_graph,data)
+  Polygon(vertices,e_v_graph,data)
 end
+
+function Polygon(vertices::AbstractVector{<:Point})
+  graph = map(1:length(vertices)) do i
+    inext = i == length(vertices) ? 1 : i+1
+    iprev = i == 1 ? length(vertices) : i-1
+    Int32[iprev,inext]
+  end
+  data = nothing
+  Polygon(vertices,graph,data)
+end
+
 
 function Polyhedron(p::Polytope{3},vertices::AbstractVector{<:Point})
   if p == TET
@@ -132,8 +185,380 @@ function Polyhedron(p::Polytope{3},vertices::AbstractVector{<:Point})
   Polyhedron(vertices,e_v_graph,data)
 end
 
-function Polyhedron(p::Polytope)
-  Polyhedron(p,get_vertex_coordinates(p))
+function GraphPolytope{D}(p::Polytope) where D
+  GraphPolytope{D}(p,get_vertex_coordinates(p))
+end
+
+# Interface
+
+num_dims(::T) where T<:GraphPolytope = num_dims(T)
+
+num_dims(::Type{<:GraphPolytope{D}}) where D = D
+
+num_cell_dims(a::GraphPolytope) = num_dims(a)
+
+point_eltype(::T) where T<:GraphPolytope = point_eltype(T)
+
+point_eltype(::Type{<:GraphPolytope{D,Dp,T}}) where {D,Dp,T} = T
+
+num_point_dims(::Type{<:GraphPolytope{D,Dp}}) where {D,Dp} = Dp
+
+num_vertices(a::GraphPolytope) = length(a.vertices)
+
+get_vertex_coordinates(a::GraphPolytope) = a.vertices
+
+Base.getindex(a::GraphPolytope,i::Integer) = a.vertices[i]
+
+"""
+    get_graph(p::GraphPolytope) -> Vector{Vector{Int32}}
+
+  It returns the edge-vertex graph of the polytope `p`.
+"""
+@inline get_graph(a::GraphPolytope) = a.edge_vertex_graph
+
+
+"""
+    get_data(p::GraphPolytope)
+
+  It return the metadata stored in the polytope `p`.
+"""
+get_data(a::GraphPolytope) = a.data
+
+
+"""
+    isopen(p::GraphPolytope) -> Bool
+
+  In return whether the polytope is watter tight or not.
+"""
+Base.isopen(a::GraphPolytope) = a.isopen
+
+"""
+    isactive(p::GraphPolytope,vertex::Integer) -> Bool
+
+  It returns whether a vertex is connected to any other vertex.
+"""
+function isactive(p::Polyhedron,vertex::Integer)
+  !isempty( get_graph(p)[vertex] )
+end
+
+
+"""
+    check_graph(p::GraphPolytope) -> Bool
+
+  It checks whether the graph is well-constructed. The graph must be oriented
+  and planar.
+"""
+function check_graph(p::GraphPolytope)
+  check_graph(get_graph(p))
+end
+
+function check_graph(graph::AbstractVector{<:AbstractVector})
+  for v in 1:length(graph)
+    !isempty(graph[v]) || continue
+    for vneig in graph[v]
+      vneig ∉ (OPEN,UNSET) || continue
+      v ∈ graph[vneig] || return false
+    end
+  end
+  true
+end
+
+is_simplex(::GraphPolytope) = false
+
+is_n_cube(::GraphPolytope) = false
+
+function Gridap_simplexify(p::GraphPolytope{D}) where D
+  @assert isopen(p)
+  X,T = simplexify(p)
+  @check X == get_vertex_coordinates(p)
+  T, simplex_polytope(Val{D}())
+end
+
+simplex_polytope(::Val{0}) = VERTEX
+
+simplex_polytope(::Val{1}) = SEGMENT
+
+simplex_polytope(::Val{2}) = TRI
+
+simplex_polytope(::Val{3}) = TET
+
+function Polytope{0}(p::GraphPolytope,faceid::Integer)
+  VERTEX
+end
+
+function Polytope{1}(p::GraphPolytope,faceid::Integer)
+  SEGMENT
+end
+
+function Polytope{D}(p::GraphPolytope{D},faceid::Integer) where D
+  p
+end
+
+function Polytope{2}(p::Polyhedron,faceid::Integer)
+  f_to_v = get_faces(p,2,0)
+  coords = get_vertex_coordinates(p)
+  vertices = coords[f_to_v[faceid]]
+  Polygon(vertices)
+end
+
+Base.:(==)(a::GraphPolytope,b::GraphPolytope) = false
+
+function num_faces(p::GraphPolytope{D},d::Integer) where D
+  if d == 0
+    num_vertices(p)
+  elseif d == D
+    1
+  else
+    length( get_faces(p,d,0) )
+  end
+end
+
+function get_faces(p::GraphPolytope,n::Integer,m::Integer)
+  setup_faces!(p,n,m)
+  p.n_m_to_nface_to_mfaces[n+1,m+1]
+end
+
+
+function get_facet_orientations(p::GraphPolytope)
+  Ones(num_facets(p))
+end
+
+function get_facet_normal(p::Polyhedron)
+  D = 3
+  f_to_v = get_faces(p,D-1,0)
+  coords = get_vertex_coordinates(p)
+  map(f_to_v) do v
+    v1 = coords[v[2]]-coords[v[1]]
+    v2 = coords[v[3]]-coords[v[1]]
+    v1 /= norm(v1)
+    v2 /= norm(v2)
+    n = v1 × v2
+    n /= norm(n)
+  end
+end
+
+function get_facet_normal(p::Polygon)
+  D = 2
+  f_to_v = get_faces(p,D-1,0)
+  coords = get_vertex_coordinates(p)
+  @notimplementedif num_components(eltype(coords)) != 2
+  map(f_to_v) do v
+    e = coords[v[2]]-coords[v[1]]
+    n = VectorValue( e[2], -e[1] )
+    n /= norm(n)
+  end
+end
+
+function get_edge_tangent(p::GraphPolytope)
+  e_to_v = get_faces(p,1,0)
+  coords = get_vertex_coordinates(p)
+  map(e_to_v) do v
+    e = coords[v[2]]-coords[v[1]]
+    e / norm(e)
+  end
+end
+
+
+function get_dimranges(p::GraphPolytope)
+  setup_dimranges!(p)
+  p.dimranges
+end
+
+function get_dimrange(p::GraphPolytope,d::Integer)
+  setup_dimranges!(p)
+  p.dimranges[d+1]
+end
+
+function get_faces(p::GraphPolytope)
+  setup_face_to_nfaces!(p)
+  p.dface_nfaces
+end
+
+function get_facedims(p::GraphPolytope)
+  setup_facedims!(p)
+  p.facedims
+end
+
+function setup_dimranges!(p::GraphPolytope{D}) where D
+  if length(p.dimranges) < D+1
+    lens = map(i->num_faces(p,i),0:D)
+    sums = cumsum(lens)
+    resize!(p.dimranges,D+1)
+    for (i,(l,s)) in enumerate(zip(lens,sums))
+      p.dimranges[i] = s-l+1 : s
+    end
+  end
+end
+
+function setup_face_to_nfaces!(p::GraphPolytope)
+  if length(p.dface_nfaces) < num_vertices(p)
+    facedims = get_facedims(p)
+    dface_nfaces = Vector{Vector{Int32}}(undef,length(facedims))
+    ofsets = get_offsets(p)
+    for (f,d) in enumerate(facedims)
+      df = f - ofsets[d+1]
+      nfs = Int[]
+      for n in 0:d
+        union!(nfs,get_faces(p,d,n)[df] .+ ofsets[n+1])
+      end
+      dface_nfaces[f] = nfs
+    end
+    copy!(p.dface_nfaces,dface_nfaces)
+  end
+  nothing
+end
+
+function setup_facedims!(p::GraphPolytope)
+  if length(p.facedims) < num_vertices(p)
+    dimranges = get_dimranges(p)
+    n_faces = dimranges[end][end]
+    facedims = _nface_to_nfacedim(n_faces,dimranges)
+    copy!(p.facedims,facedims)
+  end
+end
+
+function setup_faces!(p::GraphPolytope{D},dimfrom,dimto) where D
+  if isassigned(p.n_m_to_nface_to_mfaces,dimfrom+1,dimto+1)
+    return nothing
+  end
+  if dimfrom == dimto
+    setup_nface_to_nface!(p,dimfrom)
+  elseif dimfrom == D
+    setup_cell_to_faces!(p,dimto)
+  elseif dimto == 0
+    setup_face_to_vertices!(p,dimfrom)
+  elseif dimfrom > dimto
+    setup_nface_to_mface!(p,dimfrom,dimto)
+  else
+    setup_nface_to_mface_dual!(p,dimto,dimfrom)
+  end
+  nothing
+end
+
+function setup_face_to_vertices!(p::GraphPolytope,d)
+  if !isassigned(p.n_m_to_nface_to_mfaces,d+1,1)
+    df_to_v = generate_face_to_vertices(p,d)
+    p.n_m_to_nface_to_mfaces[d+1,1] = df_to_v
+  end
+end
+
+function setup_cell_to_faces!(p::GraphPolytope{D},d) where D
+  if !isassigned(p.n_m_to_nface_to_mfaces,D+1,d+1)
+    num_f = num_faces(p,d)
+    c_to_f = [ collect(1:num_f) ]
+    p.n_m_to_nface_to_mfaces[D+1,d+1] = c_to_f
+  end
+end
+
+function setup_nface_to_nface!(p::GraphPolytope,n)
+  if !isassigned(p.n_m_to_nface_to_mfaces,n+1,n+1)
+    num_nf = num_faces(p,n)
+    nf_to_nf = map(i->Int[i],1:num_nf)
+    p.n_m_to_nface_to_mfaces[n+1,n+1] = nf_to_nf
+  end
+end
+
+function setup_nface_to_mface!(p::Polyhedron,n,m)
+  if !isassigned(p.n_m_to_nface_to_mfaces,n+1,m+1)
+    @notimplementedif n != 2 && m != 1
+    nf_to_v = get_faces(p,n,0)
+    v_to_mf = get_faces(p,0,m)
+    nf_to_ftype = map( length, nf_to_v )
+    ftype_to_lmf_to_lv = map(1:maximum(nf_to_ftype)) do ftype
+      map(1:ftype) do i
+        inext = i == ftype ? 1 : i+1
+        Int[i,inext]
+      end
+    end
+    nf_to_mf = find_cell_to_faces(
+      Table(nf_to_v),
+      ftype_to_lmf_to_lv,
+      nf_to_ftype,
+      Table(v_to_mf))
+    p.n_m_to_nface_to_mfaces[n+1,m+1] = Vector(nf_to_mf)
+  end
+end
+
+function setup_nface_to_mface_dual!(p::GraphPolytope,dimto,dimfrom)
+  if !isassigned(p.n_m_to_nface_to_mfaces,dimfrom+1,dimto+1)
+    @assert dimfrom < dimto
+    nf_to_mf = get_faces(p,dimto,dimfrom)
+    n_mf = num_faces(p,dimfrom)
+    mf_to_nf = generate_cells_around(Table(nf_to_mf),n_mf)
+    p.n_m_to_nface_to_mfaces[dimfrom+1,dimto+1] = Vector(mf_to_nf)
+  end
+end
+
+function generate_face_to_vertices(p::Polyhedron,d::Integer)
+  if d == 1
+    generate_edge_to_vertices(p)
+  elseif d == 2
+    generate_facet_to_vertices(p)
+  else
+    @unreachable
+  end
+end
+
+function generate_face_to_vertices(p::Polygon,d::Integer)
+  if d == 1
+    generate_facet_to_vertices(p)
+  else
+    @unreachable
+  end
+end
+
+function generate_facet_to_vertices(poly::Polyhedron)
+  D = 3
+  istouch = map( i -> falses(length(i)), get_graph(poly) )
+  T = Vector{Int32}[]
+  for v in 1:num_vertices(poly)
+    isactive(poly,v) || continue
+    for i in 1:length(get_graph(poly)[v])
+      !istouch[v][i] || continue
+      istouch[v][i] = true
+      vcurrent = v
+      vnext = get_graph(poly)[v][i]
+      vnext ∉ (OPEN,UNSET) || continue
+      k = [v]
+      while vnext != v
+        inext = findfirst( isequal(vcurrent), get_graph(poly)[vnext] )
+        inext = ( inext % length( get_graph(poly)[vnext] ) ) + 1
+        istouch[vnext][inext] = true
+        vcurrent = vnext
+        vnext = get_graph(poly)[vnext][inext]
+        vnext ∉ (OPEN,UNSET) || break
+        push!(k,vcurrent)
+      end
+      if length(k) >=D
+        push!(T,k)
+      end
+    end
+  end
+  T
+end
+
+function generate_edge_to_vertices(poly::GraphPolytope)
+  graph = get_graph(poly)
+  T = Vector{Int32}[]
+  for v in 1:length(graph)
+    for vneig in graph[v]
+      if vneig > v
+        push!(T,[v,vneig])
+      end
+    end
+  end
+  T
+end
+
+function generate_facet_to_vertices(poly::Polygon)
+  graph = get_graph(poly)
+  T = Vector{Int32}[]
+  for v in 1:length(graph)
+    vnext = v == length(graph) ? 1 : v+1
+    @assert vnext ∈ graph[v]
+    push!(T,[v,vnext])
+  end
+  T
 end
 
 # Operations
@@ -552,57 +977,7 @@ end
 
 # Getters
 
-num_dims(::GraphPolytope{D}) where D = D
-
-num_dims(::Type{<:GraphPolytope{D}}) where D = D
-
-num_cell_dims(a::GraphPolytope) = num_dims(a)
-
-num_dims(::T) where T<:Polygon = num_dims(T)
-
-num_dims(::Type{<:Polygon{D}}) where D = D
-
-point_eltype(::T) where T<:Polygon = point_eltype(T)
-
-point_eltype(::Type{<:Polygon{D,T}}) where {D,T} = T
-
-num_vertices(a::Polygon) = length(a.vertices)
-
-get_vertex_coordinates(a::Polygon) = a.vertices
-
-Base.getindex(a::Polygon,i::Integer) = a.vertices[i]
-
-@inline get_graph(a::Polygon) = a.edge_vertex_graph
-
-get_data(a::Polygon) = a.data
-
-Base.isopen(a::Polygon) = a.isopen
-
-num_dims(::T) where T<:Polyhedron = num_dims(T)
-
-num_dims(::Type{<:Polyhedron{D}}) where D = D
-
-point_eltype(::T) where T<:Polyhedron = point_eltype(T)
-
-point_eltype(::Type{<:Polyhedron{D,T}}) where {D,T} = T
-
-num_vertices(a::Polyhedron) = length(a.vertices)
-
-get_vertex_coordinates(a::Polyhedron) = a.vertices
-
-Base.getindex(a::Polyhedron,i::Integer) = a.vertices[i]
-
-@inline get_graph(a::Polyhedron) = a.edge_vertex_graph
-
-get_data(a::Polyhedron) = a.data
-
-Base.isopen(a::Polyhedron) = a.isopen
-
 get_vertex_to_planes(a::PolyhedronData) = a.vertex_to_planes
-
-function isactive(p::Polyhedron,vertex::Integer)
-  !isempty( get_graph(p)[vertex] )
-end
 
 function get_original_reflex_faces(p::Polyhedron{D},stl::GridTopology;empty=true) where D
   get_original_faces(p,stl,Val{D-2}();empty)
@@ -770,7 +1145,7 @@ end
 
 ## Helpers
 
-function check_graph(p::Polyhedron)
+function check_graph(p::GraphPolytope)
   check_graph(get_graph(p))
 end
 
@@ -1312,288 +1687,3 @@ function _append_ref_planes(poly::Polyhedron,planes)
   end
   lazy_append(planes,ref_planes)
 end
-
-# Gridap Getters
-
-is_simplex(::GraphPolytope) = false
-
-is_n_cube(::GraphPolytope) = false
-
-function Gridap_simplexify(p::GraphPolytope{D}) where D
-  @assert isopen(p)
-  X,T = simplexify(p)
-  @check X == get_vertex_coordinates(p)
-  T, simplex_polytope(Val{D}())
-end
-
-simplex_polytope(::Val{0}) = VERTEX
-
-simplex_polytope(::Val{1}) = SEGMENT
-
-simplex_polytope(::Val{2}) = TRI
-
-simplex_polytope(::Val{3}) = TET
-
-function Polytope{0}(p::GraphPolytope,faceid::Integer)
-  VERTEX
-end
-
-function Polytope{1}(p::GraphPolytope,faceid::Integer)
-  SEGMENT
-end
-
-function Polytope{D}(p::GraphPolytope{D},faceid::Integer) where D
-  p
-end
-
-function Polytope{2}(p::Polyhedron,faceid::Integer)
-  f_to_v = get_faces(p,2,0)
-  coords = get_vertex_coordinates(p)
-  vertices = coords[f_to_v[faceid]]
-  Polygon(vertices)
-end
-
-import Base: ==
-
-(==)(a::GraphPolytope,b::GraphPolytope) = false
-
-function num_faces(p::GraphPolytope{D},d::Integer) where D
-  if d == 0
-    num_vertices(p)
-  elseif d == D
-    1
-  else
-    length( get_faces(p,d,0) )
-  end
-end
-
-function get_faces(p::GraphPolytope,n::Integer,m::Integer)
-  setup_faces!(p,n,m)
-  p.n_m_to_nface_to_mfaces[n+1,m+1]
-end
-
-import Gridap.ReferenceFEs: get_facet_orientations
-import Gridap.ReferenceFEs: get_facet_normal
-import Gridap.ReferenceFEs: get_edge_tangent
-function get_facet_orientations(p::GraphPolytope)
-  Ones(num_facets(p))
-end
-
-function get_facet_normal(p::Polyhedron)
-  D = 3
-  f_to_v = get_faces(p,D-1,0)
-  coords = get_vertex_coordinates(p)
-  map(f_to_v) do v
-    v1 = coords[v[2]]-coords[v[1]]
-    v2 = coords[v[3]]-coords[v[1]]
-    v1 /= norm(v1)
-    v2 /= norm(v2)
-    n = v1 × v2
-    n /= norm(n)
-  end
-end
-
-function get_edge_tangent(p::GraphPolytope)
-  e_to_v = get_faces(p,1,0)
-  coords = get_vertex_coordinates(p)
-  map(e_to_v) do v
-    v = coords[v[2]]-coords[v[1]]
-    v / norm(v)
-  end
-end
-
-import Gridap.ReferenceFEs: get_dimranges
-import Gridap.ReferenceFEs: get_dimrange
-
-
-function get_dimranges(p::GraphPolytope)
-  setup_dimranges!(p)
-  p.dimranges
-end
-
-function get_dimrange(p::GraphPolytope,d::Integer)
-  setup_dimranges!(p)
-  p.dimranges[d+1]
-end
-
-function get_faces(p::GraphPolytope)
-  setup_face_to_nfaces!(p)
-  p.dface_nfaces
-end
-
-function get_facedims(p::GraphPolytope)
-  setup_facedims!(p)
-  p.facedims
-end
-
-function setup_dimranges!(p::GraphPolytope{D}) where D
-  if length(p.dimranges) < D+1
-    resize!(p.dimranges,D+1)
-    lens = map(i->num_faces(p,i),0:D)
-    sums = cumsum(lens)
-    for (i,(l,s)) in enumerate(zip(lens,sums))
-      p.dimranges[i] = s-l+1 : s
-    end
-  end
-end
-
-function setup_face_to_nfaces!(p::GraphPolytope)
-  if length(p.dface_nfaces) < num_vertices(p)
-    facedims = get_facedims(p)
-    dface_nfaces = Vector{Vector{Int32}}(undef,length(facedims))
-    ofsets = get_offsets(p)
-    for (f,d) in enumerate(facedims)
-      df = f - ofsets[d+1]
-      nfs = Int[]
-      for n in 0:d
-        union!(nfs,get_faces(p,d,n)[df] .+ ofsets[n+1])
-      end
-      dface_nfaces[f] = nfs
-    end
-    copy!(p.dface_nfaces,dface_nfaces)
-  end
-  nothing
-end
-
-using Gridap.ReferenceFEs: _nface_to_nfacedim
-function setup_facedims!(p::GraphPolytope)
-  if length(p.facedims) < num_vertices(p)
-    dimranges = get_dimranges(p)
-    n_faces = dimranges[end][end]
-    facedims = _nface_to_nfacedim(n_faces,dimranges)
-    copy!(p.facedims,facedims)
-  end
-end
-
-function setup_faces!(p::GraphPolytope{D},dimfrom,dimto) where D
-  if isassigned(p.n_m_to_nface_to_mfaces,dimfrom+1,dimto+1)
-    return nothing
-  end
-  if dimfrom == dimto
-    setup_nface_to_nface!(p,dimfrom)
-  elseif dimfrom == D
-    setup_cell_to_faces!(p,dimto)
-  elseif dimto == 0
-    setup_face_to_vertices!(p,dimfrom)
-  elseif dimfrom > dimto
-    setup_nface_to_mface!(p,dimfrom,dimto)
-  else
-    setup_nface_to_mface_dual!(p,dimto,dimfrom)
-  end
-  nothing
-end
-
-function setup_face_to_vertices!(p::Polyhedron,d)
-  if !isassigned(p.n_m_to_nface_to_mfaces,d+1,1)
-    df_to_v = generate_face_to_vertices(p,d)
-    p.n_m_to_nface_to_mfaces[d+1,1] = df_to_v
-  end
-end
-
-function setup_cell_to_faces!(p::GraphPolytope{D},d) where D
-  if !isassigned(p.n_m_to_nface_to_mfaces,D+1,d+1)
-    num_f = num_faces(p,d)
-    c_to_f = [ collect(1:num_f) ]
-    p.n_m_to_nface_to_mfaces[D+1,d+1] = c_to_f
-  end
-end
-
-function setup_nface_to_nface!(p::Polyhedron,n)
-  if !isassigned(p.n_m_to_nface_to_mfaces,n+1,n+1)
-    num_nf = num_faces(p,n)
-    nf_to_nf = map(i->Int[i],1:num_nf)
-    p.n_m_to_nface_to_mfaces[n+1,n+1] = nf_to_nf
-  end
-end
-
-function setup_nface_to_mface!(p::Polyhedron,n,m)
-  if !isassigned(p.n_m_to_nface_to_mfaces,n+1,m+1)
-    @notimplementedif n != 2 && m != 1
-    nf_to_v = get_faces(p,n,0)
-    v_to_mf = get_faces(p,0,m)
-    nf_to_ftype = map( length, nf_to_v )
-    ftype_to_lmf_to_lv = map(1:maximum(nf_to_ftype)) do ftype
-      map(1:ftype) do i
-        inext = i == ftype ? 1 : i+1
-        Int[i,inext]
-      end
-    end
-    nf_to_mf = find_cell_to_faces(
-      Table(nf_to_v),
-      ftype_to_lmf_to_lv,
-      nf_to_ftype,
-      Table(v_to_mf))
-    p.n_m_to_nface_to_mfaces[n+1,m+1] = Vector(nf_to_mf)
-  end
-end
-
-function setup_nface_to_mface_dual!(p::Polyhedron,dimto,dimfrom)
-  if !isassigned(p.n_m_to_nface_to_mfaces,dimfrom+1,dimto+1)
-    @assert dimfrom < dimto
-    nf_to_mf = get_faces(p,dimto,dimfrom)
-    n_mf = num_faces(p,dimfrom)
-    mf_to_nf = generate_cells_around(Table(nf_to_mf),n_mf)
-    p.n_m_to_nface_to_mfaces[dimfrom+1,dimto+1] = Vector(mf_to_nf)
-  end
-end
-
-
-function generate_face_to_vertices(p::Polyhedron,d::Integer)
-  if d == 1
-    generate_edge_to_vertices(p)
-  elseif d == 2
-    generate_facet_to_vertices(p)
-  else
-    @unreachable
-  end
-end
-
-function generate_facet_to_vertices(poly::Polyhedron{3})
-  D = 3
-  istouch = map( i -> falses(length(i)), get_graph(poly) )
-  T = Vector{Int32}[]
-  for v in 1:num_vertices(poly)
-    isactive(poly,v) || continue
-    for i in 1:length(get_graph(poly)[v])
-      !istouch[v][i] || continue
-      istouch[v][i] = true
-      vcurrent = v
-      vnext = get_graph(poly)[v][i]
-      vnext ∉ (OPEN,UNSET) || continue
-      k = [v]
-      while vnext != v
-        inext = findfirst( isequal(vcurrent), get_graph(poly)[vnext] )
-        inext = ( inext % length( get_graph(poly)[vnext] ) ) + 1
-        istouch[vnext][inext] = true
-        vcurrent = vnext
-        vnext = get_graph(poly)[vnext][inext]
-        vnext ∉ (OPEN,UNSET) || break
-        push!(k,vcurrent)
-      end
-      if length(k) >=D
-        push!(T,k)
-      end
-    end
-  end
-  T
-end
-
-function generate_edge_to_vertices(poly::Polyhedron{3})
-  graph = get_graph(poly)
-  T = Vector{Int32}[]
-  for v in 1:length(graph)
-    for vneig in graph[v]
-      if vneig > v
-        push!(T,[v,vneig])
-      end
-    end
-  end
-  T
-end
-
-
-
-# get_edge_tangent
-# get_facet_normal
-# get_facet_orientations
-# get_vertex_permutations # not implemented
