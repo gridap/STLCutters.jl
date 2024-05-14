@@ -41,6 +41,7 @@ p = Polygon(TRI)
 @test Polytope{2}(p,1) === p
 @test Polytope{1}(p,1) == SEGMENT
 @test Polytope{0}(p,1) == VERTEX
+@test simplexify(p) == ([[1,2,3]],TRI)
 
 p = Polygon(QUAD)
 @test check_graph(p)
@@ -57,6 +58,7 @@ p = Polygon(QUAD)
 @test Polytope{2}(p,1) === p
 @test Polytope{1}(p,1) == SEGMENT
 @test Polytope{0}(p,1) == VERTEX
+@test simplexify(p) == ([[1,2,3],[1,3,4]],TRI)
 
 p = Polyhedron(TET)
 @test check_graph(p)
@@ -81,7 +83,7 @@ p = Polyhedron(TET)
 @test isa(Polytope{2}(p,1),Polygon)
 @test Polytope{1}(p,1) == SEGMENT
 @test Polytope{0}(p,1) == VERTEX
-
+@test simplexify(p) == ([[1,2,4,3]],TET)
 
 p = Polyhedron(HEX)
 @test check_graph(p)
@@ -112,7 +114,8 @@ p = Polyhedron(HEX)
 @test isa(Polytope{2}(p,1),Polygon)
 @test Polytope{1}(p,1) == SEGMENT
 @test Polytope{0}(p,1) == VERTEX
-
+@test simplexify(p) == (
+  [[1,2,4,8],[1,2,8,6],[1,3,7,8],[1,3,8,4],[1,5,6,8],[1,5,8,7]],TET)
 #
 
 p = Polyhedron(TET,metadata=clipping)

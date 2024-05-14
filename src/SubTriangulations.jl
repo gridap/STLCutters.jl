@@ -223,8 +223,8 @@ function save_cell_submesh!(submesh,io_arrays,stl,p,cell,Kn_in,Kn_out,Γk;
 
   !isnothing(Kn_in) || return
   bgcell_to_ioc, bgcell_node_to_io, bgcell_facet_to_ioc = io_arrays
-  Xin,Tin = simplexify(Kn_in)
-  Xout,Tout = simplexify(Kn_out)
+  Xin,Tin = simplexify_interior(Kn_in)
+  Xout,Tout = simplexify_interior(Kn_out)
   B = _simplexify_boundary(Kn_in,Kn_out,Γk,stl;surfacesource)
   X_Fin,T_Fin,f_to_lbgfin = simplexify_cell_boundary(Kn_in,p)
   X_Fout,T_Fout,f_to_lbgfout = simplexify_cell_boundary(Kn_out,p)

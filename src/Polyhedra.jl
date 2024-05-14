@@ -267,9 +267,9 @@ is_simplex(::GraphPolytope) = false
 
 is_n_cube(::GraphPolytope) = false
 
-function Gridap_simplexify(p::GraphPolytope{D}) where D
-  @assert isopen(p)
-  X,T = simplexify(p)
+function simplexify(p::GraphPolytope{D}) where D
+  @assert !isopen(p)
+  X,T = simplexify_interior(p)
   @check X == get_vertex_coordinates(p)
   T, simplex_polytope(Val{D}())
 end
@@ -569,7 +569,22 @@ function Base.copy(poly::Polyhedron)
   Polyhedron(vertices,graph,open,data)
 end
 
-function simplexify(poly::Polyhedron{3})
+function simplexify_interior(p::Polygon)
+  @assert !isopen(p)
+  e_to_v = generate_facet_to_vertices(p)
+  T = Vector{Int32}[]
+  if length(e_to_v) > 0
+    v0 = e_to_v[1][1]
+    for verts in e_to_v
+      if v0 ∉ verts
+        push!(T,[v0,verts[1],verts[2]])
+      end
+    end
+  end
+  get_vertex_coordinates(p),T
+end
+
+function simplexify_interior(poly::Polyhedron)
   !isopen(poly) || return simplexify_surface(poly)
   vstart = fill(UNSET,num_vertices(poly))
   stack = Int32[]
@@ -619,7 +634,7 @@ function simplexify(poly::Polyhedron{3})
   X,T
 end
 
-function simplexify_surface(poly::Polyhedron{3})
+function simplexify_surface(poly::Polyhedron)
   istouch = map( i -> falses(length(i)), get_graph(poly) )
   T = Vector{Int32}[]
   for v in 1:num_vertices(poly)
@@ -881,11 +896,11 @@ function simplexify_boundary(::Nothing,args...)
   nothing,nothing,nothing
 end
 
-function simplexify(polys::AbstractVector{<:Polyhedron{Dp,Tp}}) where {Dp,Tp}
+function simplexify_interior(polys::AbstractVector{<:Polyhedron{Dp,Tp}}) where {Dp,Tp}
   T = Vector{Int32}[]
   X = Point{Dp,Tp}[]
   for poly in polys
-    Xi,Ti = simplexify(poly)
+    Xi,Ti = simplexify_interior(poly)
     append!(T, map(i->i.+length(X),Ti) )
     append!(X,Xi)
   end
@@ -990,7 +1005,7 @@ function surface(polys::AbstractVector{<:Polyhedron},args...)
 end
 
 function volume(poly::Polyhedron{3})
-  X,T = simplexify(poly)
+  X,T = simplexify_interior(poly)
   p = TET
   c = array_cache(T)
   sum( i -> measure(get_cell!(c,X,T,p,i)), 1:length(T) )
