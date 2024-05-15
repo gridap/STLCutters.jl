@@ -22,9 +22,10 @@ using PartitionedArrays
 
 using Gridap.Geometry: get_face_to_parent_face
 using Gridap.Geometry: get_cell_to_parent_cell
-using Gridap.Geometry: find_cell_to_faces
-using Gridap.Geometry: generate_cells_around
-using Gridap.ReferenceFEs: _nface_to_nfacedim
+using Gridap.ReferenceFEs: check_polytope_graph
+using Gridap.ReferenceFEs: get_graph
+using Gridap.ReferenceFEs: get_metadata
+using Gridap.ReferenceFEs: isactive
 using GridapEmbedded.Distributed: consistent_bgcell_to_inoutcut!
 using GridapEmbedded.Distributed: consistent_bgfacet_to_inoutcut!
 using GridapEmbedded.Distributed: DistributedEmbeddedDiscretization
@@ -49,12 +50,16 @@ import Gridap.ReferenceFEs: get_offset
 import Gridap.ReferenceFEs: get_offsets
 import Gridap.ReferenceFEs: get_facedims
 import Gridap.ReferenceFEs: simplexify
+import Gridap.ReferenceFEs: simplexify_interior
+import Gridap.ReferenceFEs: simplexify_surface
+import Gridap.ReferenceFEs: generate_polytope_data
 import Gridap.ReferenceFEs: get_bounding_box
 import Gridap.ReferenceFEs: get_facet_orientations
 import Gridap.ReferenceFEs: get_facet_normal
 import Gridap.ReferenceFEs: get_edge_tangent
 import Gridap.ReferenceFEs: get_dimranges
 import Gridap.ReferenceFEs: get_dimrange
+import Gridap.ReferenceFEs: GraphPolytope
 import Gridap.Geometry: num_cells
 import Gridap.Geometry: get_cell_vertices
 import Gridap.Geometry: get_polytopes

@@ -937,8 +937,8 @@ function is_facet_in_facet(poly::Polyhedron,facet,plane;inside,atol=0)
       return true
     end
   end
-  v_to_f = get_data(poly).vertex_to_original_faces
-  distances = get_plane_distances(get_data(poly),plane)
+  v_to_f = get_metadata(poly).vertex_to_original_faces
+  distances = get_plane_distances(get_metadata(poly),plane)
   smax = -Inf
   smin = Inf
   for v in 1:num_vertices(poly)
@@ -1586,7 +1586,7 @@ function _split_reflex_face(
 end
 
 function _one_face_polyhedron(poly::Polyhedron,face::Integer)
-  v_to_f = get_data(poly).vertex_to_original_faces
+  v_to_f = get_metadata(poly).vertex_to_original_faces
   nodes = Int32[]
   for v in 1:num_vertices(poly)
     isactive(poly,v) || continue
