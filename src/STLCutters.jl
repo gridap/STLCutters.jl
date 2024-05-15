@@ -26,6 +26,7 @@ using Gridap.ReferenceFEs: check_polytope_graph
 using Gridap.ReferenceFEs: get_graph
 using Gridap.ReferenceFEs: get_metadata
 using Gridap.ReferenceFEs: isactive
+using Gridap.ReferenceFEs: point_eltype
 using GridapEmbedded.Distributed: consistent_bgcell_to_inoutcut!
 using GridapEmbedded.Distributed: consistent_bgfacet_to_inoutcut!
 using GridapEmbedded.Distributed: DistributedEmbeddedDiscretization
