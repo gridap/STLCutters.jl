@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `Polyhedron` is now defined in `Gridap` as `GraphPolytope{3}<Polytope{3}`. Its internal `data` is renamed to `metadata`.
+- `Polyhedron` is now defined in `Gridap` as `GeneralPolytope{3}<Polytope{3}`. Its internal `data` is renamed to `metadata`.
 - `get_data(::Polyhedron)` is renamed to `get_metadata(::Polyhedron)`.
 - `simplexify(::Polyhedron)` now returns the same data structure as `simplexify(::Polytope)`. The previous implementation is renamed to `simplexify_interior`.
 - `check_graph` is renamed to `check_polytope_graph`.

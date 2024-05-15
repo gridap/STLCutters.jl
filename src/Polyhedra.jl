@@ -3,23 +3,23 @@
 
 const OPEN = -1
 
-function GraphPolytope{D}(t::GridTopology{Dc,D};metadata=nothing) where {Dc,D}
+function GeneralPolytope{D}(t::GridTopology{Dc,D};metadata=nothing) where {Dc,D}
   graph = compute_graph(t)
   X = get_vertex_coordinates(t)
   isopen = is_open_surface(t)
-  p = GraphPolytope{D}(X,graph;isopen,metadata)
+  p = GeneralPolytope{D}(X,graph;isopen,metadata)
   set_polytope_data!(p,t,metadata)
   p
 end
 
-function set_polytope_data!(p::GraphPolytope,t::GridTopology,::Nothing)
+function set_polytope_data!(p::GeneralPolytope,t::GridTopology,::Nothing)
   p
 end
 
 """
     PolyhedronData
 
-  Metadata for [`GraphPolytope`](@ref) that serves for performing geometrical
+  Metadata for [`GeneralPolytope`](@ref) that serves for performing geometrical
   operations.
 
   The metadata stores the following information:
@@ -45,17 +45,17 @@ struct ClipPolytopeData end
 
 const clipping = ClipPolytopeData()
 
-function GraphPolytope{D}(
+function GeneralPolytope{D}(
     vertices::Vector{<:Point},
     graph::Vector{Vector{Int32}},
     isopen::Bool,
     ::ClipPolytopeData) where D
 
   data = polyhedron_data(length(vertices))
-  GraphPolytope{D}(vertices,graph,isopen,data)
+  GeneralPolytope{D}(vertices,graph,isopen,data)
 end
 
-function set_polytope_data!(p::GraphPolytope,t::GridTopology,::ClipPolytopeData)
+function set_polytope_data!(p::GeneralPolytope,t::GridTopology,::ClipPolytopeData)
   set_original_faces!(p,t)
   p
 end

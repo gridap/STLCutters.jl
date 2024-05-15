@@ -60,7 +60,7 @@ import Gridap.ReferenceFEs: get_facet_normal
 import Gridap.ReferenceFEs: get_edge_tangent
 import Gridap.ReferenceFEs: get_dimranges
 import Gridap.ReferenceFEs: get_dimrange
-import Gridap.ReferenceFEs: GraphPolytope
+import Gridap.ReferenceFEs: GeneralPolytope
 import Gridap.Geometry: num_cells
 import Gridap.Geometry: get_cell_vertices
 import Gridap.Geometry: get_polytopes
