@@ -19,3 +19,4 @@ tmp/*
 *.nav
 *.snm
 *.toc
+*.jld2

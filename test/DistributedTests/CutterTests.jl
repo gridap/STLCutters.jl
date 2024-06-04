@@ -24,6 +24,9 @@ function main(distribute;
   end
 
   ranks = distribute(LinearIndices((prod(np),)))
+
+  timers = STLCutters.default_timers(ranks)
+
   geo = STLGeometry(filename)
 
   pmin,pmax = get_bounding_box(geo)
@@ -35,8 +38,12 @@ function main(distribute;
     bgmodel = simplexify(bgmodel,positive=true)
   end
 
-  cutter = STLCutter(;tolfactor)
+  cutter = STLCutter(;tolfactor,timers)
   cutgeo = cut(cutter,bgmodel,geo)
+
+  display(timers["coarse"])
+  display(timers["fine"])
+  display(timers["global"])
 
   Ωbg = Triangulation(bgmodel)
   Ωin = Triangulation(cutgeo,PHYSICAL_IN)
