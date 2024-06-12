@@ -272,6 +272,21 @@ function save_as_stl(stls::Vector{<:DiscreteModel},filename)
 end
 
 # STL as Grid and DiscreteModel
+function is_simplex(grid::Grid,i)
+  is_simplex(get_polytope( only(get_reffes(grid)) ))
+end
+
+function is_simplex(topo::GridTopology,i)
+  is_simplex(only(get_polytopes(topo)))
+end
+
+function get_bounding_box!(cache,grid::Grid,i::Integer)
+  T = get_cell_node_ids(grid)
+  X = get_node_coordinates(grid)
+  nodes = getindex!(cache,T,i)
+  xi = lazy_map(Reindex(X),nodes)
+  get_bounding_box(xi)
+end
 
 function get_cell_cache(grid::Grid)
   T = get_cell_node_ids(grid)
@@ -1019,16 +1034,23 @@ end
 function measure(a::Grid,mask)
   m = BigFloat(0.0,precision=128)
   p = get_polytope(only(get_reffes(a)))
-  T = get_cell_node_ids(a)
-  X = get_node_coordinates(a)
-  c = array_cache(T)
-  for i in 1:num_cells(a)
-    if mask[i]
-      f = get_cell!(c,X,T,p,i)
-      m += measure(f)
+  if is_simplex(p)
+    T = get_cell_node_ids(a)
+    X = get_node_coordinates(a)
+    c = array_cache(T)
+    for i in 1:num_cells(a)
+      if mask[i]
+        f = get_cell!(c,X,T,p,i)
+        m += measure(f)
+      end
     end
+    Float64(m)
+  else
+    model = UnstructuredDiscreteModel(a)
+    trian = Triangulation(model,findall(mask))
+    dt = Measure(trian,2)
+    sum(∫(1)dt)
   end
-  Float64(m)
 end
 
 function measure(a::Grid,cell_to_inoutcut,inoutcut::Symbol)
@@ -1109,8 +1131,13 @@ function max_length(grid::Grid)
   max_len = 0.0
   c = get_cell_cache(grid)
   for i in 1:num_cells(grid)
-    cell = get_cell!(c,grid,i)
-    max_len = max(max_len,max_length(cell))
+    if is_simplex(grid,i)
+      cell = get_cell!(c,grid,i)
+      max_len = max(max_len,max_length(cell))
+    else
+      pmin,pmax = get_bounding_box!(c,grid,i)
+      max_len = max(max_len,maximum(pmax-pmin))
+    end
   end
   max_len
 end
@@ -1146,9 +1173,9 @@ end
 !!! note
     This function allows **false positives**.
 """
-function compute_cell_to_facets(model_a::DiscreteModel,grid_b,args...)
+function compute_cell_to_facets(model_a::DiscreteModel,grid_b,args...;kwargs...)
   grid_a = get_grid(model_a)
-  compute_cell_to_facets(grid_a,grid_b,args...)
+  compute_cell_to_facets(grid_a,grid_b,args...;kwargs...)
 end
 
 """
@@ -1165,7 +1192,8 @@ function compute_cell_to_facets(
   grid::CartesianGrid,
   stl,
   cell_mask=Trues(num_cells(grid)),
-  facet_mask=Trues(num_cells(stl)))
+  facet_mask=Trues(num_cells(stl));
+  bounding_box=false)
 
   CELL_EXPANSION_FACTOR = 1e-3
   desc = get_cartesian_descriptor(grid)
@@ -1176,7 +1204,7 @@ function compute_cell_to_facets(
   thread_to_cells = [ Int32[] for _ in 1:n ]
   thread_to_stl_facets = [ Int32[] for _ in 1:n ]
   coords = get_node_coordinates(grid)
-  cell_to_nodes = get_cell_node_ids(grid)
+  cell_to_nodes = get_cell_node_ids(grid) |> collect
   @check all(coords[1] .< coords[end] )
   c = [ ( get_cell_cache(stl), array_cache(cell_to_nodes) ) for _ in 1:n ]
   δ = CELL_EXPANSION_FACTOR
@@ -1184,9 +1212,15 @@ function compute_cell_to_facets(
     facet_mask[stl_facet] || continue
     i = Threads.threadid()
     cc,nc = c[i]
-    f = get_cell!(cc,stl,stl_facet)
-    pmin,pmax = get_bounding_box(f)
-    for cid in get_cells_around(desc,pmin,pmax)
+    if is_simplex(stl,stl_facet)
+      f = get_cell!(cc,stl,stl_facet)
+      pmin,pmax = get_bounding_box(f)
+    else
+      @assert bounding_box
+      pmin,pmax = get_bounding_box!(cc,stl,stl_facet)
+    end
+    cells_aroud = get_cells_around(desc,pmin,pmax)
+    for cid in cells_aroud
       cell = LinearIndices(desc.partition)[cid.I...]
       cell_mask[cell] || continue
       nodes = getindex!(nc,cell_to_nodes,cell)
@@ -1195,7 +1229,7 @@ function compute_cell_to_facets(
       Δ = (_pmax - _pmin) * δ
       _pmin = _pmin - Δ
       _pmax = _pmax + Δ
-      if voxel_intersection(f,_pmin,_pmax,p)
+      if bounding_box || voxel_intersection(f,_pmin,_pmax,p)
         push!(thread_to_cells[i],cell)
         push!(thread_to_stl_facets[i],stl_facet)
       end
@@ -1215,11 +1249,11 @@ end
 !!! note
     This function allows **false positives**.
 """
-function compute_cell_to_facets(grid::GridPortion,stl)
+function compute_cell_to_facets(grid::GridPortion,stl;kwargs...)
   pgrid = grid.parent
   pcell_mask = falses(num_cells(pgrid))
   pcell_mask[grid.cell_to_parent_cell] .= true
-  pcell_to_facets = compute_cell_to_facets(pgrid,stl,pcell_mask)
+  pcell_to_facets = compute_cell_to_facets(pgrid,stl,pcell_mask;kwargs...)
   map(Reindex(pcell_to_facets),grid.cell_to_parent_cell)
 end
 
@@ -1238,8 +1272,8 @@ end
 """
 function compute_cell_to_facets(a::UnstructuredGrid,b,a_mask=Trues(num_cells(a)))
   tmp = cartesian_bounding_model(a)
-  tmp_to_a = compute_cell_to_facets(tmp,a,Trues(num_cells(tmp)),a_mask)
-  tmp_to_b = compute_cell_to_facets(tmp,b)
+  tmp_to_a = compute_cell_to_facets(tmp,a,Trues(num_cells(tmp)),a_mask;bounding_box=true)
+  tmp_to_b = compute_cell_to_facets(tmp,b;bounding_box=true)
   a_to_tmp = inverse_index_map(tmp_to_a,num_cells(a))
   a_to_b = compose_index_map(a_to_tmp,tmp_to_b)
   a_to_b = filter_intersections(a,b,a_to_b)
@@ -1257,15 +1291,29 @@ function filter_intersections(a::Grid,b,a_to_b)
     ca,cb,c = t_c[i]
     as = t_as[i]
     bs = t_bs[i]
-    cell_a = get_cell!(ca,a,ai)
-    pmin,pmax = get_bounding_box(cell_a)
-    Δ = norm(pmin-pmax) * CELL_EXPANSION_FACTOR
-    cell_a = expand_face(cell_a,Δ)
+    if is_simplex(a,ai)
+      cell_a = get_cell!(ca,a,ai)
+      pmin,pmax = get_bounding_box(cell_a)
+      Δ = norm(pmin-pmax) * CELL_EXPANSION_FACTOR
+      cell_a = expand_face(cell_a,Δ)
+    else
+      pmin,pmax = get_bounding_box!(ca,a,ai)
+      Δ = (pmax - pmin) * CELL_EXPANSION_FACTOR
+      pmin = pmin - Δ
+      pmax = pmax + Δ
+    end
     for bi in getindex!(c,a_to_b,ai)
       cell_b = get_cell!(cb,b,bi)
-      if has_intersection(cell_a,cell_b)
-        push!(as,ai)
-        push!(bs,bi)
+      if is_simplex(a,ai)
+        if has_intersection(cell_a,cell_b)
+          push!(as,ai)
+          push!(bs,bi)
+        end
+      else
+        if voxel_intersection(cell_b,pmin,pmax)
+          push!(as,ai)
+          push!(bs,bi)
+        end
       end
     end
   end
@@ -1345,7 +1393,8 @@ function get_cells_around(desc::CartesianDescriptor{D},pmin::Point,pmax::Point) 
   _,cmax = get_cell_bounds(desc,pmax)
   cmin = CartesianIndices(desc.partition)[cmin]
   cmax = CartesianIndices(desc.partition)[cmax]
-  ranges = ntuple( i -> cmin.I[i]::Int : cmax.I[i]::Int, Val{D}() )
+  ranges = map( (i,j)-> i:j, cmin.I, cmax.I )
+  # ranges = ntuple( i -> cmin.I[i]::Int : cmax.I[i]::Int, Val{D}() )
   CartesianIndices( ranges )
 end
 
