@@ -1264,8 +1264,8 @@ end
   each cell in `a:UnstructuredGrid`. The output is a vector of vectors.
 
 !!! note
-  This function uses a `CartesianGrid` internally. It is not optimized
-  for higly irregular grids.
+    This function uses a `CartesianGrid` internally. It is not optimized
+    for higly irregular grids.
 
 !!! note
     This function allows **false positives**.

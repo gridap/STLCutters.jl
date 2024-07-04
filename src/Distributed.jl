@@ -324,7 +324,7 @@ end
   The number of interfaces coincides with the number of neigbors given by [`compute_face_neighbors`](@ref)
 
 !!! note
-  If the subdomain is not cut, the neighbors are considered undefined.
+    If the subdomain is not cut, the neighbors are considered undefined.
 """
 function compute_face_neighbor_to_inoutcut(
   model::DiscreteModel,
