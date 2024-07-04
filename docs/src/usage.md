@@ -71,6 +71,7 @@ Now, we provide an example of the solution of a Poisson problem on the embedded 
 
 ```julia
 using STLCutters
+using Gridap
 using GridapEmbedded
 cells = (10,10,10)
 filename = "stl_file_path.stl"
@@ -90,7 +91,7 @@ dΩ = Measure(Ω,2)
 dΓ = Measure(Γ,2)
 # FE spaces
 Vstd = TestFESpace(Ω_act,ReferenceFE(lagrangian,Float64,1))
-V = AgFEMSpace(Vstd)
+V = AgFEMSpace(Vstd,aggregates)
 U = TrialFESpace(V)
 # Weak form
 γ = 10.0

@@ -37,6 +37,7 @@ Where `poisson.jl` is the following code.
 
 ```julia
 using STLCutters
+using Gridap
 using GridapEmbedded
 using GridapDistributed
 using PartitionedArrays
@@ -47,7 +48,7 @@ cells = (10,10,10)
 filename = "stl_file_path.stl"
 
 with_mpi() do distribute
-  ranks = distribute(LinearIndices((prod(parts))))
+  ranks = distribute(LinearIndices((prod(parts),)))
   # Domain and discretization
   geo = STLGeometry(filename)
   pmin,pmax = get_bounding_box(geo)
@@ -64,7 +65,7 @@ with_mpi() do distribute
   dΓ = Measure(Γ,2)
   # FE spaces
   Vstd = TestFESpace(Ω_act,ReferenceFE(lagrangian,Float64,1))
-  V = AgFEMSpace(Vstd)
+  V = AgFEMSpace(model,Vstd,aggregates)
   U = TrialFESpace(V)
   # Weak form
   γ = 10.0
