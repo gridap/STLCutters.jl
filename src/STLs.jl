@@ -1,5 +1,4 @@
 
-
 """
     struct STLTopology{Dc,Dp,T} <: GridTopology{Dc,D}
 
