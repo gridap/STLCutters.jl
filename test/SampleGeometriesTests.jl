@@ -113,6 +113,7 @@ main(filename,nmax=50)
 filename = download_or_local(293137)
 main(filename,nmax=50)
 main(filename,nmax=50,simplex=true)
+main(filename,nmax=50,unstructured=true)
 rm_dwl(filename)
 
 filename = download_or_local(80084)
