@@ -42,6 +42,8 @@ function main(distribute;
   cutter = STLCutter(;tolfactor)
   cutgeo = cut(cutter,bgmodel,geo)
 
+  model,cutgeo,aggregates = aggregate(AggregateAllCutCells(),cutgeo)
+
   Ω = Triangulation(cutgeo,PHYSICAL_IN)
   Γ = EmbeddedBoundary(cutgeo)
   n_Γ = get_normal_vector(Γ)
@@ -52,7 +54,8 @@ function main(distribute;
   # Setup FESpace
   order = 1
   Ω_act = Triangulation(cutgeo,ACTIVE)
-  V = TestFESpace(Ω_act,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
+  Vstd = TestFESpace(Ω_act,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
+  V = AggFESpace(model,Vstd,aggregates)
   U = TrialFESpace(V)
 
   # Weak form
