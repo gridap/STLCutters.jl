@@ -1,5 +1,4 @@
 
-
 """
     struct STLTopology{Dc,Dp,T} <: GridTopology{Dc,D}
 
@@ -104,10 +103,10 @@ end
 
   Get a face as a [`Face`](@ref)
 """
-function get_dface!(c,stl::STL,i::Integer,::Val{d}) where d
+function get_dface!(c,stl::STL{D},i::Integer,::Val{d}) where {D,d}
   T = get_face_vertices(stl,d)
   X = get_vertex_coordinates(stl)
-  p = get_polytope(stl)
+  p = get_polytope(stl)::ExtrusionPolytope{D}
   get_dface!(c,X,T,p,i,Val{d}())
 end
 
@@ -272,12 +271,16 @@ function save_as_stl(stls::Vector{<:DiscreteModel},filename)
 end
 
 # STL as Grid and DiscreteModel
-function is_simplex(grid::Grid,i)
-  is_simplex(get_polytope( only(get_reffes(grid)) ))
+function is_simplex(grid::Grid{D},i) where D
+  @check length(get_reffes(grid)) == 1
+  reffe = get_reffes(grid)[1]
+  p = get_polytope(reffe)::ExtrusionPolytope{D}
+  is_simplex(p)
 end
 
 function is_simplex(topo::GridTopology,i)
-  is_simplex(only(get_polytopes(topo)))
+  @check length(get_polytopes(topo)) == 1
+  is_simplex(get_polytopes(topo)[1])
 end
 
 function get_bounding_box!(cache,grid::Grid,i::Integer)
@@ -288,15 +291,25 @@ function get_bounding_box!(cache,grid::Grid,i::Integer)
   get_bounding_box(xi)
 end
 
+function get_bounding_box!(cache,topo::GridTopology,i::Integer)
+  T = get_cell_vertices(topo)
+  X = get_vertex_coordinates(topo)
+  verts = getindex!(cache,T,i)
+  xi = lazy_map(Reindex(X),verts)
+  get_bounding_box(xi)
+end
+
 function get_cell_cache(grid::Grid)
   T = get_cell_node_ids(grid)
   array_cache(T)
 end
 
-function get_cell!(c,grid::Grid,i)
+function get_cell!(c,grid::Grid{D},i::Integer) where D
+  @check length(get_reffes(grid)) == 1
+  reffe = get_reffes(grid)[1]
   T = get_cell_node_ids(grid)
   X = get_node_coordinates(grid)
-  p = get_polytope( only(get_reffes(grid)) )
+  p = get_polytope(reffe)::ExtrusionPolytope{D}
   get_cell!(c,X,T,p,i)
 end
 
@@ -1214,22 +1227,21 @@ function compute_cell_to_facets(
     cc,nc = c[i]
     if is_simplex(stl,stl_facet)
       f = get_cell!(cc,stl,stl_facet)
-      pmin,pmax = get_bounding_box(f)
-    else
-      @assert bounding_box
-      pmin,pmax = get_bounding_box!(cc,stl,stl_facet)
     end
+    pmin,pmax = get_bounding_box!(cc,stl,stl_facet)
     cells_aroud = get_cells_around(desc,pmin,pmax)
     for cid in cells_aroud
       cell = LinearIndices(desc.partition)[cid.I...]
       cell_mask[cell] || continue
       nodes = getindex!(nc,cell_to_nodes,cell)
-      _pmin = coords[nodes[1]]
-      _pmax = coords[nodes[end]]
-      Δ = (_pmax - _pmin) * δ
-      _pmin = _pmin - Δ
-      _pmax = _pmax + Δ
-      if bounding_box || voxel_intersection(f,_pmin,_pmax,p)
+      cmin = coords[nodes[1]]
+      cmax = coords[nodes[end]]
+      Δ = (cmax - cmin) * δ
+      cmin -= Δ
+      cmax += Δ
+      if (bounding_box && voxel_intersection(pmin,pmax,cmin,cmax)) ||
+         (!bounding_box && voxel_intersection(f,cmin,cmax,p))
+
         push!(thread_to_cells[i],cell)
         push!(thread_to_stl_facets[i],stl_facet)
       end
@@ -1264,8 +1276,8 @@ end
   each cell in `a:UnstructuredGrid`. The output is a vector of vectors.
 
 !!! note
-  This function uses a `CartesianGrid` internally. It is not optimized
-  for higly irregular grids.
+    This function uses a `CartesianGrid` internally. It is not optimized
+    for higly irregular grids.
 
 !!! note
     This function allows **false positives**.
@@ -1291,29 +1303,22 @@ function filter_intersections(a::Grid,b,a_to_b)
     ca,cb,c = t_c[i]
     as = t_as[i]
     bs = t_bs[i]
-    if is_simplex(a,ai)
+    pmin,pmax = get_bounding_box!(ca,a,ai)
+    Δ = (pmax - pmin) * CELL_EXPANSION_FACTOR
+    pmin = pmin - Δ
+    pmax = pmax + Δ
+    a_is_simplex = is_simplex(a,ai)
+    if a_is_simplex
       cell_a = get_cell!(ca,a,ai)
-      pmin,pmax = get_bounding_box(cell_a)
-      Δ = norm(pmin-pmax) * CELL_EXPANSION_FACTOR
-      cell_a = expand_face(cell_a,Δ)
-    else
-      pmin,pmax = get_bounding_box!(ca,a,ai)
-      Δ = (pmax - pmin) * CELL_EXPANSION_FACTOR
-      pmin = pmin - Δ
-      pmax = pmax + Δ
+      cell_a = expand_face(cell_a,norm(Δ))
     end
     for bi in getindex!(c,a_to_b,ai)
       cell_b = get_cell!(cb,b,bi)
-      if is_simplex(a,ai)
-        if has_intersection(cell_a,cell_b)
-          push!(as,ai)
-          push!(bs,bi)
-        end
-      else
-        if voxel_intersection(cell_b,pmin,pmax)
-          push!(as,ai)
-          push!(bs,bi)
-        end
+      if ( a_is_simplex && has_intersection(cell_a,cell_b) ) ||
+         ( !a_is_simplex && voxel_intersection(cell_b,pmin,pmax) )
+
+        push!(as,ai)
+        push!(bs,bi)
       end
     end
   end

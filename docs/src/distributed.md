@@ -2,9 +2,9 @@
 
 ## Introduction
 
-When dealing with large-scale problems, this package can be accelerated through two types of parallelization. The first one is multi-threading, which uses [Julia Threads](https://docs.julialang.org/en/v1/base/multi-threading/) for shared memory parallelization (e.g., `julia -t 4`). This method, adds some speed-up. However, it is only efficient for a reduced number of threads.
+When dealing with large-scale problems, this package can be accelerated through two types of parallelization. The first one is multi-threading, which uses [Julia Threads](https://docs.julialang.org/en/v1/base/multi-threading/) for shared memory parallelization (e.g., `julia -t 4`). This method adds some speed-up. However, it is only efficient for a reduced number of threads.
 
-The second one is a distributed memory computing. For such parallelization, we use MPI (`mpiexec -np 4 julia input.jl`) through [`PartitionedArrays`](https://www.francescverdugo.com/PartitionedArrays.jl/stable) and [`GridapDistributed`](https://gridap.github.io/GridapDistributed.jl/dev/). With MPI expect to efficiently compute large-scale problems, up to thousands of cores.
+The second one is a distributed memory computing. For such parallelization, we use MPI (`mpiexec -np 4 julia input.jl`) through [`PartitionedArrays`](https://www.francescverdugo.com/PartitionedArrays.jl/stable) and [`GridapDistributed`](https://gridap.github.io/GridapDistributed.jl/dev/). With MPI we can compute large-scale problems efficiently, up to thousands of cores.
 
 Additionally, the distributed memory implementation is built on top of [GridapEmbedded](https://github.com/gridap/GridapEmbedded.jl). GridapEmbedded provides parallelization tools since [v0.9.2](https://github.com/gridap/GridapEmbedded.jl/releases/tag/v0.9.2).
 
@@ -37,6 +37,7 @@ Where `poisson.jl` is the following code.
 
 ```julia
 using STLCutters
+using Gridap
 using GridapEmbedded
 using GridapDistributed
 using PartitionedArrays
@@ -47,7 +48,7 @@ cells = (10,10,10)
 filename = "stl_file_path.stl"
 
 with_mpi() do distribute
-  ranks = distribute(LinearIndices((prod(parts))))
+  ranks = distribute(LinearIndices((prod(parts),)))
   # Domain and discretization
   geo = STLGeometry(filename)
   pmin,pmax = get_bounding_box(geo)
@@ -64,7 +65,7 @@ with_mpi() do distribute
   dΓ = Measure(Γ,2)
   # FE spaces
   Vstd = TestFESpace(Ω_act,ReferenceFE(lagrangian,Float64,1))
-  V = AgFEMSpace(Vstd)
+  V = AgFEMSpace(model,Vstd,aggregates)
   U = TrialFESpace(V)
   # Weak form
   γ = 10.0

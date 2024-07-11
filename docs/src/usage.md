@@ -27,7 +27,7 @@ filename = download_thingi10k(293137)
 
 ## Discretization
 
-Since STLCutters is an extension of [GridapEmbedded](https://github/gridap/GridapEmbedded.jl) it utilizes the same workflow to solve PDEs on embedded domains. In particular, STLCutters extends the [`cut`](@ref STLCutters.cut) function from GridapEmbedded.
+Since STLCutters is an extension of [GridapEmbedded](https://github/gridap/GridapEmbedded.jl), it utilizes the same workflow to solve PDEs on embedded domains. In particular, STLCutters extends the [`cut`](@ref STLCutters.cut) function from GridapEmbedded.
 
 We load the STL file with an [`STLGeometry`](@ref) object. E.g.,
 
@@ -54,7 +54,7 @@ cutgeo = cut(model,geo)
 
 ## Usage with Gridap
 
-Once, the geometry is discretized one can generate the embedded triangulations to solve PDEs with [Gridap](https://github.com/gridap/Gridap.jl), see also [Gridap Tutorials](https://gridap.github.io/Tutorials/stable).
+Once the geometry is discretized, one can generate the embedded triangulations to solve PDEs with [Gridap](https://github.com/gridap/Gridap.jl), see also [Gridap Tutorials](https://gridap.github.io/Tutorials/stable).
 
 Like in GridapEmbedded, we extract the embedded triangulations as follows.
 
@@ -71,6 +71,7 @@ Now, we provide an example of the solution of a Poisson problem on the embedded 
 
 ```julia
 using STLCutters
+using Gridap
 using GridapEmbedded
 cells = (10,10,10)
 filename = "stl_file_path.stl"
@@ -90,7 +91,7 @@ dΩ = Measure(Ω,2)
 dΓ = Measure(Γ,2)
 # FE spaces
 Vstd = TestFESpace(Ω_act,ReferenceFE(lagrangian,Float64,1))
-V = AgFEMSpace(Vstd)
+V = AgFEMSpace(Vstd,aggregates)
 U = TrialFESpace(V)
 # Weak form
 γ = 10.0

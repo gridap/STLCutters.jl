@@ -878,6 +878,8 @@ function voxel_intersection(
   p::Polytope) where D
 
   @check all( pmin .≤ pmax ) "pmin  > pmax"
+  cmin,cmax = get_bounding_box(c)
+  voxel_intersection(cmin,cmax,pmin,pmax) || return false
   for i in 1:num_facets(c)
     f = get_facet(c,i)
     voxel_intersection(f,pmin,pmax,p) && return true
