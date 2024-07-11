@@ -71,7 +71,6 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
     icells,
     cell_to_facets) do bgmodel,facet_gids,icells,cell_to_facets
 
-    # icells = compute_interior_cells(bgmodel,cell_gids)
     ownmodel = DiscreteModelPortion(bgmodel,icells)
     cell_to_pcell = get_cell_to_parent_cell(ownmodel)
     facet_to_pfacet = get_face_to_parent_face(ownmodel,D-1)

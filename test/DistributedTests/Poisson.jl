@@ -55,7 +55,7 @@ function main(distribute;
   order = 1
   Ω_act = Triangulation(cutgeo,ACTIVE)
   Vstd = TestFESpace(Ω_act,ReferenceFE(lagrangian,Float64,order),conformity=:H1)
-  V = AggFESpace(model,Vstd,aggregates)
+  V = AgFEMSpace(model,Vstd,aggregates)
   U = TrialFESpace(V)
 
   # Weak form
