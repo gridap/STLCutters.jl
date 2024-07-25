@@ -19,7 +19,7 @@ end
 """
     PolyhedronData
 
-  Metadata for [`GeneralPolytope`](@ref) that serves for performing geometrical
+  Metadata for `Gridap.ReferenceFEs.GeneralPolytope` that serves for performing geometrical
   operations.
 
   The metadata stores the following information:
