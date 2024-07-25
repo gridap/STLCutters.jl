@@ -14,13 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `simplexify(::Polyhedron)` now returns the same data structure as `simplexify(::Polytope)`. The previous implementation is renamed to `simplexify_interior`.
 - `check_graph` is renamed to `check_polytope_graph`.
 
-
-## [0.2.1] - 2024-05-02
+## [0.2.1] - 2024-07-11
 
 ### Added
 
 - Distributed cutter (`cut()`) using `GridapDistributed` and `PartitionedArrays` since [#28](https://github.com/gridap/STLCutters.jl/pull/28).
+- New documentation pages with examples of usage.
 
+### Changed
+
+- `compute_cell_to_facets` is more efficient for non-Cartesian meshes. It exploits AABB intersections.
 
 ## [0.2.0] - 2024-02-15
 

@@ -5,6 +5,7 @@ using Gridap
 using Gridap.Arrays
 using Gridap.Helpers
 using STLCutters
+using Gridap.Geometry
 
 using STLCutters: volumes
 using STLCutters: volume, surface
@@ -13,7 +14,8 @@ using STLCutters: compute_cartesian_descriptor
 download = download_thingi10k
 
 function main(filename;
-  nmin=10,nmax=100,δ=0.2,tolfactor=1000,kdtree=false,simplex=false,output=nothing)
+  nmin=10,nmax=100,δ=0.2,tolfactor=1000,
+  kdtree=false,simplex=false,unstructured=false,output=nothing)
 
   println("Running: $(basename(filename))")
 
@@ -25,6 +27,8 @@ function main(filename;
   model = CartesianDiscreteModel(desc)
   if simplex
     model = simplexify(model,positive=true)
+  elseif unstructured
+    model = UnstructuredDiscreteModel(model)
   end
 
   @test check_requisites(stl,model)
@@ -101,12 +105,15 @@ filename = joinpath(@__DIR__,"../test/data/47076.stl")
 main(filename,nmax=50)
 main(filename,nmax=10,nmin=10,kdtree=true)
 main(filename,nmax=50,nmin=10,simplex=true)
+main(filename,nmax=50,nmin=10,unstructured=true)
 
 filename = joinpath(@__DIR__,"../test/data/47076_sf.obj")
 main(filename,nmax=50)
 
 filename = download_or_local(293137)
 main(filename,nmax=50)
+main(filename,nmax=50,simplex=true)
+main(filename,nmax=50,unstructured=true)
 rm_dwl(filename)
 
 filename = download_or_local(80084)

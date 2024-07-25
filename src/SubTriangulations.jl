@@ -60,6 +60,7 @@ end
       - `:both`: retunrs boths `:interior` and `:exterior` `face_grid`. It must be filtered (only used for debugging purposes).
   - `showprogress`: (default `true`) show progress bar
   - `all_defined`: (default `true`) if `true` all cells are defined as `IN`, `OUT` or `CUT`. If `false` undefined cells are allowed (only used for distributed meshes)
+  - `cell_to_facets`: (default [`compute_cell_to_facets`](@ref)) precomputed cell to stl facets mapping.
 """
 function subtriangulate(
   bgmodel::DiscreteModel,
@@ -68,16 +69,15 @@ function subtriangulate(
   tolfactor=DEFAULT_TOL_FACTOR,
   surfacesource=:skin,
   showprogress=true,
-  all_defined=true)
+  all_defined=true,
+  cell_to_facets=compute_cell_to_facets(bgmodel,STL(stlmodel)))
   # cutfacets = false)
 
   grid = get_grid(bgmodel)
-  grid_topology = get_grid_topology(bgmodel)
   p = get_polytope(only(get_reffes(bgmodel)))
   node_to_coords = get_node_coordinates(grid)
   cell_to_nodes = get_cell_node_ids(grid)
   stl = STL(stlmodel)
-  D = num_dims(grid)
   atol = eps(grid)*tolfactor
 
   f_to_isempty = get_facet_to_isempty(stl;atol)
@@ -85,7 +85,7 @@ function subtriangulate(
   Πf = correct_small_facets_planes!(stl,Πf,f_to_isempty;atol)
   Πr = get_reflex_planes(stl,Πf)
 
-  c_to_stlf = compute_cell_to_facets(grid,stl)
+  c_to_stlf = cell_to_facets
 
   Γ0 = Polyhedron(stl;metadata=clipping)
 

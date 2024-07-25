@@ -39,6 +39,10 @@ function similar_geometry(a::STLGeometry,tree::Leaf)
   STLGeometry(tree)
 end
 
+function compute_cell_to_facets(a::DiscreteModel,geo::STLGeometry)
+  compute_cell_to_facets(get_grid(a),STL(get_stl(geo)))
+end
+
 function closest_point(x::AbstractVector,geo::STLGeometry,args...)
   closest_point(x,get_stl(geo),args...)
 end

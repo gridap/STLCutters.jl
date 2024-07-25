@@ -85,6 +85,7 @@ import GridapEmbedded.Distributed: change_bgmodel
 import GridapEmbedded.Distributed: get_ls_to_bgcell_to_inoutcut
 import GridapEmbedded.Distributed: get_ls_to_bgfacet_to_inoutcut
 import GridapEmbedded.Distributed: remove_ghost_subfacets
+import GridapEmbedded.Distributed: distributed_aggregate
 
 
 import Base: split

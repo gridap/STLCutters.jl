@@ -314,8 +314,8 @@ end
 function normal(f::Face{2,3},facet::Integer)
   p = get_polytope(f)
   n = normal(f)
-  _f = get_facet(f,facet)
-  v = _f[2]-_f[1]
+  e = get_facet(f,facet)
+  v = e[2]-e[1]
   v /= norm(v)
   v *= get_facet_orientations(p)[facet]
   n × v
@@ -421,8 +421,8 @@ function get_bounding_box(f::Face)
   else
     pmin = pmax = f[1]
     for i in 1:num_vertices(f)
-      pmin = Point(min.(Tuple(pmin),Tuple(f[i])))
-      pmax = Point(max.(Tuple(pmax),Tuple(f[i])))
+      pmin = min.(pmin,f[i])
+      pmax = max.(pmax,f[i])
     end
     pmin,pmax
   end
@@ -695,6 +695,7 @@ end
   Predicate that checks if two faces intersect.
 """
 function has_intersection(a::Face,b::Face)
+  bounding_boxes_intersect(a,b) || return false
   Dp = num_point_dims(a)
   pa = get_polytope(a)
   pb = get_polytope(b)
@@ -711,18 +712,41 @@ function has_intersection(a::Face,b::Face)
   false
 end
 
+
+"""
+  bounding_boxes_intersect(a::Face,b::Face)
+
+  Predicate that checks if the bounding boxes of two Face intersect.
+"""
+function bounding_boxes_intersect(a::Face,b::Face)
+  amin,amax = get_bounding_box(a)
+  bmin,bmax = get_bounding_box(b)
+  voxel_intersection(amin,amax,bmin,bmax)
+end
+
+function bounding_boxes_intersect(a::Point,b::Face)
+  bmin,bmax = get_bounding_box(b)
+  voxel_intersection(a,bmin,bmax)
+end
+
+function bounding_boxes_intersect(a::Face,b::Point)
+  bounding_boxes_intersect(b,a)
+end
+
 """
     has_intersection(a::Face,b::Face)
 
   Predicate that checks if two faces intersect in a point.
 """
 function has_intersection_point(p::Point,f::Face{D,D}) where D
+  bounding_boxes_intersect(p,f) || return false
   contains_projection(f,p)
 end
 
 has_intersection_point(f::Face,p::Point) = has_intersection_point(p,f)
 
 function has_intersection_point(a::Face,b::Face)
+  bounding_boxes_intersect(a,b) || return false
   p = intersection_point(a,b)
   contains_projection(a,p) && contains_projection(b,p)
 end
@@ -799,6 +823,18 @@ function voxel_intersection(f::Face{2,3},pmin::Point,pmax::Point,p::Polytope)
   false
 end
 
+function voxel_intersection(f::Face,pmin::Point{D},pmax::Point{D}) where D
+  voxel_intersection(f,pmin,pmax,n_cube(Val{D}()))
+end
+
+function voxel_intersection(amin::Point,amax::Point,bmin::Point,bmax::Point)
+  @check all( amin .≤ amax ) "pmin  > pmax"
+  @check all( bmin .≤ bmax ) "pmin  > pmax"
+  pmin = max.(amin,bmin)
+  pmax = min.(amax,bmax)
+  all( pmin .≤ pmax )
+end
+
 function voxel_intersection(p::Point,pmin::Point,pmax::Point)
   @check all( pmin .≤ pmax ) "pmin  > pmax"
   all( p .> pmin ) && all( p .< pmax )
@@ -842,6 +878,8 @@ function voxel_intersection(
   p::Polytope) where D
 
   @check all( pmin .≤ pmax ) "pmin  > pmax"
+  cmin,cmax = get_bounding_box(c)
+  voxel_intersection(cmin,cmax,pmin,pmax) || return false
   for i in 1:num_facets(c)
     f = get_facet(c,i)
     voxel_intersection(f,pmin,pmax,p) && return true
@@ -1051,3 +1089,11 @@ function orthogonal(a::VectorValue{D}...) where D
       "orthogonal(::VectorValue{D}...) only defined for D-1 VectorValues{D}'s")
   orthogonal(a,)
 end
+
+n_cube(::Val{0}) = VERTEX
+
+n_cube(::Val{1}) = SEGMENT
+
+n_cube(::Val{2}) = QUAD
+
+n_cube(::Val{3}) = HEX

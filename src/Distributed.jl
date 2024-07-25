@@ -1,29 +1,43 @@
 
+function cut(bgmodel::DistributedDiscreteModel,geo::STLGeometry,args...)
+  cut(STLCutter(),bgmodel,geo,args...)
+end
+
 function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
   D = map(num_dims,local_views(bgmodel)) |> PartitionedArrays.getany
-  cutter = STLCutter(;all_defined=false,cutter.options...)
+  timers,cutter = setup_distributed_cutter(cutter,bgmodel)
   cell_gids = get_cell_gids(bgmodel)
   facet_gids = get_face_gids(bgmodel,D-1)
 
+  tic!(timers["global"],barrier=true)
   bcells = map(compute_boundary_cells,local_views(bgmodel),local_views(cell_gids))
   icells = map(compute_interior_cells,local_views(bgmodel),local_views(cell_gids))
 
+  # Setup cutters
+  tic!(timers["fine"],barrier=true)
+  cell_to_facets = map(local_views(bgmodel)) do bgmodel
+    compute_cell_to_facets(bgmodel,args...)
+  end
+  toc!(timers["fine"],"setup")
+
   # Cut touched parts (only boundary cells)
+  tic!(timers["fine"],barrier=true)
   cuts = map(
     local_views(bgmodel),
-    local_views(cell_gids),
     local_views(facet_gids),
-    bcells) do bgmodel,cell_gids,facet_gids,bcells
+    bcells,
+    cell_to_facets) do bgmodel,facet_gids,bcells,cell_to_facets
 
-    # bcells = compute_boundary_cells(bgmodel,cell_gids)
     ownmodel = DiscreteModelPortion(bgmodel,bcells)
-    # ownmodel = remove_ghost_cells(bgmodel,cell_gids)
     cell_to_pcell = get_cell_to_parent_cell(ownmodel)
     facet_to_pfacet = get_face_to_parent_face(ownmodel,D-1)
-    cutgeo = cut(cutter,ownmodel,args...)
+    cell_to_facets = lazy_map(Reindex(cell_to_facets),bcells)
+    _cutter = STLCutter(;cell_to_facets,cutter.options...)
+    cutgeo = cut(_cutter,ownmodel,args...)
     cutgeo = change_bgmodel(cutgeo,bgmodel,cell_to_pcell,facet_to_pfacet)
     remove_ghost_subfacets(cutgeo,facet_gids)
   end
+  toc!(timers["fine"],"interface")
 
   # Setup coarse inout and graph
   facet_to_inoutcut = map(compute_bgfacet_to_inoutcut,cuts)
@@ -38,6 +52,8 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
   part_to_lpart_to_ioc = gather(facet_neighbor_to_ioc,destination=root)
 
   # Propagate at coarse level (and complete intersections)
+  tic!(timers["coarse"],barrier=true)
+  tic!(timers["fine"],barrier=true)
   part_to_ioc = map(
       part_to_parts,
       part_to_lpart_to_ioc,
@@ -50,22 +66,25 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
       Int8[]
     end
   end
+  toc!(timers["coarse"],"coarse")
 
   # Complete cut (interior cells)
   icuts = map(
     local_views(bgmodel),
-    local_views(cell_gids),
     local_views(facet_gids),
-    icells) do bgmodel,cell_gids,facet_gids,icells
+    icells,
+    cell_to_facets) do bgmodel,facet_gids,icells,cell_to_facets
 
-    # icells = compute_interior_cells(bgmodel,cell_gids)
     ownmodel = DiscreteModelPortion(bgmodel,icells)
     cell_to_pcell = get_cell_to_parent_cell(ownmodel)
     facet_to_pfacet = get_face_to_parent_face(ownmodel,D-1)
-    cutgeo = cut(cutter,ownmodel,args...)
+    cell_to_facets = lazy_map(Reindex(cell_to_facets),icells)
+    _cutter = STLCutter(;cell_to_facets,cutter.options...)
+    cutgeo = cut(_cutter,ownmodel,args...)
     cutgeo = change_bgmodel(cutgeo,bgmodel,cell_to_pcell,facet_to_pfacet)
     remove_ghost_subfacets(cutgeo,facet_gids)
   end
+  toc!(timers["fine"],"interior")
 
   # Merge discretizations
   cuts = map(cuts,icuts,bcells,icells) do bcut,icut,bcells,icells
@@ -87,9 +106,36 @@ function cut(cutter::STLCutter,bgmodel::DistributedDiscreteModel,args...)
   # Nearest neighbor communication
   consistent_bgcell_to_inoutcut!(cuts,cell_gids)
   consistent_bgfacet_to_inoutcut!(cuts,facet_gids)
+
+  toc!(timers["global"],"global")
   DistributedEmbeddedDiscretization(cuts,bgmodel)
 end
 
+
+function setup_distributed_cutter(a::STLCutter,bgmodel::DistributedDiscreteModel)
+  parts = map(part_id,get_cell_gids(bgmodel).partition)
+  timers,options = _setup_distributed_cutter(parts;a.options...)
+  cutter = STLCutter(;all_defined=false,options...)
+  timers,cutter
+end
+
+function _setup_distributed_cutter(
+  parts;
+  verbose=false,
+  timers=default_timers(parts;verbose),
+  showprogress=false,
+  kwargs...)
+
+  kwargs = (;showprogress,kwargs...)
+  timers, kwargs
+end
+
+function default_timers(parts;kwargs...)
+  Dict(
+    "global" => PTimer(parts;kwargs...),
+    "coarse" => PTimer(parts;kwargs...),
+    "fine" => PTimer(parts;kwargs...))
+end
 
 """
     find_root_part(cuts::AbstractArray{<:AbstractEmbeddedDiscretization},cells)
@@ -124,7 +170,6 @@ function cut_facets(cut::DistributedEmbeddedDiscretization)
   DistributedEmbeddedDiscretization(cutfacets,bgmodel)
 end
 
-
 function change_bgmodel(
   cutgeo::STLEmbeddedDiscretization,
   model::DiscreteModel,
@@ -134,6 +179,23 @@ function change_bgmodel(
   _cut = change_bgmodel(cutgeo.cut,model,cell_to_newcell)
   _cutfacets = change_bgmodel(cutgeo.cutfacets,model,facet_to_newfacet)
   STLEmbeddedDiscretization(_cut,_cutfacets)
+end
+
+function change_bgmodel(
+  cut::DistributedEmbeddedDiscretization{<:AbstractArray{<:STLEmbeddedDiscretization}},
+  model::DistributedDiscreteModel)
+
+  cuts = map(c->c.cut,local_views(cut))
+  cutsfacets = map(c->c.cutfacets,local_views(cut))
+  _cut = DistributedEmbeddedDiscretization(cuts,get_background_model(cut))
+  _cutfacets = DistributedEmbeddedDiscretization(cutsfacets,get_background_model(cut))
+  _cut = change_bgmodel(_cut,model)
+  _cutfacets = change_bgmodel(_cutfacets,model)
+
+  cuts = map(local_views(_cut),local_views(_cutfacets)) do cut,cutfacets
+    STLEmbeddedDiscretization(cut,cutfacets)
+  end
+  DistributedEmbeddedDiscretization(cuts,model)
 end
 
 function remove_ghost_subfacets(cut::STLEmbeddedDiscretization,facet_gids)
@@ -281,7 +343,7 @@ end
   The number of interfaces coincides with the number of neigbors given by [`compute_face_neighbors`](@ref)
 
 !!! note
-  If the subdomain is not cut, the neighbors are considered undefined.
+    If the subdomain is not cut, the neighbors are considered undefined.
 """
 function compute_face_neighbor_to_inoutcut(
   model::DiscreteModel,
@@ -655,4 +717,14 @@ function generate_simplex_cell_gids(model::DistributedDiscreteModel)
     LocalIndices(ngscells,part_id(ids),sc_to_gsc,sc_to_o)
   end
   PRange(partition)
+end
+
+function distributed_aggregate(
+  strategy::AggregateCutCellsByThreshold,
+  cut::DistributedEmbeddedDiscretization,
+  geo::STLGeometry,
+  in_or_out=IN)
+
+  facet_to_inoutcut = compute_bgfacet_to_inoutcut(cut,geo)
+  GridapEmbedded.Distributed._distributed_aggregate_by_threshold(strategy.threshold,cut,geo,in_or_out,facet_to_inoutcut)
 end
