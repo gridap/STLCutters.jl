@@ -3,13 +3,34 @@
 
 const OPEN = -1
 
-struct Polyhedron{Dp,Tp,Td}
-  vertices::Vector{Point{Dp,Tp}}
-  edge_vertex_graph::Vector{Vector{Int32}}
-  isopen::Bool
-  data::Td
+function GeneralPolytope{D}(t::GridTopology{Dc,D};metadata=nothing) where {Dc,D}
+  graph = compute_graph(t)
+  X = get_vertex_coordinates(t)
+  isopen = is_open_surface(t)
+  p = GeneralPolytope{D}(X,graph;isopen,metadata)
+  set_polytope_data!(p,t,metadata)
+  p
 end
 
+function set_polytope_data!(p::GeneralPolytope,t::GridTopology,::Nothing)
+  p
+end
+
+"""
+    PolyhedronData
+
+  Metadata for `Gridap.ReferenceFEs.GeneralPolytope` that serves for performing geometrical
+  operations.
+
+  The metadata stores the following information:
+    * `vertex_to_planes`: A list of planes that intersect each vertex.
+    * `vertex_to_original_faces`: A list of d-faces of the original polytope or STL
+    * `vertex_to_parent_vertex`: It maps a vertex to a vertex that has the same coordinates
+    * `vertex_to_parent_edge`: It maps a vertex a vertex pair that generated that vertex
+    * `plane_to_vertex_to_distances`: A list of distances from each plane to each vertex
+    * `plane_to_ref_plane`: It maps a plane to a plane that (almost) co-planar
+    * `plane_to_ids`: It maps the plane to the plane id
+"""
 struct PolyhedronData
   vertex_to_planes::Vector{Vector{Int32}}
   vertex_to_original_faces::Vector{Vector{Int32}}
@@ -20,84 +41,44 @@ struct PolyhedronData
   plane_to_ids::Vector{Int32}
 end
 
-# Constructors
+struct ClipPolytopeData end
 
-function Polyhedron(stl::GridTopology)
-  𝓖 = compute_graph(stl)
-  X = get_vertex_coordinates(stl)
-  isopen = is_open_surface(stl)
-  p = Polyhedron(X,𝓖;isopen)
-  set_original_faces!(p,stl)
+const clipping = ClipPolytopeData()
+
+function GeneralPolytope{D}(
+    vertices::Vector{<:Point},
+    graph::Vector{Vector{Int32}},
+    isopen::Bool,
+    ::ClipPolytopeData) where D
+
+  data = polyhedron_data(length(vertices))
+  GeneralPolytope{D}(vertices,graph,isopen,data)
+end
+
+function set_polytope_data!(p::GeneralPolytope,t::GridTopology,::ClipPolytopeData)
+  set_original_faces!(p,t)
   p
 end
 
-function Polyhedron(
-  vertices::AbstractVector{<:Point},
-  graph::Vector{<:Vector},
-  isopen,
-  data)
-
-  Polyhedron(collect(vertices),graph,isopen,data)
-end
-
-
-function Polyhedron(
-  vertices::AbstractVector{<:Point},
-  graph::Vector{<:Vector}
-  ;isopen=false::Bool)
-
-  Polyhedron(vertices,graph,isopen,polyhedron_data(length(vertices)))
-end
-
-function Polyhedron(
-  vertices::AbstractVector{<:Point},
-  graph::Vector{<:Vector},
-  data)
-
-  isopen = false
-  Polyhedron(vertices,graph,isopen,data)
-end
-
-function Polyhedron(p::Polytope{2},vertices::AbstractVector{<:Point})
-  if p == TRI
-    e_v_graph = [[2,3],[3,1],[1,2]]
-  elseif p == QUAD
-    e_v_graph = [[2, 3],[4, 1],[1, 4],[3, 2]]
-  else
-    @unreachable
-  end
-  e_v_graph = map(i->Int32.(i),e_v_graph)
-  data = polyhedron_data(p)
-  Polyhedron(vertices,e_v_graph,data)
-end
-
-function Polyhedron(p::Polytope{3},vertices::AbstractVector{<:Point})
-  if p == TET
-    e_v_graph = [[2,4,3],[3,4,1],[1,4,2],[1,2,3]]
-  elseif p == HEX
-    e_v_graph = [
-      [5, 2, 3],
-      [6, 4, 1],
-      [7, 1, 4],
-      [8, 3, 2],
-      [1, 7, 6],
-      [2, 5, 8],
-      [3, 8, 5],
-      [4, 6, 7] ]
-  else
-    @unreachable
-  end
-  e_v_graph = map(i->Int32.(i),e_v_graph)
-  data = polyhedron_data(p)
-  Polyhedron(vertices,e_v_graph,data)
-end
-
-function Polyhedron(p::Polytope)
-  Polyhedron(p,get_vertex_coordinates(p))
+function generate_polytope_data(p::Polytope,::ClipPolytopeData)
+  polyhedron_data(p)
 end
 
 # Operations
 
+"""
+    clip(p::Polyhedron,planes;kwargs...) -> Polyhedron
+
+  It clips a polyhedron by the halfspace of a plane or a set of planes.
+
+  # Optional keyword arguments
+  * `inside::Bool=true`: It clips the polyhedron by the inside ourside of the union of halfspace.
+  * `inout::Vector{Bool}=trues(length(planes))`: In reverses the halfspaces with `inside[i]=false`.
+  * `boundary::nothing`:
+      * If `boundary=true`, it preserves the vertices on the planes (zero distance)
+      * If `boundary=false`, it removes the vertices on the planes (zero distance)
+      * If `boundary=nothing`, it preserves the vertices on the planes if the normal of the plane points inwards.
+"""
 function clip(poly::Polyhedron,Π;inside=true,inout=trues(length(Π)),boundary=nothing)
   p = poly
   for (i,Πi) in enumerate(Π)
@@ -139,9 +120,22 @@ function clip(p::Polyhedron,Π,side;boundary=nothing::Union{Nothing,Bool},invert
   p
 end
 
+
+"""
+    split(p::Polyhedron,plane;kwargs...)
+
+  It splits a polyhedron by a plane into two polyhedra.
+
+  It returns a tuple of `Union{Polyhedron,Nothing}`.
+  If one side is empty, it returns `nothing` for that side.
+
+  # Optional keyword arguments
+  * `side::Symbol=:both`: It returns `:both` sides, the `:left` side, or the `:right` side
+  * `invert::Bool=false`: It inverts the plane
+"""
 function split(p::Polyhedron,Π,side=:both;invert=false)
   @assert side ∈ (:both,:left,:right)
-  distances = get_plane_distances(get_data(p),Π)
+  distances = get_plane_distances(get_metadata(p),Π)
   _sign = invert ? (-) : (+)
   distances = lazy_map(_sign,distances)
   smin = Inf
@@ -155,8 +149,8 @@ function split(p::Polyhedron,Π,side=:both;invert=false)
     return nothing,p
   end
   if smax < 0
-    if has_coplanars(get_data(p),Π)
-      add_plane!(get_data(p),Π)
+    if has_coplanars(get_metadata(p),Π)
+      add_plane!(get_metadata(p),Π)
     end
     return p,nothing
   end
@@ -166,7 +160,7 @@ function split(p::Polyhedron,Π,side=:both;invert=false)
     out_graph = _copy(get_graph(p))
   end
   ≶ = side ∈ (:both,:left) ? (≥) : (<)
-  data = copy( get_data(p) )
+  data = copy( get_metadata(p) )
   D = num_dims(p)
   for v in 1:num_vertices(p)
     isactive(p,v) || continue
@@ -199,95 +193,23 @@ function split(p::Polyhedron,Π,side=:both;invert=false)
   p⁻,p⁺
 end
 
-function simplexify(poly::Polyhedron{3})
-  !isopen(poly) || return simplexify_surface(poly)
-  vstart = fill(UNSET,num_vertices(poly))
-  stack = Int32[]
-  for v in 1:num_vertices(poly)
-    isactive(poly,v) || continue
-    vstart[v] == UNSET || continue
-    vstart[v] = v
-    empty!(stack)
-    push!(stack,v)
-    while !isempty(stack)
-      vcurrent = pop!(stack)
-      for vneig in get_graph(poly)[vcurrent]
-        if vstart[vneig] == UNSET
-          vstart[vneig] = v
-          push!(stack,vneig)
-        end
-      end
-    end
-  end
-  v_to_pv = get_data(poly).vertex_to_parent_vertex
-  istouch = map( i -> falses(length(i)), get_graph(poly) )
-  vertex_coordinates = get_vertex_coordinates(poly)
-  T = Vector{Int32}[]
-  X = vertex_coordinates
-  for v in 1:num_vertices(poly)
-    isactive(poly,v) || continue
-    for i in 1:length(get_graph(poly)[v])
-      !istouch[v][i] || continue
-      istouch[v][i] = true
-      vcurrent = v
-      vnext = get_graph(poly)[v][i]
-      while vnext != v
-        inext = findfirst( isequal(vcurrent), get_graph(poly)[vnext] )
-        !isnothing(inext) || break
-        inext = ( inext % length( get_graph(poly)[vnext] ) ) + 1
-        istouch[vnext][inext] = true
-        vcurrent = vnext
-        vnext = get_graph(poly)[vnext][inext]
-        @assert vcurrent ≠ vnext
-        vcurrent ≠ vnext || break
-        if v ∉ (vstart[v],vcurrent,vnext)
-          k = [vstart[v],v,vcurrent,vnext]
-          push!(T,k)
-        end
-      end
-    end
-  end
-  X,T
-end
+"""
+    simplexify_boundary(p::Polyhedron,t::GridTopology)
 
-function simplexify_surface(poly::Polyhedron{3})
-  stack = Int32[]
-  v_to_pv = get_data(poly).vertex_to_parent_vertex
-  istouch = map( i -> falses(length(i)), get_graph(poly) )
-  T = Vector{Int32}[]
-  for v in 1:num_vertices(poly)
-    isactive(poly,v) || continue
-    for i in 1:length(get_graph(poly)[v])
-      !istouch[v][i] || continue
-      istouch[v][i] = true
-      vcurrent = v
-      vnext = get_graph(poly)[v][i]
-      vnext ∉ (OPEN,UNSET) || continue
-      while vnext != v
-        inext = findfirst( isequal(vcurrent), get_graph(poly)[vnext] )
-        inext = ( inext % length( get_graph(poly)[vnext] ) ) + 1
-        istouch[vnext][inext] = true
-        vcurrent = vnext
-        vnext = get_graph(poly)[vnext][inext]
-        vnext ∉ (OPEN,UNSET) || break
-        if v ∉ (vcurrent,vnext)
-          k = [v,vcurrent,vnext]
-          push!(T,k)
-        end
-      end
-    end
-  end
-  get_vertex_coordinates(poly),T
-end
+  It generates a simplex mesh of the surface of the polyhedron that touches the
+  grid topology.
 
+  It returns the coordinates of the vertices, the connectivities and a mapping
+  to the topology facets.
+"""
 function simplexify_boundary(poly::Polyhedron{3},stl::GridTopology)
   D = 3
   stack = Int32[]
-  v_to_pv = get_data(poly).vertex_to_parent_vertex
+  v_to_pv = get_metadata(poly).vertex_to_parent_vertex
   if isopen(poly)
-    v_to_Π = get_data(poly).vertex_to_original_faces
+    v_to_Π = get_metadata(poly).vertex_to_original_faces
   else
-    v_to_Π = get_data(poly).vertex_to_planes
+    v_to_Π = get_metadata(poly).vertex_to_planes
   end
   facedims = get_facedims(stl)
   facet_list = Int32[]
@@ -337,11 +259,11 @@ function simplexify_boundary(::Nothing,args...)
   nothing,nothing,nothing
 end
 
-function simplexify(polys::AbstractVector{<:Polyhedron{Dp,Tp}}) where {Dp,Tp}
+function simplexify_interior(polys::AbstractVector{<:Polyhedron{Dp,Tp}}) where {Dp,Tp}
   T = Vector{Int32}[]
   X = Point{Dp,Tp}[]
   for poly in polys
-    Xi,Ti = simplexify(poly)
+    Xi,Ti = simplexify_interior(poly)
     append!(T, map(i->i.+length(X),Ti) )
     append!(X,Xi)
   end
@@ -394,7 +316,7 @@ end
 
 function simplexify_cell_boundary(p::Polyhedron,nf::Integer)
   X,T = simplexify_surface(p)
-  v_to_planes = p.data.vertex_to_planes
+  v_to_planes = p.metadata.vertex_to_planes
   T_to_planes = lazy_map(Broadcasting(Reindex(v_to_planes)),T)
   c_to_planes = map(i->reduce(intersect,i),T_to_planes)
   c_to_plane = map(first,c_to_planes)
@@ -446,7 +368,7 @@ function surface(polys::AbstractVector{<:Polyhedron},args...)
 end
 
 function volume(poly::Polyhedron{3})
-  X,T = simplexify(poly)
+  X,T = simplexify_interior(poly)
   p = TET
   c = array_cache(T)
   sum( i -> measure(get_cell!(c,X,T,p,i)), 1:length(T) )
@@ -479,7 +401,7 @@ function restrict(p::Polyhedron,nodes)
   graph = get_graph(p)[nodes]
   f = i -> Int32( i ∈ nodes ? findfirst(isequal(i),nodes) : OPEN )
   graph = map(i->map(f,i),graph)
-  data = restrict(get_data(p),nodes)
+  data = restrict(get_metadata(p),nodes)
   vertices = get_vertex_coordinates(p)[nodes]
   isopen = true
   Polyhedron(vertices,graph,isopen,data)
@@ -512,31 +434,7 @@ end
 
 # Getters
 
-num_dims(::T) where T<:Polyhedron = num_dims(T)
-
-num_dims(::Type{<:Polyhedron{D}}) where D = D
-
-point_eltype(::T) where T<:Polyhedron = point_eltype(T)
-
-point_eltype(::Type{<:Polyhedron{D,T}}) where {D,T} = T
-
-num_vertices(a::Polyhedron) = length(a.vertices)
-
-get_vertex_coordinates(a::Polyhedron) = a.vertices
-
-Base.getindex(a::Polyhedron,i::Integer) = a.vertices[i]
-
-@inline get_graph(a::Polyhedron) = a.edge_vertex_graph
-
-get_data(a::Polyhedron) = a.data
-
-Base.isopen(a::Polyhedron) = a.isopen
-
 get_vertex_to_planes(a::PolyhedronData) = a.vertex_to_planes
-
-function isactive(p::Polyhedron,vertex::Integer)
-  !isempty( get_graph(p)[vertex] )
-end
 
 function get_original_reflex_faces(p::Polyhedron{D},stl::GridTopology;empty=true) where D
   get_original_faces(p,stl,Val{D-2}();empty)
@@ -553,7 +451,7 @@ function get_original_faces(p::Polyhedron,stl::GridTopology,::Val{d};empty) wher
 end
 
 function collect_original_faces(p::Polyhedron,stl::GridTopology,d::Integer)
-  v_to_f = get_data(p).vertex_to_original_faces
+  v_to_f = get_metadata(p).vertex_to_original_faces
   facedims = get_facedims(stl)
   faces = Int32[]
   for v in 1:num_vertices(p)
@@ -577,7 +475,7 @@ function has_original_facet(p::Polyhedron{D},face::Integer;empty=false) where D
 end
 
 function has_original_face(p::Polyhedron,face::Integer,::Val{0};empty=false)
-  v_to_f = get_data(p).vertex_to_original_faces
+  v_to_f = get_metadata(p).vertex_to_original_faces
   for v in 1:num_vertices(p)
     if isactive(p,v) && face ∈ v_to_f[v]
       return true
@@ -587,8 +485,8 @@ function has_original_face(p::Polyhedron,face::Integer,::Val{0};empty=false)
 end
 
 function has_original_face(p::Polyhedron,face::Integer,::Val{1};empty=true)
-  v_to_f = get_data(p).vertex_to_original_faces
-  v_to_v = get_data(p).vertex_to_parent_vertex
+  v_to_f = get_metadata(p).vertex_to_original_faces
+  v_to_v = get_metadata(p).vertex_to_parent_vertex
   for v in 1:num_vertices(p)
     if isactive(p,v) && face ∈ v_to_f[v]
       for vneig in get_graph(p)[v]
@@ -604,8 +502,8 @@ end
 
 function has_original_face(p::Polyhedron,face::Integer,::Val{2};empty=false)
   d = 2
-  v_to_f = get_data(p).vertex_to_original_faces
-  v_to_v = get_data(p).vertex_to_parent_vertex
+  v_to_f = get_metadata(p).vertex_to_original_faces
+  v_to_v = get_metadata(p).vertex_to_parent_vertex
   for v in 1:num_vertices(p)
     if isactive(p,v) && face ∈ v_to_f[v]
       for vneig in get_graph(p)[v]
@@ -656,7 +554,7 @@ end
 
 function has_faces(p::Polyhedron,::Val{2})
   d = 2
-  v_to_v = get_data(p).vertex_to_parent_vertex
+  v_to_v = get_metadata(p).vertex_to_parent_vertex
   for v in 1:num_vertices(p)
     isactive(p,v) || continue
     for vneig in get_graph(p)[v]
@@ -704,21 +602,6 @@ end
 
 ## Helpers
 
-function check_graph(p::Polyhedron)
-  check_graph(get_graph(p))
-end
-
-function check_graph(graph::AbstractVector{<:AbstractVector})
-  for v in 1:length(graph)
-    !isempty(graph[v]) || continue
-    for vneig in graph[v]
-      vneig ∉ (OPEN,UNSET) || continue
-      v ∈ graph[vneig] || return false
-    end
-  end
-  true
-end
-
 function compact!(p::Polyhedron)
   ids = findall(i->!isactive(p,i),1:num_vertices(p))
   old_to_new = fill(UNSET,num_vertices(p))
@@ -735,7 +618,7 @@ function compact!(p::Polyhedron)
   deleteat!(graph,ids)
   f = i -> i ∈ (OPEN,UNSET) ? i : old_to_new[i]
   map!(i->map!(f,i,i),graph,graph)
-  compact!(p.data,ids,old_to_new)
+  compact!(p.metadata,ids,old_to_new)
   p
 end
 
@@ -768,14 +651,6 @@ function compact!(data::PolyhedronData,ids,old_to_new)
   data
 end
 
-function Base.copy(poly::Polyhedron)
-  vertices = get_vertex_coordinates(poly)
-  graph = get_graph(poly)
-  open = isopen(poly)
-  data = copy(get_data(poly))
-  Polyhedron(vertices,graph,open,data)
-end
-
 function Base.copy(data::PolyhedronData)
   v_to_Π = copy(data.vertex_to_planes)
   v_to_of = copy(data.vertex_to_original_faces)
@@ -788,9 +663,16 @@ function Base.copy(data::PolyhedronData)
   PolyhedronData(args...)
 end
 
+"""
+    compute_distances!(p::Polyhedron,planes,plane_ids[;atol=0])
+
+  Compute the distances from the vertices of the polyhedron to each plane of
+  the list `planes`. If the distance is below `atol`, it sets the distance to
+  zero.
+"""
 function compute_distances!(p::Polyhedron,Π,faces;atol=0)
-  data = get_data(p)
-  v_to_f = get_data(p).vertex_to_original_faces
+  data = get_metadata(p)
+  v_to_f = get_metadata(p).vertex_to_original_faces
   Π_to_v_to_d = get_plane_distances(data)
   Π_ids = get_plane_ids(data)
   Π_to_rΠ = data.plane_to_ref_plane
@@ -873,12 +755,12 @@ function compute_graph(stl::GridTopology{2})
       push!(graph[v],OPEN)
     end
   end
-  check_graph(graph) || error("Unable to build vertex-edge graph")
+  check_polytope_graph(graph) || error("Unable to build vertex-edge graph")
   graph
 end
 
 function set_original_faces!(p::Polyhedron,a...)
-  set_original_faces!(get_data(p),a...)
+  set_original_faces!(get_metadata(p),a...)
   p
 end
 
@@ -1136,12 +1018,12 @@ function get_planes(v,d,atol)
 end
 
 function get_new_plane_ids(poly)
-  id = minimum( get_plane_ids(poly.data) )
+  id = minimum( get_plane_ids(poly.metadata) )
   id-1,id-2,id-3
 end
 
 function round_distances!(poly,atol)
-  Π_to_v_to_dist = poly.data.plane_to_vertex_to_distances
+  Π_to_v_to_dist = poly.metadata.plane_to_vertex_to_distances
   for i in 1:length(Π_to_v_to_dist)
     v_to_dist = Π_to_v_to_dist[i]
     for v in 1:length(v_to_dist)
@@ -1169,7 +1051,7 @@ function get_active_planes(Γ::Polyhedron,K::Polyhedron,stl::GridTopology)
 end
 
 function restrict_planes!(poly::Polyhedron,planes)
-  restrict_planes!(get_data(poly),planes)
+  restrict_planes!(get_metadata(poly),planes)
 end
 
 function restrict_planes!(data::PolyhedronData,planes)
@@ -1211,7 +1093,7 @@ function restrict_planes!(data::PolyhedronData,planes)
 end
 
 function _get_used_planes(poly::Polyhedron)
-  v_to_Π = get_data(poly).vertex_to_planes
+  v_to_Π = get_metadata(poly).vertex_to_planes
   planes = Int32[]
   for v in 1:length(v_to_Π)
     for Π in v_to_Π[v]
@@ -1231,8 +1113,8 @@ end
 
 function _append_ref_planes(poly::Polyhedron,planes)
   ref_planes = Int32[]
-  Π_to_ref_Π = get_data(poly).plane_to_ref_plane
-  Π_to_id = get_plane_ids( get_data(poly) )
+  Π_to_ref_Π = get_metadata(poly).plane_to_ref_plane
+  Π_to_id = get_plane_ids( get_metadata(poly) )
   for Π in planes
     i = findfirst( isequal(Π), Π_to_id )
     i !== nothing || continue

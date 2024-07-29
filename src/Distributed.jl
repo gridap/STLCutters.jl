@@ -693,7 +693,7 @@ end
 
 # PR @ GridapDistributed.jl
 
-function Gridap.ReferenceFEs.simplexify(model::DistributedDiscreteModel{D};kwargs...) where D
+function _simplexify(model::DistributedDiscreteModel{D};kwargs...) where D
   models = map(local_views(model)) do m
     Gridap.ReferenceFEs.simplexify(m;kwargs...)
   end
