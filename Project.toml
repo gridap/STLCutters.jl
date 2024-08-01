@@ -1,7 +1,7 @@
 name = "STLCutters"
 uuid = "284f087d-c8bb-44c4-af3c-39d0e1f330a5"
 authors = ["Pere Antoni Martorell", "Large Scale Scientific Computing"]
-version = "0.2.1"
+version = "0.3.0"
 
 [deps]
 AlgebraicMultigrid = "2169fc97-5a83-5252-b627-83903c6c433c"
