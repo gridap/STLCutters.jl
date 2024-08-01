@@ -5,7 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
 ## [0.3.0] - 2024-08-01
 
 ### Added
@@ -15,7 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The type `Polyhedron` has been moved to `Gridap` as `GeneralPolytope`. Since [#33](https://github.com/gridap/STLCutters.jl/pull/33)
+- `Polyhedron` is now defined in `Gridap` as `GeneralPolytope{3}<Polytope{3}`. Its internal `data` is renamed to `metadata`. Since [#33](https://github.com/gridap/STLCutters.jl/pull/33)
+- `get_data(::Polyhedron)` is renamed to `get_metadata(::Polyhedron)`.
+- `simplexify(::Polyhedron)` now returns the same data structure as `simplexify(::Polytope)`. The previous implementation is renamed to `simplexify_interior`.
+- `check_graph` is renamed to `check_polytope_graph`.
 
 ## [0.2.1] - 2024-07-11
 

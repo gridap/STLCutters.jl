@@ -35,7 +35,7 @@ function main(distribute;
   pmax = pmax + diagonal*δ
   bgmodel = CartesianDiscreteModel(ranks,np,pmin,pmax,nc)
   if simplex
-    bgmodel = simplexify(bgmodel,positive=true)
+    bgmodel = STLCutters._simplexify(bgmodel,positive=true)
   end
 
   cutter = STLCutter(;tolfactor,timers)

@@ -8,7 +8,9 @@ using Gridap.Geometry
 using Gridap.Arrays
 using STLCutters
 
+
 using STLCutters: Polyhedron
+using STLCutters: Polygon
 using STLCutters: STL
 using STLCutters: restrict
 using STLCutters: clip
@@ -16,30 +18,24 @@ using STLCutters: split
 using STLCutters: surface, volume
 using STLCutters: get_facet_planes
 using STLCutters: compute_distances!
-using STLCutters: check_graph
 using STLCutters: compute_stl_model
 using STLCutters: read_stl
 using STLCutters: merge_nodes
 using STLCutters: simplexify_cell_boundary
 using STLCutters: compute_grid
+using STLCutters: clipping
+using STLCutters: check_polytope_graph
 
-p = Polyhedron(TRI)
-@test check_graph(p)
-#@test volume(p) ≈ 1/2
-#@test surface(p) ≈ 2+√2
 
-p = Polyhedron(QUAD)
-@test check_graph(p)
-#@test volume(p) ≈ 1
-#@test surface(p) ≈ 4
-
-p = Polyhedron(TET)
-@test check_graph(p)
+p = Polyhedron(TET,metadata=clipping)
+@test check_polytope_graph(p)
 @test volume(p) ≈ 1/6
 @test surface(p) ≈ 3/2 + (√3)/2
 
-p = Polyhedron(HEX)
-@test check_graph(p)
+p = Polyhedron(HEX,metadata=clipping)
+p.metadata.vertex_to_planes
+
+@test check_polytope_graph(p)
 @test volume(p) ≈ 1
 @test surface(p) ≈ 6
 
@@ -81,10 +77,10 @@ stl = STL(stlmodel)
 p1 = Polyhedron(stl)
 p2 = Polyhedron(stltopo)
 
-@test check_graph(p1)
+@test check_polytope_graph(p1)
 @test surface(p1) ≈ 6
 
-@test check_graph(p2)
+@test check_polytope_graph(p2)
 @test surface(p2) ≈ 6
 
 

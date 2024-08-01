@@ -27,6 +27,8 @@ using STLCutters: merge_nodes
 using STLCutters: compute_stl_model
 using STLCutters: compute_grid
 using STLCutters: FACE_IN, FACE_OUT, FACE_CUT
+using STLCutters: clipping
+using STLCutters: simplexify_interior
 
 vertices = [
   Point(0.1,-0.2,0.5),
@@ -54,9 +56,9 @@ stl = STL(stlmodel)
 
 # Setup cell
 stl_facets_k = 1:num_cells(stl)
-K = Polyhedron(HEX)
+K = Polyhedron(HEX,metadata=clipping)
 
-Γ0 = Polyhedron(stl)
+Γ0 = Polyhedron(stl,metadata=clipping)
 Γk0 = restrict(Γ0,stl,stl_facets_k)
 
 stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
@@ -73,9 +75,9 @@ compute_distances!(K,Πf,Πf_ids)
 Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,inside=true)
 Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,inside=false)
 
-X_in,T_in = simplexify(Kn_in)
-X_out,T_out = simplexify(Kn_out)
-X_Γ,T_Γ = simplexify(Γk)
+X_in,T_in = simplexify_interior(Kn_in)
+X_out,T_out = simplexify_interior(Kn_out)
+X_Γ,T_Γ = simplexify_interior(Γk)
 
 n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
 
@@ -123,9 +125,9 @@ stl = STL(stlmodel)
 
 # Setup cell
 stl_facets_k = 1:num_cells(stl)
-K = Polyhedron(HEX)
+K = Polyhedron(HEX,metadata=clipping)
 
-Γ0 = Polyhedron(stl)
+Γ0 = Polyhedron(stl,metadata=clipping)
 Γk0 = restrict(Γ0,stl,stl_facets_k)
 
 stl_reflex_faces_k = get_original_reflex_faces(Γk0,stl)
@@ -142,9 +144,9 @@ compute_distances!(K,Πf,Πf_ids)
 Kn_in = refine(K,Γk,stl,stl_reflex_faces_k,inside=true)
 Kn_out = refine(K,Γk,stl,stl_reflex_faces_k,inside=false)
 
-X_in,T_in = simplexify(Kn_in)
-X_out,T_out = simplexify(Kn_out)
-X_Γ,T_Γ = simplexify(Γk)
+X_in,T_in = simplexify_interior(Kn_in)
+X_out,T_out = simplexify_interior(Kn_out)
+X_Γ,T_Γ = simplexify_interior(Γk)
 
 n_to_io = get_cell_nodes_to_inout(Kn_in,Kn_out,HEX)
 
