@@ -171,6 +171,8 @@ end
 !!! note
     For compatibility reasons, we are not interested on adding `GridapP4est` as a dependency. The interested can add it to its own driver. 
 
+!!! note
+    The `compute_resdistribute_weights` is a `GridapEmbedded` function since [#95](https://github.com/gridap/GridapEmbedded.jl/pull/95)
 
 ### Adaptive mesh refinement with `p4est`
 
@@ -213,3 +215,5 @@ with_mpi() do distribute
 end
 ```
 
+!!! note
+    The `compute_adaptive_flags` is a `GridapEmbedded` function since [#95](https://github.com/gridap/GridapEmbedded.jl/pull/95)
