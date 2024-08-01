@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="515.11902mm"
+   height="189.21735mm"
+   viewBox="0 0 515.11902 189.21735"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="abstraction-levels.svg"
+   inkscape:export-filename="abstraction-levels.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     showguides="true"
+     inkscape:zoom="0.49449362"
+     inkscape:cx="697.68342"
+     inkscape:cy="257.83952"
+     inkscape:window-width="1920"
+     inkscape:window-height="1043"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1">
+    <sodipodi:guide
+       position="320.56328,99.260079"
+       orientation="1,0"
+       id="guide1714"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="3.1700339e-06,155.25255"
+       orientation="1,0"
+       id="guide1981"
+       inkscape:locked="false" />
+  </sodipodi:namedview>
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(64.80277,-82.94591)">
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#c83737;stroke:#c83737;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="-18.51619"
+       y="90.403137"
+       id="text236"><tspan
+         sodipodi:role="line"
+         id="tspan234"
+         style="font-size:10.5833px;fill:#c83737;stroke:#c83737;stroke-width:0.5;stroke-dasharray:none"
+         x="-18.51619"
+         y="90.403137">cut</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#c83737;stroke:#c83737;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="-7.2208853"
+       y="108.12508"
+       id="text946"><tspan
+         sodipodi:role="line"
+         id="tspan944"
+         style="font-size:10.5833px;stroke-width:0.5;fill:#c83737;stroke:#c83737"
+         x="-7.2208853"
+         y="108.12508">STLGeometry</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="-57.44693"
+       y="148.13588"
+       id="text946-5"><tspan
+         sodipodi:role="line"
+         id="tspan944-3"
+         style="font-size:10.5833px;stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="-57.44693"
+         y="148.13588">subtriangulate</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#c83737;stroke:#c83737;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="36.971001"
+       y="91.408554"
+       id="text1676"><tspan
+         sodipodi:role="line"
+         id="tspan1674"
+         style="font-size:10.5833px;stroke-width:0.5;fill:#c83737;stroke:#c83737"
+         x="36.971001"
+         y="91.408554">download_thingi_10k</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#c83737;stroke:#c83737;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="117.34357"
+       y="108.15683"
+       id="text1680"><tspan
+         sodipodi:role="line"
+         id="tspan1678"
+         style="font-size:10.5833px;stroke-width:0.5;fill:#c83737;stroke:#c83737"
+         x="117.34357"
+         y="108.15683">check_requisites</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#aa0000;stroke:#aa0000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="255.12151"
+       y="101.77748"
+       id="text1684"><tspan
+         sodipodi:role="line"
+         id="tspan1682"
+         style="stroke-width:0.5;fill:#aa0000;stroke:#aa0000"
+         x="255.12151"
+         y="101.77748">0. User Level</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="255.13737"
+       y="143.62483"
+       id="text1688"><tspan
+         sodipodi:role="line"
+         id="tspan1686"
+         style="stroke-width:0.5;stroke:#000000;fill:#000000"
+         x="255.13737"
+         y="143.62483">1. Advanced User</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="254.91513"
+       y="185.47218"
+       id="text1692"><tspan
+         sodipodi:role="line"
+         id="tspan1690"
+         style="stroke-width:0.5;fill:#000000;stroke:#000000"
+         x="254.91513"
+         y="185.47218">2. Main Workflow</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="254.66096"
+       y="227.2084"
+       id="text1696"><tspan
+         sodipodi:role="line"
+         style="stroke-width:0.5;stroke:#000000;fill:#000000"
+         x="254.66096"
+         y="227.2084"
+         id="tspan1698">3. Kernels</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="255.70879"
+       y="268.97638"
+       id="text1704"><tspan
+         sodipodi:role="line"
+         id="tspan1702"
+         style="stroke-width:0.5;fill:#000000;stroke:#000000"
+         x="255.70879"
+         y="268.97638">4. Internals &amp; Helpers</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="270.96225"
+       y="105.87719"
+       id="text1708"><tspan
+         sodipodi:role="line"
+         id="tspan1706"
+         style="stroke-width:0.5"
+         x="270.96225"
+         y="105.87719" /></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="266.23444"
+       y="198.0867"
+       id="text1712"><tspan
+         sodipodi:role="line"
+         id="tspan1710"
+         style="stroke-width:0.5"
+         x="266.23444"
+         y="198.0867" /></text>
+    <path
+       style="fill:#000000;stroke:#000000;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       d="M -64.802768,116.66072 H 394.10451"
+       id="path1925" />
+    <path
+       style="fill:#000000;stroke:#000000;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       d="M -64.802769,158.50807 H 394.10451"
+       id="path1925-3" />
+    <path
+       style="fill:#000000;stroke:#000000;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       d="M -64.802769,200.32367 H 394.10451"
+       id="path1925-3-6" />
+    <path
+       style="fill:#000000;stroke:#000000;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       d="M -64.80277,242.09164 H 394.10451"
+       id="path1925-3-6-7" />
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="180.27391"
+       y="192.12669"
+       id="text2045"><tspan
+         sodipodi:role="line"
+         style="stroke-width:0.5;fill:#666666;stroke:#666666"
+         x="180.27391"
+         y="192.12669"
+         id="tspan2047">clip</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="-53.140854"
+       y="212.30469"
+       id="text2057"><tspan
+         sodipodi:role="line"
+         id="tspan2055"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="-53.140854"
+         y="212.30469">simplexify</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="145.49222"
+       y="148.13588"
+       id="text2061"><tspan
+         sodipodi:role="line"
+         id="tspan2059"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="145.49222"
+         y="148.13588">send_to_ref_space</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="-38.918221"
+       y="131.41934"
+       id="text2069"><tspan
+         sodipodi:role="line"
+         id="tspan2067"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="-38.918221"
+         y="131.41934">read_stl</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="35.291431"
+       y="148.13588"
+       id="text2073"><tspan
+         sodipodi:role="line"
+         id="tspan2071"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="35.291431"
+         y="148.13588">compute_stl_model</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="25.122942"
+       y="131.41934"
+       id="text2077"><tspan
+         sodipodi:role="line"
+         id="tspan2075"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="25.122942"
+         y="131.41934">compute_cell_to_facets</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="59.533329"
+       y="171.39838"
+       id="text2081"><tspan
+         sodipodi:role="line"
+         id="tspan2079"
+         style="stroke-width:0.5;fill:#666666;stroke:#666666"
+         x="59.533329"
+         y="171.39838">save_cell_submesh!</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="-59.276089"
+       y="171.39838"
+       id="text2085"><tspan
+         sodipodi:role="line"
+         id="tspan2083"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="-59.276089"
+         y="171.39838">compute_polyhedra!</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="-51.370716"
+       y="191.85153"
+       id="text2089"><tspan
+         sodipodi:role="line"
+         id="tspan2087"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="-51.370716"
+         y="191.85153">get_reflex_planes</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="180.49054"
+       y="172.31383"
+       id="text2109"><tspan
+         sodipodi:role="line"
+         id="tspan2107"
+         style="stroke-width:0.5;fill:#666666;stroke:#666666"
+         x="180.49054"
+         y="172.31383">refine</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="63.507557"
+       y="191.85153"
+       id="text2176"><tspan
+         sodipodi:role="line"
+         id="tspan2174"
+         style="stroke-width:0.5;fill:#666666;stroke:#666666"
+         x="63.507557"
+         y="191.85153">propagate_inout!</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="-50.342186"
+       y="232.50772"
+       id="text2200"><tspan
+         sodipodi:role="line"
+         id="tspan2198"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="-50.342186"
+         y="232.50772">distance</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="17.441046"
+       y="212.33644"
+       id="text2204"><tspan
+         sodipodi:role="line"
+         id="tspan2202"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="17.441046"
+         y="212.33644">closest_point</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="163.10236"
+       y="230.52884"
+       id="text2208"><tspan
+         sodipodi:role="line"
+         id="tspan2206"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="163.10236"
+         y="230.52884">projection</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="108.23126"
+       y="214.4473"
+       id="text2212"><tspan
+         sodipodi:role="line"
+         id="tspan2210"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="108.23126"
+         y="214.4473">intersection_point</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="14.946507"
+       y="230.85692"
+       id="text2216"><tspan
+         sodipodi:role="line"
+         id="tspan2214"
+         style="stroke-width:0.5;stroke:#666666;fill:#666666"
+         x="14.946507"
+         y="230.85692">has_intersection_point</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#666666;stroke:#666666;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="78.826546"
+       y="258.91452"
+       id="text2322"><tspan
+         sodipodi:role="line"
+         id="tspan2320"
+         style="fill:#666666;stroke:#666666;stroke-width:0.5"
+         x="78.826546"
+         y="258.91452">_*</tspan></text>
+    <path
+       style="fill:#000000;stroke:#000000;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       d="M 251.17891,82.945914 V 272.16325"
+       id="path2424" />
+  </g>
+</svg>
