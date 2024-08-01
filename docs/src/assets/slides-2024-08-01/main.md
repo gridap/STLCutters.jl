@@ -75,6 +75,11 @@ Pere Antoni Martorell
 </div>
 
 
+<div style="position:absolute;bottom:20px;right:10px">
+
+[![w:100](logos/by.png)](https://creativecommons.org/licenses/by/4.0/)
+</div>
+
 ---
 <!-- backgroundColor:  white -->
 <!-- _backgroundColor:  white -->
