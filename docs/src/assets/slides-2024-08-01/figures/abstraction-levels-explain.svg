@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="515.11902mm"
+   height="189.21735mm"
+   viewBox="0 0 515.11902 189.21735"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="abstraction-levels-explain.svg"
+   inkscape:export-filename="abstraction-levels-explain.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     showguides="true"
+     inkscape:zoom="0.49449362"
+     inkscape:cx="697.68342"
+     inkscape:cy="253.79498"
+     inkscape:window-width="1920"
+     inkscape:window-height="1011"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1">
+    <sodipodi:guide
+       position="320.56328,99.260079"
+       orientation="1,0"
+       id="guide1714"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="3.1700339e-06,155.25255"
+       orientation="1,0"
+       id="guide1981"
+       inkscape:locked="false" />
+  </sodipodi:namedview>
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(64.80277,-82.94591)">
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#aa0000;stroke:#aa0000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="255.12151"
+       y="101.77748"
+       id="text1684"><tspan
+         sodipodi:role="line"
+         id="tspan1682"
+         style="stroke-width:0.5;fill:#aa0000;stroke:#aa0000"
+         x="255.12151"
+         y="101.77748">0. User Level</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="255.13737"
+       y="143.62483"
+       id="text1688"><tspan
+         sodipodi:role="line"
+         id="tspan1686"
+         style="stroke-width:0.5;stroke:#000000;fill:#000000"
+         x="255.13737"
+         y="143.62483">1. Advanced User</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="254.91513"
+       y="185.47218"
+       id="text1692"><tspan
+         sodipodi:role="line"
+         id="tspan1690"
+         style="stroke-width:0.5;fill:#000000;stroke:#000000"
+         x="254.91513"
+         y="185.47218">2. Main Workflow</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="254.66096"
+       y="227.2084"
+       id="text1696"><tspan
+         sodipodi:role="line"
+         style="stroke-width:0.5;stroke:#000000;fill:#000000"
+         x="254.66096"
+         y="227.2084"
+         id="tspan1698">3. Kernels</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="255.70879"
+       y="268.97638"
+       id="text1704"><tspan
+         sodipodi:role="line"
+         id="tspan1702"
+         style="stroke-width:0.5;fill:#000000;stroke:#000000"
+         x="255.70879"
+         y="268.97638">4. Internals &amp; Helpers</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="270.96225"
+       y="105.87719"
+       id="text1708"><tspan
+         sodipodi:role="line"
+         id="tspan1706"
+         style="stroke-width:0.5"
+         x="270.96225"
+         y="105.87719"></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:15.875px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:#000000;stroke-width:0.499999;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="266.23444"
+       y="198.0867"
+       id="text1712"><tspan
+         sodipodi:role="line"
+         id="tspan1710"
+         style="stroke-width:0.5"
+         x="266.23444"
+         y="198.0867"></tspan></text>
+    <path
+       style="fill:#000000;stroke:#000000;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       d="M -64.802768,116.66072 H 394.10451"
+       id="path1925" />
+    <path
+       style="fill:#000000;stroke:#000000;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       d="M -64.802769,158.50807 H 394.10451"
+       id="path1925-3" />
+    <path
+       style="fill:#000000;stroke:#000000;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       d="M -64.802769,200.32367 H 394.10451"
+       id="path1925-3-6" />
+    <path
+       style="fill:#000000;stroke:#000000;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       d="M -64.80277,242.09164 H 394.10451"
+       id="path1925-3-6-7" />
+    <path
+       style="fill:#000000;stroke:#000000;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       d="M 251.17891,82.945914 V 272.16325"
+       id="path2424" />
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#c83737;stroke:none;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="30.355583"
+       y="100.30769"
+       id="text2642"><tspan
+         sodipodi:role="line"
+         id="tspan2640"
+         style="stroke:none;stroke-width:1"
+         x="30.355583"
+         y="100.30769">GridapEmbedded API</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:none;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="-39.496155"
+       y="140.71176"
+       id="text2748"><tspan
+         sodipodi:role="line"
+         id="tspan2746"
+         style="fill:#000000;stroke-width:1"
+         x="-39.496155"
+         y="140.71176">Interface between STLCutters and GridapEmbedded</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:none;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="14.541366"
+       y="182.55911"
+       id="text2752"><tspan
+         sodipodi:role="line"
+         id="tspan2750"
+         style="fill:#000000;stroke-width:1"
+         x="14.541366"
+         y="182.55911">Algorithms in Publications</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:none;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="25.804056"
+       y="225.73862"
+       id="text2756"><tspan
+         sodipodi:role="line"
+         id="tspan2754"
+         style="fill:#000000;stroke-width:1"
+         x="25.804056"
+         y="225.73862">Geometrical operations</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;font-family:'Ubuntu Mono';-inkscape-font-specification:'Ubuntu Mono';fill:#000000;stroke:none;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;paint-order:fill markers stroke"
+       x="39.197922"
+       y="264.6994"
+       id="text2760"><tspan
+         sodipodi:role="line"
+         id="tspan2758"
+         style="fill:#000000;stroke-width:1"
+         x="39.197922"
+         y="264.6994">Other procedures</tspan></text>
+  </g>
+</svg>
