@@ -123,7 +123,7 @@ using PartitionedArrays
 using GridapP4est
 parts = 8
 cells = (2,2,2)
-filename = "stl_file_path.stl"
+filename = "293137.stl"
 with_mpi() do distribute
   ranks = distribute(LinearIndices((prod(parts),)))
   # Domain and discretization
@@ -143,7 +143,7 @@ with_mpi() do distribute
   Ω_act = Triangulation(cutgeo,ACTIVE)
   Ω = Triangulation(cutgeo)
   Γ = EmbeddedBoundary(cutgeo)
-  nΓ = get_normal_vector(Γ)   
+  nΓ = get_normal_vector(Γ)
   dΩ = Measure(Ω,2)
   dΓ = Measure(Γ,2)
   # FE spaces
@@ -187,19 +187,19 @@ using PartitionedArrays
 using GridapP4est
 parts = 8
 cells = (16,16,16)
-filename = "stl_file_path.stl"
+filename = "293137.stl"
 with_mpi() do distribute
   ranks = distribute(LinearIndices((prod(parts),)))
   # Domain and discretization
   geo = STLGeometry(filename)
   pmin,pmax = get_bounding_box(geo)
   coarse_model = CartesianDiscreteModel(pmin,pmax,cells)
-  model = OctreeDistributedDiscreteModel(ranks,coarse_model,2)
+  model = OctreeDistributedDiscreteModel(ranks,coarse_model)
   cutgeo = cut(model,geo)
   # Redistribute to avoid void subdmoains
-  weights = compute_adaptive_flags(cutgeo)
-  model, = Gridap.Adaptivity.adapt(model,weights=weights)
-  model = get_model(model.dmodel)
+  flags = compute_adaptive_flags(cutgeo)
+  model, = Gridap.Adaptivity.adapt(model,flags)
+  model = Gridap.Adaptivity.get_model(model.dmodel)
   # Re-compute discretization
   cutgeo = cut(model,geo)
   Ωin = Triangulation(cutgeo,PHYSICAL_IN)
