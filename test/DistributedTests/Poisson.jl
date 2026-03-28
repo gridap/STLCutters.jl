@@ -7,6 +7,8 @@ using PartitionedArrays
 using GridapEmbedded
 using Test
 
+using Gridap.ReferenceFEs
+
 function main(distribute;
   np = (1,1,1),
   nc = (2,2,2),
@@ -49,7 +51,23 @@ function main(distribute;
   n_Γ = get_normal_vector(Γ)
   degree = 2
   dΩ = Measure(Ω,degree)
-  dΓ = Measure(Γ,degree)
+
+  # Remark: Strictly, the measure on the EmbeddedBoundary 
+  # should exactly integrate the mass term of tensor-product
+  # shape functions restricted to the planes of the Embedded
+  # boundary. This is achieved by setting the integration 
+  # degree to 2*order*dim.
+  # dΓ = Measure(Γ,degree*num_dims(Ω))
+  # In many cases, however, we can subintegrate while keeping 
+  # convergence and accuracy. For this problem, here are some
+  # working examples:
+  # quad = Quadrature(witherden_vincent,degree+1)
+  # dΓ = Measure(Γ,quad) # 6 integration points when order = 1
+  # quad = Quadrature(strang,degree+1)
+  # dΓ = Measure(Γ,quad) # 4 integration points when order = 1
+  dΓ = Measure(Γ,Quadrature(duffy,degree)) # 4 integration points when order = 1
+  # See also https://github.com/gridap/Gridap.jl/issues/1242
+  # for more details.
 
   # Setup FESpace
   order = 1
