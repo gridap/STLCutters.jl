@@ -8,6 +8,7 @@ using Gridap
 using GridapEmbedded
 using Test
 
+using Gridap.ReferenceFEs
 using STLCutters: compute_stl_model
 using STLCutters: read_stl, merge_nodes, get_bounding_box
 
