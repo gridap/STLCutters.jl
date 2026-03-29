@@ -7,6 +7,8 @@ using PartitionedArrays
 using GridapEmbedded
 using Test
 
+using Gridap.ReferenceFEs
+
 function main(distribute;
   np = (1,1,1),
   nc = (2,2,2),
@@ -49,7 +51,10 @@ function main(distribute;
   n_Γ = get_normal_vector(Γ)
   degree = 2
   dΩ = Measure(Ω,degree)
-  dΓ = Measure(Γ,degree)
+
+  dΓ = Measure(Γ,Quadrature(duffy,degree)) # 4 integration points when order = 1
+  # See also https://github.com/gridap/Gridap.jl/issues/1242
+  # for more details.
 
   # Setup FESpace
   order = 1

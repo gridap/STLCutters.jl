@@ -3,6 +3,7 @@ module PoisonTests
 using STLCutters
 using Gridap
 import Gridap: ∇
+using Gridap.ReferenceFEs
 using GridapEmbedded
 using Test
 
@@ -56,7 +57,23 @@ n_Γd = get_normal_vector(Γd)
 order = 1
 degree = 2*order
 dΩ = Measure(Ω,degree)
-dΓd = Measure(Γd,degree)
+
+# Remark: Strictly, the measure on the EmbeddedBoundary 
+# should exactly integrate the mass term of tensor-product
+# shape functions restricted to the planes of the Embedded
+# boundary. This is achieved by setting the integration 
+# degree to 2*order*dim.
+# dΓ = Measure(Γ,degree*num_dims(Ω))
+# In many cases, however, we can subintegrate while keeping 
+# convergence and accuracy. For this problem, here are some
+# working examples:
+# quad = Quadrature(witherden_vincent,degree+1)
+# dΓ = Measure(Γ,quad) # 6 integration points when order = 1
+# quad = Quadrature(strang,degree+1)
+# dΓ = Measure(Γ,quad) # 4 integration points when order = 1
+dΓd = Measure(Γd,Quadrature(duffy,degree)) # 4 integration points when order = 1
+# See also https://github.com/gridap/Gridap.jl/issues/1242
+# for more details.
 
 vol = sum( ∫(1)*dΩ  )
 surf = sum( ∫(1)*dΓd )

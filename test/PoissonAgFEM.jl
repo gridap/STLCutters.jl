@@ -8,6 +8,7 @@ using Gridap
 using GridapEmbedded
 using Test
 
+using Gridap.ReferenceFEs
 using STLCutters: compute_stl_model
 using STLCutters: read_stl, merge_nodes, get_bounding_box
 
@@ -53,8 +54,11 @@ n_Γd = get_normal_vector(Γd)
 order = 1
 degree = 2*order
 dΩ = Measure(Ω,degree)
-dΓd = Measure(Γd,degree)
-#dΓg = Measure(Γg,degree)
+
+dΓd = Measure(Γd,Quadrature(duffy,degree)) # 4 integration points when order = 1
+# See also https://github.com/gridap/Gridap.jl/issues/1242
+# for more details.
+
 
 vol = sum( ∫(1)*dΩ  )
 surf = sum( ∫(1)*dΓd )
