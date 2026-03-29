@@ -5,6 +5,7 @@ using AlgebraicMultigrid
 
 using STLCutters
 using Gridap
+using Gridap.ReferenceFEs
 using GridapEmbedded
 using Test
 
@@ -50,7 +51,7 @@ function main(filename;n=20,δ=0.2,output=nothing)
   order = 1
   degree = 2*order
   dΩ = Measure(Ω,degree)
-  dΓd = Measure(Γd,degree)
+  dΓd = Measure(Γd,Quadrature(duffy,degree))
 
   # Setup FESpace
   Ω_act = Triangulation(cutgeo,ACTIVE)
