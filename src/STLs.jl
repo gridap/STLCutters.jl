@@ -249,7 +249,7 @@ function save_as_stl(stl::DiscreteModel{Dc,Dp},filename) where {Dc,Dp}
     vertices[ (i-1)*3+2 ] = pointtype(Tuple(coords[2])...)
     vertices[ (i-1)*3+3 ] = pointtype(Tuple(coords[3])...)
   end
-  mesh = MeshIO.Mesh(MeshIO.meta(vertices; normals=normals), faces)
+  mesh = MeshIO.Mesh(vertices, faces; normals=normals)
   save(file,mesh)
   filename
 end
