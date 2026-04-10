@@ -1,7 +1,7 @@
 name = "STLCutters"
 uuid = "284f087d-c8bb-44c4-af3c-39d0e1f330a5"
 authors = ["Pere Antoni Martorell", "Large Scale Scientific Computing"]
-version = "0.3.2"
+version = "0.3.3"
 
 [deps]
 AlgebraicMultigrid = "2169fc97-5a83-5252-b627-83903c6c433c"
@@ -29,7 +29,7 @@ GridapDistributed = "0.4"
 GridapEmbedded = "0.9.4"
 IterativeSolvers = "0.9"
 MPI = "0.20"
-MeshIO = "0.4"
+MeshIO = "0.5"
 MiniQhull = "0.4"
 PartitionedArrays = "0.3"
 ProgressMeter = "1.7"

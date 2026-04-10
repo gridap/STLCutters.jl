@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-04-10
+
+### Added
+
+- Added support for MeshIO v0.5
+
 ## [0.3.2] - 2026-03-29
 
 ### Added
@@ -53,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cut()` interface has been changed to align with `GridapEmbeded`.
 - `subtriangulate()` also returns cut facet data.
 - The output order of _simplexify_ functions has changed: (1st) coordinates, (2nd) connectivities.
-  
+
 ### Removed
 
 - `plot(::Polyhedron)` is removed to reduce dependencies [#28](https://github.com/gridap/STLCutters.jl/pull/28).
